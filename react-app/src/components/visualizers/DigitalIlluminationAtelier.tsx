@@ -4,77 +4,177 @@ import { useVisualizationData } from '../../hooks/useVisualizationData'
 import styles from './DigitalIlluminationAtelier.module.scss'
 
 const vertexShader = `
-  attribute vec4 position;
-  attribute vec2 texCoord;
-  attribute vec3 particleVelocity;
-  varying vec2 vTexCoord;
-  varying float vIntensity;
-  varying vec3 vColor;
-  uniform float uTime;
-  
+  attribute vec4 position; // Vertex position (x, y)
+  attribute vec2 texCoord; // Texture coordinate (u, v)
+  // particleVelocity was part of the original shader but not fully utilized with current geometry setup.
+  // For a true particle system, each vertex would need its own velocity attribute.
+  // We'll simulate particle-like effects using texture data for now.
+
+  varying vec2 vTexCoord; // Pass texture coordinate to fragment shader
+  varying vec3 vDataDrivenColor; // Pass data-driven color to fragment shader
+  varying float vCombinedIntensity; // Pass combined intensity to fragment shader
+
+  uniform float uTime; // Time uniform for animations
+  uniform sampler2D uDmxTexture; // DMX data texture
+  uniform sampler2D uMidiTexture; // MIDI data texture
+  uniform sampler2D uOscTexture; // OSC data texture
+
   void main() {
     vTexCoord = texCoord;
-    float time = mod(uTime * 0.001, 3.14159 * 2.0);
-    
-    // Add swirling motion
+    float time = uTime * 0.001; // Time in seconds
+
+    // Sample data textures to get intensities.
+    // Using texCoord directly might be too uniform.
+    // For more variation, we could use position or a derivative.
+    vec4 dmxData = texture2D(uDmxTexture, texCoord);
+    vec4 midiData = texture2D(uMidiTexture, texCoord);
+    vec4 oscData = texture2D(uOscTexture, texCoord);
+
+    // Simple intensity calculation (can be refined)
+    float dmxIntensity = dmxData.r; // Assuming DMX data is in red channel
+    float midiIntensity = midiData.g; // Assuming MIDI data is in green channel
+    float oscIntensity = oscData.b;   // Assuming OSC data is in blue channel
+    vCombinedIntensity = (dmxIntensity + midiIntensity + oscIntensity) / 3.0;
+
+    // Swirling motion (kept from original)
     vec4 pos = position;
-    pos.x += sin(time + position.y) * 0.1;
-    pos.y += cos(time + position.x) * 0.1;
+    pos.x += sin(time + position.y * 2.0 + oscIntensity * 5.0) * (0.1 + midiIntensity * 0.2);
+    pos.y += cos(time + position.x * 2.0 + dmxIntensity * 5.0) * (0.1 + oscIntensity * 0.2);
     
-    // Add particle velocity
-    pos.xyz += particleVelocity * time;
-    
+    // Data-driven displacement (e.g., make it "pulse" or "extrude")
+    // This is a simple example; could be made more complex.
+    // pos.z += vCombinedIntensity * 0.5 * sin(time * 10.0 + texCoord.x * 3.14);
+    // Since we are drawing a 2D quad, z displacement won't be visible unless perspective changes.
+    // Instead, we can modulate point size if we were using gl.POINTS, or affect color.
+
+    // Color influenced by data:
+    // DMX: Controls Red channel and a bit of blue
+    // MIDI: Controls Green channel and a bit of red
+    // OSC: Controls Blue channel and a bit of green
+    // Base color that shifts with time
+    vec3 baseColorTime = vec3(0.5 + sin(time * 0.5) * 0.2, 
+                              0.5 + cos(time * 0.7) * 0.2,
+                              0.5 + sin(time * 0.9) * 0.2);
+
+    vDataDrivenColor = baseColorTime + 
+                       vec3(dmxIntensity * 0.8, midiIntensity * 0.8, oscIntensity * 0.8) +
+                       vec3(midiIntensity * 0.2, oscIntensity * 0.2, dmxIntensity * 0.2);
+    vDataDrivenColor = clamp(vDataDrivenColor, 0.0, 1.0); // Ensure colors stay in valid range
+
     gl_Position = pos;
-    gl_PointSize = 4.0;
-    
-    // Pass color based on position
-    vColor = vec3(0.5 + sin(time) * 0.5, 
-                  0.5 + cos(time * 0.7) * 0.5,
-                  0.5 + sin(time * 1.3) * 0.5);
+    // gl_PointSize is only effective if gl.drawArrays mode is gl.POINTS
+    // The current setup uses gl.TRIANGLE_STRIP for a quad.
+    // To make "particles" on the quad, we'll rely on the fragment shader.
+    // gl_PointSize = 4.0 + vCombinedIntensity * 10.0; 
   }
 `
 
 const fragmentShader = `
   precision mediump float;
-  uniform sampler2D uDmxTexture;
-  uniform sampler2D uMidiTexture;
-  uniform sampler2D uOscTexture;
-  uniform float uTime;
-  varying vec2 vTexCoord;
-  varying vec3 vColor;
-  
+
+  uniform sampler2D uDmxTexture;  // DMX data texture
+  uniform sampler2D uMidiTexture; // MIDI data texture
+  uniform sampler2D uOscTexture;  // OSC data texture
+  uniform float uTime;            // Time uniform for animations
+
+  varying vec2 vTexCoord;         // Interpolated texture coordinate from vertex shader
+  varying vec3 vDataDrivenColor;  // Interpolated data-driven color from vertex shader
+  varying float vCombinedIntensity; // Interpolated combined intensity
+
+  // Function to generate a random value (useful for sparkles, noise)
   float rand(vec2 co) {
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
   }
 
+  // Function to create a procedural star/sparkle shape
+  float starShape(vec2 uv, float flare) {
+    float d = length(uv);
+    float m = 0.05 / d; // brightness falloff
+    
+    float rays = max(0.0, 1.0 - abs(uv.x * uv.y * 1000.0)); // Cross shape
+    m += rays * flare * 0.1; // Add ray brightness
+    
+    // Add some noise to the rays for a twinkling effect
+    float angle = atan(uv.y, uv.x);
+    float noise = sin(angle * 10.0 + uTime * 2.0) * 0.5 + 0.5; // Twinkle based on angle and time
+    m += noise * rays * 0.1;
+
+    return clamp(m, 0.0, 1.0);
+  }
+
+
   void main() {
-    vec4 dmx = texture2D(uDmxTexture, vTexCoord);
-    vec4 midi = texture2D(uMidiTexture, vTexCoord);
-    vec4 osc = texture2D(uOscTexture, vTexCoord);
+    float time = uTime * 0.001; // Time in seconds
+
+    // Sample data textures again (fragment shaders don't share vertex shader's exact samples)
+    // This allows for per-pixel effects based on data, not just per-vertex.
+    vec4 dmxVal = texture2D(uDmxTexture, vTexCoord);
+    vec4 midiVal = texture2D(uMidiTexture, vTexCoord);
+    vec4 oscVal = texture2D(uOscTexture, vTexCoord);
+
+    // Specific data intensities for fine-grained control in fragment shader
+    float dmxIntensity = dmxVal.r;
+    float midiIntensity = midiVal.g; // Often 0 unless a note is active at this "texCoord"
+    float oscIntensity = oscVal.b;
+
+    // --- Creative Effects ---
+
+    // 1. Base Color: Comes from vertex shader (vDataDrivenColor), already influenced by data
+    vec3 baseColor = vDataDrivenColor;
+
+    // 2. Particle/Sparkle Effect:
+    //    Make sparkles more prominent with MIDI activity (e.g., note-on events)
+    //    Use vTexCoord and time to create a field of sparkles.
+    //    The density or brightness of sparkles can be tied to overall intensity or specific data.
+    float sparkleGrid = rand(floor(vTexCoord * 100.0 + time * 0.1)); // Creates a grid of random values
+    float sparkleIntensity = 0.0;
+
+    if (sparkleGrid > 0.95 - midiIntensity * 0.1) { // More MIDI -> more sparkles
+        sparkleIntensity = (sparkleGrid - (0.95 - midiIntensity * 0.1)) / (0.05 + midiIntensity * 0.1);
+        sparkleIntensity = pow(sparkleIntensity, 2.0) * (0.5 + vCombinedIntensity * 0.5); // Make them pop
+    }
     
-    float time = uTime * 0.001;
+    vec3 sparkleColor = vec3(1.0, 1.0, 0.8) * sparkleIntensity; // Bright yellow sparkles
+
+    // 3. Aura/Glow Effect: Based on DMX and OSC intensity
+    //    Create a soft glow around areas of high DMX/OSC activity.
+    //    This can be simulated by adding a blurred version of the color or a radial gradient.
+    float glowFactor = smoothstep(0.1, 0.8, dmxIntensity + oscIntensity * 0.5);
+    vec3 glowColor = baseColor * glowFactor * 0.5; // Soft glow related to base color
+
+    // 4. Color Pulsing/Shifting:
+    //    Use OSC for subtle color shifts or pulsing effects across the screen.
+    float oscPulse = sin(time * 2.0 + vTexCoord.x * 5.0 + oscIntensity * 10.0) * 0.1 + 0.1;
+    vec3 pulseColorShift = vec3(oscPulse, -oscPulse * 0.5, oscPulse * 0.8) * oscIntensity;
+
+    // Combine effects
+    vec3 finalColor = baseColor + sparkleColor + glowColor + pulseColorShift;
+    finalColor = clamp(finalColor, 0.0, 1.0);
+
+    // Alpha: Use combined intensity, but make it more impactful
+    // The original alpha made it fade at edges of points for a firework particle style.
+    // Since we are rendering a full quad, we might want full opacity or data-driven transparency.
+    float alpha = clamp(vCombinedIntensity * 2.0 + 0.3, 0.3, 1.0); // Ensure it's mostly visible
     
-    // Create sparkling effect
-    float sparkle = rand(vTexCoord + vec2(time)) * 0.5 + 0.5;
-    
-    // Combine data intensities
-    float intensity = max(max(dmx.r, midi.g), osc.b);
-    
-    // Create flowing colors
-    vec3 baseColor = mix(
-      vec3(0.1, 0.2, 0.3),
-      vColor,
-      intensity + 0.2 * sin(time)
-    );
-    
-    // Add glow and sparkle
-    vec3 finalColor = baseColor + vec3(sparkle * intensity * 0.3);
-    
-    // Add firework-like particles
-    float dist = length(gl_PointCoord - vec2(0.5));
-    float alpha = smoothstep(0.5, 0.0, dist);
-    
-    gl_FragColor = vec4(finalColor, alpha * (intensity + 0.2));
+    // If a specific MIDI note triggers a "flash" make it more opaque
+    if (midiIntensity > 0.7) { // If a strong MIDI signal
+        alpha = max(alpha, 0.9);
+        finalColor += vec3(0.2, 0.2, 0.2); // Brighten the color during flash
+    }
+
+    // Add "firework-like particles" effect from original shader, but adapt it
+    // This works if gl_PointCoord is available (typically with gl.POINTS)
+    // For a quad, we can simulate this by creating patterns.
+    // For now, let's use a vignette effect that pulses with intensity.
+    float vignette = 1.0 - length(vTexCoord - vec2(0.5)) * (0.5 + vCombinedIntensity * 0.5);
+    vignette = smoothstep(0.0, 1.0, vignette);
+
+
+    gl_FragColor = vec4(finalColor * vignette, alpha);
+    // For a more "point cloud" look on the quad:
+    // float distToCenter = length(gl_PointCoord - vec2(0.5)); // Only if using gl.POINTS
+    // float particleAlpha = smoothstep(0.5, 0.0, distToCenter);
+    // gl_FragColor = vec4(finalColor, particleAlpha * (vCombinedIntensity + 0.2));
   }
 `
 
@@ -159,6 +259,9 @@ export const DigitalIlluminationAtelier: React.FC = () => {
     const gl = glRef.current
     if (!gl || !texturesRef.current.dmx) return
 
+    console.log('Data object from useVisualizationData:', data);
+
+    console.log('DMX values for texture update:', data.dmxValues);
     updateTexture(gl, texturesRef.current.dmx!, data.dmxValues)
 
     if (texturesRef.current.midi && data.midiActivity.length > 0) {
@@ -167,6 +270,7 @@ export const DigitalIlluminationAtelier: React.FC = () => {
         const idx = msg.channel * 16 + (msg.type === 'noteon' ? 0 : 8)
         midiData[idx] = msg.value ? msg.value / 127 : 0
       })
+      console.log('MIDI data for texture update:', midiData);
       updateTexture(gl, texturesRef.current.midi, midiData)
     }
 
@@ -175,6 +279,7 @@ export const DigitalIlluminationAtelier: React.FC = () => {
       data.oscMessages.forEach((msg, i) => {
         oscData[i % 512] = msg.direction === 'out' ? 0.8 : 0.4
       })
+      console.log('OSC data for texture update:', oscData);
       updateTexture(gl, texturesRef.current.osc, oscData)
     }
   }, [data])
@@ -232,7 +337,18 @@ export const DigitalIlluminationAtelier: React.FC = () => {
     bindTextures(gl, program)
 
     const timeLocation = gl.getUniformLocation(program, 'uTime')
-    gl.uniform1f(timeLocation, Date.now() - startTimeRef.current)
+    const currentTime = Date.now() - startTimeRef.current;
+    gl.uniform1f(timeLocation, currentTime)
+
+    // Log shader uniforms
+    console.log('Shader Uniform uTime:', currentTime);
+    const uDmxTextureLocation = gl.getUniformLocation(program, 'uDmxTexture');
+    console.log('Shader Uniform uDmxTexture Location:', uDmxTextureLocation, 'Value (texture unit):', 0); // Assuming texture unit 0
+    const uMidiTextureLocation = gl.getUniformLocation(program, 'uMidiTexture');
+    console.log('Shader Uniform uMidiTexture Location:', uMidiTextureLocation, 'Value (texture unit):', 1); // Assuming texture unit 1
+    const uOscTextureLocation = gl.getUniformLocation(program, 'uOscTexture');
+    console.log('Shader Uniform uOscTexture Location:', uOscTextureLocation, 'Value (texture unit):', 2); // Assuming texture unit 2
+
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
