@@ -18,6 +18,22 @@
   }
 }
 
+.connectedDevicesSummary {
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-primary-accent, rgba(0,0,0,0.05));
+  border: 1px solid var(--border-color-soft, rgba(0,0,0,0.1));
+  border-radius: var(--border-radius-md, 6px);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: center;
+  
+  b {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
 .card {
   background-color: var(--color-card-bg);
   border-radius: var(--border-radius);

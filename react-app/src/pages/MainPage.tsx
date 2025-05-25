@@ -8,7 +8,7 @@ import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { OscDebug } from '../components/osc/OscDebug'
 import { SceneGallery } from '../components/scenes/SceneGallery'
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
-import { DigitalIlluminationAtelier } from '../components/visualizers/DigitalIlluminationAtelier'
+// import { DigitalIlluminationAtelier } from '../components/visualizers/DigitalIlluminationAtelier' // Removed
 import { Settings } from '../components/settings/Settings'
 import styles from './MainPage.module.scss'
 
@@ -52,7 +52,7 @@ const MainPage: React.FC = () => {
         <div className={styles.viewContainer}>
           {currentView === 'main' && (
             <>
-              <DigitalIlluminationAtelier />
+              {/* <DigitalIlluminationAtelier /> // Removed */}
               <DmxControlPanel />
             </>
           )}

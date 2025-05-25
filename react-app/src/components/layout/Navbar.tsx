@@ -3,6 +3,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { NetworkStatus } from './NetworkStatus'
 import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
+import { Sparkles } from './Sparkles'
 
 type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'misc'
 
@@ -52,15 +53,6 @@ const navItems: Array<{
     }
   },
   {
-    id: 'oscDebug',
-    icon: 'fa-wave-square',
-    title: {
-      artsnob: 'OSC Critique',
-      standard: 'OSC Debug',
-      minimal: 'OSC'
-    }
-  },
-  {
     id: 'misc',
     icon: 'fa-cog',
     title: {
@@ -83,6 +75,7 @@ export const Navbar: React.FC = () => {
   }
   return (
     <nav className={styles.navbar}>
+      <Sparkles />
       <div className={styles.navButtons}>
         {navItems.map((item) => (
           <button
@@ -95,14 +88,6 @@ export const Navbar: React.FC = () => {
             <span>{item.title[theme]}</span>
           </button>
         ))}      </div>
-      <div className={styles.rightSideContainer}>
-        <div className={styles.dmxStatsContainer}>
-          <DmxChannelStats compact={true} />
-        </div>
-        <div className={styles.networkStatusContainer}>
-          <NetworkStatus compact={true} />
-        </div>
-      </div>
     </nav>
   )
 }

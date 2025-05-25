@@ -41,6 +41,17 @@ export interface OscActivity {
   timestamp: number // Timestamp of the last message
 }
 
+// Define PlacedFixture type for 2D canvas layout
+export interface PlacedFixture {
+  id: string; 
+  fixtureStoreId: string; 
+  name: string; 
+  x: number;
+  y: number;
+  color: string;
+  radius: number;
+}
+
 interface State {
   // DMX State
   dmxChannels: number[]
@@ -73,6 +84,7 @@ interface State {
   statusMessage: { text: string; type: 'success' | 'error' | 'info' } | null
   oscActivity: Record<number, OscActivity> // Added: channelIndex -> activity
   exampleSliderValue: number
+  fixtureLayout: PlacedFixture[] // Added for 2D fixture layout
   
   // Socket state
   socket: Socket | null
@@ -113,6 +125,7 @@ interface State {
   showStatusMessage: (text: string, type: 'success' | 'error' | 'info') => void
   clearStatusMessage: () => void
   setExampleSliderValue: (value: number) => void
+  setFixtureLayout: (layout: PlacedFixture[]) => void // Added action
 }
 
 export const useStore = create<State>()(
@@ -151,6 +164,7 @@ export const useStore = create<State>()(
       statusMessage: null,
       oscActivity: {}, // Initialize oscActivity
       exampleSliderValue: 0,
+      fixtureLayout: [], // Initialize fixtureLayout
       
       socket: null,
       setSocket: (socket) => set({ socket }),
@@ -177,7 +191,8 @@ export const useStore = create<State>()(
               groups: state.groups || [],
               midiMappings: state.midiMappings || {},
               artNetConfig: state.artNetConfig || get().artNetConfig,
-              scenes: state.scenes || []
+              scenes: state.scenes || [],
+              fixtureLayout: state.fixtureLayout || [] // Load fixtureLayout
             })
 
             return // Successfully fetched state
@@ -200,7 +215,8 @@ export const useStore = create<State>()(
             fixtures: [],
             groups: [],
             midiMappings: {},
-            scenes: []
+            scenes: [],
+            fixtureLayout: [] // Default fixtureLayout
           })
         }
       },
@@ -477,6 +493,14 @@ export const useStore = create<State>()(
 
       setExampleSliderValue: (value) => {
         set({ exampleSliderValue: value });
+      },
+
+      setFixtureLayout: (layout) => {
+        set({ fixtureLayout: layout });
+        // Optionally, here you could also trigger a save to backend if needed
+        // For example: get().socket?.emit('saveFixtureLayout', layout);
+        // This depends on whether exportSettings/importSettings already cover this.
+        // For now, we assume the layout is part of the state saved by existing mechanisms.
       }
     }),
     { name: 'ArtBastard-DMX-Store' }

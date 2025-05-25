@@ -4,6 +4,7 @@ import { useSocket } from '../../context/SocketContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useBrowserMidi } from '../../hooks/useBrowserMidi'
 import { MidiVisualizer } from './MidiVisualizer'
+import { OscDebug } from '../osc/OscDebug' // Import OscDebug
 import styles from './MidiOscSetup.module.scss'
 
 export const MidiOscSetup: React.FC = () => {
@@ -107,6 +108,10 @@ export const MidiOscSetup: React.FC = () => {
         {theme === 'standard' && 'MIDI/OSC Setup'}
         {theme === 'minimal' && 'MIDI/OSC'}
       </h2>
+
+      <div className={styles.connectedDevicesSummary}>
+        Connected MIDI Devices: Server (<b>{activeInterfaces.length}</b>), Browser (<b>{activeBrowserInputs.size}</b>)
+      </div>
       
       <div className={styles.setupGrid}>
         {/* Server MIDI Interface Card */}
@@ -406,6 +411,13 @@ export const MidiOscSetup: React.FC = () => {
                 )).reverse()
               )}
             </div>
+          </div>
+        </div>
+
+        {/* OSC Debug Card - Added */}
+        <div className={`${styles.card} ${styles.fullWidth}`}>
+          <div className={styles.cardBody}>
+            <OscDebug />
           </div>
         </div>
       </div>
