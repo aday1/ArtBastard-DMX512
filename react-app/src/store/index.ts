@@ -50,6 +50,36 @@ export interface PlacedFixture {
   y: number;
   color: string;
   radius: number;
+  controls?: PlacedControl[]; // Optional array for controls associated with this fixture
+}
+
+// Definition for PlacedControl on the 2D canvas, associated with a PlacedFixture
+export interface PlacedControl {
+  id: string;                     // Unique ID for this control instance
+  channelNameInFixture: string; // Name of the channel within the fixture's definition (e.g., "Dimmer", "Pan")
+  type: 'slider';                 // Initially, only sliders are supported
+  label: string;                  // Display label for the control (e.g., could be same as channelNameInFixture or custom)
+  xOffset: number;                // X position relative to the fixture icon's center
+  yOffset: number;                // Y position relative to the fixture icon's center
+  currentValue: number;           // Current value of this control (0-255), directly maps to DMX for now
+}
+
+// Define MasterSlider related types
+export interface MasterSliderTarget {
+  placedFixtureId: string;        // ID of the PlacedFixture instance on the canvas
+  channelIndex: number;           // Index of the channel within that fixture's definition (0-based)
+  channelNameInFixture: string;   // Name of the channel (e.g., "Dimmer", "Pan") for display and easier association
+  minRange: number;               // Min value for the target channel (e.g., 0)
+  maxRange: number;               // Max value for the target channel (e.g., 255)
+}
+
+export interface MasterSlider {
+  id: string;
+  name: string;
+  value: number; // Current value (0-255, or 0-1, let's use 0-255 for consistency with DMX)
+  targets: MasterSliderTarget[];
+  position: { x: number; y: number }; // Position on the 2D canvas
+  midiMapping?: MidiMapping; // Re-use existing MidiMapping type
 }
 
 interface State {
@@ -62,9 +92,10 @@ interface State {
   // MIDI State
   midiInterfaces: string[]
   activeInterfaces: string[]
-  midiMappings: Record<number, MidiMapping | undefined>
-  midiLearnChannel: number | null
-  midiLearnScene: string | null
+  midiMappings: Record<number, MidiMapping | undefined> // For DMX channel direct mappings
+  // midiLearnChannel: number | null // Deprecate in favor of midiLearnTarget
+  midiLearnTarget: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | null;
+  midiLearnScene: string | null // For scene MIDI learn, if different
   midiMessages: any[]
   
   // Fixtures and Groups
@@ -85,6 +116,15 @@ interface State {
   oscActivity: Record<number, OscActivity> // Added: channelIndex -> activity
   exampleSliderValue: number
   fixtureLayout: PlacedFixture[] // Added for 2D fixture layout
+  masterSliders: MasterSlider[]; // Added for master sliders
+
+  // Scene Transition State
+  isTransitioning: boolean;
+  transitionStartTime: number | null;
+  transitionDuration: number; // in ms
+  fromDmxValues: number[] | null;
+  toDmxValues: number[] | null;
+  currentTransitionFrame: number | null; // requestAnimationFrame ID
   
   // Socket state
   socket: Socket | null
@@ -92,7 +132,11 @@ interface State {
   
   // Actions
   fetchInitialState: () => Promise<void>
-  setDmxChannel: (channel: number, value: number) => void
+  setDmxChannel: (channel: number, value: number) => void // This posts to backend
+  setDmxChannelsForTransition: (values: number[]) => void; // For internal transition updates, no backend post
+  setCurrentTransitionFrameId: (frameId: number | null) => void; // To store requestAnimationFrame ID
+  clearTransitionState: () => void; // Action to reset transition state
+  setTransitionDuration: (duration: number) => void; // Action to set scene transition duration
   selectChannel: (channel: number) => void
   deselectChannel: (channel: number) => void
   toggleChannelSelection: (channel: number) => void
@@ -103,10 +147,11 @@ interface State {
   reportOscActivity: (channelIndex: number, value: number) => void // Added action
   
   // MIDI Actions
-  startMidiLearn: (channel: number) => void
+  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number }) => void;
   cancelMidiLearn: () => void
   addMidiMessage: (message: any) => void
-  addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void
+  // addMidiMapping is for DMX channels. Master sliders will have mapping stored on their object.
+  addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
   removeMidiMapping: (dmxChannel: number) => void
   clearAllMidiMappings: () => void
   
@@ -126,6 +171,11 @@ interface State {
   clearStatusMessage: () => void
   setExampleSliderValue: (value: number) => void
   setFixtureLayout: (layout: PlacedFixture[]) => void // Added action
+  addMasterSlider: (slider: MasterSlider) => void;
+  updateMasterSliderValue: (sliderId: string, value: number) => void;
+  updateMasterSlider: (sliderId: string, updatedSlider: Partial<MasterSlider>) => void; // For more comprehensive updates
+  removeMasterSlider: (sliderId: string) => void;
+  setMasterSliders: (sliders: MasterSlider[]) => void; // For loading all sliders
 }
 
 export const useStore = create<State>()(
@@ -140,7 +190,8 @@ export const useStore = create<State>()(
       midiInterfaces: [],
       activeInterfaces: [],
       midiMappings: {},
-      midiLearnChannel: null,
+      // midiLearnChannel: null, // Deprecated
+      midiLearnTarget: null,
       midiLearnScene: null,
       midiMessages: [],
       
@@ -165,6 +216,15 @@ export const useStore = create<State>()(
       oscActivity: {}, // Initialize oscActivity
       exampleSliderValue: 0,
       fixtureLayout: [], // Initialize fixtureLayout
+      masterSliders: [], // Initialize masterSliders
+
+      // Scene Transition State Init
+      isTransitioning: false,
+      transitionStartTime: null,
+      transitionDuration: 1000, // Default 1 second
+      fromDmxValues: null,
+      toDmxValues: null,
+      currentTransitionFrame: null,
       
       socket: null,
       setSocket: (socket) => set({ socket }),
@@ -192,9 +252,14 @@ export const useStore = create<State>()(
               midiMappings: state.midiMappings || {},
               artNetConfig: state.artNetConfig || get().artNetConfig,
               scenes: state.scenes || [],
-              fixtureLayout: state.fixtureLayout || [] // Load fixtureLayout
+              fixtureLayout: state.fixtureLayout || [], // Load fixtureLayout
+              masterSliders: state.masterSliders || [] // Load masterSliders
             })
 
+            // Load transitionDuration from persisted settings if available
+            if (state.settings && typeof state.settings.transitionDuration === 'number') {
+                set({ transitionDuration: state.settings.transitionDuration });
+            }
             return // Successfully fetched state
           }
           throw new Error('Invalid response from server')
@@ -216,12 +281,14 @@ export const useStore = create<State>()(
             groups: [],
             midiMappings: {},
             scenes: [],
-            fixtureLayout: [] // Default fixtureLayout
+            fixtureLayout: [], // Default fixtureLayout
+            masterSliders: [], // Default masterSliders
+            transitionDuration: 1000, // Ensure default on fail too
           })
         }
       },
       
-      setDmxChannel: (channel, value) => {
+      setDmxChannel: (channel, value) => { // This is for individual, manual changes, posts to backend
         const dmxChannels = [...get().dmxChannels]
         dmxChannels[channel] = value
         set({ dmxChannels })
@@ -232,6 +299,32 @@ export const useStore = create<State>()(
             console.error('Failed to update DMX channel:', error)
             get().showStatusMessage('Failed to update DMX channel', 'error')
           })
+      },
+
+      setDmxChannelsForTransition: (values) => { // For transition updates, does not post to backend
+        set({ dmxChannels: values });
+        // Optionally, could dispatch a local event for UI components that need frequent updates
+        // without observing the entire dmxChannels array for performance.
+        // e.g., window.dispatchEvent(new CustomEvent('dmxTransitionUpdate', { detail: { values } }));
+      },
+
+      setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
+
+      clearTransitionState: () => set({
+        isTransitioning: false,
+        transitionStartTime: null,
+        fromDmxValues: null,
+        toDmxValues: null,
+        currentTransitionFrame: null,
+        // Do not reset transitionDuration here, as it's a user setting
+      }),
+
+      setTransitionDuration: (duration) => {
+        if (duration >= 0) { // Basic validation
+          set({ transitionDuration: duration });
+          // Optionally, persist this to backend/localStorage if settings are saved that way
+          // For now, it updates the store, and fetchInitialState might load it if it's part of general settings.
+        }
       },
       
       selectChannel: (channel) => {
@@ -277,27 +370,33 @@ export const useStore = create<State>()(
       },
       
       // MIDI Actions
-      startMidiLearn: (channel) => {
-        set({ midiLearnChannel: channel })
-        
-        // Emit to server
-        axios.post('/api/midi/learn', { channel })
-          .catch(error => {
-            console.error('Failed to start MIDI learn:', error)
-            get().showStatusMessage('Failed to start MIDI learn', 'error')
-          })
+      startMidiLearn: (target) => {
+        // If currently learning for another target, cancel it first (optional, or UI should prevent this)
+        // For now, directly set the new target.
+        set({ midiLearnTarget: target });
+        // No server emit here for master slider learn, it's client-side state.
+        // If target is dmxChannel, existing server emit might be relevant if server assists in learning.
+        if (target.type === 'dmxChannel') {
+            axios.post('/api/midi/learn', { channel: target.channelIndex })
+              .catch(error => {
+                console.error('Failed to start MIDI learn for DMX channel:', error);
+                get().showStatusMessage('Failed to start MIDI learn for DMX channel', 'error');
+              });
+        }
+        // Add a timeout for learn mode (e.g., 10 seconds)
+        // This needs to be managed carefully, perhaps in the hook that uses this.
       },
       
       cancelMidiLearn: () => {
-        const channel = get().midiLearnChannel
-        set({ midiLearnChannel: null })
+        const currentTarget = get().midiLearnTarget;
+        set({ midiLearnTarget: null });
         
-        if (channel !== null) {
-          // Emit to server
-          axios.post('/api/midi/cancel-learn', { channel })
+        if (currentTarget && currentTarget.type === 'dmxChannel') {
+          // Emit to server if it was a DMX channel learn
+          axios.post('/api/midi/cancel-learn', { channel: currentTarget.channelIndex })
             .catch(error => {
-              console.error('Failed to cancel MIDI learn:', error)
-            })
+              console.error('Failed to cancel MIDI learn for DMX channel:', error);
+            });
         }
       },
       
@@ -377,15 +476,27 @@ export const useStore = create<State>()(
           })
       },
       
-      loadScene: (name) => {
-        const scenes = get().scenes
-        const scene = scenes.find(s => s.name === name)
+      loadScene: (name) => { // This will be modified to trigger transitions
+        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState } = get();
+        const scene = scenes.find(s => s.name === name);
         
         if (scene) {
-          set({ dmxChannels: [...scene.channelValues] })
+          if (isTransitioning && currentTransitionFrame) {
+            cancelAnimationFrame(currentTransitionFrame);
+            set({ currentTransitionFrame: null }); // Clear frame ID
+          }
+
+          set({
+            isTransitioning: true,
+            fromDmxValues: [...currentDmxState], // Start from current live DMX values
+            toDmxValues: [...scene.channelValues],
+            transitionStartTime: Date.now(),
+            // transitionDuration is already in store, can be set by user
+          });
           
-          // Emit to server
-          axios.post('/api/scenes/load', { name })
+          // The actual animation loop will be started by a component observing these changes or a separate service.
+          // For now, just setting state. The backend is notified that this scene *will be* the target.
+          axios.post('/api/scenes/load', { name }) // Inform backend about the target scene
             .catch(error => {
               console.error('Failed to load scene:', error)
               get().showStatusMessage('Failed to load scene', 'error')
@@ -501,7 +612,50 @@ export const useStore = create<State>()(
         // For example: get().socket?.emit('saveFixtureLayout', layout);
         // This depends on whether exportSettings/importSettings already cover this.
         // For now, we assume the layout is part of the state saved by existing mechanisms.
-      }
+      },
+
+      addMasterSlider: (slider) => set(state => ({ masterSliders: [...state.masterSliders, slider] })),
+      
+      updateMasterSliderValue: (sliderId, value) => {
+        const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
+        const updatedSliders = masterSliders.map(s => 
+          s.id === sliderId ? { ...s, value } : s
+        );
+        set({ masterSliders: updatedSliders });
+
+        const activeSlider = updatedSliders.find(s => s.id === sliderId);
+        if (activeSlider && activeSlider.targets) {
+          activeSlider.targets.forEach(target => {
+            const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
+            if (!pFix) return;
+
+            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId);
+            if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
+            
+            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; // 0-indexed
+
+            if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
+              // Scale value: master (0-255) -> target (minRange-maxRange)
+              const masterValueNormalized = value / 255;
+              let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
+              targetDmxValue = Math.round(targetDmxValue);
+              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); // Clamp to 0-255
+              
+              // Call setDmxChannel (which is part of the store, so get() provides it if actions are structured that way)
+              // Or, if setDmxChannel is a top-level action in the slice:
+              dmxSetter(actualDmxAddress, targetDmxValue);
+            }
+          });
+        }
+      },
+      
+      updateMasterSlider: (sliderId, updatedSlider) => set(state => ({
+        masterSliders: state.masterSliders.map(s => s.id === sliderId ? { ...s, ...updatedSlider } : s)
+      })),
+      removeMasterSlider: (sliderId) => set(state => ({
+        masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
+      })),
+      setMasterSliders: (sliders) => set({ masterSliders: sliders }),
     }),
     { name: 'ArtBastard-DMX-Store' }
   )
