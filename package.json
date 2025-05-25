@@ -17,6 +17,7 @@
     "build-launcher": "cd launcher && npm run build && mkdir -p ../launcher-dist && cp -r dist/* ../launcher-dist"
   },
   "dependencies": {
+    "@julusian/midi": "^3.6.1",
     "@types/cors": "^2.8.17",
     "@types/ping": "^0.4.4",
     "boxen": "^5.1.2",
