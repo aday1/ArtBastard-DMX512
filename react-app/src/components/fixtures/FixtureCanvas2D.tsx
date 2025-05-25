@@ -162,7 +162,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           </div>
         )}
 
-        {selectedPlacedFixtureForConfig && !selectedPlacedControlForConfig && ( /* ... PlacedFixture Config Panel ... */ )}
+        {selectedPlacedFixtureForConfig && !selectedPlacedControlForConfig && (null)}
         {selectedPlacedControlForConfig && ( /* ... PlacedControl Config Panel ... */ )}
       </div>
     </div>
