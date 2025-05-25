@@ -9,8 +9,20 @@ export const useBrowserMidi = () => {
   const [error, setError] = useState<string | null>(null)
   const [activeBrowserInputs, setActiveBrowserInputs] = useState<Set<string>>(new Set())
   const { socket, connected: socketConnected } = useSocket()
-  const showStatusMessage = useStore(state => state.showStatusMessage)
-  const addMidiMessageToStore = useStore(state => state.addMidiMessage)
+  
+  const {
+    showStatusMessage,
+    addMidiMessage: addMidiMessageToStore,
+    midiLearnTarget,
+    updateMasterSlider,
+    cancelMidiLearn,
+  } = useStore(state => ({
+    showStatusMessage: state.showStatusMessage,
+    addMidiMessage: state.addMidiMessage,
+    midiLearnTarget: state.midiLearnTarget,
+    updateMasterSlider: state.updateMasterSlider,
+    cancelMidiLearn: state.cancelMidiLearn,
+  }));
 
   // Initialize Web MIDI API
   useEffect(() => {
@@ -81,36 +93,52 @@ export const useBrowserMidi = () => {
 
     const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
       const [status, data1, data2] = event.data
-
-      // Extract message type and channel
       const messageType = status >> 4
-      const channel = status & 0xf
+      const channel = status & 0xf // MIDI channel 0-15, often displayed as 1-16
 
-      // Get source name safely
       const sourceInput = event.target as WebMidi.MIDIInput
       const source = sourceInput?.name || 'Browser MIDI'
-
-      let message: any = null
-
+      
       console.log(`[useBrowserMidi] Raw MIDI from ${source} (ID: ${sourceInput?.id}):`, event.data)
 
+      // --- MIDI Learn Logic for Master Sliders ---
+      if (midiLearnTarget && midiLearnTarget.type === 'masterSlider') {
+        let learnedMapping: MidiMapping | null = null;
+        if (messageType === 0xB) { // Control Change
+          learnedMapping = { channel: channel + 1, controller: data1 }; // Store channel as 1-16
+        } else if (messageType === 0x9 && data2 > 0) { // Note On (velocity > 0)
+          learnedMapping = { channel: channel + 1, note: data1 }; // Store channel as 1-16
+        }
+        // Could also handle Note Off for learning if desired, e.g. for toggle or specific off actions
+
+        if (learnedMapping) {
+          console.log(`[useBrowserMidi] Learned MIDI for Master Slider ID ${midiLearnTarget.id}:`, learnedMapping);
+          updateMasterSlider(midiLearnTarget.id, { midiMapping: learnedMapping });
+          showStatusMessage(`MIDI control learned for Master Slider.`, 'success');
+          cancelMidiLearn(); // Clear learn mode
+          return; // Message consumed by learn mode
+        }
+      }
+      // --- End MIDI Learn Logic ---
+      
+      // --- Normal MIDI Message Processing ---
+      let messageToStore: any = null;
       if (messageType === 0x9) { // Note On
-        message = { _type: 'noteon', channel, note: data1, velocity: data2, source }
+        messageToStore = { _type: 'noteon', channel: channel + 1, note: data1, velocity: data2, source }
       } else if (messageType === 0x8) { // Note Off
-        message = { _type: 'noteoff', channel, note: data1, velocity: data2, source }
+        messageToStore = { _type: 'noteoff', channel: channel + 1, note: data1, velocity: data2, source }
       } else if (messageType === 0xB) { // Control Change
-        message = { _type: 'cc', channel, controller: data1, value: data2, source }
+        messageToStore = { _type: 'cc', channel: channel + 1, controller: data1, value: data2, source }
       }
 
-      if (message) {
+      if (messageToStore) {
         if (socket && socketConnected) {
-          socket.emit('browserMidiMessage', message)
+          socket.emit('browserMidiMessage', messageToStore)
         } else {
-          console.warn('[useBrowserMidi] Socket not connected. MIDI message not sent to server.')
+          // console.warn('[useBrowserMidi] Socket not connected. MIDI message not sent to server.')
         }
-
         if (addMidiMessageToStore) {
-          addMidiMessageToStore(message)
+          addMidiMessageToStore(messageToStore)
         } else {
           console.error('[useBrowserMidi] addMidiMessage action not found in store')
         }

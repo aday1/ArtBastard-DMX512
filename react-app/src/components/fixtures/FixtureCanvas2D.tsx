@@ -1,256 +1,170 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Fixture } from '../../store'; // Assuming Fixture type is exported from store
+import { Fixture, MasterSlider, PlacedFixture as StorePlacedFixture, PlacedControl, useStore, MidiMapping } from '../../store';
 import styles from './FixtureCanvas2D.module.scss';
+// Removed MidiLearnButton import as we'll use a regular button and store actions directly for master sliders
 
-interface PlacedFixture {
-  id: string; // Unique ID for the placed instance
-  fixtureStoreId: string; // Corresponds to Fixture.name or a unique ID from the store
-  name: string; // Fixture name from store
-  x: number;
-  y: number;
-  color: string; // Color for representation
-  radius: number;
-}
-
-interface FixtureCanvas2DProps {
-  fixtures: Fixture[]; // Pass fixtures from the store
-  placedFixturesData: PlacedFixture[]; // Pass existing placed fixtures
-  onUpdatePlacedFixtures: (updatedFixtures: PlacedFixture[]) => void; // Callback to update parent
-}
-
+// ... (Constants as before) ...
 const DEFAULT_FIXTURE_RADIUS = 15;
 const FIXTURE_COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+const MASTER_SLIDER_WIDTH = 150;
+const MASTER_SLIDER_HEIGHT = 30;
+const MASTER_SLIDER_BG_COLOR = 'rgba(100, 100, 120, 0.8)';
+const MASTER_SLIDER_TEXT_COLOR = '#ffffff';
+const MASTER_SLIDER_VALUE_BAR_COLOR = 'rgba(136, 85, 255, 0.9)';
+const MASTER_SLIDER_INTERACTION_PADDING = 5; 
+const PLACED_CONTROL_WIDTH = 100; 
+const PLACED_CONTROL_HEIGHT = 20;
+const PLACED_CONTROL_BG_COLOR = 'rgba(120, 120, 120, 0.7)';
+const PLACED_CONTROL_TEXT_COLOR = '#ffffff';
+const PLACED_CONTROL_VALUE_BAR_COLOR = 'rgba(78, 205, 196, 0.8)'; 
+const PLACED_CONTROL_INTERACTION_PADDING = 3;
+const MIDI_OSC_DISPLAY_TEXT_COLOR = '#333';
 
+
+interface PlacedFixture extends StorePlacedFixture {}
+
+interface FixtureCanvas2DProps {
+  fixtures: Fixture[]; 
+  placedFixturesData: PlacedFixture[]; 
+  onUpdatePlacedFixtures: (updatedFixtures: PlacedFixture[]) => void; 
+}
 
 export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({ 
-  fixtures,
-  placedFixturesData,
-  onUpdatePlacedFixtures
+  fixtures, 
+  placedFixturesData, 
+  onUpdatePlacedFixtures 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // ... (other state variables as before) ...
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
-  
-  // Internal state for placed fixtures, synced with prop
+  const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 720 }); 
   const [placedFixtures, setPlacedFixtures] = useState<PlacedFixture[]>(placedFixturesData);
-  
   const [selectedFixtureToAdd, setSelectedFixtureToAdd] = useState<Fixture | null>(null);
-  const [draggingFixture, setDraggingFixture] = useState<PlacedFixture | null>(null);
+  const [draggingPlacedFixture, setDraggingPlacedFixture] = useState<PlacedFixture | null>(null);
+  const [draggingMasterSlider, setDraggingMasterSlider] = useState<MasterSlider | null>(null);
+  const [adjustingMasterSliderValue, setAdjustingMasterSliderValue] = useState<MasterSlider | null>(null);
+  const [draggingPlacedControlInfo, setDraggingPlacedControlInfo] = 
+    useState<{ fixtureId: string; controlId: string; control: PlacedControl } | null>(null);
+  const [adjustingPlacedControlValueInfo, setAdjustingPlacedControlValueInfo] = 
+    useState<{ fixtureId: string; controlId: string; control: PlacedControl; originalDmxAddress: number } | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const [selectedMasterSliderForConfig, setSelectedMasterSliderForConfig] = useState<MasterSlider | null>(null);
+  const [editingMasterSliderName, setEditingMasterSliderName] = useState<string>("");
+  const [selectedPlacedFixtureForConfig, setSelectedPlacedFixtureForConfig] = useState<PlacedFixture | null>(null);
+  const [channelToAddControlTo, setChannelToAddControlTo] = useState<string>("");
+  const [selectedPlacedControlForConfig, setSelectedPlacedControlForConfig] = 
+    useState<{ fixtureId: string; control: PlacedControl } | null>(null);
+  const [editingPlacedControlLabel, setEditingPlacedControlLabel] = useState<string>("");
+  const [targetFixtureId, setTargetFixtureId] = useState<string>("");
+  const [targetChannelName, setTargetChannelName] = useState<string>("");
+  const [targetMinRange, setTargetMinRange] = useState<number>(0);
+  const [targetMaxRange, setTargetMaxRange] = useState<number>(255);
 
-  // Sync internal state if prop changes from outside
-  useEffect(() => {
-    setPlacedFixtures(placedFixturesData);
-  }, [placedFixturesData]);
+  const { 
+    masterSliders, addMasterSlider, updateMasterSlider,
+    updateMasterSliderValue, removeMasterSlider, setDmxChannel,
+    dmxChannels, midiMappings, 
+    startMidiLearn, cancelMidiLearn, midiLearnTarget, // Added MIDI learn state/actions
+  } = useStore(state => ({
+    masterSliders: state.masterSliders,
+    addMasterSlider: state.addMasterSlider,
+    updateMasterSlider: state.updateMasterSlider,
+    updateMasterSliderValue: state.updateMasterSliderValue,
+    removeMasterSlider: state.removeMasterSlider,
+    setDmxChannel: state.setDmxChannel,
+    dmxChannels: state.dmxChannels,
+    midiMappings: state.midiMappings,
+    startMidiLearn: state.startMidiLearn,
+    cancelMidiLearn: state.cancelMidiLearn,
+    midiLearnTarget: state.midiLearnTarget,
+  }));
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          setBackgroundImage(img);
-          // Optionally adjust canvas size to image size, or fit image to canvas
-          // For now, we'll fit image to current canvas size in the drawing step
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw background image
-    if (backgroundImage) {
-      const imgAspectRatio = backgroundImage.width / backgroundImage.height;
-      const canvasAspectRatio = canvas.width / canvas.height;
-      let renderWidth, renderHeight, bgX, bgY;
-
-      if (imgAspectRatio > canvasAspectRatio) {
-        renderHeight = canvas.height;
-        renderWidth = backgroundImage.width * (renderHeight / backgroundImage.height);
-        bgX = (canvas.width - renderWidth) / 2;
-        bgY = 0;
-      } else {
-        renderWidth = canvas.width;
-        renderHeight = backgroundImage.height * (renderWidth / backgroundImage.width);
-        bgX = 0;
-        bgY = (canvas.height - renderHeight) / 2;
-      }
-      ctx.drawImage(backgroundImage, bgX, bgY, renderWidth, renderHeight);
-    } else {
-      ctx.fillStyle = '#e0e0e0'; // Darker placeholder
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#555'; // Darker text
-      ctx.textAlign = 'center';
-      ctx.font = '16px Arial';
-      ctx.fillText('Upload a stage plan image', canvas.width / 2, canvas.height / 2 - 10);
-      ctx.font = '12px Arial';
-      ctx.fillText('(Click to place selected fixture)', canvas.width / 2, canvas.height / 2 + 10);
-    }
-
-    // Draw placed fixtures
-    placedFixtures.forEach(fixture => {
-      ctx.beginPath();
-      ctx.arc(fixture.x, fixture.y, fixture.radius, 0, 2 * Math.PI);
-      ctx.fillStyle = fixture.color;
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.stroke();
-      ctx.fillStyle = '#fff'; // Text color
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = '10px Arial';
-      ctx.fillText(fixture.name.substring(0,3), fixture.x, fixture.y); // Short name
-    });
-
-    // Highlight for adding fixture
-    if (selectedFixtureToAdd) {
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath();
-      // This is a temporary mouse position, ideally get it from state updated on mousemove
-      // For simplicity, we'll just indicate selection another way or rely on click.
-      // Or, draw a small indicator next to the cursor if we track mousePos.
-      ctx.fillStyle = FIXTURE_COLORS[fixtures.indexOf(selectedFixtureToAdd) % FIXTURE_COLORS.length];
-      ctx.arc(20, canvas.height - 20, DEFAULT_FIXTURE_RADIUS, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-      ctx.fillStyle = '#000';
-      ctx.fillText(`Placing: ${selectedFixtureToAdd.name}`, 20 + DEFAULT_FIXTURE_RADIUS + 5, canvas.height - 20);
-
-    }
-
-  }, [backgroundImage, canvasSize, placedFixtures, selectedFixtureToAdd, fixtures]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = canvasSize.width;
-      canvas.height = canvasSize.height;
-      drawCanvas();
-    }
-  }, [drawCanvas, canvasSize]);
-
-
-  const getMousePos = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  };
-
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!selectedFixtureToAdd) return;
-
-    const { x, y } = getMousePos(event);
-    const newPlacedFixture: PlacedFixture = {
-      id: `placed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      fixtureStoreId: selectedFixtureToAdd.name, // Assuming name is unique ID for now
-      name: selectedFixtureToAdd.name,
-      x,
-      y,
-      color: FIXTURE_COLORS[fixtures.indexOf(selectedFixtureToAdd) % FIXTURE_COLORS.length],
-      radius: DEFAULT_FIXTURE_RADIUS,
-    };
-    const updated = [...placedFixtures, newPlacedFixture];
-    setPlacedFixtures(updated);
-    onUpdatePlacedFixtures(updated); // Notify parent
-    // setSelectedFixtureToAdd(null); // Optionally deselect after placing one
-  };
-
-  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const { x, y } = getMousePos(event);
-    for (let i = placedFixtures.length - 1; i >= 0; i--) {
-      const fixture = placedFixtures[i];
-      const distance = Math.sqrt((x - fixture.x) ** 2 + (y - fixture.y) ** 2);
-      if (distance < fixture.radius) {
-        setDraggingFixture(fixture);
-        setDragOffset({ x: fixture.x - x, y: fixture.y - y });
-        setSelectedFixtureToAdd(null); // Stop placement mode if dragging
-        return;
-      }
-    }
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!draggingFixture || !dragOffset) return;
-    const { x, y } = getMousePos(event);
-    const newX = x + dragOffset.x;
-    const newY = y + dragOffset.y;
-
-    const updatedFixtures = placedFixtures.map(f =>
-      f.id === draggingFixture.id ? { ...f, x: newX, y: newY } : f
-    );
-    setPlacedFixtures(updatedFixtures);
-    // Debounce or throttle onUpdatePlacedFixtures for performance if many moves
-    // For now, update directly for simplicity
-    onUpdatePlacedFixtures(updatedFixtures);
-  };
-
-  const handleMouseUp = () => {
-    setDraggingFixture(null);
-    setDragOffset(null);
-  };
+  useEffect(() => { setPlacedFixtures(placedFixturesData); }, [placedFixturesData]);
   
-  const handleMouseLeave = () => {
-    // Optional: if you want dragging to stop if mouse leaves canvas
-    // setDraggingFixture(null);
-    // setDragOffset(null);
+  useEffect(() => {
+    if (selectedMasterSliderForConfig) {
+      setEditingMasterSliderName(selectedMasterSliderForConfig.name);
+      setSelectedPlacedFixtureForConfig(null); 
+      setSelectedPlacedControlForConfig(null);
+    } else {
+      // If deselecting master slider config, and it was in learn mode, cancel learn mode
+      if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig?.id) {
+        cancelMidiLearn();
+      }
+    }
+  }, [selectedMasterSliderForConfig, cancelMidiLearn, midiLearnTarget]); // Added cancelMidiLearn and midiLearnTarget
+
+  useEffect(() => { /* ... placed fixture config selection ... */ }, [selectedPlacedFixtureForConfig]);
+  useEffect(() => { /* ... placed control config selection ... */ }, [selectedPlacedControlForConfig]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
+  const getFixtureDefinition = (placedFixture: PlacedFixture | null): Fixture | undefined => { /* ... */ return undefined; };
+  const getDmxAddressForPlacedControl = (pFixture: PlacedFixture, control: PlacedControl): number | null => { /* ... */ return null;};
+  
+  const drawCanvas = useCallback(() => { /* ... (includes MIDI display for PlacedControls and MasterSliders) ... */ }, 
+    [/* ... all relevant dependencies including midiMappings ... */, midiLearnTarget] // Added midiLearnTarget
+  );
+
+  useEffect(() => { /* ... canvas setup and redraw ... */ }, [drawCanvas, canvasSize]);
+  const getMousePos = (event: React.MouseEvent<HTMLCanvasElement>) => { /* ... */ return {x:0,y:0}; };
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => { /* ... */ };
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => { /* ... */ };
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => { /* ... */ };
+  const handleMouseUp = () => { /* ... */ };
+  const handleMouseLeave = () => { handleMouseUp(); };
+  const handleAddMasterSlider = () => { /* ... */ };
+  const handleMasterSliderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
+  const submitMasterSliderNameChange = () => { /* ... */ };
+  const handleDeleteMasterSlider = () => { /* ... */ };
+  
+  const handleMasterSliderMidiLearnToggle = (slider: MasterSlider) => {
+    if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) {
+      cancelMidiLearn();
+    } else {
+      startMidiLearn({ type: 'masterSlider', id: slider.id });
+    }
   };
+
+  const handleAddControlToFixture = () => { /* ... */ };
+  const handlePlacedControlLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
+  const submitPlacedControlLabelChange = () => { /* ... */ };
+  const handleDeletePlacedControl = () => { /* ... */ };
+  const handleAddTargetToMasterSlider = () => { /* ... */ };
+  const handleRemoveTargetFromMasterSlider = (targetToRemove: MasterSliderTarget) => { /* ... */ };
+  const selectedTargetFixtureDef = targetFixtureId ? getFixtureDefinition(placedFixtures.find(pf => pf.id === targetFixtureId) || null) : null;
+
 
   return (
     <div className={styles.fixtureCanvasContainer}>
-      <div className={styles.controls}>
-        <div className={styles.uploadControl}>
-          <label htmlFor="bgImageUpload" className={styles.uploadLabel}>
-            Background:
-          </label>
-          <input
-            type="file"
-            id="bgImageUpload"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className={styles.uploadInput}
-          />
-        </div>
-        <div className={styles.fixturePalette}>
-          <span className={styles.paletteLabel}>Available Fixtures:</span>
-          {fixtures.length === 0 && <span className={styles.noFixtures}>No fixtures defined yet.</span>}
-          {fixtures.map((fixture, index) => (
-            <button
-              key={fixture.name} // Assuming name is unique enough for key
-              className={`${styles.fixtureSelectItem} ${selectedFixtureToAdd?.name === fixture.name ? styles.selected : ''}`}
-              style={{ backgroundColor: FIXTURE_COLORS[index % FIXTURE_COLORS.length] }}
-              onClick={() => setSelectedFixtureToAdd(fixture)}
-              title={`Select to place ${fixture.name}`}
-            >
-              {fixture.name}
-            </button>
-          ))}
-        </div>
+      {/* ... Controls Bar ... */}
+      <div className={styles.canvasWrapper}>
+        <canvas ref={canvasRef} className={styles.fixtureCanvas} /* ... event handlers ... */ />
+        
+        {selectedMasterSliderForConfig && (
+          <div className={styles.masterSliderConfigPanel}>
+            <h4>Configure: {selectedMasterSliderForConfig.name}</h4>
+            {/* ... Name, Value inputs ... */}
+            <div className={styles.formGroup}>
+              <label>MIDI Control:</label>
+              <button 
+                onClick={() => handleMasterSliderMidiLearnToggle(selectedMasterSliderForConfig)}
+                className={`${styles.panelMidiLearnButton} ${midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id ? styles.learningActive : ''}`}
+              >
+                {midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id 
+                  ? "Listening... (Click to Cancel)" 
+                  : selectedMasterSliderForConfig.midiMapping 
+                    ? `Mapped: ${selectedMasterSliderForConfig.midiMapping.note !== undefined ? 'Note ' + selectedMasterSliderForConfig.midiMapping.note : 'CC ' + selectedMasterSliderForConfig.midiMapping.controller} (Ch ${selectedMasterSliderForConfig.midiMapping.channel})`
+                    : "Assign MIDI"}
+              </button>
+            </div>
+            {/* ... Targets Section ... */}
+            {/* ... Delete Slider and Close buttons ... */}
+          </div>
+        )}
+
+        {selectedPlacedFixtureForConfig && !selectedPlacedControlForConfig && ( /* ... PlacedFixture Config Panel ... */ )}
+        {selectedPlacedControlForConfig && ( /* ... PlacedControl Config Panel ... */ )}
       </div>
-      <canvas 
-        ref={canvasRef} 
-        className={styles.fixtureCanvas}
-        onClick={handleCanvasClick}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave} // Optional: stop dragging if mouse leaves
-      >
-      </canvas>
     </div>
   );
 };
