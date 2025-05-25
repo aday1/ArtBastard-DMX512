@@ -1,19 +1,23 @@
 import React, { useState } from 'react'
-import { useStore } from '../../store'
+import { useStore, PlacedFixture } from '../../store' // Import PlacedFixture
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
-import { FixtureVisualizer3D } from './FixtureVisualizer3D'
+// import { FixtureVisualizer3D } from './FixtureVisualizer3D' // Removed
+import { FixtureCanvas2D } from './FixtureCanvas2D'; // Added
 import styles from './FixtureSetup.module.scss'
+
+// PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
+import { MidiLearnButton } from '../midi/MidiLearnButton'; // Import MidiLearnButton
 
 interface FixtureChannel {
   name: string
-  type: 'dimmer' | 'red' | 'green' | 'blue' | 'pan' | 'tilt' | 'gobo' | 'other'
+  type: 'dimmer' | 'red' | 'green' | 'blue' | 'pan' | 'tilt' | 'gobo' | 'other';
 }
 
 interface FixtureFormData {
-  name: string
-  startAddress: number
-  channels: FixtureChannel[]
+  name: string;
+  startAddress: number;
+  channels: FixtureChannel[];
 }
 
 const channelTypes = [
@@ -27,9 +31,58 @@ const channelTypes = [
   { value: 'other', label: 'Other' }
 ]
 
+// Define Fixture Templates
+const fixtureTemplates: Array<{
+  templateName: string;
+  defaultNamePrefix: string;
+  channels: FixtureChannel[];
+}> = [
+  {
+    templateName: 'Simple Par Can (RGB + Dimmer)',
+    defaultNamePrefix: 'RGBD Par',
+    channels: [
+      { name: 'Red', type: 'red' },
+      { name: 'Green', type: 'green' },
+      { name: 'Blue', type: 'blue' },
+      { name: 'Dimmer', type: 'dimmer' },
+    ],
+  },
+  {
+    templateName: 'Moving Head Spot (Basic)',
+    defaultNamePrefix: 'Basic Mover',
+    channels: [
+      { name: 'Pan', type: 'pan' },
+      { name: 'Tilt', type: 'tilt' },
+      { name: 'Dimmer', type: 'dimmer' },
+      { name: 'Gobo Wheel', type: 'gobo' },
+      { name: 'Color Wheel', type: 'other' },
+    ],
+  },
+  {
+    templateName: 'Generic Dimmer',
+    defaultNamePrefix: 'Dimmer',
+    channels: [{ name: 'Intensity', type: 'dimmer' }],
+  },
+  {
+    templateName: 'RGBW Par Can',
+    defaultNamePrefix: 'RGBW Par',
+    channels: [
+      { name: 'Red', type: 'red' },
+      { name: 'Green', type: 'green' },
+      { name: 'Blue', type: 'blue' },
+      { name: 'White', type: 'other' }, 
+      { name: 'Dimmer', type: 'dimmer' },
+    ],
+  },
+];
+
 export const FixtureSetup: React.FC = () => {
   const { theme } = useTheme()
-  const fixtures = useStore(state => state.fixtures)
+  const { fixtures, fixtureLayout, setFixtureLayout } = useStore(state => ({
+    fixtures: state.fixtures,
+    fixtureLayout: state.fixtureLayout,
+    setFixtureLayout: state.setFixtureLayout,
+  }));
   const groups = useStore(state => state.groups)
   
   const [showCreateFixture, setShowCreateFixture] = useState(false)
@@ -43,6 +96,13 @@ export const FixtureSetup: React.FC = () => {
     name: '',
     fixtureIndices: [] as number[]
   })
+
+  const calculateNextStartAddress = () => {
+    if (fixtures.length === 0) return 1;
+    // Ensure addresses are numbers and positive before using Math.max
+    const lastAddresses = fixtures.map(f => (f.startAddress || 1) + (f.channels?.length || 0));
+    return Math.max(1, ...lastAddresses.map(addr => Math.max(1, addr)));
+  };
   
   // Handle fixture form changes
   const handleFixtureChange = (key: keyof FixtureFormData, value: any) => {
@@ -141,8 +201,12 @@ export const FixtureSetup: React.FC = () => {
         {theme === 'minimal' && 'Fixtures'}
       </h2>
       
-      {/* 3D Fixture Visualizer */}
-      <FixtureVisualizer3D />
+      {/* 2D Fixture Canvas */}
+      <FixtureCanvas2D 
+        fixtures={fixtures} 
+        placedFixturesData={fixtureLayout} // Use data from store
+        onUpdatePlacedFixtures={setFixtureLayout} // Use store action to update
+      />
       
       <div className={styles.setupGrid}>
         {/* Fixture Management Section */}
@@ -252,6 +316,16 @@ export const FixtureSetup: React.FC = () => {
                           <i className="fas fa-times"></i>
                         </button>
                       </div>
+                      <div className={styles.channelDmxInfo}>
+                        <span className={styles.dmxAddressLabel}>
+                          DMX: {fixtureForm.startAddress + index} 
+                          {/* Display 1-indexed DMX address */}
+                        </span>
+                        <MidiLearnButton 
+                          channelIndex={fixtureForm.startAddress + index -1} // Pass 0-indexed DMX channel
+                          className={styles.channelMidiLearnButton} 
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -288,20 +362,54 @@ export const FixtureSetup: React.FC = () => {
               <button 
                 className={styles.createButton}
                 onClick={() => {
-                  setShowCreateFixture(true)
-                  // Set next available DMX address
-                  if (fixtures.length > 0) {
-                    const lastFixture = fixtures[fixtures.length - 1]
-                    const nextAddress = lastFixture.startAddress + lastFixture.channels.length
-                    setFixtureForm(prev => ({ ...prev, startAddress: nextAddress }))
-                  }
+                  setFixtureForm({ 
+                    name: '',
+                    startAddress: calculateNextStartAddress(),
+                    channels: [{ name: 'Intensity', type: 'dimmer' }]
+                  });
+                  setShowCreateFixture(true);
                 }}
               >
                 <i className="fas fa-plus"></i>
-                {theme === 'artsnob' && 'Create New Fixture'}
-                {theme === 'standard' && 'Add Fixture'}
-                {theme === 'minimal' && 'Add'}
+                {theme === 'artsnob' && 'Craft Custom Fixture'}
+                {theme === 'standard' && 'Add Custom Fixture'}
+                {theme === 'minimal' && 'Custom'}
               </button>
+            )}
+            {!showCreateFixture && (
+              <div className={styles.templateSection}>
+                <h4 className={styles.templateTitle}>
+                  {theme === 'artsnob' ? 'Or, select an archetype:' : 
+                   theme === 'standard' ? 'Create from template:' : 'Templates:'}
+                </h4>
+                <div className={styles.templateButtons}>
+                  {fixtureTemplates.map(template => (
+                    <button
+                      key={template.templateName}
+                      className={styles.templateButton}
+                      onClick={() => {
+                        const nextAddress = calculateNextStartAddress();
+                        const existingNames = fixtures.map(f => f.name);
+                        let suggestedName = template.defaultNamePrefix;
+                        let counter = 1;
+                        while (existingNames.includes(suggestedName)) {
+                          suggestedName = `${template.defaultNamePrefix} ${counter++}`;
+                        }
+
+                        setFixtureForm({
+                          name: suggestedName,
+                          startAddress: nextAddress,
+                          // Deep copy channels to prevent modifying template array
+                          channels: JSON.parse(JSON.stringify(template.channels)) 
+                        });
+                        setShowCreateFixture(true);
+                      }}
+                    >
+                      {template.templateName}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

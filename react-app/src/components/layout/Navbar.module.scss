@@ -10,32 +10,24 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  animation: rainbow-bg 10s linear infinite;
+  pointer-events: none; // Allow clicks to pass through the navbar background
+
+  @keyframes rainbow-bg {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 
   .navButtons {
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
+    pointer-events: auto; // Make buttons clickable
   }
   
-  .rightSideContainer {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .dmxStatsContainer {
-    display: flex;
-    align-items: center;
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
-    padding-right: 1.5rem;
-  }
-
-  .networkStatusContainer {
-    display: flex;
-    align-items: center;
-  }
-
   .navButton {
+    pointer-events: auto; // Explicitly make nav buttons clickable
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
@@ -111,20 +103,6 @@
     flex-wrap: wrap;
     justify-content: center;
     
-    .rightSideContainer {
-      width: 100%;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      padding-top: 0.5rem;
-    }
-    
-    .dmxStatsContainer {
-      border-right: none;
-      padding-right: 0;
-      padding-bottom: 0.25rem;
-    }
-
     .navButton {
       min-width: auto;
       padding: 0.5rem 1rem;

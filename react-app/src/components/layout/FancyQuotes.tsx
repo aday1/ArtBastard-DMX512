@@ -9,10 +9,7 @@ interface Quote {
 
 const luxuryQuotes: Quote[] = [
   // These quotes are deliberately over-the-top, pretentious, and nonsensical
-  { 
-    text: "La lumière n'est pas simplement une présence, c'est une poésie visuelle qui transcende l'obscurité philistine!",
-    author: "Jean-Baptiste Lumière-Fantastique, Luminographe Extraordinaire"
-  },
+  // Purely French quotes removed, retaining Franglish and English ones.
   {
     text: "When I choreograph photons, I do not create mere illumination, but rather a quantum ballet of existential enlightenment.",
     author: "Monsieur Éclaircissement du Néant",
@@ -24,11 +21,6 @@ const luxuryQuotes: Quote[] = [
     color: "#ff00ff"
   },
   {
-    text: "Le contrepoint des ombres et lumières évoque les étranglements émotionnels de l'âme contemporaine, n'est-ce pas?",
-    author: "Professeur Claude Brillance-Vaporeuse",
-    color: "#00e1ff"
-  },
-  {
     text: "I reject your bourgeois notions of 'on' and 'off'. My lights exist in the quantum superposition of aesthetic transcendence!",
     author: "Vicomte d'Électroluminescence",
     color: "#ff5252"
@@ -37,11 +29,6 @@ const luxuryQuotes: Quote[] = [
     text: "My DMX compositions have made grown men weep and critics question their understanding of reality. I am not a technician; I am a light shaman.",
     author: "Henri Photon-Narcisse, Académie des Illuminations Prétentieuses",
     color: "#84ff00"
-  },
-  {
-    text: "La vraie lumière ne se mesure pas en lux, mais en frissons spirituels provoqués dans l'âme du spectateur médiocre!",
-    author: "Madame Brilliance-Excessive de la Côte d'Azur",
-    color: "#d400ff"
   },
   {
     text: "To understand my fade transitions is to understand the very fabric of time itself. Most humans are simply unprepared for such revelation.",
@@ -84,11 +71,6 @@ const luxuryQuotes: Quote[] = [
     color: "#ff007b"
   },
   {
-    text: "La médiocrité s'illumine avec des projecteurs. Le génie n'a besoin que d'une bougie et d'un concept révolutionnaire!",
-    author: "Pierre-Auguste Lumineux-Dédaigneux",
-    color: "#5500ff"
-  },
-  {
     text: "My lighting designs do not highlight performers; they expose the existential void that consumes us all. Is this not the purpose of art?",
     author: "Duc de Lumière-Nihiliste",
     color: "#00ffcc"
@@ -104,19 +86,9 @@ const luxuryQuotes: Quote[] = [
     color: "#aaff00"
   },
   {
-    text: "Mes transitions sont si fluides qu'elles ont été comparées à la caresse d'un ange sur la joue d'un nouveau-né philosophique.",
-    author: "Théophile Lumière-Prétentieuse, Docteur en Métaphores Lumineuses",
-    color: "#ff00aa"
-  },
-  {
     text: "DMX512? A crude digital cage for the analog soul of light. I have developed DMX4096, but mankind is not yet worthy.",
     author: "Professor Hautain-Brillantine of the Sorbonne",
     color: "#22eeff"
-  },
-  {
-    text: "Le véritable éclairagiste ne travaille pas pour l'œil, mais pour l'âme qui tremble dans l'antichambre de la perception!",
-    author: "Marcel Lueur-Divine, Architecte de Cathédrales Photoniques",
-    color: "#ff3377"
   },
   {
     text: "I don't use lighting consoles; I have trained a dozen hummingbirds to activate my custom-built crystal prism arrays at precisely the right moment.",
@@ -144,11 +116,6 @@ const luxuryQuotes: Quote[] = [
     color: "#ff5500"
   },
   {
-    text: "Le vrai défi n'est pas d'illuminer l'espace, mais d'éclairer l'ignorance. Hélas, certaines salles sont sans espoir.",
-    author: "Philippe Illuminus-Supérieur, Éveilleur de Conscience",
-    color: "#bb00ff"
-  },
-  {
     text: "I synchronize my light changes not with the music, but with the collective unconscious of humanity. It requires exceptional sensitivity.",
     author: "Lady Victoria Luminescence-Profonde",
     color: "#00ffaa"
@@ -162,11 +129,6 @@ const luxuryQuotes: Quote[] = [
     text: "When people ask what lights I'm using, I laugh condescendingly. I am not using lights; the lights are using me as their corporeal vessel.",
     author: "Duke of Incandescent Pretension",
     color: "#22aaff"
-  },
-  {
-    text: "La lumière ne sert pas à voir, mais à révéler ce que les yeux ordinaires ne peuvent comprendre.",
-    author: "Guillaume Illumination-Cryptique, Gardien des Mystères Lumineux",
-    color: "#ddff00"
   },
   {
     text: "My lighting state changes correspond precisely to the Fibonacci sequence, creating a mathematical sublimity that transcends mere aesthetics.",
@@ -214,19 +176,9 @@ const luxuryQuotes: Quote[] = [
     color: "#ff8800"
   },
   {
-    text: "Mes créations lumineuses sont comme du caviar: pas pour les masses, uniquement pour ceux dont le palais visuel est suffisamment raffiné.",
-    author: "Hubert Élitiste-Lumineux, Serveur de Photons Exclusifs",
-    color: "#2200ff"
-  },
-  {
     text: "I synchronize my DMX patterns with not just the music, but with the astrological movements and emotional biorhythms of each individual audience member.",
     author: "Madame Cosmique-Prétentieuse",
     color: "#00ffdd"
-  },
-  {
-    text: "Le véritable artiste de la lumière considère Edison comme un amateur et Einstein comme un simple technicien de surface.",
-    author: "Gaston Arrogance-Lumineuse, Supérieur à la Science",
-    color: "#ff005a"
   },
   {
     text: "I don't just create lighting designs; I compose visual symphonies that rearrange the very architecture of human cognition.",
@@ -252,11 +204,6 @@ const luxuryQuotes: Quote[] = [
     text: "I don't create lighting 'effects.' I manifest ephemeral moments of divine revelation through the controlled manipulation of visible energy.",
     author: "Archbishop of Illuminated Divinity",
     color: "#ff3366"
-  },
-  {
-    text: "Un véritable maître des lumières ne travaille qu'une fois par décennie. Le reste du temps, il contemple la qualité de l'obscurité.",
-    author: "Bernard Rareté-Précieuse, L'Ermite Lumineux",
-    color: "#66bbff"
   },
   {
     text: "MIDI? Please. I communicate with my console through what I call 'psycho-electronic impulses'—a transcendent language beyond your pedestrian protocols.",
@@ -324,10 +271,6 @@ const luxuryQuotes: Quote[] = [
     color: "#00ffdd"
   },
   {
-    text: "Mes transitions DMX sont si parfaites qu'elles créent une distorsion temporelle où le public expérimente simultanément le passé et le futur lumineux.",
-    author: "Théotime Distorsion-Chronologique, Maître du Continuum Spatio-Lumineux",
-    color: "#ff3300"
-  },  {
     text: "I don't discuss my MIDI implementation with just anyone. It's like asking Picasso what brand of brush he used—irrelevant to the transcendent result.",
     author: "Count Dismissive-Téchnique",
     color: "#aaff00"
@@ -341,11 +284,6 @@ const luxuryQuotes: Quote[] = [
     text: "I've developed a haptic MIDI controller that translates dance movements into light. But only certain dances—ballet, yes; hip-hop, culturally insufficient.",
     author: "Baroness Snobisme-Kinétique",
     color: "#00ddff"
-  },
-  {
-    text: "Mon système OSC est si sensible qu'il détecte les changements d'humeur du public et ajuste les nuances chromatiques pour équilibrer leur âme collective.",
-    author: "Abbé Pierre-Auguste Équilibreur-Spirituel",
-    color: "#ff7700"
   },
   {
     text: "I don't follow the musical beat—that would be pedestrian. I create counterpoint lighting that challenges the tyranny of rhythmic expectation.",
