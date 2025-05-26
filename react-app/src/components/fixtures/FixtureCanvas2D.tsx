@@ -130,7 +130,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const submitPlacedControlLabelChange = () => { /* ... */ };
   const handleDeletePlacedControl = () => { /* ... */ };
   const handleAddTargetToMasterSlider = () => { /* ... */ };
-  const handleRemoveTargetFromMasterSlider = (targetToRemove: MasterSliderTarget) => { /* ... */ };
+  const handleRemoveTargetFromMasterSlider = (targetToRemove: MasterSlider) => { /* ... */ };
   const selectedTargetFixtureDef = targetFixtureId ? getFixtureDefinition(placedFixtures.find(pf => pf.id === targetFixtureId) || null) : null;
 
 
@@ -163,7 +163,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         )}
 
         {selectedPlacedFixtureForConfig && !selectedPlacedControlForConfig && (null)}
-        {selectedPlacedControlForConfig && ( /* ... PlacedControl Config Panel ... */ )}
+        {selectedPlacedControlForConfig && ( /* ... PlacedControl Config Panel ... */ null)}
       </div>
     </div>
   );
