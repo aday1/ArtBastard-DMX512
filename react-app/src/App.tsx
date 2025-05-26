@@ -12,6 +12,9 @@ import './utils/midiTestUtils'; // Import MIDI testing utilities
 
 function App() {
   const fetchInitialState = useStore((state) => state.fetchInitialState)
+  const isTransitioning = useStore((state) => state.isTransitioning);
+  const currentTransitionFrame = useStore((state) => state.currentTransitionFrame);
+  const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId);
   
   // Use the hook and get the returned values - particularly browserInputs and connectBrowserInput
   const { browserInputs, connectBrowserInput, refreshDevices, isSupported } = useBrowserMidi();
@@ -111,7 +114,7 @@ function App() {
       // If transition was stopped externally (isTransitioning became false in store)
       if (currentTransitionFrame) {
         cancelAnimationFrame(currentTransitionFrame);
-        setCurrentTransitionFrameId(null); 
+        setCurrentTransitionFrameId(null);
         // clearTransitionState() should ideally be called by whatever action caused isTransitioning to become false.
       }
     }
