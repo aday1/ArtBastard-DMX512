@@ -8,6 +8,7 @@ import { useBrowserMidi } from './hooks/useBrowserMidi'; // Import the hook
 import MidiDmxProcessor from './components/midi/MidiDmxProcessor';
 import MidiDebugHelper from './components/midi/MidiDebugHelper';
 import MidiDmxDebug from './components/midi/MidiDmxDebug';
+import OscMonitor from './components/osc/OscMonitor'; // Import OSC Monitor
 import './utils/midiTestUtils'; // Import MIDI testing utilities
 
 function App() {
@@ -152,6 +153,7 @@ function App() {
           <MidiDebugHelper />
           {/* This component helps debug MIDI to DMX communication issues */}
           <MidiDmxDebug />
+          <OscMonitor /> {/* Add OSC Monitor to the App layout */}
           <Layout children={
             <MainPage />
           } />

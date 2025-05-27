@@ -101,10 +101,9 @@ export function testMidiLearnWorkflow(dmxChannel = 0, messageType = 'note') {
       console.error('startMidiLearn not available in store');
       return;
     }
-    
-    // Start MIDI learn on the channel
+      // Start MIDI learn on the channel
     console.log(`Starting MIDI learn on DMX channel ${dmxChannel}`);
-    startMidiLearn(dmxChannel);
+    startMidiLearn({ type: 'dmxChannel', channelIndex: dmxChannel });
     
     // Wait 500ms and then send a test message
     setTimeout(() => {

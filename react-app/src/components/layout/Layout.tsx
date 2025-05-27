@@ -1,13 +1,12 @@
 import React from 'react'
-import { useStore } from '../../store'
 import { useTheme } from '../../context/ThemeContext'
 import { StatusBar } from './StatusBar'
 import { Navbar } from './Navbar'
-import { StatusMessage } from './StatusMessage'
+import { ToastContainer } from './ToastContainer' // Import ToastContainer
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
 import MidiDebugger from '../midi/MidiDebugger'
-import MidiMonitor from '../midi/MidiMonitor' // Import the new component
+import MidiMonitor from '../midi/MidiMonitor' 
 import styles from './Layout.module.scss'
 
 interface LayoutProps {
@@ -16,12 +15,13 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, darkMode, toggleDarkMode } = useTheme()
-  const statusMessage = useStore((state) => state.statusMessage)
 
   return (
     <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`}>
       <Navbar />
-        <div className={styles.contentWrapper}>
+      {/* Render ToastContainer without props as it fetches its own state */}
+      <ToastContainer /> 
+      <div className={styles.contentWrapper}>
         {/* Network status is now in navbar, so this panel is removed */}
         
         <div className={styles.themeToggle} onClick={toggleDarkMode} title="Toggle Light/Dark Mode">
@@ -38,13 +38,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           {theme === 'artsnob' && (
             <FancyQuotes intervalSeconds={30} animate={true} />
-          )}
-          
-          {statusMessage && (
-            <StatusMessage 
-              message={statusMessage.text} 
-              type={statusMessage.type} 
-            />
           )}
           
           <main className={styles.contentArea}>

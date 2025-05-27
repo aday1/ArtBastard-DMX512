@@ -10,6 +10,7 @@ export interface MidiMapping {
 }
 
 export interface Fixture {
+  id: string
   name: string
   startAddress: number
   channels: { name: string; type: string }[]
@@ -41,15 +42,28 @@ export interface OscActivity {
   timestamp: number // Timestamp of the last message
 }
 
+// Define OscMessage interface
+export interface OscMessage {
+  address: string;
+  args: Array<{ type: string; value: any }>;
+
+  // Optional: if source information is available
+  source?: string; 
+  // Optional: for ordering or display
+  timestamp?: number; 
+}
+
 // Define PlacedFixture type for 2D canvas layout
 export interface PlacedFixture {
   id: string; 
+  fixtureId: string;
   fixtureStoreId: string; 
   name: string; 
   x: number;
   y: number;
   color: string;
   radius: number;
+  startAddress: number; // DMX start address for this fixture
   controls?: PlacedControl[]; // Optional array for controls associated with this fixture
 }
 
@@ -82,6 +96,21 @@ export interface MasterSlider {
   midiMapping?: MidiMapping; // Re-use existing MidiMapping type
 }
 
+// Notification type definition (used in State and actions)
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  priority?: 'low' | 'normal' | 'high';
+  persistent?: boolean;
+  dismissible?: boolean;
+  timestamp: number;
+}
+
+// Input type for addNotification action
+export type AddNotificationInput = Omit<Notification, 'id' | 'timestamp'>;
+
+
 interface State {
   // DMX State
   dmxChannels: number[]
@@ -92,12 +121,12 @@ interface State {
   // MIDI State
   midiInterfaces: string[]
   activeInterfaces: string[]
-  midiMappings: Record<number, MidiMapping | undefined> // For DMX channel direct mappings
-  // midiLearnChannel: number | null // Deprecate in favor of midiLearnTarget
-  midiLearnTarget: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | null;
-  midiLearnScene: string | null // For scene MIDI learn, if different
+  midiMappings: Record<number, MidiMapping | undefined> 
+  midiLearnTarget: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'placedControl', fixtureId: string, controlId: string } | null;
+  midiLearnScene: string | null 
   midiMessages: any[]
-  
+  oscMessages: OscMessage[]; // Added for OSC Monitor
+
   // Fixtures and Groups
   fixtures: Fixture[]
   groups: Group[]
@@ -107,16 +136,18 @@ interface State {
   
   // ArtNet
   artNetConfig: ArtNetConfig
-  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'
-  
+  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'  
   // UI State
-  theme: 'artsnob' | 'standard' | 'minimal'
-  darkMode: boolean
-  statusMessage: { text: string; type: 'success' | 'error' | 'info' } | null
-  oscActivity: Record<number, OscActivity> // Added: channelIndex -> activity
-  exampleSliderValue: number
-  fixtureLayout: PlacedFixture[] // Added for 2D fixture layout
-  masterSliders: MasterSlider[]; // Added for master sliders
+  theme: 'artsnob' | 'standard' | 'minimal';
+  darkMode: boolean;
+  // statusMessage: { text: string; type: 'success' | 'error' | 'info' | 'warning' } | null; // Deprecated
+  notifications: Notification[]; // Use the new Notification interface
+  oscActivity: Record<number, OscActivity> 
+  exampleSliderValue: number;
+  fixtureLayout: PlacedFixture[]; 
+  placedFixtures: PlacedFixture[]; 
+  masterSliders: MasterSlider[]; 
+  canvasBackgroundImage: HTMLImageElement | null; 
 
   // Scene Transition State
   isTransitioning: boolean;
@@ -129,14 +160,14 @@ interface State {
   // Socket state
   socket: Socket | null
   setSocket: (socket: Socket | null) => void
-  
-  // Actions
+    // Actions
   fetchInitialState: () => Promise<void>
-  setDmxChannel: (channel: number, value: number) => void // This posts to backend
-  setDmxChannelsForTransition: (values: number[]) => void; // For internal transition updates, no backend post
-  setCurrentTransitionFrameId: (frameId: number | null) => void; // To store requestAnimationFrame ID
-  clearTransitionState: () => void; // Action to reset transition state
-  setTransitionDuration: (duration: number) => void; // Action to set scene transition duration
+  setDmxChannel: (channel: number, value: number) => void 
+  setDmxChannelValue: (channel: number, value: number) => void 
+  setDmxChannelsForTransition: (values: number[]) => void; 
+  setCurrentTransitionFrameId: (frameId: number | null) => void; 
+  clearTransitionState: () => void; 
+  setTransitionDuration: (duration: number) => void; 
   selectChannel: (channel: number) => void
   deselectChannel: (channel: number) => void
   toggleChannelSelection: (channel: number) => void
@@ -144,13 +175,13 @@ interface State {
   deselectAllChannels: () => void
   invertChannelSelection: () => void
   setOscAssignment: (channelIndex: number, address: string) => void
-  reportOscActivity: (channelIndex: number, value: number) => void // Added action
+  reportOscActivity: (channelIndex: number, value: number) => void 
+  addOscMessage: (message: OscMessage) => void; // Added for OSC Monitor
   
   // MIDI Actions
   startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number }) => void;
   cancelMidiLearn: () => void
   addMidiMessage: (message: any) => void
-  // addMidiMapping is for DMX channels. Master sliders will have mapping stored on their object.
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
   removeMidiMapping: (dmxChannel: number) => void
   clearAllMidiMappings: () => void
@@ -162,20 +193,23 @@ interface State {
   
   // Config Actions
   updateArtNetConfig: (config: Partial<ArtNetConfig>) => void
-  testArtNetConnection: () => void
-  
+  testArtNetConnection: () => void  
   // UI Actions
-  setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => void
-  toggleDarkMode: () => void
-  showStatusMessage: (text: string, type: 'success' | 'error' | 'info') => void
-  clearStatusMessage: () => void
-  setExampleSliderValue: (value: number) => void
-  setFixtureLayout: (layout: PlacedFixture[]) => void // Added action
+  setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => void;
+  toggleDarkMode: () => void;
+  // showStatusMessage: (text: string, type: 'success' | 'error' | 'info' | 'warning') => void; // Deprecated
+  // clearStatusMessage: () => void; // Deprecated
+  addNotification: (notification: AddNotificationInput) => void; // Use AddNotificationInput
+  removeNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  setExampleSliderValue: (value: number) => void;
+  setFixtureLayout: (layout: PlacedFixture[]) => void 
+  setCanvasBackgroundImage: (image: HTMLImageElement | null) => void 
   addMasterSlider: (slider: MasterSlider) => void;
   updateMasterSliderValue: (sliderId: string, value: number) => void;
-  updateMasterSlider: (sliderId: string, updatedSlider: Partial<MasterSlider>) => void; // For more comprehensive updates
+  updateMasterSlider: (sliderId: string, updatedSlider: Partial<MasterSlider>) => void; 
   removeMasterSlider: (sliderId: string) => void;
-  setMasterSliders: (sliders: MasterSlider[]) => void; // For loading all sliders
+  setMasterSliders: (sliders: MasterSlider[]) => void; 
 }
 
 export const useStore = create<State>()(
@@ -190,11 +224,11 @@ export const useStore = create<State>()(
       midiInterfaces: [],
       activeInterfaces: [],
       midiMappings: {},
-      // midiLearnChannel: null, // Deprecated
       midiLearnTarget: null,
       midiLearnScene: null,
       midiMessages: [],
-      
+      oscMessages: [], // Initialized oscMessages
+
       fixtures: [],
       groups: [],
       
@@ -209,14 +243,16 @@ export const useStore = create<State>()(
         base_refresh_interval: 1000
       },
       artNetStatus: 'disconnected',
-      
       theme: 'artsnob',
       darkMode: true,
-      statusMessage: null,
-      oscActivity: {}, // Initialize oscActivity
+      // statusMessage: null, // Deprecated
+      notifications: [], 
+      oscActivity: {}, 
       exampleSliderValue: 0,
-      fixtureLayout: [], // Initialize fixtureLayout
-      masterSliders: [], // Initialize masterSliders
+      fixtureLayout: [], 
+      placedFixtures: [], 
+      masterSliders: [], 
+      canvasBackgroundImage: null, 
 
       // Scene Transition State Init
       isTransitioning: false,
@@ -252,27 +288,29 @@ export const useStore = create<State>()(
               midiMappings: state.midiMappings || {},
               artNetConfig: state.artNetConfig || get().artNetConfig,
               scenes: state.scenes || [],
-              fixtureLayout: state.fixtureLayout || [], // Load fixtureLayout
-              masterSliders: state.masterSliders || [] // Load masterSliders
+              fixtureLayout: state.fixtureLayout || [], 
+              masterSliders: state.masterSliders || [] 
             })
 
-            // Load transitionDuration from persisted settings if available
             if (state.settings && typeof state.settings.transitionDuration === 'number') {
                 set({ transitionDuration: state.settings.transitionDuration });
             }
-            return // Successfully fetched state
+            // No explicit success notification here, to avoid clutter on normal startup
+            return 
           }
           throw new Error('Invalid response from server')
         } catch (error: any) {
           console.error('Failed to fetch initial state:', error)
-          get().showStatusMessage(
-            error.code === 'ECONNABORTED' 
-              ? 'Connection timeout - please check server status'
-              : 'Failed to fetch initial state - using default values',
-            'error'
-          )
+          get().addNotification({ 
+            message:
+              error.code === 'ECONNABORTED'
+                ? 'Connection timeout - please check server status'
+                : 'Failed to fetch initial state - using default values',
+            type: 'error',
+            priority: 'high',
+            persistent: true
+          })
           
-          // Set default state if fetch fails
           set({
             dmxChannels: new Array(512).fill(0),
             oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
@@ -281,31 +319,31 @@ export const useStore = create<State>()(
             groups: [],
             midiMappings: {},
             scenes: [],
-            fixtureLayout: [], // Default fixtureLayout
-            masterSliders: [], // Default masterSliders
-            transitionDuration: 1000, // Ensure default on fail too
+            fixtureLayout: [], 
+            masterSliders: [], 
+            transitionDuration: 1000, 
           })
         }
       },
       
-      setDmxChannel: (channel, value) => { // This is for individual, manual changes, posts to backend
+      setDmxChannel: (channel, value) => { 
         const dmxChannels = [...get().dmxChannels]
         dmxChannels[channel] = value
         set({ dmxChannels })
         
-        // Emit to server
         axios.post('/api/dmx', { channel, value })
           .catch(error => {
             console.error('Failed to update DMX channel:', error)
-            get().showStatusMessage('Failed to update DMX channel', 'error')
+            get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
           })
       },
 
-      setDmxChannelsForTransition: (values) => { // For transition updates, does not post to backend
+      setDmxChannelValue: (channel, value) => { 
+        get().setDmxChannel(channel, value);
+      },
+
+      setDmxChannelsForTransition: (values) => { 
         set({ dmxChannels: values });
-        // Optionally, could dispatch a local event for UI components that need frequent updates
-        // without observing the entire dmxChannels array for performance.
-        // e.g., window.dispatchEvent(new CustomEvent('dmxTransitionUpdate', { detail: { values } }));
       },
 
       setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
@@ -316,14 +354,11 @@ export const useStore = create<State>()(
         fromDmxValues: null,
         toDmxValues: null,
         currentTransitionFrame: null,
-        // Do not reset transitionDuration here, as it's a user setting
       }),
 
       setTransitionDuration: (duration) => {
-        if (duration >= 0) { // Basic validation
+        if (duration >= 0) { 
           set({ transitionDuration: duration });
-          // Optionally, persist this to backend/localStorage if settings are saved that way
-          // For now, it updates the store, and fetchInitialState might load it if it's part of general settings.
         }
       },
       
@@ -369,30 +404,55 @@ export const useStore = create<State>()(
         set({ selectedChannels: newSelection })
       },
       
+      setOscAssignment: (channelIndex, address) => {
+        const oscAssignments = [...get().oscAssignments];
+        oscAssignments[channelIndex] = address;
+        set({ oscAssignments });
+        axios.post('/api/osc/assign', { channelIndex, address })
+          .catch(error => {
+            console.error('Failed to set OSC assignment:', error);
+            get().addNotification({ message: 'Failed to set OSC assignment', type: 'error' });
+          });
+      },
+
+      reportOscActivity: (channelIndex, value) => {
+        set(state => ({
+          oscActivity: {
+            ...state.oscActivity,
+            [channelIndex]: { value, timestamp: Date.now() }
+          }
+        }));
+      },
+      
+      addOscMessage: (message) => { // Implemented addOscMessage
+        const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
+        set({ oscMessages: messages });
+        // console.log('OSC message received in store:', message); // Optional: for debugging
+      },
+
       // MIDI Actions
       startMidiLearn: (target) => {
-        // If currently learning for another target, cancel it first (optional, or UI should prevent this)
-        // For now, directly set the new target.
         set({ midiLearnTarget: target });
-        // No server emit here for master slider learn, it's client-side state.
-        // If target is dmxChannel, existing server emit might be relevant if server assists in learning.
+        get().addNotification({ 
+          message: `MIDI Learn started for ${target.type === 'dmxChannel' ? 'DMX Ch: ' + (target.channelIndex + 1) : 'Master Slider: ' + target.id }`, 
+          type: 'info', 
+          priority: 'low' 
+        });
         if (target.type === 'dmxChannel') {
             axios.post('/api/midi/learn', { channel: target.channelIndex })
               .catch(error => {
                 console.error('Failed to start MIDI learn for DMX channel:', error);
-                get().showStatusMessage('Failed to start MIDI learn for DMX channel', 'error');
+                get().addNotification({ message: 'Failed to start MIDI learn for DMX channel', type: 'error' });
               });
         }
-        // Add a timeout for learn mode (e.g., 10 seconds)
-        // This needs to be managed carefully, perhaps in the hook that uses this.
       },
       
       cancelMidiLearn: () => {
         const currentTarget = get().midiLearnTarget;
         set({ midiLearnTarget: null });
+        get().addNotification({ message: 'MIDI Learn cancelled', type: 'info', priority: 'low' });
         
         if (currentTarget && currentTarget.type === 'dmxChannel') {
-          // Emit to server if it was a DMX channel learn
           axios.post('/api/midi/cancel-learn', { channel: currentTarget.channelIndex })
             .catch(error => {
               console.error('Failed to cancel MIDI learn for DMX channel:', error);
@@ -401,24 +461,23 @@ export const useStore = create<State>()(
       },
       
       addMidiMessage: (message) => {
-        // Add the message to the midiMessages array (limit to last 20 messages for performance)
         const messages = [...get().midiMessages, message].slice(-20)
         set({ midiMessages: messages })
-        
-        // Log message for debugging
         console.log('MIDI message received:', message)
       },
       
       addMidiMapping: (dmxChannel, mapping) => {
         const midiMappings = { ...get().midiMappings }
         midiMappings[dmxChannel] = mapping
-        set({ midiMappings, midiLearnChannel: null })
+        set({ midiMappings, midiLearnTarget: null }) 
         
-        // Emit to server
         axios.post('/api/midi/mapping', { dmxChannel, mapping })
+          .then(() => {
+            get().addNotification({ message: `MIDI mapped to DMX Ch: ${dmxChannel + 1}`, type: 'success' });
+          })
           .catch(error => {
             console.error('Failed to add MIDI mapping:', error)
-            get().showStatusMessage('Failed to add MIDI mapping', 'error')
+            get().addNotification({ message: 'Failed to add MIDI mapping', type: 'error', priority: 'high' }) 
           })
       },
       
@@ -427,30 +486,32 @@ export const useStore = create<State>()(
         delete midiMappings[dmxChannel]
         set({ midiMappings })
         
-        // Emit to server
         axios.delete(`/api/midi/mapping/${dmxChannel}`)
+          .then(() => {
+            get().addNotification({ message: `MIDI mapping removed for DMX Ch: ${dmxChannel + 1}`, type: 'success' });
+          })
           .catch(error => {
             console.error('Failed to remove MIDI mapping:', error)
-            get().showStatusMessage('Failed to remove MIDI mapping', 'error')
+            get().addNotification({ message: 'Failed to remove MIDI mapping', type: 'error' }) 
           })
       },
       
       clearAllMidiMappings: () => {
         set({ midiMappings: {} })
         
-        // Emit to server
         axios.delete('/api/midi/mappings')
+          .then(() => {
+            get().addNotification({ message: 'All MIDI mappings cleared', type: 'success' });
+          })
           .catch(error => {
             console.error('Failed to clear all MIDI mappings:', error)
-            get().showStatusMessage('Failed to clear all MIDI mappings', 'error')
+            get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
           })
       },
       
       // Scene Actions
       saveScene: (name, oscAddress) => {
         const dmxChannels = get().dmxChannels
-        
-        // Create a new scene
         const newScene: Scene = {
           name,
           channelValues: [...dmxChannels],
@@ -468,41 +529,41 @@ export const useStore = create<State>()(
         
         set({ scenes })
         
-        // Emit to server
         axios.post('/api/scenes', newScene)
+          .then(() => {
+            get().addNotification({ message: `Scene '${name}' saved`, type: 'success' });
+          })
           .catch(error => {
             console.error('Failed to save scene:', error)
-            get().showStatusMessage('Failed to save scene', 'error')
+            get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
           })
       },
       
-      loadScene: (name) => { // This will be modified to trigger transitions
-        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState } = get();
+      loadScene: (name) => { 
+        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration } = get();
         const scene = scenes.find(s => s.name === name);
         
         if (scene) {
           if (isTransitioning && currentTransitionFrame) {
             cancelAnimationFrame(currentTransitionFrame);
-            set({ currentTransitionFrame: null }); // Clear frame ID
+            set({ currentTransitionFrame: null }); 
           }
 
           set({
             isTransitioning: true,
-            fromDmxValues: [...currentDmxState], // Start from current live DMX values
+            fromDmxValues: [...currentDmxState], 
             toDmxValues: [...scene.channelValues],
             transitionStartTime: Date.now(),
-            // transitionDuration is already in store, can be set by user
           });
           
-          // The actual animation loop will be started by a component observing these changes or a separate service.
-          // For now, just setting state. The backend is notified that this scene *will be* the target.
-          axios.post('/api/scenes/load', { name }) // Inform backend about the target scene
+          get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
+          axios.post('/api/scenes/load', { name }) 
             .catch(error => {
               console.error('Failed to load scene:', error)
-              get().showStatusMessage('Failed to load scene', 'error')
+              get().addNotification({ message: `Failed to load scene '${name}'`, type: 'error', priority: 'high' }) 
             })
         } else {
-          get().showStatusMessage(`Scene "${name}" not found`, 'error')
+          get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
         }
       },
       
@@ -510,11 +571,13 @@ export const useStore = create<State>()(
         const scenes = get().scenes.filter(s => s.name !== name)
         set({ scenes })
         
-        // Emit to server
         axios.delete(`/api/scenes/${encodeURIComponent(name)}`)
+          .then(() => {
+            get().addNotification({ message: `Scene '${name}' deleted`, type: 'success' });
+          })
           .catch(error => {
             console.error('Failed to delete scene:', error)
-            get().showStatusMessage('Failed to delete scene', 'error')
+            get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
           })
       },
       
@@ -524,8 +587,9 @@ export const useStore = create<State>()(
         if (socket?.connected) {
           socket.emit('updateArtNetConfig', config)
           set({ artNetConfig: { ...get().artNetConfig, ...config } })
+          get().addNotification({ message: 'ArtNet config updated. Restart may be required.', type: 'info' });
         } else {
-          get().showStatusMessage('Cannot update ArtNet config: not connected to server', 'error')
+          get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
         }
       },
 
@@ -533,88 +597,64 @@ export const useStore = create<State>()(
         const socket = get().socket
         if (socket?.connected) {
           socket.emit('testArtNetConnection')
-          get().showStatusMessage('Testing ArtNet connection...', 'info')
+          get().addNotification({ message: 'Testing ArtNet connection...', type: 'info' }) 
         } else {
-          get().showStatusMessage('Cannot test connection: not connected to server', 'error')
+          get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
         }
       },
       
-      // UI Actions
-      setTheme: (theme) => {
-        set({ theme })
-        localStorage.setItem('theme', theme)
-      },
-      
-      toggleDarkMode: () => {
-        const darkMode = !get().darkMode
-        set({ darkMode })
-        localStorage.setItem('darkMode', darkMode.toString())
-        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
-      },
-      
-      showStatusMessage: (text, type) => {
-        set({ statusMessage: { text, type } })
-        
-        // Auto-clear after 3 seconds
-        setTimeout(() => {
-          set((state) => {
-            if (state.statusMessage?.text === text) {
-              return { statusMessage: null }
+      // Deprecated actions - can be removed later
+      // showStatusMessage: (text, type) => { 
+      //   get().addNotification({ message: text, type });
+      // },
+      // clearStatusMessage: () => {},
+
+      // Notification Actions
+      addNotification: (notificationInput: AddNotificationInput) => {
+        const newNotification: Notification = {
+          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          timestamp: Date.now(),
+          message: notificationInput.message,
+          type: notificationInput.type,
+          priority: notificationInput.priority || 'normal',
+          persistent: notificationInput.persistent || false,
+          dismissible: notificationInput.dismissible !== undefined ? notificationInput.dismissible : true,
+        };
+        set((state) => {
+          const updatedNotifications = [...state.notifications, newNotification];
+          updatedNotifications.sort((a, b) => {
+            const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+            const priorityA = priorityOrder[a.priority || 'normal'];
+            const priorityB = priorityOrder[b.priority || 'normal'];
+            if (priorityA !== priorityB) {
+              return priorityA - priorityB;
             }
-            return {}
-          })
-        }, 3000)
-      },
-      
-      clearStatusMessage: () => {
-        set({ statusMessage: null })
-      },
-
-      setOscAssignment: (channelIndex, address) => {
-        const currentAssignments = get().oscAssignments;
-        const newAssignments = [...currentAssignments];
-        newAssignments[channelIndex] = address;
-        set({ oscAssignments: newAssignments });
-
-        axios.post('/api/osc/assignment', { channel: channelIndex, address })
-          .catch(error => {
-            console.error('Failed to update OSC assignment:', error);
-            get().showStatusMessage('Failed to update OSC assignment', 'error');
+            return b.timestamp - a.timestamp; // Newest first for same priority
           });
+          return { notifications: updatedNotifications };
+        });
+      },
+      removeNotification: (id: string) =>
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id),
+        })),
+      clearAllNotifications: () => {
+        set({ notifications: [] });
       },
 
-      reportOscActivity: (channelIndex, value) => {
-        set(state => ({
-          oscActivity: {
-            ...state.oscActivity,
-            [channelIndex]: { value, timestamp: Date.now() }
-          }
-        }));
-        // Optional: Clear activity after a short period if not continuously updated
-        // setTimeout(() => {
-        //   set(state => {
-        //     const newActivity = { ...state.oscActivity };
-        //     if (newActivity[channelIndex] && newActivity[channelIndex].timestamp === get().oscActivity[channelIndex]?.timestamp) {
-        //       delete newActivity[channelIndex];
-        //     }
-        //     return { oscActivity: newActivity };
-        //   });
-        // }, 2000); // Clear after 2 seconds if no new message
-      },
-
-      setExampleSliderValue: (value) => {
-        set({ exampleSliderValue: value });
-      },
-
-      setFixtureLayout: (layout) => {
+      setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
+      setFixtureLayout: (layout: PlacedFixture[]) => {
         set({ fixtureLayout: layout });
-        // Optionally, here you could also trigger a save to backend if needed
-        // For example: get().socket?.emit('saveFixtureLayout', layout);
-        // This depends on whether exportSettings/importSettings already cover this.
-        // For now, we assume the layout is part of the state saved by existing mechanisms.
       },
 
-      addMasterSlider: (slider) => set(state => ({ masterSliders: [...state.masterSliders, slider] })),
+      setCanvasBackgroundImage: (image: HTMLImageElement | null) => {
+        set({ canvasBackgroundImage: image });
+      },
+
+      addMasterSlider: (slider: MasterSlider) => {
+        set(state => ({ masterSliders: [...state.masterSliders, slider] }));
+        get().addNotification({ message: `Master slider '${slider.name}' added`, type: 'success' });
+      },
       
       updateMasterSliderValue: (sliderId, value) => {
         const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
@@ -625,51 +665,55 @@ export const useStore = create<State>()(
 
         const activeSlider = updatedSliders.find(s => s.id === sliderId);
         if (activeSlider && activeSlider.targets) {
-          activeSlider.targets.forEach(target => {
+          activeSlider.targets.forEach(target => {            
             const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
-            if (!pFix) return;
+            if (!pFixture) return;
 
-            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId);
+            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId); 
             if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
             
-            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; // 0-indexed
+            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; 
 
             if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
-              // Scale value: master (0-255) -> target (minRange-maxRange)
               const masterValueNormalized = value / 255;
               let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
               targetDmxValue = Math.round(targetDmxValue);
-              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); // Clamp to 0-255
+              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); 
               
-              // Call setDmxChannel (which is part of the store, so get() provides it if actions are structured that way)
-              // Or, if setDmxChannel is a top-level action in the slice:
               dmxSetter(actualDmxAddress, targetDmxValue);
             }
           });
         }
       },
       
-      updateMasterSlider: (sliderId, updatedSlider) => set(state => ({
-        masterSliders: state.masterSliders.map(s => s.id === sliderId ? { ...s, ...updatedSlider } : s)
-      })),
-      removeMasterSlider: (sliderId) => set(state => ({
-        masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
-      })),
-      setMasterSliders: (sliders) => set({ masterSliders: sliders }),
+      updateMasterSlider: (sliderId, updatedSliderData) => {
+        set(state => ({
+          masterSliders: state.masterSliders.map(s => 
+            s.id === sliderId ? { ...s, ...updatedSliderData } : s
+          )
+        }));
+        get().addNotification({ message: `Master slider '${updatedSliderData.name || sliderId}' updated`, type: 'info' });
+      },
+      removeMasterSlider: (sliderId) => {
+        set(state => ({
+          masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
+        }));
+        get().addNotification({ message: `Master slider removed`, type: 'success' });
+      },
+      setMasterSliders: (sliders) => {
+        set({ masterSliders: sliders });
+      },
     }),
-    { name: 'ArtBastard-DMX-Store' }
+    { name: 'ArtBastard-DMX-Store' } 
   )
 );
 
-// Make the store accessible globally for MIDI message handling from non-React contexts
-// TypeScript needs window interface augmentation to allow custom properties
 declare global {
   interface Window {
     useStore: typeof useStore;
   }
 }
 
-// Assign store to window in non-SSR environments
 if (typeof window !== 'undefined') {
   window.useStore = useStore;
 }

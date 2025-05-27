@@ -4,6 +4,7 @@ import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 // import { FixtureVisualizer3D } from './FixtureVisualizer3D' // Removed
 import { FixtureCanvas2D } from './FixtureCanvas2D'; // Added
+import { CanvasImageUpload } from './CanvasImageUpload'; // Added
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -78,10 +79,18 @@ const fixtureTemplates: Array<{
 
 export const FixtureSetup: React.FC = () => {
   const { theme } = useTheme()
-  const { fixtures, fixtureLayout, setFixtureLayout } = useStore(state => ({
+  const { 
+    fixtures, 
+    fixtureLayout, 
+    setFixtureLayout, 
+    canvasBackgroundImage, 
+    setCanvasBackgroundImage 
+  } = useStore(state => ({
     fixtures: state.fixtures,
     fixtureLayout: state.fixtureLayout,
     setFixtureLayout: state.setFixtureLayout,
+    canvasBackgroundImage: state.canvasBackgroundImage,
+    setCanvasBackgroundImage: state.setCanvasBackgroundImage,
   }));
   const groups = useStore(state => state.groups)
   
@@ -151,13 +160,16 @@ export const FixtureSetup: React.FC = () => {
         ? Math.max(...fixtures.map(f => f.startAddress + f.channels.length)) + 1 
         : 1,
       channels: [{ name: 'Intensity', type: 'dimmer' }]
-    })
-    setShowCreateFixture(false)
+    });
+    setShowCreateFixture(false);
     
     // Show success message
-    useStoreUtils.getState().showStatusMessage(`Fixture "${newFixture.name}" created`, 'success')
+    useStoreUtils.getState().addNotification({
+      message: `Fixture "${newFixture.name}" created`,
+      type: 'success',
+      priority: 'normal'
+    })
   }
-  
   // Toggle fixture selection for group
   const toggleFixtureForGroup = (index: number) => {
     setGroupForm(prev => {
@@ -177,8 +189,7 @@ export const FixtureSetup: React.FC = () => {
       name: groupForm.name,
       fixtureIndices: [...groupForm.fixtureIndices]
     }
-    
-    useStoreUtils.setState(state => ({
+      useStoreUtils.setState(state => ({
       groups: [...state.groups, newGroup]
     }))
     
@@ -190,7 +201,11 @@ export const FixtureSetup: React.FC = () => {
     setShowCreateGroup(false)
     
     // Show success message
-    useStoreUtils.getState().showStatusMessage(`Group "${newGroup.name}" created`, 'success')
+    useStoreUtils.getState().addNotification({
+      message: `Group "${newGroup.name}" created`,
+      type: 'success',
+      priority: 'normal'
+    })
   }
   
   return (
@@ -198,11 +213,16 @@ export const FixtureSetup: React.FC = () => {
       <h2 className={styles.sectionTitle}>
         {theme === 'artsnob' && 'Fixture Composition: The Architecture of Light'}
         {theme === 'standard' && 'Fixture Setup'}
-        {theme === 'minimal' && 'Fixtures'}
-      </h2>
+        {theme === 'minimal' && 'Fixtures'}      </h2>
+      
+      {/* Canvas Background Image Upload */}
+      <CanvasImageUpload 
+        onImageUploaded={setCanvasBackgroundImage}
+        currentImage={canvasBackgroundImage}
+      />
       
       {/* 2D Fixture Canvas */}
-      <FixtureCanvas2D 
+      <FixtureCanvas2D
         fixtures={fixtures} 
         placedFixturesData={fixtureLayout} // Use data from store
         onUpdatePlacedFixtures={setFixtureLayout} // Use store action to update

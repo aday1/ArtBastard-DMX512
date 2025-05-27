@@ -4,10 +4,9 @@ import { sendTestNoteOnMessage, sendTestCCMessage, testMidiLearnWorkflow } from 
 import styles from './MidiLearnButton.module.scss';
 
 const MidiDebugger: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const midiMessages = useStore(state => state.midiMessages);
+  const [isOpen, setIsOpen] = useState(false);  const midiMessages = useStore(state => state.midiMessages);
   const midiMappings = useStore(state => state.midiMappings);
-  const midiLearnChannel = useStore(state => state.midiLearnChannel);
+  const midiLearnTarget = useStore(state => state.midiLearnTarget);
 
   const toggleDebugger = () => {
     setIsOpen(!isOpen);
@@ -25,7 +24,7 @@ const MidiDebugger: React.FC = () => {
           
           <div className={styles.debugSection}>
             <h4>Current Learn Status</h4>
-            <p>Learning Channel: {midiLearnChannel !== null ? midiLearnChannel : 'None'}</p>
+            <p>Learning Target: {midiLearnTarget !== null ? JSON.stringify(midiLearnTarget) : 'None'}</p>
           </div>
           
           <div className={styles.debugSection}>

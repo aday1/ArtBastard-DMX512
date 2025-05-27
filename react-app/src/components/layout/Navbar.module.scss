@@ -4,14 +4,16 @@
   gap: 1rem;
   padding: 1rem;
   background: var(--bg-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 8px;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
   animation: rainbow-bg 10s linear infinite;
-  pointer-events: none; // Allow clicks to pass through the navbar background
+  pointer-events: auto;
 
   @keyframes rainbow-bg {
     0% { background-position: 0% 50%; }

@@ -5,7 +5,7 @@ import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
 
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'misc'
+type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'audio' | 'touchosc' | 'misc'
 
 const navItems: Array<{
   id: ViewType
@@ -42,14 +42,39 @@ const navItems: Array<{
       standard: 'Fixture Setup',
       minimal: 'Fix'
     }
-  },
-  {
+  },  {
     id: 'scenes',
     icon: 'fa-theater-masks',
     title: {
       artsnob: 'Scene Gallery',
       standard: 'Scenes',
       minimal: 'Scn'
+    }
+  },  {
+    id: 'oscDebug',
+    icon: 'fa-bug',
+    title: {
+      artsnob: 'OSC Debugging',
+      standard: 'OSC Debug',
+      minimal: 'OSC'
+    }
+  },
+  {
+    id: 'audio',
+    icon: 'fa-music',
+    title: {
+      artsnob: 'Audio Spectrum',
+      standard: 'Audio FFT',
+      minimal: 'FFT'
+    }
+  },
+  {
+    id: 'touchosc',
+    icon: 'fa-mobile-alt',
+    title: {
+      artsnob: 'TouchOSC Designer',
+      standard: 'TouchOSC',
+      minimal: 'OSC'
     }
   },
   {

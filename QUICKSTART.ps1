@@ -25,8 +25,6 @@ Write-Host "Clearing away the cobwebs and old props..." -ForegroundColor DarkCya
 # Remove potential leftover build artifacts
 $BackendDistDir = ".\dist"
 $FrontendDistDir = ".\react-app\dist"
-$NodeModulesDir = ".\node_modules"
-$FrontendNodeModulesDir = ".\react-app\node_modules"
 
 if (Test-Path $BackendDistDir) {
     Write-Host "Removing backend build directory: $BackendDistDir 💨" -ForegroundColor DarkCyan
@@ -37,16 +35,10 @@ if (Test-Path $FrontendDistDir) {
     Remove-Item -Recurse -Force $FrontendDistDir
 }
 # Optional: For a truly clean slate, uncomment to remove node_modules
-# if (Test-Path $NodeModulesDir) {
-#     Write-Host "Removing backend node_modules: $NodeModulesDir (This might take a moment!)" -ForegroundColor DarkYellow
-#     Remove-Item -Recurse -Force $NodeModulesDir
-# }
-# if (Test-Path $FrontendNodeModulesDir) {
-#     Write-Host "Removing frontend node_modules: $FrontendNodeModulesDir (Patience, darling!)" -ForegroundColor DarkYellow
-#     Remove-Item -Recurse -Force $FrontendNodeModulesDir
-# }
+# Note: CLEANUP.ps1 now handles comprehensive cleaning including node_modules by default.
+# If you run CLEANUP.ps1 first, these removals are redundant.
 
-Write-Host "✨ Stage cleared! Ready for a fresh performance!" -ForegroundColor Green
+Write-Host "✨ Stage prepped! If you haven't run CLEANUP.ps1, some old props might linger." -ForegroundColor Green
 Write-Host ""
 
 Write-Host "🎶 Act II: Assembling the Orchestra (Dependencies)! 🎶" -ForegroundColor Green
@@ -55,6 +47,22 @@ Write-Host "Summoning the finest musicians (npm packages)..." -ForegroundColor C
 Write-Host "Installing backend virtuosos..." -ForegroundColor DarkCyan
 npm install
 if ($LASTEXITCODE -ne 0) { Write-Error "💔 Oh dear, the backend orchestra is out of tune! (npm install failed)"; Exit 1 }
+
+# Verification step for @julusian/midi
+$JulusianInstrumentsPath = Join-Path $ProjectRootPath "node_modules/@julusian/midi/lib/instruments.js"
+if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
+    Write-Warning "⚠️ The @julusian/midi instruments file seems to be missing. Attempting to reinstall easymidi..."
+    npm install easymidi --save
+    if ($LASTEXITCODE -ne 0) { Write-Error "💔 Reinstalling easymidi also failed. The show cannot go on!"; Exit 1 }
+    if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
+        Write-Error "🛑 Critical: easymidi reinstall did not fix the missing @julusian/midi/lib/instruments.js."
+        Write-Error "Please try manually deleting node_modules and package-lock.json in the project root, then run 'npm install' again."
+        Write-Error "If the issue persists, try 'npm cache clean --force' followed by 'npm install'."
+        Exit 1
+    }
+    Write-Host "✅ Reinstalling easymidi seems to have helped!" -ForegroundColor Green
+}
+
 Write-Host "✅ Backend orchestra assembled!" -ForegroundColor Green
 
 Write-Host "Installing frontend divas..." -ForegroundColor DarkCyan
@@ -96,3 +104,5 @@ Write-Host "--------------------------------------------------------------------
 Write-Host ""
 Write-Host "Follow your cue in Act IV to bring the frontend to life!"
 Write-Host "May your lights be bright and your cues be perfect!" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🔄 For a full RESTART (clean, install, build, run): execute RESTART.ps1 🔄" -ForegroundColor Yellow

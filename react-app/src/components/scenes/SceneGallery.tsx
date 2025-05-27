@@ -17,11 +17,14 @@ export const SceneGallery: React.FC = () => {
   const [newSceneOsc, setNewSceneOsc] = useState('/scene/new')
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
   const [transitionTime, setTransitionTime] = useState(1) // seconds
-  
-  // Save current DMX state as a new scene
+    // Save current DMX state as a new scene
   const saveScene = () => {
     if (!newSceneName.trim()) {
-      useStore.getState().showStatusMessage('Scene name cannot be empty', 'error')
+      useStore.getState().addNotification({
+        message: 'Scene name cannot be empty',
+        type: 'error',
+        priority: 'high'
+      })
       return
     }
     
@@ -33,13 +36,16 @@ export const SceneGallery: React.FC = () => {
     }
     
     useStore.getState().saveScene(newSceneName, newSceneOsc)
-    
-    // Reset form
+      // Reset form
     setNewSceneName('')
     setNewSceneOsc('/scene/new')
     
     // Show success message
-    useStore.getState().showStatusMessage(`Scene "${newSceneName}" saved`, 'success')
+    useStore.getState().addNotification({
+      message: `Scene "${newSceneName}" saved`,
+      type: 'success',
+      priority: 'normal'
+    })
   }
   
   // Calculate the number of active channels in a scene

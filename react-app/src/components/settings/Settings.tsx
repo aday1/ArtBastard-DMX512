@@ -61,7 +61,11 @@ export const Settings: React.FC = () => {
 
   const submitTransitionDuration = () => {
     setTransitionDuration(currentTransitionDurationMs);
-    useStoreUtils.getState().showStatusMessage(`Scene transition duration set to ${currentTransitionDurationMs}ms`, 'success');
+    useStoreUtils.getState().addNotification({
+      message: `Scene transition duration set to ${currentTransitionDurationMs}ms`,
+      type: 'success',
+      priority: 'normal'
+    });
   };
 
 

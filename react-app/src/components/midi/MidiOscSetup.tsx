@@ -80,12 +80,15 @@ export const MidiOscSetup: React.FC = () => {
       socket.emit('disconnectMidiInterface', interfaceName)
     }
   }
-  
-  // Save OSC configuration
+    // Save OSC configuration
   const handleSaveOscConfig = () => {
     if (socket && connected) {
       socket.emit('saveOscConfig', oscConfig)
-      useStore.getState().showStatusMessage('OSC configuration saved', 'success')
+      useStore.getState().addNotification({
+        message: 'OSC configuration saved',
+        type: 'success',
+        priority: 'normal'
+      })
     }
   }
   

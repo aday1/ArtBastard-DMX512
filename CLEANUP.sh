@@ -1,5 +1,5 @@
 #!/bin/bash
-# filepath: c:\Users\aday\Documents\GitHub\ArtBastard_DMX\CLEANUP.sh
+# filepath: c:\Users\aday\Documents\GitHub\ARTBASTARD_DMX_STABLE\ArtBastard-DMX512\CLEANUP.sh
 
 # Define some fabulous colors and emojis (Bash specific)
 C_MAGENTA="\033[1;35m"
@@ -8,13 +8,13 @@ C_CYAN="\033[1;36m"
 C_YELLOW="\033[1;33m"
 C_RED="\033[1;31m"
 C_DARK_GRAY="\033[1;30m"
-C_DARK_CYAN="\033[0;36m" # Adjusted for better visibility like PowerShell's DarkCyan
-C_DARK_YELLOW="\033[0;33m"
+C_DARK_CYAN="\033[0;36m"
+C_GRAY="\033[0;37m" # For "already clean" messages
 C_RESET="\033[0m"
 
 echo -e "${C_MAGENTA}🧼✨ The ArtBastard's Grand Exfoliation Ritual! (Bash Edition) ✨🧼${C_RESET}"
 echo -e "${C_DARK_GRAY}--------------------------------------------------------------------${C_RESET}"
-echo -e "${C_CYAN}Preparing your masterpiece for a flawless Git Push, mon ami!${C_RESET}"
+echo -e "${C_CYAN}Ensuring a pristine stage for a flawless performance or a clean Git push!${C_RESET}"
 echo ""
 
 # Ensure we are at the project's magnificent proscenium (root)
@@ -28,88 +28,65 @@ cd "$SCRIPT_DIR"
 echo -e "${C_YELLOW}📍 Conducting cleanup from: $SCRIPT_DIR${C_RESET}"
 echo ""
 
-echo -e "${C_GREEN}🧹 Act I: Sweeping Away the Ephemeral! (Builds, Logs, Caches) 🧹${C_RESET}"
+echo -e "${C_GREEN}🧹 Act I: Sweeping Away All Traces of Past Performances! 🧹${C_RESET}"
+echo -e "${C_DARK_CYAN}(Builds, Logs, Caches, Node Modules, and Launcher Artifacts)${C_RESET}"
 
 # Define the paths to artistic remnants
 BACKEND_DIST_DIR="./dist"
 FRONTEND_DIST_DIR="./react-app/dist"
 LAUNCHER_DIST_DIR="./launcher-dist"
-LOGS_DIR="./logs" # Targeting the whole logs directory
-BACKEND_LOG_FILE="./backend.log"
+LOGS_DIR="./logs"
+BACKEND_LOG_FILE="./backend.log" # Specific log file if it exists outside /logs
 VITE_CACHE_DIR="./react-app/.vite"
 ROOT_ESLINTCACHE="./.eslintcache"
 REACT_APP_ESLINTCACHE="./react-app/.eslintcache"
-
-# Vanquishing build directories
-if [ -d "$BACKEND_DIST_DIR" ]; then
-    echo -e "${C_DARK_CYAN}Removing backend build directory: $BACKEND_DIST_DIR 💨${C_RESET}"
-    rm -rf "$BACKEND_DIST_DIR"
-fi
-if [ -d "$FRONTEND_DIST_DIR" ]; then
-    echo -e "${C_DARK_CYAN}Removing frontend build directory: $FRONTEND_DIST_DIR 💨${C_RESET}"
-    rm -rf "$FRONTEND_DIST_DIR"
-fi
-if [ -d "$LAUNCHER_DIST_DIR" ]; then
-    echo -e "${C_DARK_CYAN}Removing launcher build directory: $LAUNCHER_DIST_DIR 💨${C_RESET}"
-    rm -rf "$LAUNCHER_DIST_DIR"
-fi
-
-# Expunging logs
-if [ -d "$LOGS_DIR" ]; then
-    echo -e "${C_DARK_CYAN}Clearing out the logs directory: $LOGS_DIR 📜🔥${C_RESET}"
-    rm -rf "$LOGS_DIR" # Removes the directory and its contents
-fi
-if [ -f "$BACKEND_LOG_FILE" ]; then
-    echo -e "${C_DARK_CYAN}Removing backend log file: $BACKEND_LOG_FILE 📜🔥${C_RESET}"
-    rm -f "$BACKEND_LOG_FILE"
-fi
-
-# Obliterating caches
-if [ -d "$VITE_CACHE_DIR" ]; then
-    echo -e "${C_DARK_CYAN}Removing Vite cache: $VITE_CACHE_DIR 🌪️${C_RESET}"
-    rm -rf "$VITE_CACHE_DIR"
-fi
-if [ -f "$ROOT_ESLINTCACHE" ]; then
-    echo -e "${C_DARK_CYAN}Removing root .eslintcache 🌪️${C_RESET}"
-    rm -f "$ROOT_ESLINTCACHE"
-fi
-if [ -f "$REACT_APP_ESLINTCACHE" ]; then
-    echo -e "${C_DARK_CYAN}Removing react-app .eslintcache 🌪️${C_RESET}"
-    rm -f "$REACT_APP_ESLINTCACHE"
-fi
-
-echo -e "${C_GREEN}✨ Stage is sparkling! Mandatory cleanup complete.${C_RESET}"
-echo ""
-
-echo -e "${C_YELLOW}🎭 Act II: The Optional Deep Cleanse (For the Discerning Artiste) 🎭${C_RESET}"
-echo -e "${C_YELLOW}The following are commented out. Uncomment if you desire a truly spartan canvas.${C_RESET}"
-
-# Define paths for the truly devoted
 ROOT_NODE_MODULES="./node_modules"
 REACT_APP_NODE_MODULES="./react-app/node_modules"
-LAUNCHER_NODE_MODULES="./launcher/node_modules" # If you use the launcher's own deps
+LAUNCHER_NODE_MODULES="./launcher/node_modules" # Assuming launcher might have its own
 
-# Uncomment to banish node_modules (this will require a full 'npm install' afterwards!)
-if [ -d "$ROOT_NODE_MODULES" ]; then
-    echo -e "${C_DARK_YELLOW}OPTIONAL: Removing root node_modules: $ROOT_NODE_MODULES (This is a commitment, mon ami!) 🗑️${C_RESET}"
-    rm -rf "$ROOT_NODE_MODULES"
-fi
-if [ -d "$REACT_APP_NODE_MODULES" ]; then
-    echo -e "${C_DARK_YELLOW}OPTIONAL: Removing react-app node_modules: $REACT_APP_NODE_MODULES 🗑️${C_RESET}"
-    rm -rf "$REACT_APP_NODE_MODULES"
-fi
-if [ -d "$LAUNCHER_NODE_MODULES" ]; then
-    echo -e "${C_DARK_YELLOW}OPTIONAL: Removing launcher node_modules: $LAUNCHER_NODE_MODULES 🗑️${C_RESET}"
-    rm -rf "$LAUNCHER_NODE_MODULES"
-fi
+# Function to remove item with flair
+remove_item_with_flair() {
+    local path_to_remove="$1"
+    local description="$2"
+    if [ -e "$path_to_remove" ]; then # -e checks for file or directory
+        echo -e "${C_DARK_CYAN}Removing $description: $path_to_remove 💨${C_RESET}"
+        rm -rf "$path_to_remove"
+        if [ $? -eq 0 ]; then
+            echo -e "${C_GREEN}Successfully removed $path_to_remove${C_RESET}"
+        else
+            echo -e "${C_RED}Could not fully remove $path_to_remove. It might be in use or permissions issue.${C_RESET}"
+        fi
+    else
+        echo -e "${C_GRAY}$description not found (already clean!): $path_to_remove ✨${C_RESET}"
+    fi
+}
 
-# Uncomment to remove TypeScript build info files
-echo -e "${C_DARK_YELLOW}OPTIONAL: Removing TypeScript build info files (*.tsbuildinfo) 📝${C_RESET}"
-find . -name "*.tsbuildinfo" -type f -delete
-find ./react-app -name "*.tsbuildinfo" -type f -delete
+# Vanquishing build directories
+remove_item_with_flair "$BACKEND_DIST_DIR" "backend build directory"
+remove_item_with_flair "$FRONTEND_DIST_DIR" "frontend build directory"
+remove_item_with_flair "$LAUNCHER_DIST_DIR" "launcher build directory"
 
+# Expunging logs
+remove_item_with_flair "$LOGS_DIR" "logs directory"
+remove_item_with_flair "$BACKEND_LOG_FILE" "backend log file" # If it's specific and outside /logs
+
+# Obliterating caches
+remove_item_with_flair "$VITE_CACHE_DIR" "Vite cache"
+remove_item_with_flair "$ROOT_ESLINTCACHE" "root .eslintcache"
+remove_item_with_flair "$REACT_APP_ESLINTCACHE" "react-app .eslintcache"
+
+# Removing .tsbuildinfo files
+echo -e "${C_DARK_CYAN}Removing root *.tsbuildinfo files 💨${C_RESET}"
+find . -maxdepth 1 -name "*.tsbuildinfo" -exec rm -f {} \;
+echo -e "${C_DARK_CYAN}Removing react-app/*.tsbuildinfo files 💨${C_RESET}"
+find "./react-app" -maxdepth 1 -name "*.tsbuildinfo" -exec rm -f {} \;
+
+# Banishing node_modules
+remove_item_with_flair "$ROOT_NODE_MODULES" "root node_modules"
+remove_item_with_flair "$REACT_APP_NODE_MODULES" "react-app node_modules"
+remove_item_with_flair "$LAUNCHER_NODE_MODULES" "launcher node_modules"
 
 echo ""
-echo -e "${C_MAGENTA}🎉 Bravo! The Grand Exfoliation is complete! 🎉${C_RESET}"
-echo -e "${C_CYAN}Your ArtBastard DMX project is now impeccably prepared for its Git debut!${C_RESET}"
-echo -e "${C_CYAN}Remember to re-install dependencies if you chose the deep cleanse!${C_RESET}"
+echo -e "${C_MAGENTA}🌟✨ Bravo! The ArtBastard's stage is impeccably clean! (Bash Edition) ✨🌟${C_RESET}"
+echo -e "${C_CYAN}Ready for a fresh installation or a pristine commit.${C_RESET}"
+echo -e "${C_DARK_GRAY}--------------------------------------------------------------------${C_RESET}"

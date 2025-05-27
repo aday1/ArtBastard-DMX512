@@ -7,6 +7,7 @@ import styles from './DmxChannel.module.scss';
 interface DmxChannelProps {
   index: number;
   key?: number | string;
+  allowFullscreen?: boolean; // New prop to enable/disable fullscreen
 }
 
 // Extended MidiRangeMapping to include curve parameter
@@ -14,7 +15,7 @@ interface ExtendedMidiRangeMapping extends MidiRangeMapping {
   curve?: number;
 }
 
-export const DmxChannel: React.FC<DmxChannelProps> = ({ index }) => {
+export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true }) => {
   const {
     dmxChannels,
     channelNames,
@@ -36,6 +37,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index }) => {
   }));
 
   const [showDetails, setShowDetails] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [localOscAddress, setLocalOscAddress] = useState('');
   const [activityIndicator, setActivityIndicator] = useState(false);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -191,31 +193,77 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index }) => {
   const currentOscValue = oscActivity[index]?.value;
   const lastOscTimestamp = oscActivity[index]?.timestamp;
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    setShowDetails(true); // Auto-expand details in fullscreen
+  };
+
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleKeyPress);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+      document.body.style.overflow = 'auto';
+    };
+  }, [isFullscreen]);
   return (
     <div
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''}`}
-      onClick={() => toggleChannelSelection(index)}
+      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isFullscreen ? styles.fullscreen : ''}`}
+      onClick={() => !isFullscreen && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
         <div className={styles.address}>{dmxAddress}</div>
         <div className={styles.name}>{name}</div>
-        <button
-          className={styles.detailsToggle}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDetails(!showDetails);
-          }}
-        >
-          <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
-        </button>
+        <div className={styles.headerControls}>
+          {allowFullscreen && (
+            <button
+              className={styles.fullscreenButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Fullscreen'}
+            >
+              <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+            </button>
+          )}
+          <button
+            className={styles.detailsToggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails(!showDetails);
+            }}
+          >
+            <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
+          </button>
+        </div>
       </div>
 
-      <div className={`${styles.value} ${showDetails ? styles.expandedValue : ''}`} style={{ backgroundColor: getBackgroundColor() }}>
+      {isFullscreen && (
+        <div className={styles.fullscreenHeader}>
+          <h2>🎚️ DMX Channel {dmxAddress}</h2>
+          <p>{name}</p>
+        </div>
+      )}
+
+      <div className={`${styles.value} ${showDetails ? styles.expandedValue : ''} ${isFullscreen ? styles.fullscreenValue : ''}`} style={{ backgroundColor: getBackgroundColor() }}>
         {value}
-        {showDetails && <span className={styles.valuePercentOverlay}>{Math.round((value / 255) * 100)}%</span>}
+        {(showDetails || isFullscreen) && <span className={styles.valuePercentOverlay}>{Math.round((value / 255) * 100)}%</span>}
       </div>
 
-      <div className={`${styles.slider} ${showDetails ? styles.expandedSlider : ''}`} data-dmx-channel={index}>
+      <div className={`${styles.slider} ${showDetails ? styles.expandedSlider : ''} ${isFullscreen ? styles.fullscreenSlider : ''}`} data-dmx-channel={index}>
         <input
           type="range"
           min="0"

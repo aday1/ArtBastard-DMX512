@@ -4,21 +4,23 @@ import { useSocket } from '../context/SocketContext'
 import type { SocketContextType } from '../context/SocketContext' // Importing as type
 import { useStore } from '../store'
 import { DmxControlPanel } from '../components/dmx/DmxControlPanel'
+import { MasterFader } from '../components/dmx/MasterFader'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { OscDebug } from '../components/osc/OscDebug'
+import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'
+import { AudioControlPanel } from '../components/audio/AudioControlPanel'
 import { SceneGallery } from '../components/scenes/SceneGallery'
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
-// import { DigitalIlluminationAtelier } from '../components/visualizers/DigitalIlluminationAtelier' // Removed
 import { Settings } from '../components/settings/Settings'
 import styles from './MainPage.module.scss'
 
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'misc'
+type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'audio' | 'touchosc' | 'misc'
 
 const MainPage: React.FC = () => {
   const { theme } = useTheme()
   const socketContext = useSocket() as SocketContextType
   const connected = socketContext.connected
-  const showStatusMessage = useStore(state => state.showStatusMessage)
+  const addNotification = useStore(state => state.addNotification)
   const [currentView, setCurrentView] = useState<ViewType>('main')
 
   // Handle view changes from navbar
@@ -31,13 +33,16 @@ const MainPage: React.FC = () => {
     window.addEventListener('changeView', handleViewChange)
     return () => window.removeEventListener('changeView', handleViewChange)
   }, [])
-
   // Handle connection state changes
   useEffect(() => {
     if (!connected) {
-      showStatusMessage('Lost connection to server - some features may be limited', 'error')
+      addNotification({ 
+        message: 'Lost connection to server - some features may be limited', 
+        type: 'error',
+        priority: 'high'
+      })
     }
-  }, [connected, showStatusMessage])
+  }, [connected, addNotification])
 
   const renderContent = () => {
     return (
@@ -48,11 +53,10 @@ const MainPage: React.FC = () => {
             Connection lost - attempting to reconnect...
           </div>
         )}
-        
-        <div className={styles.viewContainer}>
+          <div className={styles.viewContainer}>
           {currentView === 'main' && (
             <>
-              {/* <DigitalIlluminationAtelier /> // Removed */}
+              <MasterFader />
               <DmxControlPanel />
             </>
           )}
@@ -60,6 +64,8 @@ const MainPage: React.FC = () => {
           {currentView === 'fixture' && <FixtureSetup />}
           {currentView === 'scenes' && <SceneGallery />}
           {currentView === 'oscDebug' && <OscDebug />}
+          {currentView === 'audio' && <AudioControlPanel />}
+          {currentView === 'touchosc' && <TouchOSCExporter />}
           {currentView === 'misc' && <Settings />}
         </div>
       </div>

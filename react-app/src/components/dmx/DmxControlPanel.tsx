@@ -3,7 +3,6 @@ import { useStore } from '../../store'
 import { useTheme } from '../../context/ThemeContext'
 import { DmxWebglVisualizer } from './DmxWebglVisualizer'
 import { DmxChannel } from './DmxChannel'
-import { ColorPalette } from './ColorPalette'
 import styles from './DmxControlPanel.module.scss'
 
 export const DmxControlPanel: React.FC = () => {
@@ -139,11 +138,7 @@ export const DmxControlPanel: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Color palette for selection */}
-      <ColorPalette />
-      
+      </div>      
       {/* DMX Channels grid */}
       <div className={styles.channelsGrid}>
         {displayedChannels.map((index) => (

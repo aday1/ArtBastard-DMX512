@@ -44,16 +44,18 @@ if [ -d "$FRONTEND_DIST_DIR" ]; then
     rm -rf "$FRONTEND_DIST_DIR"
 fi
 
- if [ -d "$NODE_MODULES_DIR" ]; then
-     echo -e "${C_YELLOW}Banishing backend node_modules: $NODE_MODULES_DIR (A moment of dramatic pause!) 🌪️${C_RESET}"
-     rm -rf "$NODE_MODULES_DIR"
- fi
- if [ -d "$FRONTEND_NODE_MODULES_DIR" ]; then
-     echo -e "${C_YELLOW}Dismissing frontend node_modules: $FRONTEND_NODE_MODULES_DIR (Patience, artiste!) 🌪️${C_RESET}"
-     rm -rf "$FRONTEND_NODE_MODULES_DIR"
- fi
+# Note: CLEANUP.sh now handles comprehensive cleaning including node_modules by default.
+# If you run CLEANUP.sh first, these removals are redundant.
+# if [ -d "$NODE_MODULES_DIR" ]; then
+#     echo -e "${C_YELLOW}Banishing backend node_modules: $NODE_MODULES_DIR (A moment of dramatic pause!) 🌪️${C_RESET}"
+#     rm -rf "$NODE_MODULES_DIR"
+# fi
+# if [ -d "$FRONTEND_NODE_MODULES_DIR" ]; then
+#     echo -e "${C_YELLOW}Dismissing frontend node_modules: $FRONTEND_NODE_MODULES_DIR (Patience, artiste!) 🌪️${C_RESET}"
+#     rm -rf "$FRONTEND_NODE_MODULES_DIR"
+# fi
 
-echo -e "${C_GREEN}✨ Voila! The stage is pristine! Ready for the magic!${C_RESET}"
+echo -e "${C_GREEN}✨ Voila! The stage is prepped! If you haven\'t run CLEANUP.sh, some old props might linger.${C_RESET}"
 echo ""
 
 echo -e "${C_GREEN}🎶 Interlude: Summoning the Creative Spirits (Dependencies)! 🎶${C_RESET}"
@@ -98,8 +100,7 @@ else
    exit 1
 fi
 echo ""
-
-echo -e "${C_GREEN}💡 Act II: The Frontend's Dazzling Debut - Your Moment to Shine! 💡${C_RESET}"
+echo -e "${C_GREEN}🎪 Act II: The Frontend Spectacle - Your Grand Entrance! 🎪${C_RESET}"
 echo -e "${C_YELLOW}--------------------------------------------------------------------${C_RESET}"
 echo -e "${C_RED}‼️ SPOTLIGHT ON YOU, MAESTRO! ‼️${C_RESET}"
 echo -e "${C_YELLOW}The stage is yours for the frontend spectacle!${C_RESET}"
@@ -118,3 +119,6 @@ echo -e "${C_GREEN}May your DMX channels dance and your audience be mesmerized! 
 echo ""
 echo -e "${C_DARK_GRAY}ℹ️  To bring the curtain down on the background backend server later, command: kill $BACKEND_PID${C_RESET}"
 echo -e "${C_DARK_GRAY}    (Or it may gracefully exit when this terminal bows out, depending on your shell's temperament)${C_RESET}"
+echo -e "${C_YELLOW}May your code compile and your audience applaud! Bravo!${C_RESET}"
+echo ""
+echo -e "${C_YELLOW}🔄 For a full RESTART (clean, install, build, run): execute RESTART.sh 🔄${C_RESET}"
