@@ -677,6 +677,20 @@ function loadScene(io: Server, name: string) {
     }
 }
 
+function updateScene(io: Server, originalName: string, updates: Partial<Scene>) {
+    const sceneIndex = scenes.findIndex(s => s.name === originalName);
+    if (sceneIndex !== -1) {
+        scenes[sceneIndex] = { ...scenes[sceneIndex], ...updates };
+        saveScenes();
+        io.emit('sceneUpdated', { originalName, updatedScene: scenes[sceneIndex] });
+        io.emit('sceneList', scenes);
+        log('Scene updated', 'INFO', { originalName, updates });
+    } else {
+        log('Error updating scene: Scene not found', 'WARN', { originalName });
+        io.emit('sceneUpdateError', { originalName, error: 'Scene not found' });
+    }
+}
+
 function updateDmxChannel(channel: number, value: number) {
     dmxChannels[channel] = value;
     if (artnetSender) {
@@ -988,8 +1002,8 @@ export {
     disconnectMidiInput,
     addSocketHandlers,
     updateDmxChannel as setDmxChannel, // Export with alias
-    loadScene,
-    saveScene,
+    loadScene,    saveScene,
+    updateScene,
     loadScenes,
     saveScenes,
     pingArtNetDevice,

@@ -91,6 +91,7 @@ const navItems: Array<{
 export const Navbar: React.FC = () => {
   const { theme } = useTheme()
   const [activeView, setActiveView] = useState<ViewType>('main')
+  const [isCollapsed, setIsCollapsed] = useState(false)
   
   const handleViewChange = (view: ViewType) => {
     setActiveView(view)
@@ -98,9 +99,21 @@ export const Navbar: React.FC = () => {
       detail: { view }
     }))
   }
+
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed)
+  }
+  
   return (
-    <nav className={styles.navbar}>
+    <nav className={`${styles.navbar} ${isCollapsed ? styles.collapsed : ''}`}>
       <Sparkles />
+      <button 
+        className={styles.collapseToggle}
+        onClick={toggleCollapse}
+        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+      >
+        <i className={`fas ${isCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'}`}></i>
+      </button>
       <div className={styles.navButtons}>
         {navItems.map((item) => (
           <button

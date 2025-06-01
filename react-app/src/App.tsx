@@ -4,21 +4,27 @@ import { SocketProvider } from './context/SocketContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { useStore } from './store'
 import MainPage from './pages/MainPage'
-import { useBrowserMidi } from './hooks/useBrowserMidi'; // Import the hook
-import MidiDmxProcessor from './components/midi/MidiDmxProcessor';
-import MidiDebugHelper from './components/midi/MidiDebugHelper';
-import MidiDmxDebug from './components/midi/MidiDmxDebug';
-import OscMonitor from './components/osc/OscMonitor'; // Import OSC Monitor
-import './utils/midiTestUtils'; // Import MIDI testing utilities
+import { useBrowserMidi } from './hooks/useBrowserMidi'
+import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
+import MidiDebugHelper from './components/midi/MidiDebugHelper'
+import MidiDmxDebug from './components/midi/MidiDmxDebug'
+import OscMonitor from './components/osc/OscMonitor'
+import DebugInfo from './components/DebugInfo'
+import './utils/midiTestUtils'
 
 function App() {
+  console.log('[App] Component initializing...');
+  
+  // All hooks must be at the top level, outside of try-catch blocks
   const fetchInitialState = useStore((state) => state.fetchInitialState)
   const isTransitioning = useStore((state) => state.isTransitioning);
   const currentTransitionFrame = useStore((state) => state.currentTransitionFrame);
   const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId);
   
-  // Use the hook and get the returned values - particularly browserInputs and connectBrowserInput
+  console.log('[App] Store hooks initialized');
+  
   const { browserInputs, connectBrowserInput, refreshDevices, isSupported } = useBrowserMidi();
+  console.log('[App] MIDI hook initialized, isSupported:', isSupported);
 
   // Auto-connect to MIDI devices
   useEffect(() => {
@@ -63,14 +69,12 @@ function App() {
 
   // Scene Transition Animation Loop
   useEffect(() => {
-    let frameId: number | null = null; // Local frameId for this specific tick sequence
+    let frameId: number | null = null;
 
     const tick = () => {
-      // Directly get latest state from store inside tick function
       const currentState = useStore.getState(); 
 
       if (!currentState.isTransitioning || !currentState.transitionStartTime || !currentState.fromDmxValues || !currentState.toDmxValues) {
-        // If transition was externally stopped or data is missing, ensure no frame is scheduled.
         if (currentState.currentTransitionFrame) {
           cancelAnimationFrame(currentState.currentTransitionFrame);
           currentState.setCurrentTransitionFrameId(null);
@@ -93,74 +97,63 @@ function App() {
 
       if (progress >= 1) {
         currentState.clearTransitionState(); 
-        // setCurrentTransitionFrameId(null) is handled by clearTransitionState
       } else {
-        // Request next frame and update store with the new frameId
         frameId = requestAnimationFrame(tick);
         currentState.setCurrentTransitionFrameId(frameId);
       }
     };
 
     if (isTransitioning) {
-      // If a transition is flagged to start:
-      // Cancel any old frame that might somehow be lingering from a previous, incomplete transition.
-      // The loadScene action should also ideally cancel any existing frame.
       if (currentTransitionFrame) {
-          cancelAnimationFrame(currentTransitionFrame);
+        cancelAnimationFrame(currentTransitionFrame);
       }
-      // Start the new animation loop
       frameId = requestAnimationFrame(tick);
       setCurrentTransitionFrameId(frameId);
     } else {
-      // If transition was stopped externally (isTransitioning became false in store)
       if (currentTransitionFrame) {
         cancelAnimationFrame(currentTransitionFrame);
         setCurrentTransitionFrameId(null);
-        // clearTransitionState() should ideally be called by whatever action caused isTransitioning to become false.
       }
     }
 
-    // Cleanup function for the useEffect hook
     return () => {
-      // When the App component unmounts or dependencies change causing effect re-run.
-      // Access the *latest* currentTransitionFrame from the store for cleanup.
       const latestFrameIdInStore = useStore.getState().currentTransitionFrame;
       if (latestFrameIdInStore) {
         cancelAnimationFrame(latestFrameIdInStore);
-        // If the effect is cleaning up because isTransitioning became false,
-        // setCurrentTransitionFrameId(null) might already be called or will be by clearTransitionState.
-        // If App is unmounting, it's good to clear it.
         setCurrentTransitionFrameId(null); 
       }
     };
-  }, [
-    isTransitioning, 
-    // Actions are stable, so not strictly needed as deps, but good for clarity
-    setCurrentTransitionFrameId, 
-    // currentTransitionFrame is needed to correctly cancel frames if it changes externally
-    // while this effect is active or about to clean up.
-    currentTransitionFrame 
-  ]);
+  }, [isTransitioning, setCurrentTransitionFrameId, currentTransitionFrame]);
 
+  console.log('[App] About to render JSX...');
 
-  return (
-    <ThemeProvider children={
-      <SocketProvider children={
-        <>
-          {/* This component processes MIDI messages and updates DMX channels */}
-          <MidiDmxProcessor />
-          {/* This component provides keyboard shortcuts to test MIDI functionality */}
-          <MidiDebugHelper />
-          {/* This component helps debug MIDI to DMX communication issues */}
-          <MidiDmxDebug />
-          <OscMonitor /> {/* Add OSC Monitor to the App layout */}
-          <Layout children={
+  try {
+    return (
+      <ThemeProvider>
+        <SocketProvider>
+          <div style={{ display: 'none' }}>
+            <MidiDmxProcessor />
+            <MidiDebugHelper />
+            <MidiDmxDebug />
+            <OscMonitor />
+          </div>
+          <DebugInfo position="top-right" />
+          <Layout>
             <MainPage />
-          } />
-        </>
-      } />
-    } />
-  )
+          </Layout>
+        </SocketProvider>
+      </ThemeProvider>
+    );
+  } catch (error) {
+    console.error('[App] Error during render:', error);
+    return (
+      <div style={{ padding: '20px', color: 'red' }}>
+        <h1>App Render Error</h1>
+        <pre>{error instanceof Error ? error.message : String(error)}</pre>
+        <pre>{error instanceof Error ? error.stack : ''}</pre>
+      </div>
+    );
+  }
 }
 
 export default App

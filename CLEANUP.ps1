@@ -11,7 +11,7 @@ if (-not $ProjectRootPath) {
 Set-Location $ProjectRootPath
 Write-Host "📍 Conducting cleanup from: $($ProjectRootPath)" -ForegroundColor Yellow
 
-if (-not (Test-Path -Path ".\package.json" -PathType Leaf) -or -not (Test-Path -Path ".\react-app" -PathType Container)) {
+if (-not (Test-Path -Path "package.json" -PathType Leaf) -or -not (Test-Path -Path "react-app" -PathType Container)) {
     Write-Error "🛑 Hold the curtain! This ritual must be performed from the ArtBastard_DMX project's main stage!"
     Write-Error "Ensure 'package.json' and the 'react-app' directory are present: $ProjectRootPath"
     Exit 1
@@ -22,19 +22,19 @@ Write-Host "🧹 Act I: Sweeping Away All Traces of Past Performances! 🧹" -Fo
 Write-Host "(Builds, Logs, Caches, Node Modules, and Launcher Artifacts)" -ForegroundColor DarkCyan
 
 # Define the paths to artistic remnants
-$BackendDistDir = ".\dist"
-$FrontendDistDir = ".\react-app\dist"
-$LauncherDistDir = ".\launcher-dist"
-$LogsDir = ".\logs"
-$BackendLogFile = ".\backend.log" # Specific log file if it exists outside /logs
-$ViteCacheDir = ".\react-app\.vite"
+$BackendDistDir = "dist"
+$FrontendDistDir = "react-app\dist"
+$LauncherDistDir = "launcher-dist"
+$LogsDir = "logs"
+$BackendLogFile = "backend.log" # Specific log file if it exists outside /logs
+$ViteCacheDir = "react-app\.vite"
 $RootTsBuildInfoPattern = "*.tsbuildinfo" # Glob pattern for root
 $ReactAppTsBuildInfoPattern = "*.tsbuildinfo" # Glob pattern for react-app, will be joined with path
-$RootEslintCache = ".\.eslintcache"
-$ReactAppEslintCache = ".\react-app\.eslintcache"
-$RootNodeModules = ".\node_modules"
-$ReactAppNodeModules = ".\react-app\node_modules"
-$LauncherNodeModules = ".\launcher\node_modules" # Assuming launcher might have its own
+$RootEslintCache = ".eslintcache"
+$ReactAppEslintCache = "react-app\.eslintcache"
+$RootNodeModules = "node_modules"
+$ReactAppNodeModules = "react-app\node_modules"
+$LauncherNodeModules = "launcher\node_modules" # Assuming launcher might have its own
 
 # Function to remove item with flair
 function Remove-ItemWithFlair {

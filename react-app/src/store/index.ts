@@ -190,6 +190,7 @@ interface State {
   saveScene: (name: string, oscAddress: string) => void
   loadScene: (name: string) => void
   deleteScene: (name: string) => void
+  updateScene: (originalName: string, updates: Partial<Scene>) => void; // New action for updating scenes
   
   // Config Actions
   updateArtNetConfig: (config: Partial<ArtNetConfig>) => void
@@ -567,6 +568,27 @@ export const useStore = create<State>()(
         }
       },
       
+      updateScene: (originalName, updates) => {
+        const scenes = [...get().scenes]
+        const sceneIndex = scenes.findIndex(s => s.name === originalName)
+        
+        if (sceneIndex !== -1) {
+          scenes[sceneIndex] = { ...scenes[sceneIndex], ...updates }
+          set({ scenes })
+          
+          axios.put(`/api/scenes/${encodeURIComponent(originalName)}`, updates)
+            .then(() => {
+              get().addNotification({ message: `Scene '${originalName}' updated`, type: 'success' });
+            })
+            .catch(error => {
+              console.error('Failed to update scene:', error)
+              get().addNotification({ message: `Failed to update scene '${originalName}'`, type: 'error' }) 
+            })
+        } else {
+          get().addNotification({ message: `Scene "${originalName}" not found`, type: 'error' }) 
+        }
+      },
+      
       deleteScene: (name) => {
         const scenes = get().scenes.filter(s => s.name !== name)
         set({ scenes })
@@ -591,9 +613,7 @@ export const useStore = create<State>()(
         } else {
           get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
         }
-      },
-
-      testArtNetConnection: () => {
+      },      testArtNetConnection: () => {
         const socket = get().socket
         if (socket?.connected) {
           socket.emit('testArtNetConnection')
@@ -601,6 +621,21 @@ export const useStore = create<State>()(
         } else {
           get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
         }
+      },
+
+      // Theme Actions
+      setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
+        set({ theme })
+        localStorage.setItem('theme', theme)
+        get().addNotification({ message: `Theme changed to ${theme}`, type: 'info' })
+      },
+
+      toggleDarkMode: () => {
+        const newDarkMode = !get().darkMode
+        set({ darkMode: newDarkMode })
+        localStorage.setItem('darkMode', newDarkMode.toString())
+        document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
+        get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
       },
       
       // Deprecated actions - can be removed later

@@ -4,19 +4,21 @@ import { useTheme } from '../../context/ThemeContext'
 import { MidiLearnButton } from '../midi/MidiLearnButton'
 import styles from './SceneGallery.module.scss'
 
-export const SceneGallery: React.FC = () => {
-  const { theme } = useTheme()
-  const { scenes, dmxChannels, loadScene, deleteScene } = useStore(state => ({
+export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
+  const { scenes, dmxChannels, loadScene, deleteScene, updateScene } = useStore(state => ({
     scenes: state.scenes,
     dmxChannels: state.dmxChannels,
     loadScene: state.loadScene,
-    deleteScene: state.deleteScene
+    deleteScene: state.deleteScene,
+    updateScene: state.updateScene
   }))
-  
-  const [newSceneName, setNewSceneName] = useState('')
+    const [newSceneName, setNewSceneName] = useState('')
   const [newSceneOsc, setNewSceneOsc] = useState('/scene/new')
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
   const [transitionTime, setTransitionTime] = useState(1) // seconds
+  const [editingScene, setEditingScene] = useState<string | null>(null)
+  const [editOscAddress, setEditOscAddress] = useState('')
+  const [editSceneName, setEditSceneName] = useState('')
     // Save current DMX state as a new scene
   const saveScene = () => {
     if (!newSceneName.trim()) {
@@ -45,7 +47,81 @@ export const SceneGallery: React.FC = () => {
       message: `Scene "${newSceneName}" saved`,
       type: 'success',
       priority: 'normal'
-    })
+    })  }
+  
+  // Start editing a scene
+  const startEditingScene = (scene: any) => {
+    setEditingScene(scene.name)
+    setEditOscAddress(scene.oscAddress)
+    setEditSceneName(scene.name)
+  }
+  
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingScene(null)
+    setEditOscAddress('')
+    setEditSceneName('')
+  }
+  
+  // Save scene edits
+  const saveSceneEdits = () => {
+    if (!editingScene) return
+    
+    if (!editSceneName.trim()) {
+      useStore.getState().addNotification({
+        message: 'Scene name cannot be empty',
+        type: 'error',
+        priority: 'high'
+      })
+      return
+    }
+    
+    if (!editOscAddress.trim()) {
+      useStore.getState().addNotification({
+        message: 'OSC address cannot be empty',
+        type: 'error',
+        priority: 'high'
+      })
+      return
+    }
+    
+    // Check if name already exists (unless it's the same name)
+    if (editSceneName !== editingScene && scenes.some(s => s.name === editSceneName)) {
+      useStore.getState().addNotification({
+        message: `Scene name "${editSceneName}" already exists`,
+        type: 'error',
+        priority: 'high'
+      })
+      return
+    }
+    
+    const updates: any = {}
+    const originalScene = scenes.find(s => s.name === editingScene)
+    
+    if (editSceneName !== editingScene) {
+      updates.name = editSceneName
+    }
+    
+    if (editOscAddress !== originalScene?.oscAddress) {
+      updates.oscAddress = editOscAddress
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      updateScene(editingScene, updates)
+      
+      // Update active scene ID if it was the edited scene
+      if (activeSceneId === editingScene && updates.name) {
+        setActiveSceneId(updates.name)
+      }
+      
+      useStore.getState().addNotification({
+        message: `Scene "${editSceneName}" updated successfully`,
+        type: 'success',
+        priority: 'normal'
+      })
+    }
+    
+    cancelEditing()
   }
   
   // Calculate the number of active channels in a scene
@@ -209,41 +285,86 @@ export const SceneGallery: React.FC = () => {
             <div 
               key={index}
               className={`${styles.sceneCard} ${activeSceneId === scene.name ? styles.active : ''}`}
-            >
-              <div className={styles.sceneHeader}>
-                <h4>{scene.name}</h4>
-                <div className={styles.sceneControls}>
-                  <button
-                    className={styles.loadButton}
-                    onClick={() => {
-                      loadScene(scene.name)
-                      setActiveSceneId(scene.name)
-                    }}
-                    title="Load Scene"
-                  >
-                    <i className="fas fa-play"></i>
-                  </button>
-                  <button
-                    className={styles.deleteButton}
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete scene "${scene.name}"?`)) {
-                        deleteScene(scene.name)
-                        if (activeSceneId === scene.name) {
-                          setActiveSceneId(null)
-                        }
-                      }
-                    }}
-                    title="Delete Scene"
-                  >
-                    <i className="fas fa-trash-alt"></i>
-                  </button>
-                </div>
+            >              <div className={styles.sceneHeader}>
+                {editingScene === scene.name ? (
+                  <div className={styles.editingHeader}>
+                    <input
+                      type="text"
+                      value={editSceneName}
+                      onChange={(e) => setEditSceneName(e.target.value)}
+                      className={styles.editNameInput}
+                      placeholder="Scene name"
+                    />
+                    <div className={styles.editControls}>
+                      <button
+                        className={styles.saveEditButton}
+                        onClick={saveSceneEdits}
+                        title="Save changes"
+                      >
+                        <i className="fas fa-check"></i>
+                      </button>
+                      <button
+                        className={styles.cancelEditButton}
+                        onClick={cancelEditing}
+                        title="Cancel editing"
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h4>{scene.name}</h4>
+                    <div className={styles.sceneControls}>
+                      <button
+                        className={styles.editButton}
+                        onClick={() => startEditingScene(scene)}
+                        title="Edit Scene"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        className={styles.loadButton}
+                        onClick={() => {
+                          loadScene(scene.name)
+                          setActiveSceneId(scene.name)
+                        }}
+                        title="Load Scene"
+                      >
+                        <i className="fas fa-play"></i>
+                      </button>
+                      <button
+                        className={styles.deleteButton}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete scene "${scene.name}"?`)) {
+                            deleteScene(scene.name)
+                            if (activeSceneId === scene.name) {
+                              setActiveSceneId(null)
+                            }
+                          }
+                        }}
+                        title="Delete Scene"
+                      >
+                        <i className="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-              
-              <div className={styles.sceneInfo}>
+                <div className={styles.sceneInfo}>
                 <div className={styles.sceneProperty}>
                   <span className={styles.propertyLabel}>OSC:</span>
-                  <span className={styles.propertyValue}>{scene.oscAddress}</span>
+                  {editingScene === scene.name ? (
+                    <input
+                      type="text"
+                      value={editOscAddress}
+                      onChange={(e) => setEditOscAddress(e.target.value)}
+                      className={styles.editOscInput}
+                      placeholder="/scene/address"
+                    />
+                  ) : (
+                    <span className={styles.propertyValue}>{scene.oscAddress}</span>
+                  )}
                 </div>
                 
                 <div className={styles.sceneProperty}>

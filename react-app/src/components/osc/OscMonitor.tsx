@@ -10,6 +10,8 @@ export const OscMonitor: React.FC = () => {
   const [lastMessages, setLastMessages] = useState<Array<OscMessage>>([]);
   const [visible, setVisible] = useState(true);
   const [flashActive, setFlashActive] = useState(false);
+  const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { socket, connected: socketConnected } = useSocket();
 
   useEffect(() => {
@@ -30,13 +32,27 @@ export const OscMonitor: React.FC = () => {
       };
     }
   }, [socket, socketConnected, addOscMessageToStore]);
-
   useEffect(() => {
     if (oscMessagesFromStore.length > 0) {
-      const recentMessages = oscMessagesFromStore.slice(-5);
+      const recentMessages = oscMessagesFromStore.slice(-10); // Show more messages
       setLastMessages(recentMessages);
     }
   }, [oscMessagesFromStore]);
+
+  const handleMouseEnter = (msg: OscMessage, event: React.MouseEvent) => {
+    setHoveredMessage(msg);
+    setMousePosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (hoveredMessage) {
+      setMousePosition({ x: event.clientX, y: event.clientY });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredMessage(null);
+  };
 
   if (!socketConnected && lastMessages.length === 0) {
     return (
@@ -78,11 +94,15 @@ export const OscMonitor: React.FC = () => {
         <span className={styles.title}>OSC Monitor</span>
         <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>
         <span className={styles.toggle}>{visible ? '▼' : '◀'}</span>
-      </div>
-      {visible && (
-        <div className={styles.content}>
+      </div>      {visible && (
+        <div className={styles.content} onMouseMove={handleMouseMove}>
           {lastMessages.map((msg, index) => (
-            <div key={msg.timestamp || index} className={styles.messageRow}>
+            <div 
+              key={msg.timestamp || index} 
+              className={styles.messageRow}
+              onMouseEnter={(e) => handleMouseEnter(msg, e)}
+              onMouseLeave={handleMouseLeave}
+            >
               <span className={styles.address}>{msg.address}</span>
               <div className={styles.args}>
                 {msg.args.map((arg, argIndex) => (
@@ -91,9 +111,53 @@ export const OscMonitor: React.FC = () => {
                   </span>
                 ))}
               </div>
-              {/* {msg.source && <span className={styles.source}>{msg.source}</span>} */}
+              <span className={styles.timestamp}>
+                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+              </span>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Hover tooltip */}
+      {hoveredMessage && (
+        <div 
+          className={styles.hoverTooltip}
+          style={{
+            position: 'fixed',
+            left: mousePosition.x + 10,
+            top: mousePosition.y - 10,
+            zIndex: 10000
+          }}
+        >
+          <div className={styles.tooltipHeader}>
+            <strong>OSC Message Details</strong>
+          </div>          <div className={styles.tooltipContent}>
+            <div><strong>Address:</strong> {hoveredMessage.address}</div>
+            {hoveredMessage.source && (
+              <div><strong>Source:</strong> {hoveredMessage.source}</div>
+            )}
+            {hoveredMessage.timestamp && (
+              <div><strong>Time:</strong> {new Date(hoveredMessage.timestamp).toLocaleString()}</div>
+            )}
+            <div><strong>Arguments:</strong></div>
+            <div className={styles.argsDetail}>
+              {hoveredMessage.args.map((arg, index) => (
+                <div key={index} className={styles.argDetail}>
+                  <span className={styles.argType}>{arg.type}</span>
+                  <span className={styles.argValue}>
+                    {typeof arg.value === 'number' ? 
+                      `${arg.value} (${(arg.value * 100).toFixed(1)}%)` : 
+                      String(arg.value)
+                    }
+                  </span>
+                </div>
+              ))}
+            </div>
+            {hoveredMessage.source && (
+              <div><strong>Source:</strong> {hoveredMessage.source}</div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -19,6 +19,10 @@ export default defineConfig({
       }
     })
   ],
+  // Add better error handling for development
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -60,6 +64,10 @@ export default defineConfig({
   server: {
     port: 3001,
     strictPort: false,
+    // Add error handling for the dev server
+    hmr: {
+      overlay: true // Show errors as overlay
+    },
     proxy: {
       '/socket.io': {
         target: 'http://localhost:3030', // Changed from 3000 to 3030

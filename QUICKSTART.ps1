@@ -58,8 +58,7 @@ if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
         Write-Error "🛑 Critical: easymidi reinstall did not fix the missing @julusian/midi/lib/instruments.js."
         Write-Error "Please try manually deleting node_modules and package-lock.json in the project root, then run 'npm install' again."
         Write-Error "If the issue persists, try 'npm cache clean --force' followed by 'npm install'."
-        Exit 1
-    }
+        Exit 1    }
     Write-Host "✅ Reinstalling easymidi seems to have helped!" -ForegroundColor Green
 }
 

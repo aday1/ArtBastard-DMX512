@@ -8,6 +8,7 @@ import {
   learnMidiMapping, 
   loadScene, 
   saveScene, 
+  updateScene,
   loadConfig, 
   saveConfig, 
   clearMidiMappings,
@@ -280,6 +281,20 @@ apiRouter.post('/scenes/load', (req, res) => {
   } catch (error) {
     log('Error loading scene', 'ERROR', { error, body: req.body });
     res.status(500).json({ error: `Failed to load scene: ${error}` });
+  }
+});
+
+apiRouter.put('/scenes/:name', (req, res) => {
+  try {
+    const { name } = req.params;
+    const updates = req.body;
+    
+    updateScene(global.io, name, updates);
+    
+    res.json({ success: true });
+  } catch (error) {
+    log('Error updating scene', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to update scene: ${error}` });
   }
 });
 

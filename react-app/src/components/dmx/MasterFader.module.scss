@@ -1,40 +1,39 @@
 .masterFader {
-  background: var(--bg-secondary);
-  padding: 1rem; // Adjusted padding
-  border-radius: 12px;
-  border: 2px solid var(--accent-color);
-  // margin-bottom: 1rem; // Removed margin to allow floating
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 1rem;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);
-  position: fixed; // Changed to fixed for floating behavior
-  bottom: 20px; // Example positioning
-  right: 20px;  // Example positioning
-  z-index: 1000; // Ensure it's above other elements
-  width: 380px; // Adjusted width
-  max-width: 90vw; // Ensure it doesn't overflow on small screens
-  transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease; // Added transitions
-
-  &.minimized { // Styles for minimized state
-    width: 200px; // Smaller width when minimized
-    height: auto; // Adjust height to content (header only)
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 380px;
+  max-width: 90vw;
+  transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
+  &.minimized {
+    width: 200px;
+    height: auto;
     padding: 0.5rem;
 
     .header h3 {
-      font-size: 1rem; // Smaller header text
+      font-size: 1rem;
     }
-    .blackoutButton {
-      display: none; // Hide blackout button when minimized
+    .headerActions {
+      display: none;
     }
   }
-
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem; // Adjusted margin
-    padding-bottom: 0.5rem; // Adjusted padding
-    border-bottom: 2px solid var(--border-color);
-    cursor: grab; // Add grab cursor for draggable area
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: grab;
 
     h3 {
       color: var(--text-primary);
@@ -49,7 +48,7 @@
       }
     }
 
-    .windowControls { // Styles for window control buttons (minimize)
+    .windowControls {
       display: flex;
       gap: 0.5rem;
 
@@ -66,26 +65,62 @@
       }
     }
 
-    .blackoutButton {
-      padding: 0.6rem 1.2rem; // Adjusted padding
-      background: linear-gradient(135deg, #ff4757, #ff3742);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s ease;
+    .headerActions {
       display: flex;
-      align-items: center;
       gap: 0.5rem;
+      align-items: center;
 
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(255, 71, 87, 0.4);
+      .fullOnButton {
+        padding: 0.6rem 1rem;
+        background: linear-gradient(135deg, #ffa502, #ff6348);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(255, 165, 2, 0.4);
+        }
+
+        &.active {
+          background: linear-gradient(135deg, #2ed573, #1abc9c);
+          box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
       }
 
-      &:active {
-        transform: translateY(0);
+      .blackoutButton {
+        padding: 0.6rem 1rem;
+        background: linear-gradient(135deg, #ff4757, #ff3742);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(255, 71, 87, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
       }
     }
   }
@@ -93,26 +128,27 @@
   .faderContainer {
     display: flex;
     gap: 1.5rem; // Adjusted gap
-    align-items: flex-start;
-
-    .sliderWrapper {
+    align-items: flex-start;    .sliderWrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.75rem; // Adjusted gap
+      gap: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1rem;
+      border: 2px solid var(--accent-color);
 
       .verticalSlider {
         writing-mode: bt-lr; /* IE */
         -webkit-appearance: slider-vertical; /* WebKit */
         appearance: slider-vertical; /* Standard */
-        width: 30px; // Adjusted width
-        height: 150px; // Adjusted height
+        width: 30px; // Adjusted width        height: 150px; // Adjusted height
         background: linear-gradient(to top, 
-          #ff4757 0%, 
-          #ffa502 25%, 
-          #ffdd59 50%, 
-          #26de81 75%, 
-          #4ecdc4 100%
+          #2c2c2c 0%, 
+          #4a4a4a 25%, 
+          #6b6b6b 50%, 
+          #8a8a8a 75%, 
+          #b8b8b8 100%
         );
         border-radius: 20px;
         outline: none;
@@ -263,33 +299,7 @@
               background: #ff3742;
               transform: scale(1.1);
             }
-          }
-        }
-      }
-
-      .quickActions {
-        display: flex;
-        gap: 0.4rem; // Adjusted gap
-        flex-wrap: wrap;
-
-        .quickButton {
-          padding: 0.4rem 0.8rem; // Adjusted padding
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          border: 2px solid var(--border-color);
-          border-radius: 4px; // Adjusted border-radius
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.2s ease;
-          flex: 1;
-          min-width: 60px;
-
-          &:hover {
-            border-color: var(--accent-color);
-            background: rgba(78, 205, 196, 0.1);
-            transform: translateY(-1px);
-          }
-        }
+          }        }
       }
 
       .channelInfo {
@@ -302,21 +312,21 @@
       }
     }
   }
-
   @media (max-width: 768px) {
-    // Adjustments for responsive floating window if needed
-    // For example, make it full width at the bottom
-    // width: 100%;
-    // bottom: 0;
-    // right: 0;
-    // border-radius: 12px 12px 0 0; 
-    // padding: 0.75rem;
-
-
     .header {
-      flex-direction: row; // Keep header row for minimized view
-      // gap: 1rem;
-      // align-items: stretch;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: stretch;
+
+      .headerActions {
+        justify-content: center;
+        
+        .fullOnButton,
+        .blackoutButton {
+          flex: 1;
+          min-width: auto;
+        }
+      }
     }
 
     .faderContainer {
