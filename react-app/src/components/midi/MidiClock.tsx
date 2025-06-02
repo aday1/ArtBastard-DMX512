@@ -9,15 +9,23 @@ export const MidiClock: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const nodeRef = useRef(null);
 
-  const { selectedMidiClockHostId, availableMidiClockHosts } = useStore(state => ({
+  const {
+    selectedMidiClockHostId = 'none',
+    availableMidiClockHosts = [],
+    midiClockBpm,
+    midiClockIsPlaying,
+    midiClockCurrentBeat,
+    midiClockCurrentBar
+  } = useStore(state => ({
     selectedMidiClockHostId: state.selectedMidiClockHostId,
     availableMidiClockHosts: state.availableMidiClockHosts,
+    midiClockBpm: state.midiClockBpm,
+    midiClockIsPlaying: state.midiClockIsPlaying,
+    midiClockCurrentBeat: state.midiClockCurrentBeat,
+    midiClockCurrentBar: state.midiClockCurrentBar,
+    toggleInternalMidiClockPlayState: state.toggleInternalMidiClockPlayState,
+    setMidiClockBeatBar: state.setMidiClockBeatBar,
   }));
-
-  // Placeholder for actual MIDI clock data from store or Link
-  // const { bpm, beat, bar, isPlaying } = useStore(state => state.midiClockData) || { bpm: 120, beat: 0, bar: 0, isPlaying: false };
-  const bpm = 120.00; // Placeholder
-  const isPlaying = false; // Placeholder
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -25,6 +33,35 @@ export const MidiClock: React.FC = () => {
     }, 1000);
     return () => clearInterval(timerId);
   }, []);
+
+  // Effect for internal MIDI clock
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | undefined = undefined;
+
+    if (midiClockIsPlaying && selectedMidiClockHostId === 'none' && midiClockBpm > 0) {
+      const intervalDuration = (60 * 1000) / midiClockBpm; // Update per beat
+
+      intervalId = setInterval(() => {
+        const currentBeat = useStore.getState().midiClockCurrentBeat;
+        const currentBar = useStore.getState().midiClockCurrentBar;
+
+        let nextBeat = currentBeat + 1;
+        let nextBar = currentBar;
+
+        if (nextBeat > 4) { // Assuming 4/4 time
+          nextBeat = 1;
+          nextBar += 1;
+        }
+        useStore.getState().setMidiClockBeatBar(nextBeat, nextBar);
+      }, intervalDuration);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [midiClockIsPlaying, midiClockBpm, selectedMidiClockHostId, setMidiClockBeatBar]);
 
   const handleDragStart = (e: any) => {
     if (e.target.closest('button')) {
@@ -71,12 +108,20 @@ export const MidiClock: React.FC = () => {
           {currentTime.toLocaleTimeString()}
         </div>
         <div className={styles.bpmDisplay}>
-          {/* BPM: {bpm.toFixed(2)} | Bar: {currentBar} | Beat: {currentBeat + 1} */}
-          BPM: {bpm.toFixed(2)}
+          BPM: {midiClockBpm.toFixed(2)} | Bar: {midiClockCurrentBar} | Beat: {midiClockCurrentBeat}
         </div>
         {/* Placeholder for actual transport controls based on sync source */}
         <div className={styles.transportControls}>
-          <button disabled={selectedMidiClockHostId !== 'none'}>▶️ Play</button>
+          <button
+            disabled={selectedMidiClockHostId !== 'none'}
+            onClick={() => {
+              if (selectedMidiClockHostId === 'none') {
+                toggleInternalMidiClockPlayState();
+              }
+            }}
+          >
+            {midiClockIsPlaying ? '❚❚ Pause' : '▶️ Play'}
+          </button>
           <button disabled={selectedMidiClockHostId !== 'none'}>⏹️ Stop</button>
           {/* <button>Tap</button> */}
         </div>

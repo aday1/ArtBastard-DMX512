@@ -1,0 +1,25 @@
+.themeToggle {
+  position: fixed;
+  top: 20px;
+  right: 70px; // Positioned to the left of DebugInfo (assumed at right: 20px)
+  z-index: 1050;
+  cursor: pointer;
+  padding: 8px;
+  background-color: var(--color-card-bg);
+  border-radius: 50%;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+
+  i {
+    font-size: 20px;
+    color: var(--color-text);
+  }
+
+  &:hover {
+    background-color: var(--color-card-border);
+  }
+}

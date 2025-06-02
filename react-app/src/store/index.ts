@@ -164,6 +164,10 @@ interface State {
   // MIDI Clock Sync State
   availableMidiClockHosts: Array<{ id: string; name: string }>;
   selectedMidiClockHostId: string | null;
+  midiClockBpm: number;
+  midiClockIsPlaying: boolean;
+  midiClockCurrentBeat: number;
+  midiClockCurrentBar: number;
 
   // Actions
   fetchInitialState: () => Promise<void>
@@ -218,6 +222,10 @@ interface State {
   setMasterSliders: (sliders: MasterSlider[]) => void;
   setSelectedMidiClockHostId: (hostId: string | null) => void;
   setAvailableMidiClockHosts: (hosts: Array<{ id: string; name: string }>) => void;
+  setMidiClockBpm: (bpm: number) => void;
+  setMidiClockIsPlaying: (isPlaying: boolean) => void;
+  setMidiClockBeatBar: (beat: number, bar: number) => void;
+  toggleInternalMidiClockPlayState: () => void;
 }
 
 export const useStore = create<State>()(
@@ -280,6 +288,10 @@ export const useStore = create<State>()(
         // Other hosts would be populated dynamically
       ],
       selectedMidiClockHostId: 'none',
+      midiClockBpm: 120.0,
+      midiClockIsPlaying: false,
+      midiClockCurrentBeat: 1,
+      midiClockCurrentBar: 1,
       
       // Actions
       fetchInitialState: async () => {
@@ -763,6 +775,23 @@ export const useStore = create<State>()(
       },
       setAvailableMidiClockHosts: (hosts) => {
         set({ availableMidiClockHosts: hosts });
+      },
+      setMidiClockBpm: (bpm) => set({ midiClockBpm: bpm }),
+      setMidiClockIsPlaying: (isPlaying) => set({ midiClockIsPlaying: isPlaying }),
+      setMidiClockBeatBar: (beat, bar) => set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar }),
+      toggleInternalMidiClockPlayState: () => {
+        const currentIsPlaying = get().midiClockIsPlaying;
+        if (!currentIsPlaying) {
+          // Starting the clock, reset beat and bar
+          set({
+            midiClockIsPlaying: true,
+            midiClockCurrentBeat: 1,
+            midiClockCurrentBar: 1
+          });
+        } else {
+          // Stopping the clock
+          set({ midiClockIsPlaying: false });
+        }
       },
     }),
     { name: 'ArtBastard-DMX-Store' } 

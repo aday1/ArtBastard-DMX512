@@ -1,10 +1,10 @@
 .masterFader {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--color-card-bg); /* Changed background */
+  /* backdrop-filter: blur(10px); */ /* Removed backdrop-filter */
+  /* -webkit-backdrop-filter: blur(10px); */ /* Removed -webkit-backdrop-filter */
   padding: 1rem;
   border-radius: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--color-card-border); /* Changed border to use theme variable */
   box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);
   position: fixed;
   bottom: 20px;
@@ -142,14 +142,9 @@
         writing-mode: bt-lr; /* IE */
         -webkit-appearance: slider-vertical; /* WebKit */
         appearance: slider-vertical; /* Standard */
-        width: 30px; // Adjusted width        height: 150px; // Adjusted height
-        background: linear-gradient(to top, 
-          #2c2c2c 0%, 
-          #4a4a4a 25%, 
-          #6b6b6b 50%, 
-          #8a8a8a 75%, 
-          #b8b8b8 100%
-        );
+        width: 40px; // Increased width (thickness)
+        height: 180px; // Increased height (length)
+        background: var(--color-slider-track); // Theme variable for background
         border-radius: 20px;
         outline: none;
         cursor: pointer;
@@ -158,11 +153,11 @@
         &::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 40px; // Adjusted width
-          height: 20px; // Adjusted height
-          background: linear-gradient(135deg, #ffffff, #f1f2f6);
+          width: 50px; // Increased height (visual width for vertical slider)
+          height: 30px; // Increased width (visual height for vertical slider)
+          background: var(--color-slider-thumb); // Theme variable for thumb background
           border: 3px solid var(--accent-color);
-          border-radius: 12px;
+          border-radius: 15px; // Adjusted border-radius
           cursor: pointer;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           transition: all 0.2s ease;
@@ -174,11 +169,11 @@
         }
 
         &::-moz-range-thumb {
-          width: 40px; // Adjusted width
-          height: 20px; // Adjusted height
-          background: linear-gradient(135deg, #ffffff, #f1f2f6);
+          width: 50px; // Increased height (visual width for vertical slider)
+          height: 30px; // Increased width (visual height for vertical slider)
+          background: var(--color-slider-thumb); // Theme variable for thumb background
           border: 3px solid var(--accent-color);
-          border-radius: 12px;
+          border-radius: 15px; // Adjusted border-radius
           cursor: pointer;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
@@ -339,7 +334,7 @@
         -webkit-appearance: none;
         appearance: none; /* Standard */
         width: 100%; // Make slider full width in mobile if not vertical
-        height: 30px; // Adjusted height
+        height: 40px; // Adjusted height (thickness for horizontal slider)
       }
 
       .controls {

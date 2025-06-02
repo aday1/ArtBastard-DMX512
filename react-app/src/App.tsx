@@ -10,6 +10,7 @@ import MidiDebugHelper from './components/midi/MidiDebugHelper'
 import MidiDmxDebug from './components/midi/MidiDmxDebug'
 import OscMonitor from './components/osc/OscMonitor'
 import DebugInfo from './components/DebugInfo'
+import { ThemeToggleButton } from './components/layout/ThemeToggleButton'; // Import ThemeToggleButton
 import './utils/midiTestUtils'
 
 function App() {
@@ -137,6 +138,7 @@ function App() {
             <MidiDmxDebug />
             <OscMonitor />
           </div>
+          <ThemeToggleButton /> {/* Render ThemeToggleButton */}
           <DebugInfo position="top-right" />
           <Layout>
             <MainPage />

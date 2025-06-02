@@ -1,10 +1,10 @@
 .oscMonitor {
   /* Default position, will be overridden by draggable or if pinned */
-  position: absolute;
-  bottom: 20px;
-  left: 440px; /* Adjusted to be next to MidiMonitor */
-  width: 400px;
-  max-height: 300px;
+  /* position: absolute; */ /* Removed for fixed positioning via inline style */
+  bottom: 20px; /* No longer used for default */
+  left: 440px; /* No longer used for default */
+  /* width: 400px; */ /* Width is now set via inline style */
+  max-height: 300px; /* This will be the overall max-height including header */
   background-color: #2a2a2a;
   border: 2px solid #555;
   border-radius: 6px;
@@ -17,10 +17,9 @@
   display: flex;
   flex-direction: column;
 
-  &.pinned {
+  /* &.pinned { // Removed pinned class
     position: fixed !important;
-    /* Pinned position can be adjusted in the component's style prop */
-  }
+  } */
   
   &.collapsed {
     width: auto; /* Adjust width to content when collapsed */

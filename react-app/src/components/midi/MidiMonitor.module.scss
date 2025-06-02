@@ -1,10 +1,10 @@
 .midiMonitor {
   /* Default position, will be overridden by draggable or if pinned */
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  width: 400px;
-  max-height: 300px;
+  /* position: absolute; */ /* Removed for fixed positioning via inline style */
+  bottom: 20px; /* No longer used for default */
+  left: 20px; /* No longer used for default */
+  /* width: 400px; */ /* Width is now set via inline style */
+  max-height: 300px; /* This will be the overall max-height including header */
   background-color: #2a2a2a;
   border: 2px solid #555;
   border-radius: 6px;
@@ -17,10 +17,9 @@
   display: flex;
   flex-direction: column;
 
-  &.pinned {
-    position: fixed !important; /* Important to override draggable styles */
-    /* Pinned position can be adjusted in the component's style prop */
-  }
+  /* &.pinned { // Removed pinned class
+    position: fixed !important;
+  } */
   
   &.collapsed {
     width: auto; /* Adjust width to content when collapsed */
@@ -100,7 +99,7 @@
 
 .content {
   padding: 10px;
-  /* max-height: 250px; */ /* Let the container max-height handle this */
+  max-height: 240px; /* Adjusted to ensure overall monitor height respects its max-height (e.g. 300px - header height) */
   overflow-y: auto;
   background-color: #222; /* Slightly different background for content area */
   border-top: 1px solid #444; /* Separator line */
