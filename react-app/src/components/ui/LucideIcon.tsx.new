@@ -1,0 +1,61 @@
+import React from 'react';
+import * as Icons from 'lucide-react';
+
+// Define LucideIconProps to include all common Lucide icon properties
+interface LucideIconProps {
+  name: keyof typeof Icons;
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+  className?: string;
+  [key: string]: any; // Allow any other props to be passed through
+}
+
+/**
+ * A wrapper component for Lucide icons that safely handles the className property.
+ * This solves the "Cannot read properties of undefined (reading 'className')" error.
+ */
+export const LucideIcon: React.FC<LucideIconProps> = ({ 
+  name, 
+  size = 24, 
+  color, 
+  strokeWidth = 1.5,
+  className,
+  ...restProps 
+}) => {
+  const IconComponent = Icons[name];
+  
+  if (!IconComponent) {
+    console.error(`Icon "${name}" does not exist in lucide-react package.`);
+    return null;
+  }
+  
+  // Use React.createElement instead of JSX to avoid type issues
+  // Wrap the icon in a span with className to prevent the error
+  return (
+    <span className={className || undefined}>
+      {React.createElement(IconComponent, { 
+        size, 
+        color, 
+        strokeWidth,
+        ...restProps 
+      })}
+    </span>
+  );
+};
+
+/**
+ * Helper function to wrap any Lucide icon component in a span with className
+ * Use this when you have a direct reference to an icon component
+ */
+export const wrapLucideIcon = (
+  IconComponent: React.ComponentType<any>,
+  props: { className?: string; size?: number; color?: string; strokeWidth?: number; [key: string]: any }
+) => {
+  const { className, ...iconProps } = props;
+  return (
+    <span className={className || undefined}>
+      {React.createElement(IconComponent, iconProps)}
+    </span>
+  );
+};

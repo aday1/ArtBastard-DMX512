@@ -3,10 +3,15 @@ import { useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import styles from './FFTOSCAssignment.module.scss';
 
-interface FFTBand {
-  frequency: number;
+interface FFTBandSelectionInfo {
+  bandName: string;
+  bandLabel: string;
+  bandIndex: number;
   magnitude: number;
-  index: number;
+  minFreq: number;
+  maxFreq: number;
+  index: number; // Add this property
+  frequency: number; // Add this property
 }
 
 interface OSCAssignment {
@@ -20,7 +25,7 @@ interface OSCAssignment {
 }
 
 interface FFTOSCAssignmentProps {
-  selectedBand?: FFTBand;
+  selectedBand?: FFTBandSelectionInfo;
   selectedRange?: { start: number; end: number };
   onAssignmentCreate?: (assignment: OSCAssignment) => void;
 }

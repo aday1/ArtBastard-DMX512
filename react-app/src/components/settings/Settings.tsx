@@ -20,8 +20,7 @@ interface TouchOscExportOptionsUI {
 export const Settings: React.FC = () => {
   const { theme, setTheme, darkMode, toggleDarkMode } = useTheme()
   const { socket, connected } = useSocket()
-  
-  const { 
+    const { 
     artNetConfig, 
     exampleSliderValue, 
     setExampleSliderValue, 
@@ -30,6 +29,10 @@ export const Settings: React.FC = () => {
     masterSliders, 
     transitionDuration, // Fetch current duration
     setTransitionDuration, // Fetch action
+    availableMidiClockHosts,
+    selectedMidiClockHostId,
+    setSelectedMidiClockHostId,
+    setAvailableMidiClockHosts,
   } = useStore(state => ({
     artNetConfig: state.artNetConfig,
     exampleSliderValue: state.exampleSliderValue,

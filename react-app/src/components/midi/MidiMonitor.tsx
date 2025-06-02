@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable, { DraggableCore } from 'react-draggable';
 import { Pin, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { IconWrapper } from '../ui/IconWrapper';
 import { useStore } from '../../store';
 import styles from './MidiMonitor.module.scss';
 
@@ -27,21 +28,24 @@ export const MidiMonitor: React.FC = () => {
   const handleDragStart = (e: any) => {
     // Prevent dragging when clicking on buttons
     if (e.target.closest('button')) {
-      return false;
+      return false as unknown as void;
     }
   };
 
   const renderHeader = () => (
     <div className={`${styles.header} handle`}>
-      <GripVertical size={18} className={styles.dragHandle} />
+      <IconWrapper IconComponent={GripVertical} size={18} className={styles.dragHandle} />
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
       <div className={styles.controls}>
         {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
-          <Pin size={14} />
+          <IconWrapper IconComponent={Pin} size={14} />
         </button> */}
         <button onClick={() => setIsCollapsed(!isCollapsed)}>
-          {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+          {isCollapsed ? 
+            <IconWrapper IconComponent={Maximize2} size={14} /> : 
+            <IconWrapper IconComponent={Minimize2} size={14} />
+          }
         </button>
       </div>
     </div>

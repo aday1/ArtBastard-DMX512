@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { Pin, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { IconWrapper } from '../ui/IconWrapper';
 import { useStore } from '../../store';
 import styles from './OscMonitor.module.scss';
 import { useSocket } from '../../context/SocketContext';
@@ -54,24 +55,29 @@ export const OscMonitor: React.FC = () => {
   const handleMouseLeave = () => {
     setHoveredMessage(null);
   };
-
   const handleDragStart = (e: any) => {
     if (e.target.closest('button')) {
-      return false; // Prevent dragging when clicking on header buttons
+      // Prevent dragging when clicking on header buttons
+      return false as unknown as void;
     }
   };
-
   const renderHeader = () => (
     <div className={`${styles.header} handle`}>
-      <GripVertical size={18} className={styles.dragHandle} />
+      <div className={styles.dragHandle}>
+        <IconWrapper IconComponent={GripVertical} size={18} strokeWidth={1.5} />
+      </div>
       <span className={styles.title}>OSC Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
       <div className={styles.controls}>
         {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
-          <Pin size={14} />
+          <IconWrapper IconComponent={Pin} size={14} strokeWidth={1.5} />
         </button> */}
         <button onClick={() => setIsCollapsed(!isCollapsed)}>
-          {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+          {isCollapsed ? (
+            <IconWrapper IconComponent={Maximize2} size={14} strokeWidth={1.5} />
+          ) : (
+            <IconWrapper IconComponent={Minimize2} size={14} strokeWidth={1.5} />
+          )}
         </button>
       </div>
     </div>

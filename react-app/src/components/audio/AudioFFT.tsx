@@ -33,6 +33,8 @@ interface FFTBandSelectionInfo {
   magnitude: number; // Aggregate magnitude for this band
   minFreq: number;
   maxFreq: number;
+  index: number; // Add this property for compatibility
+  frequency: number; // Add this property for compatibility
 }
 
 interface AudioFFTProps {
@@ -279,11 +281,10 @@ export const AudioFFT: React.FC<AudioFFTProps> = ({ onBandSelect }) => {
       let maxMagnitudeInBand = -Infinity;
       for (let j = customBand.startBin; j <= customBand.endBin; j++) {
         if (fftData[j] > maxMagnitudeInBand) {
-          maxMagnitudeInBand = fftData[j];
-        }
+          maxMagnitudeInBand = fftData[j];        }
       }
       const normalizedValue = (maxMagnitudeInBand - (-100)) / ((-10) - (-100));
-
+      
       onBandSelect?.({
         bandName: customBand.name,
         bandLabel: customBand.label,
@@ -291,6 +292,8 @@ export const AudioFFT: React.FC<AudioFFTProps> = ({ onBandSelect }) => {
         magnitude: Math.max(0, Math.min(1, normalizedValue)),
         minFreq: customBand.minFreq,
         maxFreq: customBand.maxFreq,
+        index: clickedBandIndex, // Add this property for compatibility
+        frequency: (customBand.minFreq + customBand.maxFreq) / 2, // Add center frequency
       });
     }
   }, [calculatedBands, onBandSelect, fftData]);

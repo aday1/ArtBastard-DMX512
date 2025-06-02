@@ -144,8 +144,7 @@
       }
     }
   }
-  /* Media query adjustments might be needed for .navbarContainer and .collapseToggle as well */
-  @media (max-width: 768px) {
+  /* Media query adjustments might be needed for .navbarContainer and .collapseToggle as well */  @media (max-width: 768px) {
     .navContent { /* Apply responsive styles to navContent */
       padding: 0.5rem;
       gap: 0.5rem;
@@ -170,6 +169,5 @@
       }
     }
   }
-}
 /* Ensure .navbar class from previous state is removed or updated if it was used elsewhere */
 /* For example, if any global styles or other components referred to .navbar directly */

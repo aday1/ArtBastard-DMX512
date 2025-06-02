@@ -132,13 +132,15 @@ function App() {
     return (
       <ThemeProvider>
         <SocketProvider>
+          {/* Debug and background processors */}
           <div style={{ display: 'none' }}>
             <MidiDmxProcessor />
             <MidiDebugHelper />
             <MidiDmxDebug />
             <OscMonitor />
           </div>
-          <ThemeToggleButton /> {/* Render ThemeToggleButton */}
+          {/* Main UI should live inside SocketProvider */}
+          <ThemeToggleButton />
           <DebugInfo position="top-right" />
           <Layout>
             <MainPage />

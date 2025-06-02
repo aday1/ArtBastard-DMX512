@@ -4,6 +4,7 @@ import { NetworkStatus } from './NetworkStatus'
 import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
+import { LucideIcon } from '../ui/LucideIcon' // Using our adapter for lucide-react icons
 
 type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'audio' | 'touchosc' | 'misc'
 
@@ -99,24 +100,6 @@ export const Navbar: React.FC = () => {
       detail: { view }
     }))
   }
-
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed)
-  }
-import { Menu, X } from 'lucide-react'; // Using lucide-react icons for toggle
-
-export const Navbar: React.FC = () => {
-  const { theme } = useTheme()
-  const [activeView, setActiveView] = useState<ViewType>('main')
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  
-  const handleViewChange = (view: ViewType) => {
-    setActiveView(view)
-    window.dispatchEvent(new CustomEvent('changeView', { 
-      detail: { view }
-    }))
-  }
-
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed)
   }
@@ -124,13 +107,15 @@ export const Navbar: React.FC = () => {
   // The parent div now controls the overall block, its margin, and stickiness.
   // The toggle button is outside the element that gets display:none.
   return (
-    <div className={styles.navbarContainer}>
-      <button 
+    <div className={styles.navbarContainer}>      <button 
         className={styles.collapseToggle}
         onClick={toggleCollapse}
         title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
-      >
-        {isCollapsed ? <Menu size={24} /> : <X size={24} />} {/* Changed icon based on state */}
+      >        {isCollapsed ? (
+          <LucideIcon name="Menu" size={24} strokeWidth={1.5} />
+        ) : (
+          <LucideIcon name="X" size={24} strokeWidth={1.5} />
+        )} {/* Using LucideIcon adapter */}
       </button>
       <nav className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
         <Sparkles />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { Minimize2, Maximize2, GripVertical, Zap, ZapOff } from 'lucide-react'; // Added Zap icons
+import { IconWrapper } from '../ui/IconWrapper';
 import styles from './MidiClock.module.scss';
 import { useStore } from '../../store';
 
@@ -8,14 +9,15 @@ export const MidiClock: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const nodeRef = useRef(null);
-
   const {
     selectedMidiClockHostId = 'none',
     availableMidiClockHosts = [],
     midiClockBpm,
     midiClockIsPlaying,
     midiClockCurrentBeat,
-    midiClockCurrentBar
+    midiClockCurrentBar,
+    toggleInternalMidiClockPlayState,
+    setMidiClockBeatBar
   } = useStore(state => ({
     selectedMidiClockHostId: state.selectedMidiClockHostId,
     availableMidiClockHosts: state.availableMidiClockHosts,
@@ -65,7 +67,7 @@ export const MidiClock: React.FC = () => {
 
   const handleDragStart = (e: any) => {
     if (e.target.closest('button')) {
-      return false;
+      return false as unknown as void;
     }
   };
 
@@ -78,17 +80,23 @@ export const MidiClock: React.FC = () => {
 
     return (
       <div className={`${styles.header} handle`}>
-        <GripVertical size={18} className={styles.dragHandle} />
+        <IconWrapper IconComponent={GripVertical} size={18} className={styles.dragHandle} />
         <span className={styles.title}>MIDI Clock</span>
         {!isCollapsed && (
           <span className={`${styles.syncStatus} ${isActuallySynced ? styles.synced : styles.notSynced}`}>
-            {isActuallySynced ? <Zap size={12} /> : <ZapOff size={12} />}
+            {isActuallySynced ? 
+              <IconWrapper IconComponent={Zap} size={12} /> : 
+              <IconWrapper IconComponent={ZapOff} size={12} />
+            }
             {syncStatusText}
           </span>
         )}
         <div className={styles.controls}>
           <button onClick={() => setIsCollapsed(!isCollapsed)}>
-            {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+            {isCollapsed ? 
+              <IconWrapper IconComponent={Maximize2} size={14} /> : 
+              <IconWrapper IconComponent={Minimize2} size={14} />
+            }
           </button>
         </div>
       </div>

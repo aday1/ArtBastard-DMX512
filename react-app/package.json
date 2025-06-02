@@ -12,6 +12,7 @@
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "leva": "^0.9.35",
+    "lucide-react": "^0.303.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-draggable": "^4.4.6",
