@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import MidiDebugger from '../midi/MidiDebugger'; // Import MidiDebugger
 
 interface DebugInfoProps {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -151,6 +152,11 @@ const DebugInfo: React.FC<DebugInfoProps> = ({ position = 'top-right' }) => {
               ))}
             </div>
           )}
+
+          <div style={{ marginTop: '15px', borderTop: '1px dashed #555', paddingTop: '10px' }}>
+            <strong style={{ color: '#00ffff', display: 'block', marginBottom: '5px' }}>MIDI Debugger:</strong>
+            <MidiDebugger />
+          </div>
 
           <div style={{ fontSize: '10px', color: '#888888', marginTop: '10px' }}>
             💡 Check browser DevTools Console (F12) for more details

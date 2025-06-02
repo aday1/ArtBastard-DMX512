@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTheme } from '../../context/ThemeContext'
-import { StatusBar } from './StatusBar'
+// import { StatusBar } from './StatusBar' // Removed StatusBar import
 import { Navbar } from './Navbar'
 import { ToastContainer } from './ToastContainer' // Import ToastContainer
 import { NetworkStatus } from './NetworkStatus'
@@ -44,15 +44,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {children}
           </main>
 
-          {/* Add MIDI Debugger for troubleshooting */}
-          <MidiDebugger />
+          {/* Add MIDI Debugger for troubleshooting - MOVED TO DEBUG INFO PANEL */}
+          {/* <MidiDebugger /> */}
           
           {/* Add the new MIDI Monitor for visibility */}
           <MidiMonitor />
         </div>
       </div>
       
-      <StatusBar />
+      {/* <StatusBar /> */} {/* Removed StatusBar component */}
     </div>
   )
 }
