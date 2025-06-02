@@ -11,7 +11,7 @@ export const OscMonitor: React.FC = () => {
   const addOscMessageToStore = useStore(state => state.addOscMessage);
   const [lastMessages, setLastMessages] = useState<Array<OscMessage>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  // const [isPinned, setIsPinned] = useState(false); // Removed isPinned
   const [flashActive, setFlashActive] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -67,9 +67,9 @@ export const OscMonitor: React.FC = () => {
       <span className={styles.title}>OSC Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
       <div className={styles.controls}>
-        <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
+        {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
           <Pin size={14} />
-        </button>
+        </button> */}
         <button onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
         </button>
@@ -129,14 +129,18 @@ export const OscMonitor: React.FC = () => {
   const monitorClasses = [
     styles.oscMonitor,
     flashActive ? styles.flash : '',
-    isPinned ? styles.pinned : '',
+    // isPinned ? styles.pinned : '', // Removed isPinned
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
 
   return (
     <>
-      <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} disabled={isPinned}>
-        <div ref={nodeRef} className={monitorClasses} style={isPinned ? { position: 'fixed', top: 20, right: 220 } : {}}> {/* Adjusted right for spacing */}
+      <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} /* disabled={isPinned} */> {/* Removed disabled prop */}
+        <div
+          ref={nodeRef}
+          className={monitorClasses}
+          style={{ position: 'fixed', top: 20, right: 'calc(20px + 400px + 20px)', zIndex: 999, width: '400px' }} // Added fixed positioning
+        >
           {renderHeader()}
           {renderContent()}
         </div>

@@ -65,7 +65,8 @@
       }
     }
 
-    .themeToggle {
+    /*
+    .themeToggle { // This class has been removed as the component is now ThemeToggleButton.tsx
       position: fixed;
       bottom: 2rem;
       right: 2rem;
@@ -90,6 +91,7 @@
         font-size: 1.2rem;
       }
     }
+    */
   }
 }
 

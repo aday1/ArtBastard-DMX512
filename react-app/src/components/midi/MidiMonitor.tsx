@@ -8,7 +8,7 @@ export const MidiMonitor: React.FC = () => {
   const midiMessages = useStore(state => state.midiMessages);
   const [lastMessages, setLastMessages] = useState<Array<any>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  // const [isPinned, setIsPinned] = useState(false); // Removed isPinned
   const [flashActive, setFlashActive] = useState(false);
   const nodeRef = useRef(null);
 
@@ -37,9 +37,9 @@ export const MidiMonitor: React.FC = () => {
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
       <div className={styles.controls}>
-        <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
+        {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
           <Pin size={14} />
-        </button>
+        </button> */}
         <button onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
         </button>
@@ -95,13 +95,17 @@ export const MidiMonitor: React.FC = () => {
   const monitorClasses = [
     styles.midiMonitor,
     flashActive ? styles.flash : '',
-    isPinned ? styles.pinned : '',
+    // isPinned ? styles.pinned : '', // Removed isPinned
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
 
   return (
-    <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} disabled={isPinned}>
-      <div ref={nodeRef} className={monitorClasses} style={isPinned ? { position: 'fixed', top: 20, right: 20 } : {}}>
+    <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} /* disabled={isPinned} */> {/* Removed disabled prop */}
+      <div
+        ref={nodeRef}
+        className={monitorClasses}
+        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }} // Added fixed positioning and default width
+      >
         {renderHeader()}
         {renderContent()}
       </div>
