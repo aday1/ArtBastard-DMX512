@@ -6,6 +6,9 @@ import { useStore } from '../store'
 import { DmxControlPanel } from '../components/dmx/DmxControlPanel'
 import { MasterFader } from '../components/dmx/MasterFader'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
+import { MidiMonitor } from '../components/midi/MidiMonitor'
+import { OscMonitor } from '../components/osc/OscMonitor'
+import { MidiClock } from '../components/midi/MidiClock' // Added MidiClock import
 import { OscDebug } from '../components/osc/OscDebug'
 import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'
 import { AudioControlPanel } from '../components/audio/AudioControlPanel'
@@ -58,6 +61,9 @@ const MainPage: React.FC = () => {
             <>
               <MasterFader />
               <DmxControlPanel />
+              <MidiMonitor />
+              <OscMonitor />
+              <MidiClock /> {/* Added MidiClock */}
             </>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}

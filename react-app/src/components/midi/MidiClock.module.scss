@@ -1,0 +1,161 @@
+.midiClock {
+  position: absolute;
+  top: 20px; /* Default position */
+  left: 860px; /* Default position next to OSC Monitor */
+  width: 280px;
+  background-color: #2c2c2c;
+  border: 2px solid #555;
+  border-radius: 6px;
+  color: #eaeaea;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  z-index: 998; /* Below other monitors if overlapping */
+  display: flex;
+  flex-direction: column;
+
+  &.collapsed {
+    width: auto;
+    min-width: 150px;
+    height: auto;
+  }
+
+  &.externalSync {
+    border-left: 3px solid #61dafb; // Indicate active external sync
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  background-color: #383838;
+  padding: 6px 10px;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid #4a4a4a;
+
+  &:hover {
+    background-color: #4a4a4a;
+  }
+}
+
+.dragHandle {
+  margin-right: 8px;
+  color: #999;
+  cursor: grab;
+}
+
+.title {
+  font-weight: bold;
+  color: #61dafb; /* A distinct color for the clock */
+  /* margin-right: auto; */ /* Let syncStatus take space */
+  flex-grow: 1; /* Allow title to take available space before controls */
+}
+
+.syncStatus {
+  font-size: 0.75em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 8px;
+  margin-right: auto; /* Pushes controls to the right */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &.synced {
+    background-color: #2a9d8f; // Teal for synced
+    color: #fff;
+  }
+
+  &.notSynced {
+    background-color: #e76f51; // Coral for not synced/internal
+    color: #fff;
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  button {
+    background: none;
+    border: none;
+    color: #ccc;
+    padding: 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: #555;
+      color: #fff;
+    }
+  }
+}
+
+.content {
+  padding: 12px;
+  background-color: #252525;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.timeDisplay {
+  font-size: 1.8em;
+  color: #61dafb;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 5px; /* Added margin */
+}
+
+.bpmDisplay {
+  font-size: 1.2em;
+  color: #eee;
+  background-color: #333;
+  padding: 5px 10px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 10px; /* Added margin */
+}
+
+.transportControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+
+  button {
+    background-color: #4f4f4f;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+
+    &:hover:not(:disabled) {
+      background-color: #61dafb;
+      color: #252525;
+    }
+
+    &:disabled {
+      background-color: #3a3a3a;
+      color: #777;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.linkStatus {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-top: 5px;
+  padding: 3px 6px;
+  background-color: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}

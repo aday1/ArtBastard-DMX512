@@ -92,6 +92,23 @@ export const Navbar: React.FC = () => {
   const { theme } = useTheme()
   const [activeView, setActiveView] = useState<ViewType>('main')
   const [isCollapsed, setIsCollapsed] = useState(false)
+
+  const handleViewChange = (view: ViewType) => {
+    setActiveView(view)
+    window.dispatchEvent(new CustomEvent('changeView', {
+      detail: { view }
+    }))
+  }
+
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed)
+  }
+import { Menu, X } from 'lucide-react'; // Using lucide-react icons for toggle
+
+export const Navbar: React.FC = () => {
+  const { theme } = useTheme()
+  const [activeView, setActiveView] = useState<ViewType>('main')
+  const [isCollapsed, setIsCollapsed] = useState(false)
   
   const handleViewChange = (view: ViewType) => {
     setActiveView(view)
@@ -104,28 +121,34 @@ export const Navbar: React.FC = () => {
     setIsCollapsed(!isCollapsed)
   }
   
+  // The parent div now controls the overall block, its margin, and stickiness.
+  // The toggle button is outside the element that gets display:none.
   return (
-    <nav className={`${styles.navbar} ${isCollapsed ? styles.collapsed : ''}`}>
-      <Sparkles />
+    <div className={styles.navbarContainer}>
       <button 
         className={styles.collapseToggle}
         onClick={toggleCollapse}
         title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
       >
-        <i className={`fas ${isCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'}`}></i>
+        {isCollapsed ? <Menu size={24} /> : <X size={24} />} {/* Changed icon based on state */}
       </button>
-      <div className={styles.navButtons}>
-        {navItems.map((item) => (
-          <button
+      <nav className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
+        <Sparkles />
+        {/* Removed the old internal toggle button from here */}
+        <div className={styles.navButtons}>
+          {navItems.map((item) => (
+            <button
             key={item.id}
             className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
             onClick={() => handleViewChange(item.id)}
             title={item.title.standard}
           >
-            <i className={`fas ${item.icon}`}></i>
-            <span>{item.title[theme]}</span>
-          </button>
-        ))}      </div>
-    </nav>
+              <i className={`fas ${item.icon}`}></i>
+              <span>{item.title[theme]}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
   )
 }

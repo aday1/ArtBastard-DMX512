@@ -1,40 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from '../../store'; 
+import React, { useState, useEffect, useRef } from 'react';
+import Draggable from 'react-draggable';
+import { Pin, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { useStore } from '../../store';
 import styles from './OscMonitor.module.scss';
-import { useSocket } from '../../context/SocketContext'; 
-import { OscMessage } from '../../store'; // Import OscMessage type from store
+import { useSocket } from '../../context/SocketContext';
+import { OscMessage } from '../../store';
 
 export const OscMonitor: React.FC = () => {
   const oscMessagesFromStore = useStore(state => state.oscMessages);
   const addOscMessageToStore = useStore(state => state.addOscMessage);
   const [lastMessages, setLastMessages] = useState<Array<OscMessage>>([]);
-  const [visible, setVisible] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { socket, connected: socketConnected } = useSocket();
+  const nodeRef = useRef(null);
 
   useEffect(() => {
     if (socket && socketConnected) {
       const handleOscMessage = (message: OscMessage) => {
-        // console.log('OSC Message Received in Monitor, adding to store:', message);
-        addOscMessageToStore(message); // Add message to Zustand store
-        
+        addOscMessageToStore(message);
         setFlashActive(true);
         const timer = setTimeout(() => setFlashActive(false), 200);
-        return () => clearTimeout(timer); // Clear timer on new message or unmount
+        return () => clearTimeout(timer);
       };
-
-      socket.on('oscMessage', handleOscMessage); 
-
+      socket.on('oscMessage', handleOscMessage);
       return () => {
         socket.off('oscMessage', handleOscMessage);
       };
     }
   }, [socket, socketConnected, addOscMessageToStore]);
+
   useEffect(() => {
     if (oscMessagesFromStore.length > 0) {
-      const recentMessages = oscMessagesFromStore.slice(-10); // Show more messages
+      const recentMessages = oscMessagesFromStore.slice(-10);
       setLastMessages(recentMessages);
     }
   }, [oscMessagesFromStore]);
@@ -54,85 +55,108 @@ export const OscMonitor: React.FC = () => {
     setHoveredMessage(null);
   };
 
-  if (!socketConnected && lastMessages.length === 0) {
-    return (
-      <div className={`${styles.oscMonitor} ${visible ? '' : styles.collapsed}`}>
-        <div className={styles.header} onClick={() => setVisible(!visible)}>
-          <span className={styles.title}>OSC Monitor</span>
-          <span className={styles.toggle}>{visible ? '▼' : '◀'}</span>
+  const handleDragStart = (e: any) => {
+    if (e.target.closest('button')) {
+      return false; // Prevent dragging when clicking on header buttons
+    }
+  };
+
+  const renderHeader = () => (
+    <div className={`${styles.header} handle`}>
+      <GripVertical size={18} className={styles.dragHandle} />
+      <span className={styles.title}>OSC Monitor</span>
+      {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
+      <div className={styles.controls}>
+        <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
+          <Pin size={14} />
+        </button>
+        <button onClick={() => setIsCollapsed(!isCollapsed)}>
+          {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderContent = () => {
+    if (isCollapsed) {
+      return null;
+    }
+
+    if (!socketConnected && lastMessages.length === 0) {
+      return (
+        <div className={styles.content}>
+          <p className={styles.noData}>Socket not connected.</p>
+          <p className={styles.noData}>OSC messages will appear here.</p>
         </div>
-        {visible && (
-          <div className={styles.content}>
-            <p className={styles.noData}>Socket not connected.</p>
-            <p className={styles.noData}>OSC messages will appear here.</p>
+      );
+    }
+
+    if (lastMessages.length === 0) {
+      return (
+        <div className={styles.content}>
+          <p className={styles.noData}>No OSC messages received yet.</p>
+          <p className={styles.noData}>Ensure OSC sources are configured and sending data.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.content} onMouseMove={handleMouseMove}>
+        {lastMessages.map((msg, index) => (
+          <div
+            key={msg.timestamp || index}
+            className={styles.messageRow}
+            onMouseEnter={(e) => handleMouseEnter(msg, e)}
+            onMouseLeave={handleMouseLeave}
+          >
+            <span className={styles.address}>{msg.address}</span>
+            <div className={styles.args}>
+              {msg.args.map((arg, argIndex) => (
+                <span key={argIndex} className={styles.arg}>
+                  {`${arg.type}: ${typeof arg.value === 'number' ? arg.value.toFixed(3) : String(arg.value)}`}
+                </span>
+              ))}
+            </div>
+            <span className={styles.timestamp}>
+              {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+            </span>
           </div>
-        )}
+        ))}
       </div>
     );
-  }
-  
-  if (lastMessages.length === 0) {
-    return (
-      <div className={`${styles.oscMonitor} ${visible ? '' : styles.collapsed}`}>
-        <div className={styles.header} onClick={() => setVisible(!visible)}>
-          <span className={styles.title}>OSC Monitor</span>
-          <span className={styles.toggle}>{visible ? '▼' : '◀'}</span>
-        </div>
-        {visible && (
-          <div className={styles.content}>
-            <p className={styles.noData}>No OSC messages received yet.</p>
-            <p className={styles.noData}>Ensure OSC sources are configured and sending data.</p>
-          </div>
-        )}
-      </div>
-    );
-  }
+  };
+
+  const monitorClasses = [
+    styles.oscMonitor,
+    flashActive ? styles.flash : '',
+    isPinned ? styles.pinned : '',
+    isCollapsed ? styles.collapsed : '',
+  ].join(' ');
 
   return (
-    <div className={`${styles.oscMonitor} ${flashActive ? styles.flash : ''} ${visible ? '' : styles.collapsed}`}>
-      <div className={styles.header} onClick={() => setVisible(!visible)}>
-        <span className={styles.title}>OSC Monitor</span>
-        <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>
-        <span className={styles.toggle}>{visible ? '▼' : '◀'}</span>
-      </div>      {visible && (
-        <div className={styles.content} onMouseMove={handleMouseMove}>
-          {lastMessages.map((msg, index) => (
-            <div 
-              key={msg.timestamp || index} 
-              className={styles.messageRow}
-              onMouseEnter={(e) => handleMouseEnter(msg, e)}
-              onMouseLeave={handleMouseLeave}
-            >
-              <span className={styles.address}>{msg.address}</span>
-              <div className={styles.args}>
-                {msg.args.map((arg, argIndex) => (
-                  <span key={argIndex} className={styles.arg}>
-                    {`${arg.type}: ${typeof arg.value === 'number' ? arg.value.toFixed(3) : String(arg.value)}`}
-                  </span>
-                ))}
-              </div>
-              <span className={styles.timestamp}>
-                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
-              </span>
-            </div>
-          ))}
+    <>
+      <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} disabled={isPinned}>
+        <div ref={nodeRef} className={monitorClasses} style={isPinned ? { position: 'fixed', top: 20, right: 220 } : {}}> {/* Adjusted right for spacing */}
+          {renderHeader()}
+          {renderContent()}
         </div>
-      )}
-      
-      {/* Hover tooltip */}
-      {hoveredMessage && (
-        <div 
+      </Draggable>
+
+      {/* Hover tooltip - kept outside of Draggable to avoid positioning issues */}
+      {hoveredMessage && !isCollapsed && (
+        <div
           className={styles.hoverTooltip}
           style={{
             position: 'fixed',
-            left: mousePosition.x + 10,
-            top: mousePosition.y - 10,
-            zIndex: 10000
+            left: mousePosition.x + 15, // Adjusted for better visibility from cursor
+            top: mousePosition.y - 15,  // Adjusted for better visibility from cursor
+            zIndex: 10000, // Ensure tooltip is on top
           }}
         >
           <div className={styles.tooltipHeader}>
             <strong>OSC Message Details</strong>
-          </div>          <div className={styles.tooltipContent}>
+          </div>
+          <div className={styles.tooltipContent}>
             <div><strong>Address:</strong> {hoveredMessage.address}</div>
             {hoveredMessage.source && (
               <div><strong>Source:</strong> {hoveredMessage.source}</div>
@@ -146,21 +170,18 @@ export const OscMonitor: React.FC = () => {
                 <div key={index} className={styles.argDetail}>
                   <span className={styles.argType}>{arg.type}</span>
                   <span className={styles.argValue}>
-                    {typeof arg.value === 'number' ? 
-                      `${arg.value} (${(arg.value * 100).toFixed(1)}%)` : 
+                    {typeof arg.value === 'number' ?
+                      `${arg.value.toFixed(3)} (${(arg.value * 100).toFixed(1)}%)` : // Keep detailed number value
                       String(arg.value)
                     }
                   </span>
                 </div>
               ))}
             </div>
-            {hoveredMessage.source && (
-              <div><strong>Source:</strong> {hoveredMessage.source}</div>
-            )}
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

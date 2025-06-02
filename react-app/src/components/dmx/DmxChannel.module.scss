@@ -44,7 +44,7 @@
     margin: 0;
     padding: 2rem;
     border-radius: 0;
-    background: var(--bg-primary);
+    background-color: #18181b; /* Ensuring an opaque background, var(--bg-primary) might be semi-transparent */
     transform: none;
     width: 100%;
     height: 100vh;
