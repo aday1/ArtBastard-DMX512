@@ -1,8 +1,8 @@
 .oscMonitor {
-  position: fixed;
+  /* Default position, will be overridden by draggable or if pinned */
+  position: absolute;
   bottom: 20px;
-  /* Adjust right position later to accommodate MidiMonitor */
-  right: 20px; 
+  left: 440px; /* Adjusted to be next to MidiMonitor */
   width: 400px;
   max-height: 300px;
   background-color: #2a2a2a;
@@ -12,12 +12,21 @@
   font-family: monospace;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
-  z-index: 1000;
+  z-index: 999; /* Slightly lower than MidiMonitor if they overlap */
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &.pinned {
+    position: fixed !important;
+    /* Pinned position can be adjusted in the component's style prop */
+  }
   
   &.collapsed {
-    width: 180px;
+    width: auto; /* Adjust width to content when collapsed */
+    min-width: 180px; /* Ensure a minimum width */
     height: auto;
+    max-height: none; /* Allow header to define height */
   }
   
   &.flash {
@@ -31,8 +40,8 @@
   justify-content: space-between;
   align-items: center;
   background-color: #333;
-  padding: 8px 12px;
-  cursor: pointer;
+  padding: 6px 10px; /* Adjusted padding */
+  cursor: grab; /* Indicate draggable */
   user-select: none;
   
   &:hover {
@@ -40,26 +49,60 @@
   }
 }
 
+.dragHandle {
+  margin-right: 8px;
+  color: #888;
+  cursor: grab;
+}
+
 .title {
   font-weight: bold;
   color: #ff6600; /* OSC title color */
+  margin-right: auto; /* Push controls to the right */
 }
 
 .status {
-  margin-left: auto;
-  margin-right: 12px;
+  margin-right: 10px; /* Adjusted margin */
   font-size: 0.9em;
   color: #aaa;
 }
 
-.toggle {
-  color: #ff6600; /* OSC toggle color */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  button {
+    background: none;
+    border: none;
+    color: #ccc;
+    padding: 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: #555;
+      color: #fff;
+    }
+
+    &.active {
+      background-color: #007bff; /* Same active color as MIDI monitor for consistency */
+      color: #fff;
+    }
+  }
 }
+
+/* .toggle class removed */
 
 .content {
   padding: 10px;
-  max-height: 250px;
   overflow-y: auto;
+  background-color: #222;
+  border-top: 1px solid #444;
+  flex-grow: 1;
 }
 
 .noData {
@@ -78,17 +121,18 @@
   border-left: 3px solid #ff6600; /* OSC message color */
   font-size: 0.9em;
   border-radius: 3px;
-  cursor: pointer;
+  cursor: default; /* Remove pointer cursor from message row if not interactive */
   transition: background-color 0.2s ease;
   
   &:last-child {
     margin-bottom: 0;
   }
   
-  &:hover {
+  /* Hover effect on message row can be kept if desired, or removed if tooltip is sufficient */
+  /* &:hover {
     background-color: #2a2a2a;
     border-left-color: #ffaa00;
-  }
+  } */
 }
 
 .address {
@@ -135,36 +179,49 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 102, 0, 0.3);
+}
+
+/* Added direct styling for tooltip header and content for clarity */
+.tooltipHeader {
+  font-weight: bold;
+  color: #ff6600; /* OSC theme color */
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 102, 0, 0.5);
+}
+
+.tooltipContent {
+  font-size: 0.75rem; /* Slightly larger for readability */
   
-  .tooltipAddress {
-    font-weight: bold;
-    color: #ff6600;
-    margin-bottom: 4px;
+  div {
+    margin-bottom: 3px;
   }
-  
-  .tooltipTimestamp {
-    font-size: 0.7rem;
-    color: #aaa;
-    margin-bottom: 6px;
-  }
-  
-  .tooltipArgs {
-    .tooltipArg {
-      display: block;
-      margin: 2px 0;
-      padding: 2px 4px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      
-      .argType {
-        color: #66ccff;
-        font-weight: bold;
-      }
-      
-      .argValue {
-        color: #fff;
-        margin-left: 8px;
-      }
-    }
+  strong {
+    color: #ccc; /* Lighter color for labels */
   }
 }
+
+.argsDetail {
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(255, 102, 0, 0.4);
+}
+
+.argDetail {
+  display: flex; /* Align type and value nicely */
+  margin-bottom: 2px;
+}
+
+.argType {
+  color: #66ccff; /* Consistent with message row args */
+  font-weight: bold;
+  margin-right: 6px;
+  min-width: 20px; /* For alignment */
+}
+
+.argValue {
+  color: #fff;
+  word-break: break-all; /* Prevent overflow */
+}
+
+/* Removed duplicated .tooltipArgs, .tooltipArg, .argType, .argValue from here as they are now direct children of .hoverTooltip or part of new structure */

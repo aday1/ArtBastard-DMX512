@@ -39,6 +39,10 @@ export const Settings: React.FC = () => {
     masterSliders: state.masterSliders,
     transitionDuration: state.transitionDuration,
     setTransitionDuration: state.setTransitionDuration,
+    availableMidiClockHosts: state.availableMidiClockHosts,
+    selectedMidiClockHostId: state.selectedMidiClockHostId,
+    setSelectedMidiClockHostId: state.setSelectedMidiClockHostId,
+    setAvailableMidiClockHosts: state.setAvailableMidiClockHosts,
   }))
   
   const [artNetSettings, setArtNetSettings] = useState({ ...artNetConfig })
@@ -87,6 +91,20 @@ export const Settings: React.FC = () => {
   useEffect(() => { /* ... example slider MIDI handling ... */ }, [midiMappings, exampleSliderValue])
   const handleExampleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... */ }
   
+  // Simulate fetching/setting available MIDI hosts
+  useEffect(() => {
+    // In a real app, this might involve navigator.requestMIDIAccess()
+    // For now, using a placeholder list and ensuring 'Ableton Sync Link' is present.
+    const hosts = [
+      { id: 'none', name: 'None (Internal Clock)' },
+      { id: 'ableton-link', name: 'Ableton Sync Link' },
+      // Example of a dynamically found MIDI output:
+      // { id: 'midi-output-123', name: 'My External Synth' }
+    ];
+    // This action is now in the store, but if we were to dynamically populate, we'd call it here.
+    // setAvailableMidiClockHosts(hosts); // Example: if fetching dynamically
+  }, []); // Removed setAvailableMidiClockHosts from deps
+
   return (
     <div className={styles.settings}>
       <h2 className={styles.sectionTitle}>
@@ -99,6 +117,38 @@ export const Settings: React.FC = () => {
         
         {/* MIDI Learn Test Section Card */}
         {/* ... */}
+
+        {/* MIDI Clock Settings Card - NEW */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h3>
+              {theme === 'artsnob' && 'Temporal Synchronization Nexus'}
+              {theme === 'standard' && 'MIDI Clock Settings'}
+              {theme === 'minimal' && 'Clock Sync'}
+            </h3>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.formGroup}>
+              <label htmlFor="midiClockHostSelect">MIDI Clock Sync Source:</label>
+              <select
+                id="midiClockHostSelect"
+                value={selectedMidiClockHostId || 'none'}
+                onChange={(e) => setSelectedMidiClockHostId(e.target.value)}
+                className={styles.selectInput}
+              >
+                {availableMidiClockHosts.map(host => (
+                  <option key={host.id} value={host.id}>
+                    {host.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.configNote}>
+              <i className="fas fa-info-circle"></i>
+              <p>Select the source for MIDI clock synchronization. 'Ableton Sync Link' requires compatible Link-enabled software on the network.</p>
+            </div>
+          </div>
+        </div>
         
         {/* UI Theme Settings Card */}
         {/* ... */}

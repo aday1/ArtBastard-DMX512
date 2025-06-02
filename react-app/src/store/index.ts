@@ -160,7 +160,12 @@ interface State {
   // Socket state
   socket: Socket | null
   setSocket: (socket: Socket | null) => void
-    // Actions
+
+  // MIDI Clock Sync State
+  availableMidiClockHosts: Array<{ id: string; name: string }>;
+  selectedMidiClockHostId: string | null;
+
+  // Actions
   fetchInitialState: () => Promise<void>
   setDmxChannel: (channel: number, value: number) => void 
   setDmxChannelValue: (channel: number, value: number) => void 
@@ -210,7 +215,9 @@ interface State {
   updateMasterSliderValue: (sliderId: string, value: number) => void;
   updateMasterSlider: (sliderId: string, updatedSlider: Partial<MasterSlider>) => void; 
   removeMasterSlider: (sliderId: string) => void;
-  setMasterSliders: (sliders: MasterSlider[]) => void; 
+  setMasterSliders: (sliders: MasterSlider[]) => void;
+  setSelectedMidiClockHostId: (hostId: string | null) => void;
+  setAvailableMidiClockHosts: (hosts: Array<{ id: string; name: string }>) => void;
 }
 
 export const useStore = create<State>()(
@@ -265,6 +272,14 @@ export const useStore = create<State>()(
       
       socket: null,
       setSocket: (socket) => set({ socket }),
+
+      // MIDI Clock Sync State Init
+      availableMidiClockHosts: [
+        { id: 'none', name: 'None (Internal Clock)' },
+        { id: 'ableton-link', name: 'Ableton Sync Link' },
+        // Other hosts would be populated dynamically
+      ],
+      selectedMidiClockHostId: 'none',
       
       // Actions
       fetchInitialState: async () => {
@@ -737,6 +752,17 @@ export const useStore = create<State>()(
       },
       setMasterSliders: (sliders) => {
         set({ masterSliders: sliders });
+      },
+      setSelectedMidiClockHostId: (hostId) => {
+        set({ selectedMidiClockHostId: hostId });
+        // Potentially add logic here to initiate connection/disconnection if needed globally
+        get().addNotification({
+          message: `MIDI Clock Sync source set to ${get().availableMidiClockHosts.find(h => h.id === hostId)?.name || 'None'}`,
+          type: 'info',
+        });
+      },
+      setAvailableMidiClockHosts: (hosts) => {
+        set({ availableMidiClockHosts: hosts });
       },
     }),
     { name: 'ArtBastard-DMX-Store' } 

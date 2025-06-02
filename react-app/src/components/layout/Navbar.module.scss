@@ -1,53 +1,69 @@
-.navbar {
+/* Container for the toggle button and the nav content */
+.navbarContainer {
+  position: sticky; /* Keeps the whole block sticky */
+  top: 0;
+  z-index: 1001; /* Ensure toggle is above other sticky elements if needed */
+  margin-bottom: 1.5rem; /* Retain original bottom margin */
+  display: flex; /* Align toggle and nav content */
+  align-items: flex-start; /* Align items to the top */
+  gap: 0.5rem; /* Space between toggle and nav content if side-by-side */
+}
+
+/* Styles for the actual navigation content area */
+.navContent {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-between; /* This was on .navbar before */
   gap: 1rem;
   padding: 1rem;
   background: var(--bg-secondary);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 8px;
-  margin-bottom: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  /* position: sticky, top, z-index, margin-bottom are now on navbarContainer */
   animation: rainbow-bg 10s linear infinite;
   pointer-events: auto;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease; /* For smooth expand if not using display:none */
+  flex-grow: 1; /* Allow navContent to take available space */
 
-  @keyframes rainbow-bg {
+
+  @keyframes rainbow-bg { /* Keep animation definition if used by navContent */
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
 
-  &.collapsed {
-    .navButtons {
-      max-height: 0;
-      overflow: hidden;
-      opacity: 0;
-      margin-top: 0;
-    }
+  &.navContentCollapsed {
+    display: none;
   }
+}
 
-  .collapseToggle {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: rgba(var(--accent-color-rgb), 0.1);
-      color: var(--accent-color);
-    }
+.collapseToggle {
+  background: var(--bg-primary-alpha, rgba(40, 40, 40, 0.7));
+  border: 1px solid var(--border-color-soft, #555);
+  color: var(--text-primary);
+  font-size: 1rem; /* Adjusted size */
+  cursor: pointer;
+  padding: 0.6rem; /* Make it squarer for icons */
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  z-index: 1002; /* Above navContent if they could overlap */
+  /* position: fixed; top: 1rem; left: 1rem; if fully independent positioning is needed */
+  /* For now, it's part of the flex flow in navbarContainer */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; /* Explicit size */
+  height: 40px; /* Explicit size */
+
+  &:hover {
+    background: rgba(var(--accent-color-rgb), 0.2);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
   }
+}
 
-  .navButtons {
+.navButtons {
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
@@ -128,11 +144,14 @@
       }
     }
   }
+  /* Media query adjustments might be needed for .navbarContainer and .collapseToggle as well */
   @media (max-width: 768px) {
-    padding: 0.5rem;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    .navContent { /* Apply responsive styles to navContent */
+      padding: 0.5rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     
     .navButton {
       min-width: auto;
@@ -152,3 +171,5 @@
     }
   }
 }
+/* Ensure .navbar class from previous state is removed or updated if it was used elsewhere */
+/* For example, if any global styles or other components referred to .navbar directly */
