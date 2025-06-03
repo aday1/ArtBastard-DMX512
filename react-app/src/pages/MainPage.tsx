@@ -13,6 +13,7 @@ import { OscDebug } from '../components/osc/OscDebug'
 import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'
 import { AudioControlPanel } from '../components/audio/AudioControlPanel'
 import { SceneGallery } from '../components/scenes/SceneGallery'
+import { AutoSceneControl } from '../components/scenes/AutoSceneControl';
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
 import { Settings } from '../components/settings/Settings'
 import styles from './MainPage.module.scss'
@@ -68,7 +69,12 @@ const MainPage: React.FC = () => {
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}
           {currentView === 'fixture' && <FixtureSetup />}
-          {currentView === 'scenes' && <SceneGallery />}
+          {currentView === 'scenes' && (
+            <>
+              <SceneGallery />
+              <AutoSceneControl />
+            </>
+          )}
           {currentView === 'oscDebug' && <OscDebug />}
           {currentView === 'audio' && <AudioControlPanel />}
           {currentView === 'touchosc' && <TouchOSCExporter />}
