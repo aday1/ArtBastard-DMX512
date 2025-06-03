@@ -19,6 +19,9 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   const [isFullOn, setIsFullOn] = useState(false); // State for FULL ON mode
   const [previousChannelValues, setPreviousChannelValues] = useState<{ [key: number]: number }>({});
   const [fullOnSavedValues, setFullOnSavedValues] = useState<{ [key: number]: number }>({});
+  const [fadeIntervalId, setFadeIntervalId] = useState<NodeJS.Timeout | null>(null);
+  const [valueBeforeFadeout, setValueBeforeFadeout] = useState<number>(0);
+  const [isFading, setIsFading] = useState<boolean>(false);
 
   const { dmxChannels, setDmxChannelValue } = useStore();
   const { socket } = useSocket();
@@ -146,7 +149,79 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   };
 
   const toggleMinimize = () => { // Function to toggle minimize state
-    setIsMinimized(!isMinimized);  };  return (
+    setIsMinimized(!isMinimized);
+  };
+
+  // useEffect for interval cleanup
+  useEffect(() => {
+    return () => {
+      if (fadeIntervalId) {
+        clearInterval(fadeIntervalId);
+      }
+    };
+  }, [fadeIntervalId]);
+
+  const handleSlowFadeout = () => {
+    if (isFading || value === 0) return;
+
+    setIsFading(true);
+    setValueBeforeFadeout(value);
+
+    const fadeDuration = 5000; // 5 seconds
+    const steps = 50;
+    // Use a local variable for current value in interval to avoid stale closure issues with `value` state directly
+    let currentSliderValue = value;
+    const decrement = currentSliderValue / steps;
+    const intervalTime = fadeDuration / steps;
+
+    if (fadeIntervalId) clearInterval(fadeIntervalId);
+
+    const newIntervalId = setInterval(() => {
+      currentSliderValue -= decrement;
+      if (currentSliderValue <= 0) {
+        handleValueChange(0); // Ensure it hits exactly 0
+        clearInterval(newIntervalId);
+        setIsFading(false);
+        setFadeIntervalId(null);
+      } else {
+        handleValueChange(currentSliderValue);
+      }
+    }, intervalTime);
+    setFadeIntervalId(newIntervalId);
+  };
+
+  const handleFadeBackup = () => {
+    const targetValue = valueBeforeFadeout > 0 ? valueBeforeFadeout : 255;
+    if (isFading || value === targetValue) return;
+
+    setIsFading(true);
+
+    const fadeDuration = 5000; // 5 seconds
+    const steps = 50;
+    let currentSliderValue = value;
+    // Ensure increment is positive even if currentSliderValue is slightly off
+    const increment = Math.abs(targetValue - currentSliderValue) / steps;
+    const intervalTime = fadeDuration / steps;
+
+    if (fadeIntervalId) clearInterval(fadeIntervalId);
+
+    const newIntervalId = setInterval(() => {
+      currentSliderValue += increment;
+      if (currentSliderValue >= targetValue) {
+        handleValueChange(targetValue); // Ensure it hits exactly targetValue
+        clearInterval(newIntervalId);
+        setIsFading(false);
+        setFadeIntervalId(null);
+        // Optionally reset valueBeforeFadeout if it was a temporary target
+        if (valueBeforeFadeout === 0 && targetValue === 255) setValueBeforeFadeout(255);
+      } else {
+        handleValueChange(currentSliderValue);
+      }
+    }, intervalTime);
+    setFadeIntervalId(newIntervalId);
+  };
+
+  return (
     <Draggable handle=".dragHandle" bounds="parent">
       <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
         <div className={`${styles.header}`}>
@@ -173,12 +248,31 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
               <i className="fas fa-power-off"></i>
               Blackout
             </button>
+            <button
+              className={styles.slowFadeoutButton} // Added SCSS class
+              onClick={handleSlowFadeout}
+              disabled={isFading || value === 0}
+              title="Slowly fade out to 0"
+            >
+              <i className="fas fa-arrow-down"></i>
+              Slow Fadeout
+            </button>
+            <button
+              className={styles.fadeBackupButton} // Added SCSS class
+              onClick={handleFadeBackup}
+              disabled={isFading || value === (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255)}
+              title="Fade back up to previous or full"
+            >
+              <i className="fas fa-arrow-up"></i>
+              Fade Back up
+            </button>
           </div>
         </div>
 
         {!isMinimized && (
           <div className={styles.faderContainer}>
-            <div className={styles.sliderWrapper}>              <input
+            <div className={styles.sliderWrapper}>
+              <input
                 type="range"
                 min="0"
                 max="255"
