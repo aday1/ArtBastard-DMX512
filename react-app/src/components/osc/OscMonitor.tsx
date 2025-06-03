@@ -270,12 +270,11 @@ export const OscMonitor: React.FC = () => {
     <>
       <motion.div
         ref={monitorRef}
-        className={monitorClasses}
-        style={{
+        className={monitorClasses}        style={{
           position: 'fixed',
           top: 20, // Initial position
           right: 'calc(20px + 400px + 20px)', // Initial position
-          zIndex: 999,
+          zIndex: 1040,
           width: '400px',
           x: position.x, // Apply stored/initial transform X
           y: position.y, // Apply stored/initial transform Y

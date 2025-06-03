@@ -39,16 +39,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {theme === 'artsnob' && (
             <FancyQuotes intervalSeconds={30} animate={true} />
           )}
-          
-          <main className={styles.contentArea}>
+            <main className={styles.contentArea}>
             {children}
           </main>
 
           {/* Add MIDI Debugger for troubleshooting */}
           <MidiDebugger />
-          
-          {/* Add the new MIDI Monitor for visibility */}
-          <MidiMonitor />
         </div>
       </div>
       

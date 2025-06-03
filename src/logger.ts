@@ -21,6 +21,7 @@ const logTypes = {
   SERVER: { color: chalk.magenta, label: 'SERVER', colorString: 'magenta' },
   DMX: { color: chalk.gray, label: 'DMX', colorString: 'gray' },
   SYSTEM: { color: chalk.white.bold, label: 'SYSTEM', colorString: 'white' },
+  CLOCK: { color: chalk.hex('#FF69B4'), label: 'CLOCK', colorString: 'hotpink' }, // Hot Pink
 };
 
 export type LogType = keyof typeof logTypes;

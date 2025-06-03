@@ -150,12 +150,11 @@ export const MidiMonitor: React.FC = () => {
   return (
     <motion.div
       ref={monitorRef}
-      className={monitorClasses}
-      style={{
+      className={monitorClasses}      style={{
         position: 'fixed',
         top: 20, // Initial CSS position
         right: 20, // Initial CSS position
-        zIndex: 1000,
+        zIndex: 1050,
         width: '400px',
         x: position.x, // Apply stored/initial transform X
         y: position.y, // Apply stored/initial transform Y

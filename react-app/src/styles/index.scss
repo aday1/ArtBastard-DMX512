@@ -2,31 +2,36 @@
 @use './font-fallbacks.scss';
 
 // Base variables
-:root {
-  // Light mode colors
-  --color-background: #f5f5f7;
-  --color-text: #1d1d1f;
+:root {  // Light mode colors - Softer, warmer theme for eye comfort
+  --color-background: #faf9f7;
+  --color-text: #2c2c2e;
   --color-primary: #0071e3;
-  --color-secondary: #6e6e73;
+  --color-secondary: #8e8e93;
   --color-accent: #ff3b30;
   --color-success: #34c759;
   --color-warning: #ff9500;
   --color-error: #ff3b30;
-  --color-card-bg: #ffffff;
-  --color-card-border: #e1e1e1;
-  --color-slider-track: #d1d1d6;
+  --color-card-bg: #f7f6f4;
+  --color-card-border: #e8e7e5;
+  --color-slider-track: #e0ddd8;
   --color-slider-thumb: #0071e3;
   --color-button-bg: #0071e3;
   --color-button-text: #ffffff;
   --color-nav-active: #0071e3;
-  --color-nav-inactive: #6e6e73;
-  --color-channel-bg: #ffffff;
-  --color-channel-border: #e1e1e1;
-  --color-channel-selected: rgba(0, 113, 227, 0.1);
+  --color-nav-inactive: #8e8e93;
+  --color-channel-bg: #f7f6f4;
+  --color-channel-border: #e8e7e5;
+  --color-channel-selected: rgba(0, 113, 227, 0.08);
   --color-status-connected: #34c759;
-  --color-status-disconnected: #ff3b30;
-  --color-status-inactive: #d1d1d6;
+  --color-status-disconnected: #ff3b30;  --color-status-inactive: #d1d1d6;
   --color-status-active: #34c759;
+  
+  // Additional UI variables for components
+  --bg-primary: var(--color-background);
+  --bg-secondary: var(--color-card-bg);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-secondary);
+  --accent-color: #4ecdc4;
   
   // Fonts
   --font-heading: 'Playfair Display', serif;
@@ -35,7 +40,7 @@
   
   // UI Elements
   --border-radius: 8px;
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --card-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
   --transition-speed: 0.2s;
 }
 
@@ -60,11 +65,17 @@
   --color-channel-bg: #2c2c2e;
   --color-channel-border: #3a3a3c;
   --color-channel-selected: rgba(10, 132, 255, 0.3);
-  --color-status-connected: #30d158;
-  --color-status-disconnected: #ff453a;
+  --color-status-connected: #30d158;  --color-status-disconnected: #ff453a;
   --color-status-inactive: #3a3a3c;
   --color-status-active: #30d158;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  
+  // Additional UI variables for dark mode
+  --bg-primary: var(--color-background);
+  --bg-secondary: var(--color-card-bg);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-secondary);
+  --accent-color: #4ecdc4;
 }
 
 // Art Snob theme overrides

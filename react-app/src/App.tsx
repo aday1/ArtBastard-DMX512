@@ -127,7 +127,6 @@ function App() {
   }, [isTransitioning, setCurrentTransitionFrameId, currentTransitionFrame]);
 
   console.log('[App] About to render JSX...');
-
   try {
     return (
       <ThemeProvider>
@@ -137,7 +136,6 @@ function App() {
             <MidiDmxProcessor />
             <MidiDebugHelper />
             <MidiDmxDebug />
-            <OscMonitor />
           </div>
           {/* Main UI should live inside SocketProvider */}
           <ThemeToggleButton />

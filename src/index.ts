@@ -1,6 +1,20 @@
+/// <reference path="./types/osc.d.ts" />
 import easymidi, { Input } from 'easymidi';
 // Import our adapter types to make TypeScript happy
 import './types/midi-types';
+import { Server, Socket } from 'socket.io';
+import os from 'os';
+const osc = require('osc');
+import fs from 'fs';
+import path from 'path';
+import EffectsEngine from './effects';
+import ping from 'ping';
+
+// Import our separate logger to avoid circular dependencies
+import { log } from './logger';
+
+// Import dmxnet using ES6 import syntax
+import dmxnet from 'dmxnet';
 
 export interface MidiMessage {
     _type: string;
@@ -12,19 +26,6 @@ export interface MidiMessage {
     number?: number;  // For program change messages
     source?: string;
 }
-import { Server, Socket } from 'socket.io';
-import os from 'os';
-import { UDPPort, OscMessage } from 'osc';
-import fs from 'fs';
-import path from 'path';
-import EffectsEngine from './effects';
-import ping from 'ping';
-
-// Import our separate logger to avoid circular dependencies
-import { log } from './logger';
-
-// Import dmxnet using ES6 import syntax
-import dmxnet from 'dmxnet';
 
 // Type definitions
 interface Fixture {
@@ -301,7 +302,7 @@ function disconnectMidiInput(io: Server, inputName: string) {
 
 function initOsc(io: Server) {
     try {
-        const oscPort = new UDPPort({
+        const oscPort = new osc.UDPPort({
             localAddress: "0.0.0.0",
             localPort: 57121,
             metadata: true
@@ -318,7 +319,7 @@ function initOsc(io: Server) {
             io.emit('oscStatus', { status: 'error', message: error.message });
         });
 
-        oscPort.on("message", (oscMsg: OscMessage, timeTag: any, info: any) => {
+        oscPort.on("message", (oscMsg: any, timeTag: any, info: any) => {
             log('Raw OSC message received', 'OSC', { address: oscMsg.address, args: oscMsg.args, info });
 
             // Emit raw message for general purpose client-side handling if needed
@@ -397,35 +398,31 @@ function initializeArtNet() {
         // Setup error handlers for the sender
         if (artnetSender.on) {
             artnetSender.on('error', (err: Error) => {
-                log('ArtNet sender error', 'ARTNET', { message: err.message });
-                global.io?.emit('artnetStatus', { 
+                log('ArtNet sender error', 'ARTNET', { message: err.message });                (global as any).io?.emit('artnetStatus', {
                     status: 'error', 
                     message: err.message 
                 });
             });
 
             artnetSender.on('timeout', () => {
-                log('ArtNet sender timeout - will retry', 'ARTNET');
-                global.io?.emit('artnetStatus', { 
+                log('ArtNet sender timeout - will retry', 'ARTNET');                (global as any).io?.emit('artnetStatus', {
                     status: 'timeout',
-                    message: 'Connection timed out - retrying' 
+                    message: 'Connection timed out - retrying'
                 });
             });
         }
 
-        log('ArtNet sender initialized', 'ARTNET', { config: artNetConfig });
-        (global as any).artNetPingStatus = 'initialized_pending_ping'; // Set status before first ping
+        log('ArtNet sender initialized', 'ARTNET', { config: artNetConfig });        (global as any).artNetPingStatus = 'initialized_pending_ping'; // Set status before first ping
         
         // Initial ping to check connectivity
-        if (global.io) {
-            pingArtNetDevice(global.io, artNetConfig.ip);
+        if ((global as any).io) {
+            pingArtNetDevice((global as any).io, artNetConfig.ip);
         }
 
         return true;
     } catch (error) {
-        log('Error initializing ArtNet', 'ERROR', { error });
-        (global as any).artNetPingStatus = 'init_failed'; // Set status on initialization failure
-        global.io?.emit('artnetStatus', { 
+        log('Error initializing ArtNet', 'ERROR', { error });        (global as any).artNetPingStatus = 'init_failed'; // Set status on initialization failure
+        (global as any).io?.emit('artnetStatus', {
             status: 'error',
             message: `Failed to initialize: ${error}` 
         });
@@ -978,10 +975,9 @@ export function updateOscAssignment(channelIndex: number, address: string): bool
         return false;
     }
     oscAssignments[channelIndex] = address;
-    saveConfig(); // Persist changes
-    // Optionally, broadcast this change to connected clients if they need to be aware of it in real-time
-    if (global.io) {
-        global.io.emit('oscAssignmentsUpdated', { channelIndex, address });
+    saveConfig(); // Persist changes    // Optionally, broadcast this change to connected clients if they need to be aware of it in real-time
+    if ((global as any).io) {
+        (global as any).io.emit('oscAssignmentsUpdated', { channelIndex, address });
         log('Emitted oscAssignmentsUpdated event', 'OSC', { channelIndex, address });
     }
     log('OSC assignment updated in backend', 'OSC', { channelIndex, address });

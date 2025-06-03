@@ -1,4 +1,5 @@
 import { Server } from 'socket.io'
+import './osc'
 
 declare global {
   var io: Server

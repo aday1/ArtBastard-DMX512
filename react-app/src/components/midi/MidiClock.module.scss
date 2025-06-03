@@ -10,7 +10,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
-  z-index: 998; /* Below other monitors if overlapping */
+  z-index: 1030; /* Below other monitors if overlapping */
   display: flex;
   flex-direction: column;
 

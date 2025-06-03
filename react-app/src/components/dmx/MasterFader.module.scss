@@ -5,11 +5,10 @@
   padding: 1rem;
   border-radius: 15px;
   border: 1px solid var(--color-card-border); /* Changed border to use theme variable */
-  box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);
-  position: fixed;
+  box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);  position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 1000;
+  z-index: 1020;
   width: 380px;
   max-width: 90vw;
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
@@ -137,8 +136,12 @@
       border-radius: 12px;
       padding: 1rem;
       border: 2px solid var(--accent-color);
-
-      .verticalSlider {
+      pointer-events: none; // Don't capture pointer events
+      
+      // Allow pointer events only on interactive elements
+      input, button {
+        pointer-events: auto;
+      }.verticalSlider {
         writing-mode: bt-lr; /* IE */
         -webkit-appearance: slider-vertical; /* WebKit */
         appearance: slider-vertical; /* Standard */
@@ -149,6 +152,9 @@
         outline: none;
         cursor: pointer;
         transition: all 0.2s ease;
+        pointer-events: auto; // Ensure pointer events work
+        z-index: 10; // Above draggable container
+        position: relative; // Ensure z-index works
 
         &::-webkit-slider-thumb {
           -webkit-appearance: none;

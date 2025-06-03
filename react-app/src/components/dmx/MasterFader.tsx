@@ -87,9 +87,20 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
       });
     }
   }, [value, dmxChannels, setDmxChannelValue, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress]);
-
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
+    handleValueChange(newValue);
+  };
+
+  const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+    // Prevent the Draggable parent from intercepting mouse events
+    e.stopPropagation();
+  };
+
+  const handleSliderInput = (e: React.FormEvent<HTMLInputElement>) => {
+    // Handle real-time input changes for better responsiveness
+    const target = e.target as HTMLInputElement;
+    const newValue = parseInt(target.value);
     handleValueChange(newValue);
   };
   const handleMidiLearnToggle = () => {
@@ -135,12 +146,11 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   };
 
   const toggleMinimize = () => { // Function to toggle minimize state
-    setIsMinimized(!isMinimized);  };
-  return (
-    <Draggable handle=".handle" bounds="parent">
+    setIsMinimized(!isMinimized);  };  return (
+    <Draggable handle=".dragHandle" bounds="parent">
       <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
-        <div className={`${styles.header} handle`}>
-          <h3>Master Fader</h3>
+        <div className={`${styles.header}`}>
+          <h3 className="dragHandle" style={{ cursor: 'grab' }}>Master Fader</h3>
           <div className={styles.windowControls}>
             <button onClick={toggleMinimize} className={styles.minimizeButton}>
               {isMinimized ? <i className="fas fa-window-maximize"></i> : <i className="fas fa-window-minimize"></i>}
@@ -168,13 +178,15 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
 
         {!isMinimized && (
           <div className={styles.faderContainer}>
-            <div className={styles.sliderWrapper}>
-              <input
+            <div className={styles.sliderWrapper}>              <input
                 type="range"
                 min="0"
                 max="255"
                 value={value}
                 onChange={handleSliderChange}
+                onInput={handleSliderInput}
+                onMouseDown={handleSliderMouseDown}
+                onPointerDown={handleSliderMouseDown}
                 className={styles.verticalSlider}
               />
               <div className={styles.valueDisplay}>
