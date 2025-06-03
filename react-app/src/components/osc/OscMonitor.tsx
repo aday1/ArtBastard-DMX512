@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
-import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
+import { LucideIcon } from '../ui/LucideIcon';
 import { useStore } from '../../store';
 import styles from './OscMonitor.module.scss';
 import { useSocket } from '../../context/SocketContext';
@@ -11,7 +11,6 @@ export const OscMonitor: React.FC = () => {
   const addOscMessageToStore = useStore(state => state.addOscMessage);
   const [lastMessages, setLastMessages] = useState<Array<OscMessage>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  // const [isPinned, setIsPinned] = useState(false); // Removed isPinned
   const [flashActive, setFlashActive] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -179,17 +178,15 @@ export const OscMonitor: React.FC = () => {
   };
 
   const renderHeader = () => (
-    // Add onPointerDown to the drag handle area to start dragging
     <div
-      className={`${styles.header} handle`} // Retain 'handle' if CSS depends on it, but not for Draggable
+      className={`${styles.header} handle`}
       onPointerDown={(e) => {
-        // Prevent dragging if a button in the header is clicked
         if ((e.target as HTMLElement).closest('button')) {
           return;
         }
         dragControls.start(e);
       }}
-      style={{ cursor: 'grab' }} // Indicate draggable area
+      style={{ cursor: 'grab' }}
     >
       <div className={styles.dragHandle}>
         <LucideIcon name="GripVertical" size={18} strokeWidth={1.5} />
@@ -197,15 +194,15 @@ export const OscMonitor: React.FC = () => {
       <span className={styles.title}>OSC Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
       <div className={styles.controls}>
-        {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
-          <LucideIcon name="Pin" size={14} strokeWidth={1.5} />
-        </button> */}
-        <button onClick={() => setIsCollapsed(!isCollapsed)} onPointerDown={e => e.stopPropagation()}>
-          {isCollapsed ? (
-            <LucideIcon name="Maximize2" size={14} strokeWidth={1.5} />
-          ) : (
-            <LucideIcon name="Minimize2" size={14} strokeWidth={1.5} />
-          )}
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)} 
+          onPointerDown={e => e.stopPropagation()}
+          title={isCollapsed ? "Expand" : "Minimize"}
+        >
+          {isCollapsed ? 
+            <LucideIcon name="ChevronUp" size={14} strokeWidth={1.5} /> : 
+            <LucideIcon name="ChevronDown" size={14} strokeWidth={1.5} />
+          }
         </button>
       </div>
     </div>
@@ -262,7 +259,6 @@ export const OscMonitor: React.FC = () => {
   const monitorClasses = [
     styles.oscMonitor,
     flashActive ? styles.flash : '',
-    // isPinned ? styles.pinned : '', // Removed isPinned
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
 

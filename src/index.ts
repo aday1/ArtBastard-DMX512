@@ -689,11 +689,15 @@ function updateScene(io: Server, originalName: string, updates: Partial<Scene>) 
 }
 
 function updateDmxChannel(channel: number, value: number) {
+    const previousValue = dmxChannels[channel];
     dmxChannels[channel] = value;
     if (artnetSender) {
         artnetSender.setChannel(channel, value);
         artnetSender.transmit();
-        log(`DMX channel ${channel} set to ${value}`, 'DMX');
+        // Only log significant changes or errors, not every channel update
+        if (Math.abs(previousValue - value) > 50 || value === 0 || value === 255) {
+            log(`DMX channel ${channel}: ${previousValue} → ${value}`, 'DMX');
+        }
     } else {
         log('ArtNet sender not initialized', 'WARN');
     }

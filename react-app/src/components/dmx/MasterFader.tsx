@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import Draggable from 'react-draggable';
 import { useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
@@ -25,7 +24,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
 
   const { dmxChannels, setDmxChannelValue } = useStore();
   const { socket } = useSocket();
-    const { startLearn, cancelLearn } = useMidiLearn();
+  const { startLearn, cancelLearn } = useMidiLearn();
   const handleValueChange = useCallback((newValue: number) => {
     const previousValue = value; // Capture state BEFORE update for DMX logic
     setValue(newValue);          // Update state - this should make the slider knob move
@@ -96,7 +95,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   };
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
-    // Prevent the Draggable parent from intercepting mouse events
+    // Prevent any parent event handlers from capturing this event
     e.stopPropagation();
   };
 
@@ -222,133 +221,131 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   };
 
   return (
-    <Draggable handle=".dragHandle" bounds="parent">
-      <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
-        <div className={`${styles.header}`}>
-          <h3 className="dragHandle" style={{ cursor: 'grab' }}>Master Fader</h3>
-          <div className={styles.windowControls}>
-            <button onClick={toggleMinimize} className={styles.minimizeButton}>
-              {isMinimized ? <i className="fas fa-window-maximize"></i> : <i className="fas fa-window-minimize"></i>}
-            </button>
+    <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
+      <div className={`${styles.header}`}>
+        <h3>Master Fader</h3>
+        <div className={styles.windowControls}>
+          <button onClick={toggleMinimize} className={styles.minimizeButton}>
+            {isMinimized ? <i className="fas fa-chevron-up"></i> : <i className="fas fa-chevron-down"></i>}
+          </button>
+        </div>
+        <div className={styles.headerActions}>
+          <button 
+            className={`${styles.fullOnButton} ${isFullOn ? styles.active : ''}`}
+            onClick={toggleFullOn}
+            title="Toggle Full On (All channels to 255)"
+          >
+            <i className="fas fa-lightbulb"></i>
+            FULL ON
+          </button>
+          <button 
+            className={styles.blackoutButton}
+            onClick={blackoutAll}
+            title="Blackout All Channels"
+          >
+            <i className="fas fa-power-off"></i>
+            Blackout
+          </button>
+          <button
+            className={styles.slowFadeoutButton}
+            onClick={handleSlowFadeout}
+            disabled={isFading || value === 0}
+            title="Slowly fade out to 0"
+          >
+            <i className="fas fa-arrow-down"></i>
+            Slow Fadeout
+          </button>
+          <button
+            className={styles.fadeBackupButton}
+            onClick={handleFadeBackup}
+            disabled={isFading || value === (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255)}
+            title="Fade back up to previous or full"
+          >
+            <i className="fas fa-arrow-up"></i>
+            Fade Back up
+          </button>
+        </div>
+      </div>
+
+      {!isMinimized && (
+        <div className={styles.faderContainer}>
+          <div className={styles.sliderWrapper}>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={value}
+              onChange={handleSliderChange}
+              onInput={handleSliderInput}
+              onMouseDown={handleSliderMouseDown}
+              onPointerDown={handleSliderMouseDown}
+              className={styles.verticalSlider}
+            />
+            <div className={styles.valueDisplay}>
+              {Math.round((value / 255) * 100)}%
+            </div>
           </div>
-          <div className={styles.headerActions}>
-            <button 
-              className={`${styles.fullOnButton} ${isFullOn ? styles.active : ''}`}
-              onClick={toggleFullOn}
-              title="Toggle Full On (All channels to 255)"
-            >
-              <i className="fas fa-lightbulb"></i>
-              FULL ON
-            </button>
-            <button 
-              className={styles.blackoutButton}
-              onClick={blackoutAll}
-              title="Blackout All Channels"
-            >
-              <i className="fas fa-power-off"></i>
-              Blackout
-            </button>
-            <button
-              className={styles.slowFadeoutButton} // Added SCSS class
-              onClick={handleSlowFadeout}
-              disabled={isFading || value === 0}
-              title="Slowly fade out to 0"
-            >
-              <i className="fas fa-arrow-down"></i>
-              Slow Fadeout
-            </button>
-            <button
-              className={styles.fadeBackupButton} // Added SCSS class
-              onClick={handleFadeBackup}
-              disabled={isFading || value === (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255)}
-              title="Fade back up to previous or full"
-            >
-              <i className="fas fa-arrow-up"></i>
-              Fade Back up
-            </button>
+
+          <div className={styles.controls}>
+            <div className={styles.oscConfig}>
+              <label>OSC Address:</label>
+              <input
+                type="text"
+                value={oscAddress}
+                onChange={(e) => setOscAddress(e.target.value)}
+                className={styles.addressInput}
+                placeholder="/master"
+              />
+            </div>
+
+            <div className={styles.midiConfig}>
+              <div className={styles.midiStatus}>
+                {midiCC !== null ? (
+                  <span className={styles.midiAssigned}>
+                    MIDI CC {midiCC} (Ch {midiChannel})
+                  </span>
+                ) : (
+                  <span className={styles.midiUnassigned}>No MIDI mapping</span>
+                )}
+              </div>
+
+              <div className={styles.midiActions}>
+                <button
+                  className={`${styles.learnButton} ${isLearning ? styles.learning : ''}`}
+                  onClick={handleMidiLearnToggle}
+                  disabled={false}
+                >
+                  {isLearning ? (
+                    <>
+                      <i className="fas fa-circle-notch fa-spin"></i>
+                      Learning...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-graduation-cap"></i>
+                      MIDI Learn
+                    </>
+                  )}
+                </button>
+
+                {midiCC !== null && (
+                  <button
+                    className={styles.clearButton}
+                    onClick={handleClearMidi}
+                    title="Clear MIDI mapping"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.channelInfo}>
+              <span>Active Channels: {Object.values(dmxChannels).filter(v => v > 0).length}</span>
+            </div>
           </div>
         </div>
-
-        {!isMinimized && (
-          <div className={styles.faderContainer}>
-            <div className={styles.sliderWrapper}>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                value={value}
-                onChange={handleSliderChange}
-                onInput={handleSliderInput}
-                onMouseDown={handleSliderMouseDown}
-                onPointerDown={handleSliderMouseDown}
-                className={styles.verticalSlider}
-              />
-              <div className={styles.valueDisplay}>
-                {Math.round((value / 255) * 100)}%
-              </div>
-            </div>
-
-            <div className={styles.controls}>
-              <div className={styles.oscConfig}>
-                <label>OSC Address:</label>
-                <input
-                  type="text"
-                  value={oscAddress}
-                  onChange={(e) => setOscAddress(e.target.value)}
-                  className={styles.addressInput}
-                  placeholder="/master"
-                />
-              </div>
-
-              <div className={styles.midiConfig}>
-                <div className={styles.midiStatus}>
-                  {midiCC !== null ? (
-                    <span className={styles.midiAssigned}>
-                      MIDI CC {midiCC} (Ch {midiChannel})
-                    </span>
-                  ) : (
-                    <span className={styles.midiUnassigned}>No MIDI mapping</span>
-                  )}
-                </div>
-
-                <div className={styles.midiActions}>
-                  <button
-                    className={`${styles.learnButton} ${isLearning ? styles.learning : ''}`}
-                    onClick={handleMidiLearnToggle}
-                    disabled={false}
-                  >
-                    {isLearning ? (
-                      <>
-                        <i className="fas fa-circle-notch fa-spin"></i>
-                        Learning...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-graduation-cap"></i>
-                        MIDI Learn
-                      </>
-                    )}
-                  </button>
-
-                  {midiCC !== null && (
-                    <button
-                      className={styles.clearButton}
-                      onClick={handleClearMidi}
-                      title="Clear MIDI mapping"
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className={styles.channelInfo}>
-                <span>Active Channels: {Object.values(dmxChannels).filter(v => v > 0).length}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Draggable>
+      )}
+    </div>
   );
 };

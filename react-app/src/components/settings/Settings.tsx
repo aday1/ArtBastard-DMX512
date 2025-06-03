@@ -161,31 +161,18 @@ export const Settings: React.FC = () => {
 
         {/* TouchOSC Export Card */}
         {/* ... */}
-        
-        {/* Performance Settings Card - Add Scene Transition Duration here or in a new card */}
+          {/* Scene Transitions Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>
-              {theme === 'artsnob' && 'Temporal Dynamics & Performance Calibration'}
-              {theme === 'standard' && 'Performance & Transitions'}
-              {theme === 'minimal' && 'Perf & FX'}
+              {theme === 'artsnob' && 'Scene Transition Control'}
+              {theme === 'standard' && 'Scene Transitions'}
+              {theme === 'minimal' && 'Transitions'}
             </h3>
-          </div>
+          </div>          
           <div className={styles.cardBody}>
-            {/* Existing Performance Settings ... */}
+            {/* Scene Transition Duration Setting */}
             <div className={styles.formGroup}>
-              <label>Graphics Quality:</label> {/* ... */}
-            </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="enableWebGL">WebGL Visualizations:</label> {/* ... */}
-            </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="enable3D">3D Fixture Visualization:</label> {/* ... */}
-            </div>
-            <div className={styles.performanceNote}> {/* ... */} </div>
-
-            {/* New Scene Transition Duration Setting */}
-            <div className={styles.formGroup} style={{marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color-soft)'}}>
               <label htmlFor="sceneTransitionDuration">Scene Transition Duration (ms):</label>
               <input
                 type="number"
@@ -196,7 +183,7 @@ export const Settings: React.FC = () => {
                 onKeyPress={(e) => e.key === 'Enter' && submitTransitionDuration()}
                 min="0"
                 step="100"
-                className={styles.numberInput} // Add specific class if needed
+                className={styles.numberInput}
               />
             </div>
             <div className={styles.configNote}>

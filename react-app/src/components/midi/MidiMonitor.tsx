@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
-import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
+import { LucideIcon } from '../ui/LucideIcon';
 import { useStore } from '../../store';
 import styles from './MidiMonitor.module.scss';
 
@@ -70,7 +70,7 @@ export const MidiMonitor: React.FC = () => {
 
   const renderHeader = () => (
     <div
-      className={`${styles.header} handle`} // Retain 'handle' for styling if needed
+      className={`${styles.header} handle`}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) {
           return; // Don't start drag if a button in header is clicked
@@ -83,13 +83,14 @@ export const MidiMonitor: React.FC = () => {
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
       <div className={styles.controls}>
-        {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
-          <LucideIcon name="Pin" size={14} />
-        </button> */}
-        <button onClick={() => setIsCollapsed(!isCollapsed)} onPointerDown={e => e.stopPropagation()}>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)} 
+          onPointerDown={e => e.stopPropagation()}
+          title={isCollapsed ? "Expand" : "Minimize"}
+        >
           {isCollapsed ? 
-            <LucideIcon name="Maximize2" size={14} /> : 
-            <LucideIcon name="Minimize2" size={14} />
+            <LucideIcon name="ChevronUp" size={14} /> : 
+            <LucideIcon name="ChevronDown" size={14} />
           }
         </button>
       </div>
