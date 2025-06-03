@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Draggable, { DraggableCore } from 'react-draggable';
+import { motion, useDragControls, PanInfo } from 'framer-motion';
 import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import { useStore } from '../../store';
 import styles from './MidiMonitor.module.scss';
@@ -8,15 +8,53 @@ export const MidiMonitor: React.FC = () => {
   const midiMessages = useStore(state => state.midiMessages);
   const [lastMessages, setLastMessages] = useState<Array<any>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  // const [isPinned, setIsPinned] = useState(false); // Removed isPinned
   const [flashActive, setFlashActive] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const nodeRef = useRef<HTMLDivElement>(null);
+  const monitorRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
 
-  // Ensure component is mounted before Draggable tries to use the ref
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
+
+  // Load position from localStorage
   useEffect(() => {
-    setIsMounted(true);
+    const savedX = localStorage.getItem('midiMonitorPositionX');
+    const savedY = localStorage.getItem('midiMonitorPositionY');
+    let initialX = 0;
+    let initialY = 0;
+    if (savedX !== null) initialX = parseFloat(savedX);
+    if (savedY !== null) initialY = parseFloat(savedY);
+    setPosition({ x: initialX, y: initialY });
   }, []);
+
+  // Effect to calculate and set drag constraints
+  useEffect(() => {
+    const calculateConstraints = () => {
+      if (monitorRef.current) {
+        const componentWidth = monitorRef.current.offsetWidth;
+        const componentHeight = monitorRef.current.offsetHeight;
+        const initialCssTop = 20; // From inline style 'top: 20px'
+        const initialCssRight = 20; // From inline style 'right: 20px'
+        const initialCssLeft = window.innerWidth - componentWidth - initialCssRight;
+
+        setConstraints({
+          left: -initialCssLeft,
+          top: -initialCssTop,
+          right: window.innerWidth - componentWidth - initialCssLeft,
+          bottom: window.innerHeight - componentHeight - initialCssTop,
+        });
+      }
+    };
+
+    calculateConstraints(); // Initial calculation
+    window.addEventListener('resize', calculateConstraints);
+    return () => window.removeEventListener('resize', calculateConstraints);
+  }, [monitorRef.current]); // Recalculate if ref changes or on resize
+
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    localStorage.setItem('midiMonitorPositionX', info.point.x.toString());
+    localStorage.setItem('midiMonitorPositionY', info.point.y.toString());
+    setPosition(info.point);
+  };
 
   // Update the displayed messages when new MIDI messages arrive
   useEffect(() => {
@@ -28,14 +66,19 @@ export const MidiMonitor: React.FC = () => {
       const timer = setTimeout(() => setFlashActive(false), 200);
       return () => clearTimeout(timer);
     }
-  }, [midiMessages]);  const handleDragStart = (e: any): false | void => {
-    // Prevent dragging when clicking on buttons
-    if (e.target.closest('button')) {
-      return false;
-    }
-  };
+  }, [midiMessages]);
+
   const renderHeader = () => (
-    <div className={`${styles.header} handle`}>
+    <div
+      className={`${styles.header} handle`} // Retain 'handle' for styling if needed
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) {
+          return; // Don't start drag if a button in header is clicked
+        }
+        dragControls.start(e);
+      }}
+      style={{ cursor: 'grab' }}
+    >
       <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} />
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
@@ -43,7 +86,7 @@ export const MidiMonitor: React.FC = () => {
         {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
           <LucideIcon name="Pin" size={14} />
         </button> */}
-        <button onClick={() => setIsCollapsed(!isCollapsed)}>
+        <button onClick={() => setIsCollapsed(!isCollapsed)} onPointerDown={e => e.stopPropagation()}>
           {isCollapsed ? 
             <LucideIcon name="Maximize2" size={14} /> : 
             <LucideIcon name="Minimize2" size={14} />
@@ -104,35 +147,29 @@ export const MidiMonitor: React.FC = () => {
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
 
-  // Don't render Draggable until component is mounted and ref is ready
-  if (!isMounted) {
-    return (
-      <div
-        className={monitorClasses}
-        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }}
-      >
-        {renderHeader()}
-        {renderContent()}
-      </div>
-    );
-  }
-
   return (
-    <Draggable 
-      nodeRef={nodeRef} 
-      handle=".handle" 
-      onStart={handleDragStart}
-      defaultPosition={{ x: 0, y: 0 }}
+    <motion.div
+      ref={monitorRef}
+      className={monitorClasses}
+      style={{
+        position: 'fixed',
+        top: 20, // Initial CSS position
+        right: 20, // Initial CSS position
+        zIndex: 1000,
+        width: '400px',
+        x: position.x, // Apply stored/initial transform X
+        y: position.y, // Apply stored/initial transform Y
+      }}
+      drag
+      dragControls={dragControls}
+      dragListener={false} // Use onPointerDown on the handle
+      onDragEnd={handleDragEnd}
+      dragConstraints={constraints}
+      whileDrag={{ cursor: 'grabbing' }}
     >
-      <div
-        ref={nodeRef}
-        className={monitorClasses}
-        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }}
-      >
-        {renderHeader()}
-        {renderContent()}
-      </div>
-    </Draggable>
+      {renderHeader()}
+      {renderContent()}
+    </motion.div>
   );
 };
 
