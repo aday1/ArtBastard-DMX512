@@ -7,6 +7,7 @@ C_GREEN="\033[1;32m"
 C_CYAN="\033[1;36m"
 C_YELLOW="\033[1;33m"
 C_RED="\033[1;31m"
+C_DARK_RED="\033[0;31m"
 C_DARK_GRAY="\033[1;30m"
 C_DARK_CYAN="\033[0;36m"
 C_GRAY="\033[0;37m" # For "already clean" messages
@@ -43,6 +44,9 @@ REACT_APP_ESLINTCACHE="./react-app/.eslintcache"
 ROOT_NODE_MODULES="./node_modules"
 REACT_APP_NODE_MODULES="./react-app/node_modules"
 LAUNCHER_NODE_MODULES="./launcher/node_modules" # Assuming launcher might have its own
+ROOT_PACKAGE_LOCK="./package-lock.json"
+REACT_APP_PACKAGE_LOCK="./react-app/package-lock.json"
+LAUNCHER_PACKAGE_LOCK="./launcher/package-lock.json"
 
 # Function to remove item with flair
 remove_item_with_flair() {
@@ -85,6 +89,43 @@ find "./react-app" -maxdepth 1 -name "*.tsbuildinfo" -exec rm -f {} \;
 remove_item_with_flair "$ROOT_NODE_MODULES" "root node_modules"
 remove_item_with_flair "$REACT_APP_NODE_MODULES" "react-app node_modules"
 remove_item_with_flair "$LAUNCHER_NODE_MODULES" "launcher node_modules"
+
+echo ""
+echo -e "${C_RED}🔥 Act II: Nuclear Option - Obliterating Package Locks & NPM Cache! 🔥${C_RESET}"
+echo -e "${C_DARK_RED}(This will force complete dependency resolution on next install)${C_RESET}"
+
+# Nuking package-lock.json files
+remove_item_with_flair "$ROOT_PACKAGE_LOCK" "root package-lock.json"
+remove_item_with_flair "$REACT_APP_PACKAGE_LOCK" "react-app package-lock.json"
+remove_item_with_flair "$LAUNCHER_PACKAGE_LOCK" "launcher package-lock.json"
+
+# Clearing npm cache with nuclear force
+echo -e "${C_DARK_RED}Clearing NPM cache with --force flag... 💥${C_RESET}"
+if npm cache clean --force 2>/dev/null; then
+    echo -e "${C_GREEN}✅ NPM cache successfully nuked!${C_RESET}"
+else
+    echo -e "${C_RED}⚠️ Could not clean npm cache (exit code: $?)${C_RESET}"
+fi
+
+# Additional cleanup for stubborn npm issues
+echo -e "${C_DARK_CYAN}Verifying NPM cache integrity... 🔍${C_RESET}"
+if npm cache verify 2>/dev/null; then
+    echo -e "${C_GREEN}✅ NPM cache verified successfully!${C_RESET}"
+else
+    echo -e "${C_RED}⚠️ NPM cache verify failed (exit code: $?)${C_RESET}"
+fi
+
+# Clear global npm cache if exists (Linux/macOS locations)
+NPM_CACHE_DIR="$HOME/.npm"
+if [ -d "$NPM_CACHE_DIR" ]; then
+    remove_item_with_flair "$NPM_CACHE_DIR" "global npm cache (~/.npm)"
+fi
+
+# Additional npm cache locations for different systems
+XDG_CACHE_NPM="$HOME/.cache/npm"
+if [ -d "$XDG_CACHE_NPM" ]; then
+    remove_item_with_flair "$XDG_CACHE_NPM" "XDG npm cache (~/.cache/npm)"
+fi
 
 echo ""
 echo -e "${C_MAGENTA}🌟✨ Bravo! The ArtBastard's stage is impeccably clean! (Bash Edition) ✨🌟${C_RESET}"
