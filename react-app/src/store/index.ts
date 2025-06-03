@@ -171,6 +171,19 @@ interface State {
   midiClockCurrentBeat: number;
   midiClockCurrentBar: number;
 
+  // Auto-Scene Feature State
+  autoSceneEnabled: boolean;
+  autoSceneList: string[]; // Names of scenes selected for auto-sequencing
+  autoSceneMode: 'forward' | 'ping-pong' | 'random';
+  autoSceneCurrentIndex: number;
+  autoScenePingPongDirection: 'forward' | 'backward';
+  autoSceneBeatDivision: number; // e.g., 4 for every 4 beats (1 bar in 4/4)
+  autoSceneManualBpm: number;
+  autoSceneTapTempoBpm: number;
+  autoSceneLastTapTime: number; // For tap tempo calculation
+  autoSceneTapTimes: number[]; // Stores recent tap intervals
+  autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
+
   // Actions
   fetchInitialState: () => Promise<void>
   setDmxChannel: (channel: number, value: number) => void
@@ -229,6 +242,17 @@ interface State {
   setMidiClockIsPlaying: (isPlaying: boolean) => void; // Called by WS handler
   setMidiClockBeatBar: (beat: number, bar: number) => void; // Called by WS handler
   requestToggleMasterClockPlayPause: () => void; // Renamed action
+
+  // Auto-Scene Actions
+  setAutoSceneEnabled: (enabled: boolean) => void;
+  setAutoSceneList: (sceneNames: string[]) => void;
+  setAutoSceneMode: (mode: 'forward' | 'ping-pong' | 'random') => void;
+  setAutoSceneBeatDivision: (division: number) => void;
+  setAutoSceneTempoSource: (source: 'internal_clock' | 'manual_bpm' | 'tap_tempo') => void;
+  setNextAutoSceneIndex: () => void; // Calculates and updates autoSceneCurrentIndex
+  resetAutoSceneIndex: () => void;
+  setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
+  recordTapTempo: () => void;         // For auto-scene tap tempo
 }
 
 export const useStore = create<State>()(
@@ -295,6 +319,19 @@ export const useStore = create<State>()(
       midiClockIsPlaying: false,
       midiClockCurrentBeat: 1,
       midiClockCurrentBar: 1,
+
+      // Auto-Scene Feature State Init
+      autoSceneEnabled: false,
+      autoSceneList: [],
+      autoSceneMode: 'forward',
+      autoSceneCurrentIndex: -1, // Indicates no scene selected or sequence not started
+      autoScenePingPongDirection: 'forward',
+      autoSceneBeatDivision: 4, // Default to 1 bar (4 beats)
+      autoSceneManualBpm: 120,
+      autoSceneTapTempoBpm: 120,
+      autoSceneLastTapTime: 0,
+      autoSceneTapTimes: [],
+      autoSceneTempoSource: 'internal_clock',
       
       // Actions
       fetchInitialState: async () => {
@@ -859,6 +896,98 @@ export const useStore = create<State>()(
             type: 'error',
           });
         }
+      },
+
+      // Auto-Scene Actions Implementations
+      setAutoSceneEnabled: (enabled) => set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }), // Reset index when enabling/disabling
+      setAutoSceneList: (sceneNames) => set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }), // Reset index
+      setAutoSceneMode: (mode) => set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }), // Reset index and direction
+      setAutoSceneBeatDivision: (division) => set({ autoSceneBeatDivision: Math.max(1, division) }), // Ensure division is at least 1
+      setAutoSceneTempoSource: (source) => set({ autoSceneTempoSource: source }),
+      resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),
+      setManualBpm: (bpm) => {
+        const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
+        set({ autoSceneManualBpm: newBpm });
+        if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
+          get().setMidiClockBpm(newBpm); // Also update main internal clock
+        }
+      },
+      recordTapTempo: () => {
+        const now = Date.now();
+        const lastTapTime = get().autoSceneLastTapTime;
+        let newTapTimes = [...get().autoSceneTapTimes];
+
+        if (lastTapTime > 0) {
+          const interval = now - lastTapTime;
+          if (interval > 0 && interval < 2000) { // Ignore taps too close or too far apart (2s = 30 BPM)
+            newTapTimes.push(interval);
+            if (newTapTimes.length > 5) { // Keep last 5 intervals for averaging
+              newTapTimes.shift();
+            }
+          } else { // If interval is too long, reset taps
+            newTapTimes = [];
+          }
+        }
+
+        set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
+
+        if (newTapTimes.length >= 2) { // Need at least 2 taps (1 interval) to calculate BPM
+          const averageInterval = newTapTimes.reduce((sum, t) => sum + t, 0) / newTapTimes.length;
+          if (averageInterval > 0) {
+            const newBpm = Math.max(20, Math.min(300, 60000 / averageInterval)); // Clamp BPM
+            set({ autoSceneTapTempoBpm: newBpm });
+            if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
+              get().setMidiClockBpm(newBpm); // Also update main internal clock
+            }
+          }
+        }
+      },
+      setNextAutoSceneIndex: () => {
+        const { autoSceneList, autoSceneMode, autoSceneCurrentIndex, autoScenePingPongDirection } = get();
+        if (!autoSceneList || autoSceneList.length === 0) {
+          set({ autoSceneCurrentIndex: -1 });
+          return;
+        }
+
+        let nextIndex = autoSceneCurrentIndex;
+        let nextPingPongDirection = autoScenePingPongDirection;
+        const listLength = autoSceneList.length;
+
+        if (autoSceneMode === 'forward') {
+          nextIndex = (autoSceneCurrentIndex + 1) % listLength;
+        } else if (autoSceneMode === 'random') {
+          if (listLength <= 1) {
+            nextIndex = 0;
+          } else {
+            let randomIndex = Math.floor(Math.random() * listLength);
+            // Ensure it's not the same as current, if possible
+            while (randomIndex === autoSceneCurrentIndex && listLength > 1) {
+              randomIndex = Math.floor(Math.random() * listLength);
+            }
+            nextIndex = randomIndex;
+          }
+        } else if (autoSceneMode === 'ping-pong') {
+          if (listLength === 1) {
+            nextIndex = 0;
+          } else {
+            if (nextPingPongDirection === 'forward') {
+              if (autoSceneCurrentIndex >= listLength - 1) {
+                nextIndex = Math.max(0, listLength - 2);
+                nextPingPongDirection = 'backward';
+              } else {
+                nextIndex = autoSceneCurrentIndex + 1;
+              }
+            } else { // Backward
+              if (autoSceneCurrentIndex <= 0) {
+                nextIndex = Math.min(1, listLength - 1);
+                nextPingPongDirection = 'forward';
+              } else {
+                nextIndex = autoSceneCurrentIndex - 1;
+              }
+            }
+          }
+        }
+        set({ autoSceneCurrentIndex: nextIndex, autoScenePingPongDirection: nextPingPongDirection });
       },
     }),
     { name: 'ArtBastard-DMX-Store' } 
