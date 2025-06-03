@@ -1,25 +1,41 @@
-.themeToggle {
+.themeToggleContainer {
   position: fixed;
   top: 20px;
-  right: 70px; // Positioned to the left of DebugInfo (assumed at right: 20px)
+  right: 20px; // Adjusted right position to make space if DebugInfo is also at 20px or to group them
   z-index: 1050;
-  cursor: pointer;
-  padding: 8px;
+  display: flex;
+  gap: 8px; // Space between the buttons
+  padding: 6px; // Padding for the container itself
   background-color: var(--color-card-bg);
-  border-radius: 50%;
+  border-radius: var(--border-radius, 8px); // Use global border-radius or a default
   box-shadow: var(--card-shadow);
+  // Removed fixed width and height, cursor, direct align/justify for single item
+}
+
+.iconButton {
+  background-color: transparent; // Buttons themselves are transparent
+  border: none;
+  border-radius: 50%; // Keep buttons circular
+  width: 38px;        // Slightly smaller to fit padding in container
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  cursor: pointer;
+  padding: 8px;       // Padding inside each button for the icon
+  color: var(--color-text); // Icon color
+  transition: background-color 0.2s ease;
 
   i {
-    font-size: 20px;
-    color: var(--color-text);
+    font-size: 18px; // Slightly smaller icon to fit new button size
   }
 
   &:hover {
-    background-color: var(--color-card-border);
+    background-color: var(--color-card-border); // Hover effect on individual buttons
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary); // Focus indicator
   }
 }

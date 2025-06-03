@@ -6,8 +6,10 @@ import { ToastContainer } from './ToastContainer' // Import ToastContainer
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
 import MidiDebugger from '../midi/MidiDebugger'
-import MidiMonitor from '../midi/MidiMonitor' 
+// MidiMonitor is likely not needed here if it's a floating component managed elsewhere
+// import MidiMonitor from '../midi/MidiMonitor'
 import styles from './Layout.module.scss'
+import { Sparkles } from './Sparkles'; // Import Sparkles
 
 interface LayoutProps {
   children: React.ReactNode
@@ -18,6 +20,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`}>
+      <Sparkles /> {/* Add Sparkles component here for global background */}
       <Navbar />
       {/* Render ToastContainer without props as it fetches its own state */}
       <ToastContainer /> 

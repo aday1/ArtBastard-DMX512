@@ -155,64 +155,67 @@
       border: 2px solid var(--accent-color);
       position: relative;
       z-index: 10;
+      flex-direction: row; // Changed from column to row
+      align-items: center; // Keep items vertically centered
+      gap: 1rem; // Adjusted gap for horizontal layout
       
       // Allow pointer events on the wrapper
       pointer-events: auto;
-    }    .verticalSlider {
-      writing-mode: bt-lr; /* IE */
-      -webkit-appearance: slider-vertical; /* WebKit */
-      appearance: slider-vertical; /* Standard */
-      width: 40px;
-      height: 180px;
+    }
+
+    // Renamed from .verticalSlider conceptually, but keeping class name for now as per task
+    .verticalSlider {
+      -webkit-appearance: none; /* Remove default WebKit appearance */
+      appearance: none; /* Remove default platform appearance */
+      width: 100%; /* Slider takes full width of its parent */
+      height: 20px; /* Height of the slider track */
       background: var(--color-slider-track);
-      border-radius: 20px;
+      border-radius: 10px; /* Rounded track edges */
       outline: none;
       cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
-      z-index: 1000;
+      transition: all 0.2s ease; // Keep existing transitions
+      position: relative; // Keep for z-index context if needed
+      z-index: 1000; // Keep for potential stacking issues
       
-      // Ensure the slider always receives pointer events and is not affected by parent element events
       pointer-events: auto !important;
+      touch-action: none; // Keep for touch devices
       
-      // Prevent dragging interference on touch devices
-      touch-action: none;
-      
-      // Prevent any parent element click/drag events from interfering
       &:hover, &:active, &:focus {
-        z-index: 1001;
+        z-index: 1001; // Keep for potential stacking issues
       }
 
-        &::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 50px; // Increased height (visual width for vertical slider)
-          height: 30px; // Increased width (visual height for vertical slider)
-          background: var(--color-slider-thumb); // Theme variable for thumb background
-          border: 3px solid var(--accent-color);
-          border-radius: 15px; // Adjusted border-radius
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          transition: all 0.2s ease;
-        }
-
-        &::-webkit-slider-thumb:hover {
-          transform: scale(1.1);
-          box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
-        }
-
-        &::-moz-range-thumb {
-          width: 50px; // Increased height (visual width for vertical slider)
-          height: 30px; // Increased width (visual height for vertical slider)
-          background: var(--color-slider-thumb); // Theme variable for thumb background
-          border: 3px solid var(--accent-color);
-          border-radius: 15px; // Adjusted border-radius
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none; /* Required for custom thumb styling */
+        appearance: none;
+        width: 30px;   /* Width of the thumb */
+        height: 30px;  /* Height of the thumb */
+        background: var(--color-slider-thumb);
+        border: 3px solid var(--accent-color);
+        border-radius: 50%; /* Circular thumb */
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s ease;
+        margin-top: -5px; /* Adjust thumb position to be centered on the track. (track_height - thumb_height)/2 = (20-30)/2 = -5px */
       }
 
-      .valueDisplay {
+      &::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+      }
+
+      &::-moz-range-thumb {
+        width: 30px;   /* Width of the thumb */
+        height: 30px;  /* Height of the thumb */
+        background: var(--color-slider-thumb);
+        border: 3px solid var(--accent-color);
+        border-radius: 50%; /* Circular thumb */
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        /* No margin-top needed for Firefox if track height is managed by box-sizing or similar */
+      }
+    }
+
+    .valueDisplay {
         background: var(--bg-primary);
         color: var(--accent-color);
         padding: 0.5rem 0.75rem; // Adjusted padding
@@ -370,13 +373,23 @@
       // align-items: center;
       // gap: 1.5rem;
 
+      // No longer need to override .verticalSlider here for horizontal appearance
+      // as it's now horizontal by default.
+      // Specific mobile adjustments for size can be added if needed.
+      /* Example for mobile specific thumb or track size if desired:
       .sliderWrapper .verticalSlider {
-        writing-mode: horizontal-tb;
-        -webkit-appearance: none;
-        appearance: none; /* Standard */
-        width: 100%; // Make slider full width in mobile if not vertical
-        height: 40px; // Adjusted height (thickness for horizontal slider)
+        height: 30px; // Thicker track for touch
+        &::-webkit-slider-thumb {
+          width: 35px;
+          height: 35px;
+          margin-top: -2.5px; // Adjust if track height changes
+        }
+        &::-moz-range-thumb {
+          width: 35px;
+          height: 35px;
+        }
       }
+      */
 
       .controls {
         width: 100%;
