@@ -220,12 +220,12 @@ interface State {
   updateMasterSlider: (sliderId: string, updatedSlider: Partial<MasterSlider>) => void; 
   removeMasterSlider: (sliderId: string) => void;
   setMasterSliders: (sliders: MasterSlider[]) => void;
-  setSelectedMidiClockHostId: (hostId: string | null) => void;
-  setAvailableMidiClockHosts: (hosts: Array<{ id: string; name: string }>) => void;
-  setMidiClockBpm: (bpm: number) => void;
-  setMidiClockIsPlaying: (isPlaying: boolean) => void;
-  setMidiClockBeatBar: (beat: number, bar: number) => void;
-  toggleInternalMidiClockPlayState: () => void;
+  setSelectedMidiClockHostId: (hostId: string | null) => void; // Will be called by WS handler too
+  setAvailableMidiClockHosts: (hosts: Array<{ id: string; name: string }>) => void; // Called by WS handler
+  setMidiClockBpm: (bpm: number) => void; // Called by WS handler, and also repurposed for user requests
+  setMidiClockIsPlaying: (isPlaying: boolean) => void; // Called by WS handler
+  setMidiClockBeatBar: (beat: number, bar: number) => void; // Called by WS handler
+  requestToggleMasterClockPlayPause: () => void; // Renamed action
 }
 
 export const useStore = create<State>()(
@@ -765,32 +765,78 @@ export const useStore = create<State>()(
       setMasterSliders: (sliders) => {
         set({ masterSliders: sliders });
       },
+      // This action is now dual-purpose:
+      // 1. Called by UI to request a source change (sends WS message).
+      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
       setSelectedMidiClockHostId: (hostId) => {
-        set({ selectedMidiClockHostId: hostId });
-        // Potentially add logic here to initiate connection/disconnection if needed globally
-        get().addNotification({
-          message: `MIDI Clock Sync source set to ${get().availableMidiClockHosts.find(h => h.id === hostId)?.name || 'None'}`,
-          type: 'info',
-        });
+        const { socket, addNotification, availableMidiClockHosts, selectedMidiClockHostId: currentSelectedHostId } = get();
+
+        // If called by UI (or to reflect a change initiated elsewhere that needs to be sent to backend)
+        // Check if it's a request to change the source via UI, not just a state update from backend
+        // A simple heuristic: if the hostId is different from current state and socket is connected, it's likely a user request.
+        // This distinction might need refinement if the action is purely for backend updates in some contexts.
+        // For now, assume if socket is present, it's a request path. If not, it's a direct state update (e.g. from WS handler).
+
+        if (socket?.connected && hostId !== currentSelectedHostId) { // Primary path for UI-initiated change
+          socket.emit('setMasterClockSource', hostId);
+          addNotification({
+            message: `Requesting Master Clock source change to ${availableMidiClockHosts.find(h => h.id === hostId)?.name || 'Unknown'}...`,
+            type: 'info',
+          });
+          // Optimistic update removed: set({ selectedMidiClockHostId: hostId });
+        } else if (!socket?.connected && hostId !== currentSelectedHostId) { // UI tried to change but not connected
+           addNotification({
+            message: 'Cannot change Master Clock: Not connected to server.',
+            type: 'error',
+          });
+        } else { // This path handles direct state update (e.g., from WebSocket handler)
+          set({ selectedMidiClockHostId: hostId });
+          // Avoid sending notification if it's just reflecting a state update from backend
+        }
       },
-      setAvailableMidiClockHosts: (hosts) => {
+      setAvailableMidiClockHosts: (hosts) => { // Called by WS handler
         set({ availableMidiClockHosts: hosts });
       },
-      setMidiClockBpm: (bpm) => set({ midiClockBpm: bpm }),
-      setMidiClockIsPlaying: (isPlaying) => set({ midiClockIsPlaying: isPlaying }),
-      setMidiClockBeatBar: (beat, bar) => set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar }),
-      toggleInternalMidiClockPlayState: () => {
-        const currentIsPlaying = get().midiClockIsPlaying;
-        if (!currentIsPlaying) {
-          // Starting the clock, reset beat and bar
-          set({
-            midiClockIsPlaying: true,
-            midiClockCurrentBeat: 1,
-            midiClockCurrentBar: 1
+      // This action is now dual-purpose:
+      // 1. Called by UI to request a BPM change for internal clock (sends WS message).
+      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
+      setMidiClockBpm: (bpm) => { // Renamed in spirit to `requestOrSetMidiClockBpm`
+        const { socket, addNotification, selectedMidiClockHostId, midiClockBpm: currentBpm } = get();
+
+        // If called by UI to change BPM (heuristic: for internal clock, different BPM, socket connected)
+        if (socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) { // Path for UI-initiated change for internal clock
+          socket.emit('setInternalClockBPM', bpm);
+          addNotification({
+            message: `Requesting Internal Clock BPM change to ${bpm}...`,
+            type: 'info',
           });
+          // Optimistic update removed: set({ midiClockBpm: bpm });
+        } else if (!socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) {
+          addNotification({
+            message: 'Cannot change Internal Clock BPM: Not connected to server.',
+            type: 'error',
+          });
+        }
+        // This will always update the local state, either optimistically (if UI call fails to send) or from backend broadcast
+        set({ midiClockBpm: bpm });
+      },
+      setMidiClockIsPlaying: (isPlaying) => { // Called by WS handler
+        set({ midiClockIsPlaying: isPlaying });
+      },
+      setMidiClockBeatBar: (beat, bar) => { // Called by WS handler
+        set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar });
+      },
+      requestToggleMasterClockPlayPause: () => { // Renamed from toggleInternalMidiClockPlayState
+        const { socket, addNotification } = get();
+        if (socket?.connected) {
+          socket.emit('toggleMasterClockPlayPause');
+          // Notification can be added if desired, e.g., "Play/pause request sent"
+          // The actual state (isPlaying, beat, bar) will update via 'masterClockUpdate'
         } else {
-          // Stopping the clock
-          set({ midiClockIsPlaying: false });
+          addNotification({
+            message: 'Cannot toggle play/pause: Not connected to server.',
+            type: 'error',
+          });
         }
       },
     }),

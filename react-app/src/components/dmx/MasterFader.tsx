@@ -24,40 +24,59 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   const { socket } = useSocket();
     const { startLearn, cancelLearn } = useMidiLearn();
   const handleValueChange = useCallback((newValue: number) => {
-    const previousValue = value;
-    setValue(newValue);
-    onValueChange?.(newValue);
+    const previousValue = value; // Capture state BEFORE update for DMX logic
+    setValue(newValue);          // Update state - this should make the slider knob move
+    onValueChange?.(newValue);    // Propagate change
 
-    // Group slider behavior
+    // Reintroduce DMX logic
     if (newValue === 0 && previousValue > 0) {
-      // Moving to zero - save current values and set all to zero
-      const currentValues: { [key: number]: number } = {};
+      const currentValuesToSaveNormalized: { [key: number]: number } = {};
       Object.keys(dmxChannels).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        if (dmxChannels[channelNum] > 0) {
-          currentValues[channelNum] = dmxChannels[channelNum];
-          setDmxChannelValue(channelNum, 0);
+        const currentDmxValue = dmxChannels[channelNum]; // Current live DMX value for this channel
+
+        if (currentDmxValue > 0) {
+          let normalizedValue = currentDmxValue;
+          // If master was active but not full, normalize the DMX value
+          if (previousValue > 0 && previousValue < 255) {
+            normalizedValue = (currentDmxValue / previousValue) * 255;
+          }
+          // If previousValue was 255, currentDmxValue is already the "full" value.
+          // If previousValue was 0 (not possible in this branch due to `previousValue > 0`), it's a non-issue.
+
+          currentValuesToSaveNormalized[channelNum] = Math.min(255, Math.max(0, Math.round(normalizedValue)));
+          setDmxChannelValue(channelNum, 0); // Set live DMX to 0
+        } else {
+          // If currentDmxValue is 0, ensure it's set to 0 in the live DMX (if not already)
+          // and don't store it in previousChannelValues unless we want to explicitly restore it to 0.
+          // For simplicity, we only store values that were > 0.
+          // However, if a channel was manually set to 0 while master was up, and then master goes to 0,
+          // it won't be in previousChannelValues. When master comes up, it won't be touched by the restore loop.
+          // This is generally fine.
+          if (dmxChannels[channelNum] !== 0) { // Ensure it's set to 0 if it wasn't already
+             setDmxChannelValue(channelNum, 0);
+          }
         }
       });
-      setPreviousChannelValues(currentValues);
+      setPreviousChannelValues(currentValuesToSaveNormalized);
     } else if (newValue > 0 && previousValue === 0) {
-      // Moving from zero - restore previous values proportionally
       Object.keys(previousChannelValues).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        const originalValue = previousChannelValues[channelNum];
-        const proportionalValue = Math.round((originalValue * newValue) / 255);
+        const normalizedOriginalValue = previousChannelValues[channelNum]; // This is now the "full" value
+        const proportionalValue = Math.round((normalizedOriginalValue * newValue) / 255);
         setDmxChannelValue(channelNum, proportionalValue);
       });
     } else if (newValue > 0 && previousValue > 0) {
-      // Adjusting between non-zero values - scale all non-zero channels proportionally
-      const scaleFactor = newValue / 255;
-      Object.keys(dmxChannels).forEach(channelKey => {
-        const channelNum = parseInt(channelKey);
-        if (dmxChannels[channelNum] > 0) {
-          const scaledValue = Math.round(dmxChannels[channelNum] * scaleFactor);
-          setDmxChannelValue(channelNum, Math.min(255, scaledValue));
-        }
-      });
+      // Refactored logic for "adjusting between non-zero values"
+      if (previousValue !== 0) { // Avoid division by zero
+          const adjustmentFactor = newValue / previousValue;
+          Object.keys(dmxChannels).forEach(key => {
+              const num = parseInt(key);
+              // Scale the current value of the channel
+              const adjustedValue = Math.round(dmxChannels[num] * adjustmentFactor);
+              setDmxChannelValue(num, Math.min(255, Math.max(0, adjustedValue)));
+          });
+      }
     }
 
     // Send OSC message
@@ -67,7 +86,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
         args: [{ type: 'f', value: newValue / 255 }]
       });
     }
-  }, [dmxChannels, setDmxChannelValue, socket, oscAddress, onValueChange, value, previousChannelValues]);
+  }, [value, dmxChannels, setDmxChannelValue, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
