@@ -110,6 +110,8 @@ export interface Notification {
 // Input type for addNotification action
 export type AddNotificationInput = Omit<Notification, 'id' | 'timestamp'>;
 
+// Type for batch DMX channel updates
+export type DmxChannelBatchUpdate = Record<number, number>;
 
 interface State {
   // DMX State
@@ -171,7 +173,8 @@ interface State {
 
   // Actions
   fetchInitialState: () => Promise<void>
-  setDmxChannel: (channel: number, value: number) => void 
+  setDmxChannel: (channel: number, value: number) => void
+  setMultipleDmxChannels: (updates: DmxChannelBatchUpdate) => void; // New action for batch updates
   setDmxChannelValue: (channel: number, value: number) => void 
   setDmxChannelsForTransition: (values: number[]) => void; 
   setCurrentTransitionFrameId: (frameId: number | null) => void; 
@@ -364,6 +367,24 @@ export const useStore = create<State>()(
             console.error('Failed to update DMX channel:', error)
             get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
           })
+      },
+
+      setMultipleDmxChannels: (updates) => {
+        const currentDmxChannels = get().dmxChannels;
+        const newDmxChannels = [...currentDmxChannels];
+        for (const channelStr in updates) {
+          const channel = parseInt(channelStr, 10);
+          if (channel >= 0 && channel < newDmxChannels.length) {
+            newDmxChannels[channel] = updates[channel];
+          }
+        }
+        set({ dmxChannels: newDmxChannels });
+
+        axios.post('/api/dmx/batch', updates)
+          .catch(error => {
+            console.error('Failed to update DMX channels in batch:', error);
+            get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
+          });
       },
 
       setDmxChannelValue: (channel, value) => { 

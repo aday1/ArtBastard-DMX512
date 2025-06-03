@@ -23,73 +23,63 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   const [valueBeforeFadeout, setValueBeforeFadeout] = useState<number>(0);
   const [isFading, setIsFading] = useState<boolean>(false);
 
-  const { dmxChannels, setDmxChannelValue } = useStore();
+  const { dmxChannels, setDmxChannelValue, setMultipleDmxChannels } = useStore(); // Added setMultipleDmxChannels
   const { socket } = useSocket();
   const { startLearn, cancelLearn } = useMidiLearn();
   const handleValueChange = useCallback((newValue: number) => {
-    const previousValue = value; // Capture state BEFORE update for DMX logic
-    setValue(newValue);          // Update state - this should make the slider knob move
-    onValueChange?.(newValue);    // Propagate change
+    const previousValue = value;
+    setValue(newValue);
+    onValueChange?.(newValue);
 
-    // Reintroduce DMX logic
+    const dmxUpdates: Record<number, number> = {};
+
     if (newValue === 0 && previousValue > 0) {
       const currentValuesToSaveNormalized: { [key: number]: number } = {};
       Object.keys(dmxChannels).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        const currentDmxValue = dmxChannels[channelNum]; // Current live DMX value for this channel
+        const currentDmxValue = dmxChannels[channelNum];
 
         if (currentDmxValue > 0) {
           let normalizedValue = currentDmxValue;
-          // If master was active but not full, normalize the DMX value
           if (previousValue > 0 && previousValue < 255) {
             normalizedValue = (currentDmxValue / previousValue) * 255;
           }
-          // If previousValue was 255, currentDmxValue is already the "full" value.
-          // If previousValue was 0 (not possible in this branch due to `previousValue > 0`), it's a non-issue.
-
           currentValuesToSaveNormalized[channelNum] = Math.min(255, Math.max(0, Math.round(normalizedValue)));
-          setDmxChannelValue(channelNum, 0); // Set live DMX to 0
-        } else {
-          // If currentDmxValue is 0, ensure it's set to 0 in the live DMX (if not already)
-          // and don't store it in previousChannelValues unless we want to explicitly restore it to 0.
-          // For simplicity, we only store values that were > 0.
-          // However, if a channel was manually set to 0 while master was up, and then master goes to 0,
-          // it won't be in previousChannelValues. When master comes up, it won't be touched by the restore loop.
-          // This is generally fine.
-          if (dmxChannels[channelNum] !== 0) { // Ensure it's set to 0 if it wasn't already
-             setDmxChannelValue(channelNum, 0);
-          }
+          dmxUpdates[channelNum] = 0; // Add to batch for setting to 0
+        } else if (dmxChannels[channelNum] !== 0) {
+          dmxUpdates[channelNum] = 0; // Ensure it's set to 0 if it wasn't already
         }
       });
       setPreviousChannelValues(currentValuesToSaveNormalized);
     } else if (newValue > 0 && previousValue === 0) {
       Object.keys(previousChannelValues).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        const normalizedOriginalValue = previousChannelValues[channelNum]; // This is now the "full" value
+        const normalizedOriginalValue = previousChannelValues[channelNum];
         const proportionalValue = Math.round((normalizedOriginalValue * newValue) / 255);
-        setDmxChannelValue(channelNum, proportionalValue);
+        dmxUpdates[channelNum] = proportionalValue;
       });
     } else if (newValue > 0 && previousValue > 0) {
-      // Refactored logic for "adjusting between non-zero values"
-      if (previousValue !== 0) { // Avoid division by zero
-          const adjustmentFactor = newValue / previousValue;
-          Object.keys(dmxChannels).forEach(key => {
-              const num = parseInt(key);
-              // Scale the current value of the channel
-              const adjustedValue = Math.round(dmxChannels[num] * adjustmentFactor);
-              setDmxChannelValue(num, Math.min(255, Math.max(0, adjustedValue)));
-          });
+      if (previousValue !== 0) {
+        const adjustmentFactor = newValue / previousValue;
+        Object.keys(dmxChannels).forEach(key => {
+          const num = parseInt(key);
+          const adjustedValue = Math.round(dmxChannels[num] * adjustmentFactor);
+          dmxUpdates[num] = Math.min(255, Math.max(0, adjustedValue));
+        });
       }
     }
 
-    // Send OSC message
+    if (Object.keys(dmxUpdates).length > 0) {
+      setMultipleDmxChannels(dmxUpdates);
+    }
+
     if (socket && oscAddress) {
       socket.emit('osc-send', {
         address: oscAddress,
         args: [{ type: 'f', value: newValue / 255 }]
       });
     }
-  }, [value, dmxChannels, setDmxChannelValue, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress]);
+  }, [value, dmxChannels, setMultipleDmxChannels, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress]); // Updated dependencies
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
@@ -127,25 +117,43 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   };
 
   const toggleFullOn = () => {
+    const dmxUpdates: Record<number, number> = {};
     if (isFullOn) {
-      // Turn off FULL ON - restore previous values
       setIsFullOn(false);
       Object.keys(fullOnSavedValues).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        setDmxChannelValue(channelNum, fullOnSavedValues[channelNum]);
+        dmxUpdates[channelNum] = fullOnSavedValues[channelNum];
       });
-      setValue(255); // Set master to full
+      // setValue(255); // Master fader value should reflect the actual light state or user intention.
+                       // If restoring, it was likely already at 255 or user will adjust.
+                       // Let's keep it at 255 as per original logic for now, but this could be re-evaluated.
     } else {
-      // Turn on FULL ON - save current values and set all to 255
       setIsFullOn(true);
       const currentValues: { [key: number]: number } = {};
       Object.keys(dmxChannels).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
         currentValues[channelNum] = dmxChannels[channelNum];
-        setDmxChannelValue(channelNum, 255);
+        dmxUpdates[channelNum] = 255;
       });
       setFullOnSavedValues(currentValues);
-      setValue(255); // Set master to full
+      // setValue(255); // Set master to full - this is a UI concern, separate from DMX values
+    }
+
+    if (Object.keys(dmxUpdates).length > 0) {
+      setMultipleDmxChannels(dmxUpdates);
+    }
+    // After DMX updates are sent, then update the UI state of the fader itself.
+    // If turning ON, master fader UI should go to 255.
+    // If turning OFF, it means we are restoring values. The master fader UI was likely already at 255.
+    // If we want the master fader to go to a specific value after restoring, that needs to be decided.
+    // For now, if turning ON, set to 255. If turning OFF, assume it was 255 and stays there, or user adjusts.
+    if (!isFullOn) { // This means it's now ON
+        setValue(255);
+    } else { // This means it's now OFF (was ON before toggle)
+        // Let's assume if the user toggles full-on OFF, they want the master fader to still represent "full"
+        // for the restored values. If the restored values are all 0, then the master fader at 255 is fine.
+        // This matches the original logic where setValue(255) was called in the "turn off" branch.
+        setValue(255);
     }
   };
 
