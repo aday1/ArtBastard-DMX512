@@ -58,21 +58,34 @@ export const OscMonitor: React.FC = () => {
         const effectiveScreenY = initialCssTop + currentY;
 
         let positionNeedsReset = false;
-        if (effectiveScreenX < 0) {
-          currentX = -calculatedCssLeft;
+        const visibilityThreshold = 50;
+
+        const isMostlyOffScreenLeft = effectiveScreenX + componentWidth < visibilityThreshold;
+        const isMostlyOffScreenTop = effectiveScreenY + componentHeight < visibilityThreshold;
+        const isMostlyOffScreenRight = effectiveScreenX > window.innerWidth - visibilityThreshold;
+        const isMostlyOffScreenBottom = effectiveScreenY > window.innerHeight - visibilityThreshold;
+
+        if (isMostlyOffScreenLeft || isMostlyOffScreenTop || isMostlyOffScreenRight || isMostlyOffScreenBottom) {
+          currentX = 0;
+          currentY = 0;
           positionNeedsReset = true;
-        }
-        if (effectiveScreenY < 0) {
-          currentY = -initialCssTop;
-          positionNeedsReset = true;
-        }
-        if (effectiveScreenX + componentWidth > window.innerWidth) {
-          currentX = window.innerWidth - componentWidth - calculatedCssLeft;
-          positionNeedsReset = true;
-        }
-        if (effectiveScreenY + componentHeight > window.innerHeight) {
-          currentY = window.innerHeight - componentHeight - initialCssTop;
-          positionNeedsReset = true;
+        } else {
+          if (effectiveScreenX < 0) {
+            currentX = -calculatedCssLeft;
+            positionNeedsReset = true;
+          }
+          if (effectiveScreenY < 0) {
+            currentY = -initialCssTop;
+            positionNeedsReset = true;
+          }
+          if (effectiveScreenX + componentWidth > window.innerWidth) {
+            currentX = window.innerWidth - componentWidth - calculatedCssLeft;
+            positionNeedsReset = true;
+          }
+          if (effectiveScreenY + componentHeight > window.innerHeight) {
+            currentY = window.innerHeight - componentHeight - initialCssTop;
+            positionNeedsReset = true;
+          }
         }
 
         if (positionNeedsReset) {

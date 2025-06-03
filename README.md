@@ -15,8 +15,9 @@ Crafted for the **elite echelon of lighting designers**, this system transcends 
 
 ## 🎪 **Feature Constellation Architecture**
 
-# ArtBastard DMX512 System & Experience Map
-
+<details>
+<summary>ArtBastard DMX512 System & Experience Map</summary>
+<div style="overflow: auto; max-height: 70vh;">
 ```mermaid
 graph TD
     %% Main System Components - Level 1
@@ -251,6 +252,8 @@ graph TD
     class ArtisticOutcomes,EmotiveNarratives,VisualCompositions,TimeBased,SpatialSculptures,ColorTheories,GeometricAbstractions,OrganicForms,TexturalLayers artistic
     class SensoryPhenomena,PsychicEffects,VisualStimuli,AudioVisualSync,EnvironmentalImmersion,HapticElements,MoodModulation,CollectiveConsciousness,EntrainmentPatterns,TransformativeExperience,PsychedelicExperience phenomena
 ```
+</div>
+</details>
 
 This diagram maps the entire ArtBastard DMX512 system across multiple dimensions:
 
@@ -262,9 +265,9 @@ This diagram maps the entire ArtBastard DMX512 system across multiple dimensions
 
 The diagram uses color-coding to distinguish between hardware components, software elements, experiential aspects, artistic outcomes, and sensory/psychic phenomena. Connections between nodes represent data flow, influence relationships, and sensory pathways.
 
-
-# ArtBastard DMX512 Enhanced System & Experience Map
-
+<details>
+<summary>ArtBastard DMX512 Enhanced System & Experience Map</summary>
+<div style="overflow: auto; max-height: 70vh;">
 ```mermaid
 graph TD
     %% Main System Components - Level 1
@@ -779,6 +782,8 @@ graph TD
     class PsychicEffects,MoodModulation,CollectiveConsciousness,EntrainmentPatterns,TransformativeExperience,AestheticRapture,ArchetypalEmergence,TranspersonalStates,Trippers,PsychedelicExperience,BoundaryDissolution,EgoDissolution psychedelic
     class MetaContext,SocietalContext,HistoricalLineage,TechnologicalContext,PhilosophicalFrameworks,SpiritualTraditions,CounterculturalHistory,PsychedelicArt,ClubCulture meta
 ```
+</div>
+</details>
 
 This enhanced diagram maps the entire ArtBastard DMX512 system across multiple dimensions, expanding on the previous diagram with significantly greater detail:
 

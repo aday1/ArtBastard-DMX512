@@ -49,7 +49,7 @@ export const TouchOSCExporter: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [draggedControl, setDraggedControl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [selectedResolution, setSelectedResolution] = useState<ExportOptions['resolution']>('tablet_portrait'); // Add state for resolution
+  const [selectedResolution, setSelectedResolution] = useState<ExportOptions['resolution']>('ipad_pro_2019_portrait'); // Add state for resolution
 
   const selectedPage = pages.find(p => p.id === selectedPageId);
 
