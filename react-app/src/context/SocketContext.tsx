@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useStore } from '../store'; // Import Zustand store
 
 interface SocketContextType {
   socket: Socket | null;
@@ -32,7 +33,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Use window.location to automatically connect to the correct host
       const socketUrl = process.env.NODE_ENV === 'production' 
         ? window.location.origin 
-        : 'http://localhost:3000'; // Explicitly set the backend URL in development
+        : 'http://localhost:3030'; // Explicitly set the backend URL in development (Updated to 3030)
         
       console.log(`[SocketContext] Connecting to socket at: ${socketUrl}`);
       
@@ -74,12 +75,49 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setError(`Data parsing error. Try refreshing the page.`);
       });
 
+      // Listen for masterClockUpdate from backend
+      socketInstance.on('masterClockUpdate', (data: any) => {
+        console.log('[SocketContext] Received masterClockUpdate:', data);
+        const {
+          setMidiClockBpm,
+          setMidiClockIsPlaying,
+          setSelectedMidiClockHostId,
+          setMidiClockBeatBar
+        } = useStore.getState();
+
+        if (data && typeof data.bpm === 'number') {
+          setMidiClockBpm(data.bpm);
+        }
+        if (data && typeof data.isPlaying === 'boolean') {
+          setMidiClockIsPlaying(data.isPlaying);
+        }
+        if (data && typeof data.source === 'string') {
+          setSelectedMidiClockHostId(data.source);
+        }
+        if (data && typeof data.beat === 'number' && typeof data.bar === 'number') {
+          setMidiClockBeatBar(data.beat, data.bar);
+        }
+      });
+
+      // Listen for availableClockSources from backend
+      socketInstance.on('availableClockSources', (sources: Array<{ id: string; name: string }>) => {
+        console.log('[SocketContext] Received availableClockSources:', sources);
+        const { setAvailableMidiClockHosts } = useStore.getState();
+        if (Array.isArray(sources)) {
+          setAvailableMidiClockHosts(sources);
+        }
+      });
+
       setSocket(socketInstance);
 
       // Cleanup function
       return () => {
         console.log('Cleaning up Socket.IO connection');
-        socketInstance.disconnect();
+        if (socketInstance) {
+          socketInstance.off('masterClockUpdate');
+          socketInstance.off('availableClockSources');
+          socketInstance.disconnect();
+        }
         setSocket(null);
         setConnected(false);
       };
@@ -118,19 +156,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 };
 
 export const useSocket = () => {
-  // Ensure the store is accessible globally for MIDI functionality
-  React.useEffect(() => {
-    if (typeof window !== 'undefined' && !window.useStore) {
-      // Import dynamically to avoid circular dependencies
-      import('../store').then(module => {
-        window.useStore = module.useStore;
-        console.log('Global store reference initialized in SocketContext');
-      }).catch(err => {
-        console.error('Failed to initialize global store reference:', err);
-      });
-    }
-  }, []);
-
+  // The dynamic import of useStore for window.useStore can remain if it serves other purposes,
+  // but for the listeners added above, the direct import of useStore is used.
   return useContext(SocketContext);
 };
 

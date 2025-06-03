@@ -14,14 +14,13 @@ export const MidiClock: React.FC = () => {
   const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
 
   const {
-    selectedMidiClockHostId = 'none',
+    selectedMidiClockHostId = 'internal', // Default to 'internal' for safety
     availableMidiClockHosts = [],
     midiClockBpm,
     midiClockIsPlaying,
     midiClockCurrentBeat,
     midiClockCurrentBar,
-    toggleInternalMidiClockPlayState,
-    setMidiClockBeatBar
+    requestToggleMasterClockPlayPause, // Updated action name
   } = useStore(state => ({
     selectedMidiClockHostId: state.selectedMidiClockHostId,
     availableMidiClockHosts: state.availableMidiClockHosts,
@@ -29,8 +28,7 @@ export const MidiClock: React.FC = () => {
     midiClockIsPlaying: state.midiClockIsPlaying,
     midiClockCurrentBeat: state.midiClockCurrentBeat,
     midiClockCurrentBar: state.midiClockCurrentBar,
-    toggleInternalMidiClockPlayState: state.toggleInternalMidiClockPlayState,
-    setMidiClockBeatBar: state.setMidiClockBeatBar,
+    requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause, // Updated action
   }));
 
   // Load position from localStorage
@@ -86,41 +84,27 @@ export const MidiClock: React.FC = () => {
     return () => clearInterval(timerId);
   }, []);
 
-  // Effect for internal MIDI clock
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | undefined = undefined;
-
-    if (midiClockIsPlaying && selectedMidiClockHostId === 'none' && midiClockBpm > 0) {
-      const intervalDuration = (60 * 1000) / midiClockBpm; // Update per beat
-
-      intervalId = setInterval(() => {
-        const currentBeat = useStore.getState().midiClockCurrentBeat;
-        const currentBar = useStore.getState().midiClockCurrentBar;
-
-        let nextBeat = currentBeat + 1;
-        let nextBar = currentBar;
-
-        if (nextBeat > 4) { // Assuming 4/4 time
-          nextBeat = 1;
-          nextBar += 1;
-        }
-        useStore.getState().setMidiClockBeatBar(nextBeat, nextBar);
-      }, intervalDuration);
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [midiClockIsPlaying, midiClockBpm, selectedMidiClockHostId, setMidiClockBeatBar]);
+  // Local internal MIDI clock useEffect has been REMOVED.
+  // Beat and bar updates will now come from the backend via WebSocket and update the Zustand store.
 
   const renderHeader = () => {
     const selectedHost = availableMidiClockHosts.find(host => host.id === selectedMidiClockHostId);
-    const syncStatusText = selectedHost && selectedHost.id !== 'none'
-      ? `Sync: ${selectedHost.name}`
-      : 'Internal Clock';
-    const isActuallySynced = selectedHost && selectedHost.id !== 'none'; // Placeholder for real sync status
+    // Default to "Internal Clock" if selectedMidiClockHostId is null or 'none' for display purposes
+    const displayHostId = selectedMidiClockHostId === null || selectedMidiClockHostId === 'none' ? 'internal' : selectedMidiClockHostId;
+    const currentHost = availableMidiClockHosts.find(host => host.id === displayHostId);
+
+    let syncStatusText = 'Internal Clock';
+    if (currentHost) {
+      if (currentHost.id !== 'internal') { // Assuming 'internal' is the ID for internal clock in availableMidiClockHosts
+        syncStatusText = `Sync: ${currentHost.name}`;
+      } else {
+        syncStatusText = currentHost.name; // e.g., "Internal Clock"
+      }
+    } else if (selectedMidiClockHostId && selectedMidiClockHostId !== 'internal') {
+      syncStatusText = `Sync: ${selectedMidiClockHostId}`; // Fallback if not in available list but selected
+    }
+
+    const isActuallySynced = selectedMidiClockHostId !== null && selectedMidiClockHostId !== 'internal';
 
     return (
       <div
@@ -174,16 +158,17 @@ export const MidiClock: React.FC = () => {
         {/* Placeholder for actual transport controls based on sync source */}
         <div className={styles.transportControls}>
           <button
-            disabled={selectedMidiClockHostId !== 'none'}
+            disabled={selectedMidiClockHostId !== 'internal'} // Updated disabled condition
             onClick={() => {
-              if (selectedMidiClockHostId === 'none') {
-                toggleInternalMidiClockPlayState();
+              // The disabled attribute should prevent this, but check is safe
+              if (selectedMidiClockHostId === 'internal') {
+                requestToggleMasterClockPlayPause(); // Use new action
               }
             }}
           >
             {midiClockIsPlaying ? '❚❚ Pause' : '▶️ Play'}
           </button>
-          <button disabled={selectedMidiClockHostId !== 'none'}>⏹️ Stop</button>
+          <button disabled={selectedMidiClockHostId !== 'internal'}>⏹️ Stop</button> {/* Stop functionality can be a future addition */}
           {/* <button>Tap</button> */}
         </div>
          {selectedMidiClockHostId === 'ableton-link' && (

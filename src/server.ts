@@ -8,6 +8,7 @@ import { json } from 'body-parser';
 import { log } from './logger'; // Import from logger instead of index
 import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice } from './core';
 import { apiRouter, setupSocketHandlers } from './api';
+import { clockManager, MasterClockSourceId, ClockState } from './clockManager';
 
 // Declare global io instance for use in API routes
 declare global {
@@ -76,6 +77,14 @@ try {
   // Make io available globally for use in other modules
   global.io = io;
 
+  // ClockManager integration: Subscribe to updates and broadcast via WebSocket
+  clockManager.subscribe((clockState: ClockState) => {
+    log('Broadcasting clock update:', 'CLOCK', clockState);
+    if (global.io) {
+      global.io.emit('masterClockUpdate', clockState);
+    }
+  });
+
   // Add specific middleware for rate limiting and validation
   io.use((socket, next) => {
     // Track message rate
@@ -124,6 +133,10 @@ try {
   io.on('connection', (socket) => {
     log('A user connected', 'SERVER', { socketId: socket.id, transport: socket.conn.transport.name });
 
+    // Send initial clock state and available sources
+    socket.emit('masterClockUpdate', clockManager.getState());
+    socket.emit('availableClockSources', clockManager.getAvailableSources());
+
     // Send available MIDI interfaces to the client
     const midiInterfaces = listMidiInterfaces();
     log('MIDI interfaces found', 'MIDI', { inputs: midiInterfaces.inputs, isWsl: midiInterfaces.isWsl });
@@ -169,6 +182,51 @@ try {
           status: 'error',
           message: `Connection test failed: ${error instanceof Error ? error.message : String(error)}`
         });
+      }
+    });
+
+    // ClockManager control handlers
+    socket.on('setMasterClockSource', (sourceId: MasterClockSourceId) => {
+      log(`Client ${socket.id} setMasterClockSource: ${sourceId}`, 'CLOCK');
+      // Basic validation for sourceId can be added here if MasterClockSourceId type isn't strictly enforced by Socket.IO
+      if (clockManager.getAvailableSources().find(s => s.id === sourceId)) {
+        clockManager.setSource(sourceId);
+      } else {
+        log(`Invalid clock sourceId from ${socket.id}: ${sourceId}`, 'WARN');
+        // socket.emit('error', 'Invalid clock source ID'); // Optional
+      }
+    });
+
+    socket.on('setInternalClockBPM', (bpm: number) => {
+      log(`Client ${socket.id} setInternalClockBPM: ${bpm}`, 'CLOCK');
+      if (typeof bpm === 'number' && bpm > 0 && bpm <= 400) { // Basic validation
+         clockManager.setBPM(bpm);
+      } else {
+         log(`Invalid BPM value from ${socket.id}: ${bpm}`, 'WARN');
+         // socket.emit('error', 'Invalid BPM value'); // Optional feedback
+      }
+    });
+
+    socket.on('toggleMasterClockPlayPause', () => {
+      log(`Client ${socket.id} toggleMasterClockPlayPause`, 'CLOCK');
+      clockManager.togglePlayPause();
+    });
+
+    socket.on('setMasterClockBeat', (beat: number) => {
+      log(`Client ${socket.id} setMasterClockBeat: ${beat}`, 'CLOCK');
+      if (typeof beat === 'number') {
+        clockManager.setBeat(beat);
+      } else {
+        log(`Invalid beat value from ${socket.id}: ${beat}`, 'WARN');
+      }
+    });
+
+    socket.on('setMasterClockBar', (bar: number) => {
+      log(`Client ${socket.id} setMasterClockBar: ${bar}`, 'CLOCK');
+      if (typeof bar === 'number') {
+        clockManager.setBar(bar);
+      } else {
+        log(`Invalid bar value from ${socket.id}: ${bar}`, 'WARN');
       }
     });
 
