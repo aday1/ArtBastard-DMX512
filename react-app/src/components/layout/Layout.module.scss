@@ -4,6 +4,7 @@
   flex-direction: column;
   background: var(--background);
   color: var(--text-primary);
+  position: relative; // Added to contain absolute children like Sparkles
 
   .contentWrapper {
     flex: 1;

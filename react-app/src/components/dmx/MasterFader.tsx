@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
 import styles from './MasterFader.module.scss';
+import { Sparkles } from '../layout/Sparkles'; // Import Sparkles
 
 interface MasterFaderProps {
   onValueChange?: (value: number) => void;
@@ -89,15 +90,16 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
       });
     }
   }, [value, dmxChannels, setDmxChannelValue, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress]);
+
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
     handleValueChange(newValue);
   };
 
-  const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
-    // Prevent any parent event handlers from capturing this event
-    e.stopPropagation();
-  };
+  // Removed handleSliderMouseDown as it's not needed and might have interfered.
+  // const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+  //   e.stopPropagation();
+  // };
 
   const handleSliderInput = (e: React.FormEvent<HTMLInputElement>) => {
     // Handle real-time input changes for better responsiveness
@@ -222,6 +224,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
 
   return (
     <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
+      <Sparkles /> {/* Add Sparkles component here */}
       <div className={`${styles.header}`}>
         <h3>Master Fader</h3>
         <div className={styles.windowControls}>
@@ -277,8 +280,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
               value={value}
               onChange={handleSliderChange}
               onInput={handleSliderInput}
-              onMouseDown={handleSliderMouseDown}
-              onPointerDown={handleSliderMouseDown}
+              // Removed onMouseDown and onPointerDown to test if they were interfering
               className={styles.verticalSlider}
             />
             <div className={styles.valueDisplay}>

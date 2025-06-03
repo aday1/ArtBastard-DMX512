@@ -12,48 +12,101 @@ export const MidiMonitor: React.FC = () => {
   const monitorRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
+  // position stores transform offsets (x, y) from the initial CSS position
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
+  // Define initial CSS fixed position (these are component constants, not state)
+  const initialCssTop = 20;
+  const initialCssRight = 20;
+  // This will store the calculated initial CSS left offset, needed for handleDragEnd
+  const initialCssLeftRef = useRef<number | null>(null);
 
-  // Load position from localStorage
+
+  // Load position from localStorage (these are transform offsets)
   useEffect(() => {
     const savedX = localStorage.getItem('midiMonitorPositionX');
     const savedY = localStorage.getItem('midiMonitorPositionY');
-    let initialX = 0;
-    let initialY = 0;
-    if (savedX !== null) initialX = parseFloat(savedX);
-    if (savedY !== null) initialY = parseFloat(savedY);
-    setPosition({ x: initialX, y: initialY });
+    let x = 0;
+    let y = 0;
+    if (savedX !== null) x = parseFloat(savedX);
+    if (savedY !== null) y = parseFloat(savedY);
+    setPosition({ x, y });
   }, []);
 
-  // Effect to calculate and set drag constraints
+  // Effect to calculate and set drag constraints, and validate initial position
   useEffect(() => {
-    const calculateConstraints = () => {
+    const calculateAndValidate = () => {
       if (monitorRef.current) {
         const componentWidth = monitorRef.current.offsetWidth;
         const componentHeight = monitorRef.current.offsetHeight;
-        const initialCssTop = 20; // From inline style 'top: 20px'
-        const initialCssRight = 20; // From inline style 'right: 20px'
-        const initialCssLeft = window.innerWidth - componentWidth - initialCssRight;
 
+        // Calculate the initial CSS left offset based on initialCssRight and componentWidth
+        const calculatedCssLeft = window.innerWidth - componentWidth - initialCssRight;
+        initialCssLeftRef.current = calculatedCssLeft; // Store for use in handleDragEnd
+
+        // Validate current position (transform offsets + CSS position)
+        let currentX = position.x;
+        let currentY = position.y;
+
+        const effectiveScreenX = calculatedCssLeft + currentX;
+        const effectiveScreenY = initialCssTop + currentY;
+
+        let positionNeedsReset = false;
+        if (effectiveScreenX < 0) {
+          currentX = -calculatedCssLeft; // Reset to align left edge with viewport left
+          positionNeedsReset = true;
+        }
+        if (effectiveScreenY < 0) {
+          currentY = -initialCssTop; // Reset to align top edge with viewport top
+          positionNeedsReset = true;
+        }
+        if (effectiveScreenX + componentWidth > window.innerWidth) {
+          currentX = window.innerWidth - componentWidth - calculatedCssLeft; // Reset to align right edge
+          positionNeedsReset = true;
+        }
+        if (effectiveScreenY + componentHeight > window.innerHeight) {
+          currentY = window.innerHeight - componentHeight - initialCssTop; // Reset to align bottom edge
+          positionNeedsReset = true;
+        }
+
+        if (positionNeedsReset) {
+          setPosition({ x: currentX, y: currentY });
+          localStorage.setItem('midiMonitorPositionX', currentX.toString());
+          localStorage.setItem('midiMonitorPositionY', currentY.toString());
+        }
+
+        // Set drag constraints based on transform model
         setConstraints({
-          left: -initialCssLeft,
+          left: -calculatedCssLeft,
           top: -initialCssTop,
-          right: window.innerWidth - componentWidth - initialCssLeft,
+          right: window.innerWidth - componentWidth - calculatedCssLeft,
           bottom: window.innerHeight - componentHeight - initialCssTop,
         });
       }
     };
 
-    calculateConstraints(); // Initial calculation
-    window.addEventListener('resize', calculateConstraints);
-    return () => window.removeEventListener('resize', calculateConstraints);
-  }, [monitorRef.current]); // Recalculate if ref changes or on resize
+    // Run calculation after component is mounted and dimensions are known
+    // Also re-run if position state changes (e.g. after localStorage load or drag)
+    // or if the window resizes.
+    if (monitorRef.current) {
+       calculateAndValidate();
+    }
+
+    window.addEventListener('resize', calculateAndValidate);
+    return () => window.removeEventListener('resize', calculateAndValidate);
+  }, [monitorRef, position.x, position.y]); // monitorRef is stable, position changes trigger validation.
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    localStorage.setItem('midiMonitorPositionX', info.point.x.toString());
-    localStorage.setItem('midiMonitorPositionY', info.point.y.toString());
-    setPosition(info.point);
+    if (monitorRef.current && initialCssLeftRef.current !== null) {
+        const calculatedCssLeft = initialCssLeftRef.current;
+        // info.point contains the final absolute screen coordinates of the dragged element (its top-left)
+        const newTransformX = info.point.x - calculatedCssLeft;
+        const newTransformY = info.point.y - initialCssTop;
+
+        localStorage.setItem('midiMonitorPositionX', newTransformX.toString());
+        localStorage.setItem('midiMonitorPositionY', newTransformY.toString());
+        setPosition({ x: newTransformX, y: newTransformY });
+    }
   };
 
   // Update the displayed messages when new MIDI messages arrive
