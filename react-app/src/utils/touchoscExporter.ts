@@ -352,22 +352,6 @@ export const exportToToscFile = async (
     
     console.log("TouchOSC file generated and download initiated.");
     return { success: true, message: "Export successful!" };
-
-  } catch (error) {
-    console.error("Error generating TouchOSC file:", error);
-    return { success: false, message: `Export failed: ${error instanceof Error ? error.message : String(error)}` };
-  }
-};
-
-    // Add other files like properties.xml if needed (not for basic layout)
-    // zip.file("properties.xml", generatePropertiesXmlIfNeeded());
-
-    const content = await zip.generateAsync({ type: "blob" });
-    saveAs(content, filename); // saveAs from file-saver
-
-    console.log("TouchOSC file generated and download initiated.");
-    return { success: true, message: "Export successful!" };
-
   } catch (error) {
     console.error("Error generating TouchOSC file:", error);
     return { success: false, message: `Export failed: ${error instanceof Error ? error.message : String(error)}` };

@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/chrome": "^0.0.322",
     "@types/file-saver": "^2.0.7",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^20.11.16",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",

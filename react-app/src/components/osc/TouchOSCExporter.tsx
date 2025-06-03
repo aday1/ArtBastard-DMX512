@@ -212,9 +212,8 @@ export const TouchOSCExporter: React.FC = () => {
         includeMasterSliders: true,
         includeAllDmxChannels: false // This can be made configurable later
       };
-      
-      // Corrected arguments order: options, fixtureLayout (as placedFixtures), allFixtures, masterSliders
-      await exportToToscFile(options, fixtureLayout, allFixtures, masterSliders, 'ArtBastardOSC.tosc');
+        // Corrected arguments order: options, fixtureLayout (as placedFixtures), masterSliders, allFixtures
+      await exportToToscFile(options, fixtureLayout, masterSliders, allFixtures, 'ArtBastardOSC.tosc');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
