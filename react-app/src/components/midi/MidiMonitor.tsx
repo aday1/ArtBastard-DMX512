@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable, { DraggableCore } from 'react-draggable';
-import { Pin, Minimize2, Maximize2, GripVertical } from 'lucide-react';
-import { IconWrapper } from '../ui/IconWrapper';
+import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import { useStore } from '../../store';
 import styles from './MidiMonitor.module.scss';
 
@@ -31,20 +30,19 @@ export const MidiMonitor: React.FC = () => {
       return false as unknown as void;
     }
   };
-
   const renderHeader = () => (
     <div className={`${styles.header} handle`}>
-      <IconWrapper IconComponent={GripVertical} size={18} className={styles.dragHandle} />
+      <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} />
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
       <div className={styles.controls}>
         {/* <button onClick={() => setIsPinned(!isPinned)} className={isPinned ? styles.active : ''}>
-          <IconWrapper IconComponent={Pin} size={14} />
+          <LucideIcon name="Pin" size={14} />
         </button> */}
         <button onClick={() => setIsCollapsed(!isCollapsed)}>
           {isCollapsed ? 
-            <IconWrapper IconComponent={Maximize2} size={14} /> : 
-            <IconWrapper IconComponent={Minimize2} size={14} />
+            <LucideIcon name="Maximize2" size={14} /> : 
+            <LucideIcon name="Minimize2" size={14} />
           }
         </button>
       </div>

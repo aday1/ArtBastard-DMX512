@@ -110,8 +110,7 @@ export const Navbar: React.FC = () => {
     <div className={styles.navbarContainer}>      <button 
         className={styles.collapseToggle}
         onClick={toggleCollapse}
-        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}
-      >        {isCollapsed ? (
+        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}      >        {isCollapsed ? (
           <LucideIcon name="Menu" size={24} strokeWidth={1.5} />
         ) : (
           <LucideIcon name="X" size={24} strokeWidth={1.5} />

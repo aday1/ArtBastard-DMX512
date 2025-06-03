@@ -1,8 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
-import { Minimize2, Maximize2, GripVertical } from 'lucide-react';
-import { IconWrapper } from '../ui/IconWrapper';
+import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import { useStore } from '../../store';
 import styles from './OscMonitor.module.scss';
 import { useSocket } from '../../context/SocketContext';
@@ -55,7 +54,7 @@ export const OscMonitor = () => {
             return false;
         }
     };
-    const renderHeader = () => (_jsxs("div", { className: `${styles.header} handle`, children: [_jsx("div", { className: styles.dragHandle, children: _jsx(IconWrapper, { IconComponent: GripVertical, size: 18, strokeWidth: 1.5 }) }), _jsx("span", { className: styles.title, children: "OSC Monitor" }), !isCollapsed && _jsxs("span", { className: styles.status, children: ["Recent: ", oscMessagesFromStore.length] }), _jsx("div", { className: styles.controls, children: _jsx("button", { onClick: () => setIsCollapsed(!isCollapsed), children: isCollapsed ? (_jsx(IconWrapper, { IconComponent: Maximize2, size: 14, strokeWidth: 1.5 })) : (_jsx(IconWrapper, { IconComponent: Minimize2, size: 14, strokeWidth: 1.5 })) }) })] }));
+    const renderHeader = () => (_jsxs("div", { className: `${styles.header} handle`, children: [_jsx("div", { className: styles.dragHandle, children: _jsx(LucideIcon, { name: "GripVertical", size: 18, strokeWidth: 1.5 }) }), _jsx("span", { className: styles.title, children: "OSC Monitor" }), !isCollapsed && _jsxs("span", { className: styles.status, children: ["Recent: ", oscMessagesFromStore.length] }), _jsx("div", { className: styles.controls, children: _jsx("button", { onClick: () => setIsCollapsed(!isCollapsed), children: isCollapsed ? (_jsx(LucideIcon, { name: "Maximize2", size: 14, strokeWidth: 1.5 })) : (_jsx(LucideIcon, { name: "Minimize2", size: 14, strokeWidth: 1.5 })) }) })] }));
     const renderContent = () => {
         if (isCollapsed) {
             return null;

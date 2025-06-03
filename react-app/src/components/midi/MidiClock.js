@@ -1,8 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
-import { Minimize2, Maximize2, GripVertical, Zap, ZapOff } from 'lucide-react'; // Added Zap icons
-import { IconWrapper } from '../ui/IconWrapper';
+import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import styles from './MidiClock.module.scss';
 import { useStore } from '../../store';
 export const MidiClock = () => {
@@ -59,11 +58,11 @@ export const MidiClock = () => {
             ? `Sync: ${selectedHost.name}`
             : 'Internal Clock';
         const isActuallySynced = selectedHost && selectedHost.id !== 'none'; // Placeholder for real sync status
-        return (_jsxs("div", { className: `${styles.header} handle`, children: [_jsx(IconWrapper, { IconComponent: GripVertical, size: 18, className: styles.dragHandle }), _jsx("span", { className: styles.title, children: "MIDI Clock" }), !isCollapsed && (_jsxs("span", { className: `${styles.syncStatus} ${isActuallySynced ? styles.synced : styles.notSynced}`, children: [isActuallySynced ?
-                            _jsx(IconWrapper, { IconComponent: Zap, size: 12 }) :
-                            _jsx(IconWrapper, { IconComponent: ZapOff, size: 12 }), syncStatusText] })), _jsx("div", { className: styles.controls, children: _jsx("button", { onClick: () => setIsCollapsed(!isCollapsed), children: isCollapsed ?
-                            _jsx(IconWrapper, { IconComponent: Maximize2, size: 14 }) :
-                            _jsx(IconWrapper, { IconComponent: Minimize2, size: 14 }) }) })] }));
+        return (_jsxs("div", { className: `${styles.header} handle`, children: [_jsx(LucideIcon, { name: "GripVertical", size: 18, className: styles.dragHandle }), _jsx("span", { className: styles.title, children: "MIDI Clock" }), !isCollapsed && (_jsxs("span", { className: `${styles.syncStatus} ${isActuallySynced ? styles.synced : styles.notSynced}`, children: [isActuallySynced ?
+                            _jsx(LucideIcon, { name: "Zap", size: 12 }) :
+                            _jsx(LucideIcon, { name: "ZapOff", size: 12 }), syncStatusText] })), _jsx("div", { className: styles.controls, children: _jsx("button", { onClick: () => setIsCollapsed(!isCollapsed), children: isCollapsed ?
+                            _jsx(LucideIcon, { name: "Maximize2", size: 14 }) :
+                            _jsx(LucideIcon, { name: "Minimize2", size: 14 }) }) })] }));
     };
     const renderContent = () => {
         if (isCollapsed) {

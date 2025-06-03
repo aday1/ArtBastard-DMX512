@@ -48,7 +48,7 @@ const MainPage: React.FC = () => {
   }, [connected, addNotification])
 
   const renderContent = () => {
-    return (
+        return (
       <div className={styles.content}>
         {!connected && (
           <div className={styles.connectionWarning}>

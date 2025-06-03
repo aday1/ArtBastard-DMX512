@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
-import { Minimize2, Maximize2, GripVertical, Zap, ZapOff } from 'lucide-react'; // Added Zap icons
-import { IconWrapper } from '../ui/IconWrapper';
+import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import styles from './MidiClock.module.scss';
 import { useStore } from '../../store';
 
@@ -70,7 +69,6 @@ export const MidiClock: React.FC = () => {
       return false as unknown as void;
     }
   };
-
   const renderHeader = () => {
     const selectedHost = availableMidiClockHosts.find(host => host.id === selectedMidiClockHostId);
     const syncStatusText = selectedHost && selectedHost.id !== 'none'
@@ -80,13 +78,13 @@ export const MidiClock: React.FC = () => {
 
     return (
       <div className={`${styles.header} handle`}>
-        <IconWrapper IconComponent={GripVertical} size={18} className={styles.dragHandle} />
+        <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} />
         <span className={styles.title}>MIDI Clock</span>
         {!isCollapsed && (
           <span className={`${styles.syncStatus} ${isActuallySynced ? styles.synced : styles.notSynced}`}>
             {isActuallySynced ? 
-              <IconWrapper IconComponent={Zap} size={12} /> : 
-              <IconWrapper IconComponent={ZapOff} size={12} />
+              <LucideIcon name="Zap" size={12} /> : 
+              <LucideIcon name="ZapOff" size={12} />
             }
             {syncStatusText}
           </span>
@@ -94,8 +92,8 @@ export const MidiClock: React.FC = () => {
         <div className={styles.controls}>
           <button onClick={() => setIsCollapsed(!isCollapsed)}>
             {isCollapsed ? 
-              <IconWrapper IconComponent={Maximize2} size={14} /> : 
-              <IconWrapper IconComponent={Minimize2} size={14} />
+              <LucideIcon name="Maximize2" size={14} /> : 
+              <LucideIcon name="Minimize2" size={14} />
             }
           </button>
         </div>
