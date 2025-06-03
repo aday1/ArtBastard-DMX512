@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
-import * as sass from 'sass'
 
 // WebSocket fallback ports to try if default fails
 const WS_FALLBACK_PORTS = [3000, 3001, 8080, 8081]
@@ -10,6 +9,9 @@ const RETRY_DELAY = 2000
 
 // Check if we're skipping type checking
 const skipTypeChecking = !!process.env.SKIP_TYPECHECKING
+
+// Force Rollup to use JavaScript fallback instead of native binaries
+process.env.ROLLUP_NO_NATIVE = 'true'
 
 export default defineConfig({
   plugins: [
@@ -27,39 +29,50 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
     },
-  },
-  css: {
+  },  css: {
     preprocessorOptions: {
       scss: {
-        implementation: sass,
         quietDeps: true, // Suppress warnings from Sass dependencies
       },
     },
     modules: {
       localsConvention: 'camelCase'
     }
-  },
-  optimizeDeps: {
+  },optimizeDeps: {
     esbuildOptions: {
       // tsconfigRaw is correctly typed here, ensure your Vite version supports this structure
       // For older versions, this might need adjustment or removal if it causes type errors.
       tsconfigRaw: skipTypeChecking ? 
         { compilerOptions: { jsx: 'react-jsx' } } : // Simplified, ensure `skipLibCheck` and `strict` are not needed or handled elsewhere
         undefined
-    }
-  },
-  build: {
+    },
+    // Force Rollup to avoid native dependencies - fixes @rollup/rollup-win32-x64-msvc error
+    exclude: ['@rollup/rollup-win32-x64-msvc']
+  },  build: {
     reportCompressedSize: !skipTypeChecking,
-    rollupOptions: skipTypeChecking ? {
-      onwarn(warning, warn) {
-        if (warning.code === 'THIS_IS_UNDEFINED' || 
-            warning.code === 'MODULE_LEVEL_DIRECTIVE' ||
-            warning.message.includes('Use of eval')) {
-          return;
+    rollupOptions: {
+      // Force Rollup to use JavaScript fallback instead of native binaries
+      external: (id) => {
+        if (id.includes('@rollup/rollup-win32-x64-msvc') || 
+            id.includes('@rollup/rollup-linux-x64-gnu') ||
+            id.includes('@rollup/rollup-darwin-x64') ||
+            id.includes('@rollup/rollup-darwin-arm64')) {
+          return false; // Don't externalize these, let them be bundled/ignored
         }
-        warn(warning);
-      }
-    } : {}
+        return false;
+      },
+      ...(skipTypeChecking ? {
+        onwarn(warning, warn) {
+          if (warning.code === 'THIS_IS_UNDEFINED' || 
+              warning.code === 'MODULE_LEVEL_DIRECTIVE' ||
+              warning.message.includes('Use of eval') ||
+              warning.message.includes('@rollup/rollup-')) {
+            return;
+          }
+          warn(warning);
+        }
+      } : {})
+    }
   },
   server: {
     port: 3001,

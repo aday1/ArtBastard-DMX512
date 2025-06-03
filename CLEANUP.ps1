@@ -11,6 +11,111 @@ if (-not $ProjectRootPath) {
 Set-Location $ProjectRootPath
 Write-Host "📍 Conducting cleanup from: $($ProjectRootPath)" -ForegroundColor Yellow
 
+# Act 0: Exterminate any lingering processes
+Write-Host ""
+Write-Host "💀 Act 0: Exorcising Lingering Spirits (Running Processes)! 💀" -ForegroundColor Red
+Write-Host "(Ensuring no processes interfere with our grand cleanup)" -ForegroundColor DarkRed
+
+# Function to kill processes by port
+function Stop-ProcessByPort {
+    param (
+        [int]$Port,
+        [string]$Description
+    )
+    
+    try {
+        $ProcessInfo = netstat -ano | Select-String ":$Port\s" | Where-Object { $_ -match "LISTENING" }
+        if ($ProcessInfo) {
+            $ProcessInfo | ForEach-Object {
+                $Line = $_.ToString().Trim()
+                $ProcessId = ($Line -split '\s+')[-1]
+                if ($ProcessId -and $ProcessId -match '^\d+$') {
+                    Write-Host "🔪 Terminating $Description process on port $Port (PID: $ProcessId)..." -ForegroundColor DarkRed
+                    try {
+                        taskkill /F /PID $ProcessId 2>$null
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-Host "✅ Successfully terminated PID $ProcessId" -ForegroundColor Green
+                        } else {
+                            Write-Warning "Failed to terminate PID $ProcessId (exit code: $LASTEXITCODE)"
+                        }
+                    } catch {
+                        Write-Warning "Could not terminate PID $ProcessId`: $($_.Exception.Message)"
+                    }
+                }
+            }
+        } else {
+            Write-Host "$Description (port $Port): No running processes found ✨" -ForegroundColor Gray
+        }
+    } catch {
+        Write-Warning "Error checking port $Port`: $($_.Exception.Message)"
+    }
+}
+
+# Function to kill processes by name pattern
+function Stop-ProcessByName {
+    param (
+        [string]$ProcessName,
+        [string]$Description
+    )
+    
+    try {
+        $Processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+        if ($Processes) {
+            $Processes | ForEach-Object {
+                Write-Host "🔪 Terminating $Description process: $($_.ProcessName) (PID: $($_.Id))..." -ForegroundColor DarkRed
+                try {
+                    Stop-Process -Id $_.Id -Force -ErrorAction Stop
+                    Write-Host "✅ Successfully terminated $($_.ProcessName) (PID: $($_.Id))" -ForegroundColor Green
+                } catch {
+                    Write-Warning "Could not terminate $($_.ProcessName) (PID: $($_.Id)): $($_.Exception.Message)"
+                }
+            }
+        } else {
+            Write-Host "$Description processes: None found ✨" -ForegroundColor Gray
+        }
+    } catch {
+        Write-Warning "Error checking for $ProcessName processes: $($_.Exception.Message)"
+    }
+}
+
+# Kill backend server (typically on port 3030)
+Stop-ProcessByPort -Port 3030 -Description "Backend server"
+
+# Kill frontend dev server (typically on port 3001)
+Stop-ProcessByPort -Port 3001 -Description "Frontend dev server"
+
+# Kill any node processes that might be related to this project
+Write-Host "🔍 Checking for node processes that might be related to ArtBastard..." -ForegroundColor DarkCyan
+try {
+    $NodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
+        try {
+            $CommandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+            $CommandLine -match "start-server|vite|dmx|artbastard" -or
+            $CommandLine -match [regex]::Escape($ProjectRootPath)
+        } catch {
+            $false
+        }
+    }
+    
+    if ($NodeProcesses) {
+        $NodeProcesses | ForEach-Object {
+            Write-Host "🔪 Terminating project-related node process (PID: $($_.Id))..." -ForegroundColor DarkRed
+            try {
+                Stop-Process -Id $_.Id -Force -ErrorAction Stop
+                Write-Host "✅ Successfully terminated node process (PID: $($_.Id))" -ForegroundColor Green
+            } catch {
+                Write-Warning "Could not terminate node process (PID: $($_.Id)): $($_.Exception.Message)"
+            }
+        }
+    } else {
+        Write-Host "Project-related node processes: None found ✨" -ForegroundColor Gray
+    }
+} catch {
+    Write-Warning "Error checking for node processes: $($_.Exception.Message)"
+}
+
+Write-Host ""
+
 if (-not (Test-Path -Path "package.json" -PathType Leaf) -or -not (Test-Path -Path "react-app" -PathType Container)) {
     Write-Error "🛑 Hold the curtain! This ritual must be performed from the ArtBastard_DMX project's main stage!"
     Write-Error "Ensure 'package.json' and the 'react-app' directory are present: $ProjectRootPath"

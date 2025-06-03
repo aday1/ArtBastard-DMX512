@@ -27,6 +27,92 @@ if [ ! -f "$SCRIPT_DIR/package.json" ] || [ ! -d "$SCRIPT_DIR/react-app" ]; then
 fi
 cd "$SCRIPT_DIR"
 echo -e "${C_YELLOW}📍 Conducting cleanup from: $SCRIPT_DIR${C_RESET}"
+
+# Act 0: Exterminate any lingering processes
+echo ""
+echo -e "${C_RED}💀 Act 0: Exorcising Lingering Spirits (Running Processes)! 💀${C_RESET}"
+echo -e "${C_DARK_RED}(Ensuring no processes interfere with our grand cleanup)${C_RESET}"
+
+# Function to kill processes by port
+kill_process_by_port() {
+    local port=$1
+    local description=$2
+    
+    echo -e "${C_DARK_CYAN}🔍 Checking for $description on port $port...${C_RESET}"
+    
+    # Find processes using the port
+    local pids=$(lsof -ti :$port 2>/dev/null)
+    
+    if [ -n "$pids" ]; then
+        echo -e "${C_DARK_RED}🔪 Terminating $description processes on port $port...${C_RESET}"
+        for pid in $pids; do
+            if kill -0 $pid 2>/dev/null; then
+                echo -e "${C_DARK_RED}   Killing PID $pid...${C_RESET}"
+                if kill -TERM $pid 2>/dev/null; then
+                    # Give it a moment to terminate gracefully
+                    sleep 2
+                    # Force kill if still running
+                    if kill -0 $pid 2>/dev/null; then
+                        kill -KILL $pid 2>/dev/null
+                    fi
+                    echo -e "${C_GREEN}✅ Successfully terminated PID $pid${C_RESET}"
+                else
+                    echo -e "${C_RED}⚠️ Could not terminate PID $pid${C_RESET}"
+                fi
+            fi
+        done
+    else
+        echo -e "${C_GRAY}$description (port $port): No running processes found ✨${C_RESET}"
+    fi
+}
+
+# Function to kill processes by name pattern
+kill_process_by_pattern() {
+    local pattern=$1
+    local description=$2
+    
+    echo -e "${C_DARK_CYAN}🔍 Checking for $description processes...${C_RESET}"
+    
+    # Find processes matching the pattern in the current project directory
+    local pids=$(pgrep -f "$pattern" 2>/dev/null)
+    
+    if [ -n "$pids" ]; then
+        echo -e "${C_DARK_RED}🔪 Terminating $description processes...${C_RESET}"
+        for pid in $pids; do
+            if kill -0 $pid 2>/dev/null; then
+                # Check if this process is related to our project
+                local cmdline=$(ps -p $pid -o args= 2>/dev/null)
+                if [[ "$cmdline" == *"$SCRIPT_DIR"* ]] || [[ "$cmdline" == *"start-server"* ]] || [[ "$cmdline" == *"artbastard"* ]] || [[ "$cmdline" == *"dmx"* ]]; then
+                    echo -e "${C_DARK_RED}   Killing $description PID $pid...${C_RESET}"
+                    if kill -TERM $pid 2>/dev/null; then
+                        sleep 2
+                        if kill -0 $pid 2>/dev/null; then
+                            kill -KILL $pid 2>/dev/null
+                        fi
+                        echo -e "${C_GREEN}✅ Successfully terminated $description PID $pid${C_RESET}"
+                    else
+                        echo -e "${C_RED}⚠️ Could not terminate PID $pid${C_RESET}"
+                    fi
+                fi
+            fi
+        done
+    else
+        echo -e "${C_GRAY}$description processes: None found ✨${C_RESET}"
+    fi
+}
+
+# Kill backend server (typically on port 3030)
+kill_process_by_port 3030 "Backend server"
+
+# Kill frontend dev server (typically on port 3001)  
+kill_process_by_port 3001 "Frontend dev server"
+
+# Kill any node processes that might be related to this project
+kill_process_by_pattern "node.*start-server" "Project-related node"
+
+# Additional check for vite processes
+kill_process_by_pattern "vite" "Vite dev server"
+
 echo ""
 
 echo -e "${C_GREEN}🧹 Act I: Sweeping Away All Traces of Past Performances! 🧹${C_RESET}"
