@@ -13,6 +13,9 @@ const skipTypeChecking = !!process.env.SKIP_TYPECHECKING
 // Force Rollup to use JavaScript fallback instead of native binaries
 process.env.ROLLUP_NO_NATIVE = 'true'
 
+// Suppress Sass deprecation warnings
+process.env.SASS_SILENCE_DEPRECATIONS = 'legacy-js-api'
+
 export default defineConfig({
   plugins: [
     react({
@@ -32,7 +35,20 @@ export default defineConfig({
   },  css: {
     preprocessorOptions: {
       scss: {
+        api: 'modern', // Use modern Sass API
         quietDeps: true, // Suppress warnings from Sass dependencies
+        silenceDeprecations: ['legacy-js-api'], // Silence specific deprecation warnings
+        logger: {
+          warn: function(message: string) {
+            // Suppress legacy JS API warnings
+            if (message.includes('legacy-js-api') || 
+                message.includes('legacy JS API') ||
+                message.includes('deprecated and will be removed')) {
+              return;
+            }
+            console.warn(message);
+          }
+        }
       },
     },
     modules: {
@@ -47,8 +63,26 @@ export default defineConfig({
         undefined
     },
     // Force Rollup to avoid native dependencies - fixes @rollup/rollup-win32-x64-msvc error
-    exclude: ['@rollup/rollup-win32-x64-msvc']
-  },  build: {
+    exclude: ['@rollup/rollup-win32-x64-msvc']  },  build: {
+    minify: 'terser', // Re-enable minification with terser
+    terserOptions: {
+      compress: {
+        drop_console: false, // Keep console logs for debugging
+        drop_debugger: false,
+        pure_funcs: [], // Don't remove any functions
+        unsafe_methods: false, // Conservative approach
+        unsafe_proto: false,
+        unsafe_regexp: false,
+      },
+      mangle: {
+        keep_fnames: true, // Keep function names
+        keep_classnames: true, // Keep class names
+        reserved: ['props', 'children', 'className', 'ref', 'nodeRef'], // Don't mangle these common React props
+      },
+      format: {
+        comments: false,
+      }
+    },
     reportCompressedSize: !skipTypeChecking,
     rollupOptions: {
       // Force Rollup to use JavaScript fallback instead of native binaries

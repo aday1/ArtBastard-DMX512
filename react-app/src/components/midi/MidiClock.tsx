@@ -7,7 +7,8 @@ import { useStore } from '../../store';
 export const MidiClock: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const nodeRef = useRef(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const nodeRef = useRef<HTMLDivElement>(null);
   const {
     selectedMidiClockHostId = 'none',
     availableMidiClockHosts = [],
@@ -25,8 +26,12 @@ export const MidiClock: React.FC = () => {
     midiClockCurrentBeat: state.midiClockCurrentBeat,
     midiClockCurrentBar: state.midiClockCurrentBar,
     toggleInternalMidiClockPlayState: state.toggleInternalMidiClockPlayState,
-    setMidiClockBeatBar: state.setMidiClockBeatBar,
-  }));
+    setMidiClockBeatBar: state.setMidiClockBeatBar,  }));
+
+  // Ensure component is mounted before Draggable tries to use the ref
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -63,10 +68,9 @@ export const MidiClock: React.FC = () => {
       }
     };
   }, [midiClockIsPlaying, midiClockBpm, selectedMidiClockHostId, setMidiClockBeatBar]);
-
-  const handleDragStart = (e: any) => {
+  const handleDragStart = (e: any): false | void => {
     if (e.target.closest('button')) {
-      return false as unknown as void;
+      return false;
     }
   };
   const renderHeader = () => {
@@ -140,12 +144,21 @@ export const MidiClock: React.FC = () => {
       </div>
     );
   };
-
   const clockClasses = [
     styles.midiClock,
     isCollapsed ? styles.collapsed : '',
     selectedMidiClockHostId !== 'none' ? styles.externalSync : '',
   ].join(' ');
+
+  // Don't render Draggable until component is mounted and ref is ready
+  if (!isMounted) {
+    return (
+      <div className={clockClasses}>
+        {renderHeader()}
+        {renderContent()}
+      </div>
+    );
+  }
 
   return (
     <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart}>

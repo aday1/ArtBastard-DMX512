@@ -15,8 +15,14 @@ export const OscMonitor: React.FC = () => {
   const [flashActive, setFlashActive] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isMounted, setIsMounted] = useState(false);
   const { socket, connected: socketConnected } = useSocket();
-  const nodeRef = useRef(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Ensure component is mounted before Draggable tries to use the ref
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (socket && socketConnected) {
@@ -53,13 +59,12 @@ export const OscMonitor: React.FC = () => {
 
   const handleMouseLeave = () => {
     setHoveredMessage(null);
-  };
-  const handleDragStart = (e: any) => {
+  };  const handleDragStart = (e: any): false | void => {
     if (e.target.closest('button')) {
       // Prevent dragging when clicking on header buttons
-      return false as unknown as void;
+      return false;
     }
-  };  const renderHeader = () => (
+  };const renderHeader = () => (
     <div className={`${styles.header} handle`}>
       <div className={styles.dragHandle}>
         <LucideIcon name="GripVertical" size={18} strokeWidth={1.5} />
@@ -129,13 +134,67 @@ export const OscMonitor: React.FC = () => {
       </div>
     );
   };
-
   const monitorClasses = [
     styles.oscMonitor,
     flashActive ? styles.flash : '',
     // isPinned ? styles.pinned : '', // Removed isPinned
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
+
+  // Don't render Draggable until component is mounted and ref is ready
+  if (!isMounted) {
+    return (
+      <>
+        <div
+          className={monitorClasses}
+          style={{ position: 'fixed', top: 20, right: 'calc(20px + 400px + 20px)', zIndex: 999, width: '400px' }}
+        >
+          {renderHeader()}
+          {renderContent()}
+        </div>
+
+        {/* Hover tooltip - kept outside of Draggable to avoid positioning issues */}
+        {hoveredMessage && !isCollapsed && (
+          <div
+            className={styles.hoverTooltip}
+            style={{
+              position: 'fixed',
+              left: mousePosition.x + 15,
+              top: mousePosition.y - 15,
+              zIndex: 10000,
+            }}
+          >
+            <div className={styles.tooltipHeader}>
+              <strong>OSC Message Details</strong>
+            </div>
+            <div className={styles.tooltipContent}>
+              <div><strong>Address:</strong> {hoveredMessage.address}</div>
+              {hoveredMessage.source && (
+                <div><strong>Source:</strong> {hoveredMessage.source}</div>
+              )}
+              {hoveredMessage.timestamp && (
+                <div><strong>Time:</strong> {new Date(hoveredMessage.timestamp).toLocaleString()}</div>
+              )}
+              <div><strong>Arguments:</strong></div>
+              <div className={styles.argsDetail}>
+                {hoveredMessage.args.map((arg, index) => (
+                  <div key={index} className={styles.argDetail}>
+                    <span className={styles.argType}>{arg.type}</span>
+                    <span className={styles.argValue}>
+                      {typeof arg.value === 'number' ?
+                        `${arg.value.toFixed(3)} (${(arg.value * 100).toFixed(1)}%)` :
+                        String(arg.value)
+                      }
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

@@ -10,7 +10,13 @@ export const MidiMonitor: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   // const [isPinned, setIsPinned] = useState(false); // Removed isPinned
   const [flashActive, setFlashActive] = useState(false);
-  const nodeRef = useRef(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Ensure component is mounted before Draggable tries to use the ref
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Update the displayed messages when new MIDI messages arrive
   useEffect(() => {
@@ -22,12 +28,10 @@ export const MidiMonitor: React.FC = () => {
       const timer = setTimeout(() => setFlashActive(false), 200);
       return () => clearTimeout(timer);
     }
-  }, [midiMessages]);
-
-  const handleDragStart = (e: any) => {
+  }, [midiMessages]);  const handleDragStart = (e: any): false | void => {
     // Prevent dragging when clicking on buttons
     if (e.target.closest('button')) {
-      return false as unknown as void;
+      return false;
     }
   };
   const renderHeader = () => (
@@ -93,7 +97,6 @@ export const MidiMonitor: React.FC = () => {
       </div>
     );
   };
-
   const monitorClasses = [
     styles.midiMonitor,
     flashActive ? styles.flash : '',
@@ -101,12 +104,30 @@ export const MidiMonitor: React.FC = () => {
     isCollapsed ? styles.collapsed : '',
   ].join(' ');
 
+  // Don't render Draggable until component is mounted and ref is ready
+  if (!isMounted) {
+    return (
+      <div
+        className={monitorClasses}
+        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }}
+      >
+        {renderHeader()}
+        {renderContent()}
+      </div>
+    );
+  }
+
   return (
-    <Draggable nodeRef={nodeRef} handle=".handle" onStart={handleDragStart} /* disabled={isPinned} */> {/* Removed disabled prop */}
+    <Draggable 
+      nodeRef={nodeRef} 
+      handle=".handle" 
+      onStart={handleDragStart}
+      defaultPosition={{ x: 0, y: 0 }}
+    >
       <div
         ref={nodeRef}
         className={monitorClasses}
-        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }} // Added fixed positioning and default width
+        style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, width: '400px' }}
       >
         {renderHeader()}
         {renderContent()}

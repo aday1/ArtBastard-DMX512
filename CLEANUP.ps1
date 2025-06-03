@@ -180,6 +180,31 @@ Remove-ItemWithFlair -ItemPath $ViteCacheDir -Description "Vite cache"
 Remove-ItemWithFlair -ItemPath $RootEslintCache -Description "root .eslintcache"
 Remove-ItemWithFlair -ItemPath $ReactAppEslintCache -Description "react-app .eslintcache"
 
+# Clean compiled JavaScript files from react-app/src (force rebuild from TypeScript)
+Write-Host "Cleaning compiled JavaScript files to force TypeScript rebuild..." -ForegroundColor DarkCyan
+$ReactAppSrcDir = "react-app\src"
+if (Test-Path $ReactAppSrcDir) {
+    Get-ChildItem -Path $ReactAppSrcDir -Recurse -Filter "*.js" | Where-Object {
+        # Only remove .js files that have corresponding .tsx or .ts files
+        $TsFile = $_.FullName -replace '\.js$', '.ts'
+        $TsxFile = $_.FullName -replace '\.js$', '.tsx'
+        (Test-Path $TsFile) -or (Test-Path $TsxFile)
+    } | ForEach-Object {
+        Remove-ItemWithFlair -ItemPath $_.FullName -Description "compiled JS file"
+    }
+}
+
+# Clean any browser cache hints
+$BrowserCacheHints = @(
+    "react-app\.next",
+    "react-app\.cache",
+    "react-app\build",
+    ".cache"
+)
+foreach ($CacheDir in $BrowserCacheHints) {
+    Remove-ItemWithFlair -ItemPath $CacheDir -Description "browser/build cache"
+}
+
 # Removing .tsbuildinfo files
 Get-ChildItem -Path $ProjectRootPath -Filter $RootTsBuildInfoPattern | ForEach-Object {
     Remove-ItemWithFlair -ItemPath $_.FullName -Description "root tsbuildinfo file"
@@ -226,6 +251,28 @@ try {
     }
 } catch {
     Write-Warning "Could not verify npm cache: $($_.Exception.Message)"
+}
+
+# Clear Vite build hashes and manifests
+Write-Host "Clearing Vite build artifacts and hashes... 🔥" -ForegroundColor DarkCyan
+$ViteBuildArtifacts = @(
+    "react-app\dist\.vite",
+    "react-app\dist\vite.svg",
+    "react-app\dist\.htaccess"
+)
+foreach ($Artifact in $ViteBuildArtifacts) {
+    Remove-ItemWithFlair -ItemPath $Artifact -Description "Vite build artifact"
+}
+
+# Remove all files in dist directory that contain hash patterns (like index-9afa16fd.js)
+$ReactDistDir = "react-app\dist"
+if (Test-Path $ReactDistDir) {
+    Write-Host "Removing hashed build files from $ReactDistDir..." -ForegroundColor DarkCyan
+    Get-ChildItem -Path $ReactDistDir -Recurse -File | Where-Object {
+        $_.Name -match '-[a-f0-9]{8,}\.(js|css|woff|woff2|svg|png|jpg|jpeg|gif)$'
+    } | ForEach-Object {
+        Remove-ItemWithFlair -ItemPath $_.FullName -Description "hashed build file"
+    }
 }
 
 # Clear global npm cache if exists (alternative location)
