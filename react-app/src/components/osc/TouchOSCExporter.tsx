@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
-import { exportToToscFile } from '../../utils/touchoscExporter';
+import { exportToToscFile, ExportOptions } from '../../utils/touchoscExporter'; // Import ExportOptions
 import styles from './TouchOSCExporter.module.scss';
 
 interface OSCPage {
@@ -25,7 +25,13 @@ interface OSCControl {
 }
 
 export const TouchOSCExporter: React.FC = () => {
-  const { fixtures, masterSliders, placedFixtures } = useStore();
+  // Renaming placedFixtures to fixtureLayout for clarity as it's PlacedFixture[] from store
+  // and fixtures to allFixtures for clarity as it's Fixture[] (definitions) from store.
+  const { allFixtures, masterSliders, fixtureLayout } = useStore(state => ({
+    allFixtures: state.fixtures, // Full definitions
+    masterSliders: state.masterSliders,
+    fixtureLayout: state.fixtureLayout, // Placed Fixture data
+  }));
   const [pages, setPages] = useState<OSCPage[]>([
     {
       id: 'main',
@@ -43,6 +49,7 @@ export const TouchOSCExporter: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [draggedControl, setDraggedControl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedResolution, setSelectedResolution] = useState<ExportOptions['resolution']>('tablet_portrait'); // Add state for resolution
 
   const selectedPage = pages.find(p => p.id === selectedPageId);
 
@@ -160,8 +167,12 @@ export const TouchOSCExporter: React.FC = () => {
     });
 
     // Add fixture controls
-    placedFixtures.forEach((fixture, fixtureIndex) => {
-      const fixtureData = fixtures.find(f => f.id === fixture.fixtureId);
+    // This section (generateFromFixtures) is for the internal TouchOSC designer canvas,
+    // not directly related to the export function being modified.
+    // However, it uses `placedFixtures` and `fixtures` which I've renamed to `fixtureLayout` and `allFixtures`.
+    // So, I should update it here for consistency if this component is to remain functional.
+    fixtureLayout.forEach((fixture, fixtureIndex) => { // Renamed: placedFixtures -> fixtureLayout
+      const fixtureData = allFixtures.find(f => f.id === fixture.fixtureId); // Renamed: fixtures -> allFixtures
       if (!fixtureData) return;
 
       fixtureData.channels.forEach((channel, channelIndex) => {
@@ -195,14 +206,15 @@ export const TouchOSCExporter: React.FC = () => {
   };  const exportLayout = async () => {
     try {
       setIsExporting(true);
-      const options = {
-        resolution: 'tablet_portrait' as const,
-        includeFixtureControls: true,
+      const options: ExportOptions = { // Use ExportOptions type
+        resolution: selectedResolution, // Use state here
+        includeFixtureControls: true, // These can be made configurable later
         includeMasterSliders: true,
-        includeAllDmxChannels: false
+        includeAllDmxChannels: false // This can be made configurable later
       };
       
-      await exportToToscFile(options, fixtures, masterSliders, 'ArtBastardOSC.tosc');
+      // Corrected arguments order: options, fixtureLayout (as placedFixtures), allFixtures, masterSliders
+      await exportToToscFile(options, fixtureLayout, allFixtures, masterSliders, 'ArtBastardOSC.tosc');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -262,6 +274,23 @@ export const TouchOSCExporter: React.FC = () => {
               <i className={previewMode ? "fas fa-edit" : "fas fa-eye"}></i>
               {previewMode ? 'Edit Mode' : 'Preview Mode'}
             </button>
+            {/* Resolution Selector */}
+            <div className={styles.resolutionSelector}>
+              <label htmlFor="resolutionSelect">Resolution:</label>
+              <select
+                id="resolutionSelect"
+                value={selectedResolution}
+                onChange={(e) => setSelectedResolution(e.target.value as ExportOptions['resolution'])}
+                className={styles.selectDropdown}
+              >
+                <option value="phone_portrait">Phone Portrait (720x1280)</option>
+                <option value="tablet_portrait">Tablet Portrait (1024x1366)</option>
+                <option value="ipad_pro_2019_portrait">iPad Pro 2019 Portrait (1668x2420)</option>
+                <option value="ipad_pro_2019_landscape">iPad Pro 2019 Landscape (2420x1668)</option>
+                <option value="samsung_s21_specified_portrait">Samsung S21 Portrait (1668x2420 - Specified)</option>
+                <option value="samsung_s21_specified_landscape">Samsung S21 Landscape (2420x1668 - Specified)</option>
+              </select>
+            </div>
             <button 
               className={styles.exportButton} 
               onClick={exportLayout}

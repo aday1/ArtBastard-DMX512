@@ -121,6 +121,48 @@
           transform: translateY(0);
         }
       }
+
+      .slowFadeoutButton, .fadeBackupButton { // Common styles for new buttons
+        padding: 0.6rem 1rem;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        &:active {
+          transform: translateY(0);
+        }
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+      }
+
+      .slowFadeoutButton {
+        background: linear-gradient(135deg, #4e54c8, #8f94fb); // Purpleish gradient
+        &:hover:not(:disabled) {
+          box-shadow: 0 8px 25px rgba(78, 84, 200, 0.4);
+        }
+      }
+
+      .fadeBackupButton {
+        background: linear-gradient(135deg, #11998e, #38ef7d); // Greenish gradient
+        &:hover:not(:disabled) {
+          box-shadow: 0 8px 25px rgba(17, 153, 142, 0.4);
+        }
+      }
     }
   }
 
@@ -152,7 +194,7 @@
         outline: none;
         cursor: pointer;
         transition: all 0.2s ease;
-        pointer-events: auto; // Ensure pointer events work
+        pointer-events: auto !important; // Ensure pointer events work and override others
         z-index: 10; // Above draggable container
         position: relative; // Ensure z-index works
 
@@ -323,7 +365,9 @@
         justify-content: center;
         
         .fullOnButton,
-        .blackoutButton {
+        .blackoutButton,
+        .slowFadeoutButton, // Ensure new buttons also flex in mobile
+        .fadeBackupButton {
           flex: 1;
           min-width: auto;
         }

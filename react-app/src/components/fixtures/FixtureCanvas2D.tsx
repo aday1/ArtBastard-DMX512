@@ -3,6 +3,8 @@ import { Fixture, MasterSlider, PlacedFixture as StorePlacedFixture, PlacedContr
 import styles from './FixtureCanvas2D.module.scss';
 // Removed MidiLearnButton import as we'll use a regular button and store actions directly for master sliders
 
+const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
 // ... (Constants as before) ...
 const DEFAULT_FIXTURE_RADIUS = 15;
 const FIXTURE_COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
@@ -144,6 +146,29 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       ctx.globalAlpha = 0.7; // Make background slightly transparent
       ctx.drawImage(canvasBackgroundImage, 0, 0, canvasSize.width, canvasSize.height);
       ctx.globalAlpha = 1.0; // Reset alpha
+    } else {
+      // Draw default grid
+      const gridColor = 'rgba(0, 255, 0, 0.5)'; // Green, semi-transparent
+      const gridLineWidth = 2; // Thick lines
+      const gridCellSize = 50; // Adjust as needed
+
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = gridLineWidth;
+      ctx.beginPath();
+
+      // Draw vertical lines
+      for (let x = 0; x <= canvas.width; x += gridCellSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+      }
+
+      // Draw horizontal lines
+      for (let y = 0; y <= canvas.height; y += gridCellSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1.0; // Reset alpha just in case, though strokeStyle doesn't use it
     }
 
     // Draw placed fixtures
@@ -322,9 +347,28 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!selectedFixtureToAdd) return;
 
-    const mousePos = getMousePos(event);    const newFixture: PlacedFixture = {
-      id: `placed-${Date.now()}-${Math.random()}`,
-      fixtureId: selectedFixtureToAdd.name, // Add missing fixtureId property
+    const mousePos = getMousePos(event);
+    const newFixtureId = `placed-${Date.now()}-${Math.random()}`;
+
+    const generatedControls: PlacedControl[] = [];
+    if (selectedFixtureToAdd.channels) {
+      selectedFixtureToAdd.channels.forEach((channel, index) => {
+        const controlId = `control-${newFixtureId}-${sanitizeName(channel.name)}-${index}`;
+        generatedControls.push({
+          id: controlId,
+          channelNameInFixture: channel.name,
+          type: 'slider', // Default type
+          label: channel.name.substring(0, 12), // Keep label concise
+          xOffset: 0,
+          yOffset: DEFAULT_FIXTURE_RADIUS + 10 + (index * (PLACED_CONTROL_HEIGHT + 8)), // Position below fixture icon
+          currentValue: 0,
+        });
+      });
+    }
+
+    const newFixture: PlacedFixture = {
+      id: newFixtureId,
+      fixtureId: selectedFixtureToAdd.name,
       fixtureStoreId: selectedFixtureToAdd.name,
       name: selectedFixtureToAdd.name,
       x: mousePos.x,
@@ -332,7 +376,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       color: FIXTURE_COLORS[placedFixtures.length % FIXTURE_COLORS.length],
       radius: DEFAULT_FIXTURE_RADIUS,
       startAddress: selectedFixtureToAdd.startAddress,
-      controls: []
+      controls: generatedControls
     };
 
     const updatedFixtures = [...placedFixtures, newFixture];
