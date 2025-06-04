@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDocking } from '../context/DockingContext';
+import { useDocking } from '@/context/DockingContext';
 import styles from './DockZones.module.scss';
 
 export const DockZones: React.FC = () => {

@@ -216,9 +216,8 @@ interface State {
   setOscAssignment: (channelIndex: number, address: string) => void
   reportOscActivity: (channelIndex: number, value: number) => void 
   addOscMessage: (message: OscMessage) => void; // Added for OSC Monitor
-  
-  // MIDI Actions
-  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number }) => void;
+    // MIDI Actions
+  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'group', id: string }) => void;
   cancelMidiLearn: () => void
   addMidiMessage: (message: any) => void
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
@@ -274,86 +273,13 @@ interface State {
   updateGroupPosition: (groupId: string, position: { x: number; y: number }) => void;
   setGroupMasterValue: (groupId: string, value: number) => void;
   setGroupMute: (groupId: string, isMuted: boolean) => void;
-  setGroupSolo: (groupId: string, isSolo: boolean) => void;
-  saveGroupLastStates: (groupId: string) => void;
-
+  setGroupSolo: (groupId: string, isSolo: boolean) => void;  saveGroupLastStates: (groupId: string) => void;
+  
   // Group MIDI actions
-  startGroupMidiLearn: (groupId: string) => {
-    set(() => ({ midiLearnTarget: { type: 'group', groupId } }));
-    get().addNotification({ 
-      message: `MIDI Learn started for group - send a MIDI message`,
-      type: 'info',
-      priority: 'normal'
-    });
-  },
-
-  cancelGroupMidiLearn: () =>
-    set(state => {
-      const currentTarget = state.midiLearnTarget;
-      if (currentTarget?.type === 'group') {
-        return { midiLearnTarget: null };
-      }
-      return state;
-    }),
-
-  setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) =>
-    set((state) => ({
-      groups: state.groups.map(g =>
-        g.id === groupId ? { ...g, midiMapping: mapping } : g
-      )
-    })),
-
-  handleMidiForGroups: (message: any) => {
-    const state = get();
-    
-    // Handle MIDI learn mode for groups
-    if (state.midiLearnTarget?.type === 'group') {
-      const group = state.groups.find(g => g.id === state.midiLearnTarget.groupId);
-      if (!group) return;
-
-      let midiMapping: MidiMapping;
-      if (message._type === 'cc' && message.controller !== undefined) {
-        midiMapping = {
-          channel: message.channel,
-          controller: message.controller
-        };
-      } else if (message._type === 'noteon' && message.note !== undefined) {
-        midiMapping = {
-          channel: message.channel,
-          note: message.note
-        };
-      } else {
-        return; // Ignore other MIDI message types
-      }
-
-      get().setGroupMidiMapping(state.midiLearnTarget.groupId, midiMapping);
-      set({ midiLearnTarget: null });
-      get().addNotification({
-        message: `MIDI mapping assigned to group ${group.name}`,
-        type: 'success',
-        priority: 'normal'
-      });
-      return;
-    }
-
-    // Handle incoming MIDI messages for mapped groups
-    state.groups.forEach(group => {
-      if (!group.midiMapping) return;
-
-      const mapping = group.midiMapping;
-      if (message._type === 'cc' && mapping.controller !== undefined && 
-          message.channel === mapping.channel && message.controller === mapping.controller) {
-        // Scale MIDI CC value (0-127) to DMX value (0-255)
-        const value = Math.round((message.value / 127) * 255);
-        get().setGroupMasterValue(group.id, value);
-      } else if (message._type === 'noteon' && mapping.note !== undefined && 
-               message.channel === mapping.channel && message.note === mapping.note) {
-        // Toggle between 0 and full (255) for note messages
-        const newValue = group.masterValue === 0 ? 255 : 0;
-        get().setGroupMasterValue(group.id, newValue);
-      }
-    });
-  },
+  startGroupMidiLearn: (groupId: string) => void;
+  cancelGroupMidiLearn: () => void;
+  setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) => void;
+  handleMidiForGroups: (message: any) => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -1236,6 +1162,56 @@ export const useStore = create<State>()(
             groups: state.groups.map(g =>
               g.id === groupId ? { ...g, lastStates } : g
             )
+          };
+        }),
+
+      // Group MIDI Learn implementations
+      startGroupMidiLearn: (groupId: string) =>
+        set(() => ({
+          midiLearnTarget: { type: 'group', groupId }
+        })),
+
+      cancelGroupMidiLearn: () =>
+        set(() => ({
+          midiLearnTarget: null
+        })),
+
+      setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) =>
+        set((state) => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, midiMapping: mapping } : g
+          )
+        })),
+
+      handleMidiForGroups: (message: any) =>
+        set((state) => {
+          // Handle MIDI messages for groups
+          const updatedGroups = state.groups.map(group => {
+            if (group.midiMapping && 
+                group.midiMapping.cc === message.controller &&
+                group.midiMapping.channel === message.channel) {
+              
+              const normalizedValue = message.value / 127;
+              const intensity = Math.round(normalizedValue * 255);
+              
+              // Apply intensity to all fixtures in the group
+              const newDmxChannels = [...state.dmxChannels];
+              group.fixtures.forEach(fixture => {
+                fixture.channels.forEach(channel => {
+                  if (channel.channelIndex < newDmxChannels.length) {
+                    newDmxChannels[channel.channelIndex] = intensity;
+                  }
+                });
+              });
+              
+              return { ...group, intensity: normalizedValue };
+            }
+            return group;
+          });
+
+          return {
+            groups: updatedGroups,
+            dmxChannels: state.dmxChannels // Updated above if needed
           };
         }),
 

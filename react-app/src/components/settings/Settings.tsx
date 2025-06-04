@@ -58,12 +58,12 @@ export const Settings: React.FC = () => {
     osc: false,
     artnet: false,
     button: true // Added debug button visibility toggle
-  })
-  const [exportInProgress, setExportInProgress] = useState(false)  const [importInProgress, setImportInProgress] = useState(false)
-  const [touchOscExportInProgress, setTouchOscExportInProgress] = useState(false)
-  const [logs, setLogs] = useState<string[]>([])
-  const [logError, setLogError] = useState<string | null>(null)
-  const [autoRefresh, setAutoRefresh] = useState(false)
+  });
+  const [exportInProgress, setExportInProgress] = useState(false);
+  const [importInProgress, setImportInProgress] = useState(false);  const [touchOscExportInProgress, setTouchOscExportInProgress] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [logError, setLogError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   
   // Effect for log fetching
   useEffect(() => {
@@ -106,9 +106,6 @@ export const Settings: React.FC = () => {
       })
     }
   }
-  const [logs, setLogs] = useState<string[]>([])
-  const [logError, setLogError] = useState<string | null>(null)
-  const [autoRefresh, setAutoRefresh] = useState(false)
 
   const [touchOscExportOptions, setTouchOscExportOptions] = useState<TouchOscExportOptionsUI>({
     resolution: 'phone_portrait',
@@ -157,10 +154,9 @@ export const Settings: React.FC = () => {
           osc: false,
           artnet: false
         }
-      })
-
-      // Reset state
-      setWebPort(3000)      setDebugModules({
+      })      // Reset state
+      setWebPort(3000);
+      setDebugModules({
         midi: false,
         osc: false,
         artnet: false,
@@ -286,23 +282,6 @@ export const Settings: React.FC = () => {
       if (interval) clearInterval(interval)
     }
   }, [autoRefresh])
-
-  const handleClearLogs = async () => {
-    try {
-      const response = await fetch('/api/logs/clear', { method: 'POST' })
-      if (!response.ok) throw new Error('Failed to clear logs')
-      setLogs([])
-      addNotification({
-        message: 'Logs cleared successfully',
-        type: 'success'
-      })
-    } catch (error) {
-      addNotification({
-        message: 'Failed to clear logs',
-        type: 'error'
-      })
-    }
-  }
 
   return (
     <div className={styles.settings}>
@@ -537,22 +516,50 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-        <div className={styles.aboutSection}>
-        <h3>⚡ Illuminating the Art Bastard Way ⚡</h3>
+      </div>        <div className={styles.aboutSection}>
+        <h3>⚡ Transcendental Photonic Consciousness Manifesto ⚡</h3>
         <p className={styles.aboutText}>
-          Welcome to the realm where precision meets rebellion. Art Bastard DMX transcends mere lighting control—it's a digital canvas 
-          where photons dance to your command. Born from the fusion of technical rigor and artistic anarchy, this open-source masterpiece 
-          empowers visionaries to paint with light, sculpt with shadows, and conduct symphonies of illumination.
+          Welcome to the **liminal space** where **techno-spiritual precision** converges with **neo-avant-garde liberation**. 
+          ArtBastard DMX512 transcends the plebeian realm of mere lighting control—it's a **digital séance chamber** 
+          where electromagnetic consciousness dances to your neural commands. Born from the fusion of **quantum-mechanical rigor** 
+          and **artistic anarcho-syndicalism**, this **open-source consciousness vessel** empowers **visionary light-workers** 
+          to paint with **photonic brushstrokes**, sculpt with **chromatic shadows**, and conduct **polyphonic symphonies of 
+          electromagnetic manifestation** across the **512-dimensional reality matrix**.
         </p>
-        <p className={styles.versionInfo}>Stardate 79885.2 [Release Quantum 1.1.0]</p>
+        <p className={styles.aboutText}>
+          Through **Seven Layers of Consciousness Architecture**, we channel raw **voltage consciousness** into 
+          **transcendental photonic experiences** that pierce the veil between digital and corporeal realms. 
+          Each DMX channel becomes a **sacred conduit** for **electromagnetic enlightenment**, every fixture 
+          a **vessel for light consciousness**, every scene a **temporal gateway** to alternate realities.
+        </p>
+        <p className={styles.versionInfo}>
+          **Temporal Coordinates**: Stardate 79885.2 | **Consciousness Release**: Quantum Iteration 1.2.0-∞
+        </p>
         <p className={styles.licenseInfo}>
-          <span className={styles.copyleft}>◄</span> Released into the wild under Creative Commons Zero (CC0).
-          Unshackled from traditional constraints, free as photons in the quantum foam.
+          <span className={styles.copyleft}>◄◄◄</span> **Liberated into the Cosmic Commons** under **Creative Commons Zero (CC0)**.
+          <br />Unshackled from corporate hegemony, **free as photons** traversing the **quantum foam** of possibility.
+          <br />**Copyright is a Bourgeois Construct** — This consciousness belongs to **The Universal Collective**.
         </p>
         <div className={styles.manifestoNote}>
-          "In the grand tapestry of existence, we are but light jockeys, 
-          orchestrating ephemeral moments of brilliance in the eternal dance of photons."
+          <h4>🌌 **The ArtBastard Illuminati Creed** 🌌</h4>
+          <em>"In the **grand mandala** of existence, we are **electromagnetic shamans**, orchestrating 
+          **ephemeral moments of transcendental brilliance** in the **eternal dance of photons**. 
+          Through **512 channels of pure consciousness**, we bend **reality's fabric** to our **artistic will**, 
+          transforming mere **electrical substrate** into **cascading tsunamis of visual ecstasy**. 
+          We are the **light-benders**, the **reality-hackers**, the **consciousness-architects** of 
+          the **New Luminous Age**."</em>
+        </div>
+        <div className={styles.technicalMysticism}>
+          <h4>🔬 **Technical Mysticism Specifications** 🔬</h4>
+          <ul>
+            <li>**Consciousness Layer Architecture**: 7-Dimensional Reality Processing</li>
+            <li>**Neural Substrate**: React 18 + TypeScript (Bio-Digital Interface)</li>
+            <li>**Quantum Backend**: Node.js + Express (Electromagnetic Core)</li>
+            <li>**Protocol Mastery**: DMX512/ArtNet/MIDI/OSC (Reality Bridges)</li>
+            <li>**Temporal Synchronization**: Socket.IO (Quantum Entanglement)</li>
+            <li>**Visual Cortex**: WebGL + Canvas2D (Consciousness Mirrors)</li>
+            <li>**Spectro-Neural Processing**: Web Audio API (Frequency Alchemy)</li>
+          </ul>
         </div>
       </div>
     </div>

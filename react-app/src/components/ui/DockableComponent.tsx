@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, ReactNode } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
-import { useDocking, DockPosition } from '../context/DockingContext';
+import { useDocking, DockPosition } from '@/context/DockingContext';
 
 interface DockableComponentProps {
   id: string;

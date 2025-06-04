@@ -485,14 +485,13 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                   <h4>📋 Recent MIDI Messages</h4>
                   <div className={styles.messageList}>
                     {midiMessages.length === 0 ? (
-                      <div className={styles.noMessages}>No recent MIDI messages</div>
-                    ) : (
+                      <div className={styles.noMessages}>No recent MIDI messages</div>                ) : (
                       midiMessages.slice(-5).map((message, idx) => (
                         <div key={idx} className={styles.message}>
                           {JSON.stringify(message)}
                         </div>
                       ))
-                    }
+                    )}
                   </div>
                 </div>
               </div>

@@ -97,10 +97,11 @@ export const FixtureSetup: React.FC = () => {
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null)
   const [fixtureForm, setFixtureForm] = useState<FixtureFormData>({
-    name: '',
-    startAddress: 1,
+    name: '',    startAddress: 1,
     channels: [{ name: 'Intensity', type: 'dimmer' }]
-  })  const [groupForm, setGroupForm] = useState<Partial<Group>>({
+  });
+  
+  const [groupForm, setGroupForm] = useState<Partial<Group>>({
     name: '',
     fixtureIndices: [],
     lastStates: new Array(512).fill(0),

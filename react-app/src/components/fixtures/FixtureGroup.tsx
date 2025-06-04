@@ -105,9 +105,8 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
     }
     setGroupSolo(group.id, !group.isSolo);
   };
-
   const handleMidiLearnClick = () => {
-    const isCurrentlyLearning = midiLearnTarget?.type === 'group' && midiLearnTarget.id === group.id;
+    const isCurrentlyLearning = midiLearnTarget?.type === 'group' && midiLearnTarget.groupId === group.id;
     if (isCurrentlyLearning) {
       cancelMidiLearn();
     } else {
@@ -165,10 +164,9 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
             onChange={(e) => handleMasterChange(parseInt(e.target.value))}
             className={`${styles.slider} ${isFading ? styles.fading : ''}`}
           />
-          <div className={styles.midiOscControls}>
-            <button
+          <div className={styles.midiOscControls}>            <button
               className={`${styles.midiLearn} ${
-                midiLearnTarget?.type === 'group' && midiLearnTarget.id === group.id
+                midiLearnTarget?.type === 'group' && midiLearnTarget.groupId === group.id
                   ? styles.learning
                   : ''
               }`}
