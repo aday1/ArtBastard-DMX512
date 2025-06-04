@@ -143,6 +143,14 @@ interface State {
   midiMessages: any[]
   oscMessages: OscMessage[]; // Added for OSC Monitor
 
+  // Debug State
+  debugModules: {
+    midi: boolean;
+    osc: boolean;
+    artnet: boolean;
+    button: boolean;
+  };
+
   // Fixtures and Groups
   fixtures: Fixture[]
   groups: Group[]
@@ -229,9 +237,9 @@ interface State {
   loadScene: (name: string) => void
   deleteScene: (name: string) => void
   updateScene: (originalName: string, updates: Partial<Scene>) => void; // New action for updating scenes
-  
-  // Config Actions
+    // Config Actions
   updateArtNetConfig: (config: Partial<ArtNetConfig>) => void
+  updateDebugModules: (debugSettings: {midi?: boolean; osc?: boolean; artnet?: boolean; button?: boolean}) => void
   testArtNetConnection: () => void  
   // UI Actions
   setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => void;
@@ -328,13 +336,19 @@ export const useStore = create<State>()(
         net: 0,
         port: 6454,
         base_refresh_interval: 1000
-      },
+      },      
       artNetStatus: 'disconnected',
       theme: 'artsnob',
       darkMode: initializeDarkMode(),
       // statusMessage: null, // Deprecated
       notifications: [], 
-      oscActivity: {}, 
+      oscActivity: {},
+      debugModules: {
+        midi: false,
+        osc: false,
+        artnet: false,
+        button: true
+      },
       exampleSliderValue: 0,
       fixtureLayout: [], 
       placedFixtures: [], 
@@ -742,7 +756,25 @@ export const useStore = create<State>()(
         } else {
           get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
         }
-      },      testArtNetConnection: () => {
+      },
+      
+      updateDebugModules: (debugSettings) => {
+        const currentDebugModules = get().debugModules || { midi: false, osc: false, artnet: false, button: true };
+        const updatedDebugModules = { ...currentDebugModules, ...debugSettings };
+        
+        set({ debugModules: updatedDebugModules });
+        
+        // Save to localStorage for persistence
+        localStorage.setItem('debugModules', JSON.stringify(updatedDebugModules));
+        
+        // Socket emit if needed
+        const socket = get().socket;
+        if (socket?.connected) {
+          socket.emit('updateDebugSettings', updatedDebugModules);
+        }
+      },
+
+      testArtNetConnection: () => {
         const socket = get().socket
         if (socket?.connected) {
           socket.emit('testArtNetConnection')

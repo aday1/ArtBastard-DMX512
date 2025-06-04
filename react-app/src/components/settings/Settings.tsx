@@ -248,14 +248,43 @@ export const Settings: React.FC = () => {
         type: 'error'
       })
     }
-  }
-
-  // Debug module toggle handler
+  }  // Debug module toggle handler
   const toggleDebugModule = (module: keyof typeof debugModules) => {
+    const newValue = !debugModules[module];
+    
+    // Update local state
     setDebugModules(prev => ({
       ...prev,
-      [module]: !prev[module]
-    }))
+      [module]: newValue
+    }));
+    
+    // Save to localStorage
+    const savedDebugModules = JSON.parse(localStorage.getItem('debugModules') || '{}');
+    localStorage.setItem('debugModules', JSON.stringify({
+      ...savedDebugModules,
+      [module]: newValue
+    }));
+    
+    // Update application state
+    if (module === 'midi' || module === 'osc' || module === 'artnet') {
+      // Update store state if it's available
+      const updateDebugModules = useStore.getState().updateDebugModules;
+      if (updateDebugModules) {
+        updateDebugModules({
+          ...debugModules,
+          [module]: newValue
+        });
+      }
+    }
+    
+    // Get a display-friendly module name
+    const moduleDisplayName = String(module).charAt(0).toUpperCase() + String(module).slice(1);
+    
+    // Show notification
+    addNotification({
+      message: `${moduleDisplayName} debug ${newValue ? 'enabled' : 'disabled'}`,
+      type: 'info'
+    });
   }
 
   useEffect(() => {
@@ -382,37 +411,41 @@ export const Settings: React.FC = () => {
             <div className={styles.formGroup}>
               <label>Debug Modules</label>
               <div className={styles.debugToggles}>
-                <label className={styles.debugToggle}>
+                <label className={styles.debugToggle} title="Enable MIDI protocol debugging for troubleshooting MIDI mappings and controllers">
                   <input
                     type="checkbox"
                     checked={debugModules.midi}
                     onChange={() => toggleDebugModule('midi')}
                   />
                   <span>MIDI Debug</span>
+                  <div className={styles.settingDescription}>Shows MIDI message traffic for troubleshooting controllers</div>
                 </label>
-                <label className={styles.debugToggle}>
+                <label className={styles.debugToggle} title="Enable OSC protocol debugging for troubleshooting OSC communication">
                   <input
                     type="checkbox"
                     checked={debugModules.osc}
                     onChange={() => toggleDebugModule('osc')}
                   />
                   <span>OSC Debug</span>
+                  <div className={styles.settingDescription}>Shows OSC message traffic for TouchOSC and other OSC interfaces</div>
                 </label>
-                <label className={styles.debugToggle}>
+                <label className={styles.debugToggle} title="Enable Art-Net protocol debugging for troubleshooting DMX communication">
                   <input
                     type="checkbox"
                     checked={debugModules.artnet}
                     onChange={() => toggleDebugModule('artnet')}
                   />
                   <span>ArtNet Debug</span>
+                  <div className={styles.settingDescription}>Shows Art-Net/DMX network traffic for troubleshooting fixtures</div>
                 </label>
-                <label className={styles.debugToggle}>
+                <label className={styles.debugToggle} title="Show or hide the floating debug button in the interface">
                   <input
                     type="checkbox"
                     checked={debugModules.button}
                     onChange={() => toggleDebugModule('button')}
                   />
                   <span>Show Debug Button</span>
+                  <div className={styles.settingDescription}>Toggles visibility of the quick access debug button in UI</div>
                 </label>
               </div>
             </div>
@@ -462,15 +495,140 @@ export const Settings: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
-
-        {/* ArtNet Configuration Card */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
+        </div>        {/* ArtNet Configuration Card */}
+        <div className={styles.card}>          <div className={styles.cardHeader}>
             <h3>ArtNet Configuration</h3>
+            <div className={styles.cardDescription}>
+              <i className="fas fa-info-circle"></i>
+              <span>Configure Art-Net network settings for DMX transmission</span>
+            </div>
           </div>
           <div className={styles.cardBody}>
-            {/* ... existing ArtNet settings ... */}
+            <div className={styles.formGrid}>
+              <div className={styles.formGroup}>
+                <label htmlFor="artnet-ip">IP Address</label>
+                <div className={styles.inputWithAction}>
+                  <input
+                    id="artnet-ip"
+                    type="text"
+                    value={artNetSettings.ip}
+                    onChange={(e) => setArtNetSettings({
+                      ...artNetSettings,
+                      ip: e.target.value
+                    })}
+                    placeholder="192.168.1.99"
+                  />
+                  <button 
+                    className={`${styles.actionButton} ${!connected ? styles.disabled : ''}`}
+                    onClick={() => {
+                      if (socket?.connected) {
+                        socket.emit('pingArtNetDevice', { ip: artNetSettings.ip });
+                        addNotification({
+                          message: `Pinging ${artNetSettings.ip}...`,
+                          type: 'info'
+                        });
+                      } else {
+                        addNotification({
+                          message: 'Cannot ping: Not connected to server',
+                          type: 'error'
+                        });
+                      }
+                    }}
+                    disabled={!connected}
+                    title={connected ? "Ping device to verify connectivity" : "Server connection required"}
+                  >
+                    <i className="fas fa-satellite-dish"></i>
+                    <span>Ping</span>
+                  </button>
+                </div>
+                <small className={styles.formHint}>Default for most Art-Net devices: 192.168.1.99</small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="artnet-subnet">Subnet</label>
+                <input
+                  id="artnet-subnet"
+                  type="number"
+                  min="0"
+                  max="15"
+                  value={artNetSettings.subnet}
+                  onChange={(e) => setArtNetSettings({
+                    ...artNetSettings,
+                    subnet: parseInt(e.target.value)
+                  })}
+                />
+                <small>Range: 0-15</small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="artnet-universe">Universe</label>
+                <input
+                  id="artnet-universe"
+                  type="number"
+                  min="0"
+                  max="15"
+                  value={artNetSettings.universe}
+                  onChange={(e) => setArtNetSettings({
+                    ...artNetSettings,
+                    universe: parseInt(e.target.value)
+                  })}
+                />
+                <small>Range: 0-15</small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="artnet-port">Port</label>
+                <input
+                  id="artnet-port"
+                  type="number"
+                  min="1024"
+                  max="65535"
+                  value={artNetSettings.port}
+                  onChange={(e) => setArtNetSettings({
+                    ...artNetSettings,
+                    port: parseInt(e.target.value)
+                  })}
+                />
+                <small>Default: 6454</small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="artnet-refresh">Refresh Rate (ms)</label>
+                <input
+                  id="artnet-refresh"
+                  type="number"
+                  min="20"
+                  max="5000"
+                  value={artNetSettings.base_refresh_interval}
+                  onChange={(e) => setArtNetSettings({
+                    ...artNetSettings,
+                    base_refresh_interval: parseInt(e.target.value)
+                  })}
+                />
+                <small>Lower values = faster updates, higher CPU usage</small>
+              </div>
+            </div>
+
+            <div className={styles.buttonRow}>
+              <button
+                className={styles.primaryButton}
+                onClick={() => {
+                  useStore.getState().updateArtNetConfig(artNetSettings);
+                }}
+              >
+                <i className="fas fa-save"></i>
+                <span>Save ArtNet Settings</span>
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={() => {
+                  useStore.getState().testArtNetConnection();
+                }}
+              >
+                <i className="fas fa-plug"></i>
+                <span>Test Connection</span>
+              </button>
+            </div>
           </div>
         </div>
 

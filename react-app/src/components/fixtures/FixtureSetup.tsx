@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext'
 // import { FixtureVisualizer3D } from './FixtureVisualizer3D' // Removed
 import { FixtureCanvas2D } from './FixtureCanvas2D'; // Added
 import { CanvasImageUpload } from './CanvasImageUpload'; // Added
+import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -351,6 +352,10 @@ export const FixtureSetup: React.FC = () => {
         placedFixturesData={fixtureLayout} // Use data from store
         onUpdatePlacedFixtures={setFixtureLayout} // Use store action to update
       />
+        {/* Color Picker Panel Section */}
+      <div className={styles.colorPickerContainer}>
+        <ColorPickerPanel />
+      </div>
       
       <div className={styles.setupGrid}>
         {/* Fixture Management Section */}

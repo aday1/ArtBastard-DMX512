@@ -515,284 +515,131 @@
 }
 
 .midiRangeControls {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  padding: 8px;
-  font-size: 0.85em;
+  margin-top: 12px;
+  border-top: 1px solid var(--color-card-border);
+  padding-top: 12px;
 }
 
-.rangeRow {
+.rangeToggle {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: var(--color-card-hover);
+  }
+}
+
+.midiRangeForm {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  background-color: var(--color-card-bg-darker);
+  font-size: 0.8rem;
+}
+
+.midiRangeRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.midiRangeColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   
   label {
-    min-width: 60px;
-    opacity: 0.9;
-    margin-right: 8px;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+  }
+  
+  input[type="number"] {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-card-border);
+    border-radius: 3px;
+    color: var(--color-text);
+    padding: 4px;
+    width: 100%;
+  }
+  
+  input[type="range"] {
+    width: 100%;
+    margin: 4px 0;
   }
   
   span {
-    font-size: 0.8em;
-    opacity: 0.7;
-    margin: 0 4px;
-  }
-}
-
-.rangeInputs {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  
-  input[type="number"] {
-    width: 44px;
-    padding: 3px 2px;
-    border: 1px solid var(--color-channel-border);
-    border-radius: 3px;
-    background-color: var(--color-card-bg);
     color: var(--color-text);
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--color-primary);
-    }
+    font-size: 0.75rem;
+    align-self: flex-end;
+    margin-top: 2px;
   }
 }
 
-.rangeSliderContainer {
-  position: relative;
-  height: 20px;
-  flex: 1;
-  margin: 0 4px;
-}
-
-.rangeSliderTrack {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-50%);
-  border-radius: 2px;
-}
-
-.rangeSliderActiveTrack {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: 2px;
-}
-
-.rangeSliderLeft, .rangeSliderRight {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  margin: 0;
-  height: 100%;
-  background: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-  pointer-events: all;
-  
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    border: 2px solid #f0f0f0;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    z-index: 2;
-    position: relative;
-  }
-  
-  &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    border: 2px solid #f0f0f0;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-  
-  &:focus {
-    outline: none;
-    
-    &::-webkit-slider-thumb {
-      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.3);
-    }
-    
-    &::-moz-range-thumb {
-      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.3);
-    }
-  }
-}
-
-.rangeActions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.resetButton {
+.fullscreenButton {
+  margin-top: 12px;
   background-color: transparent;
-  border: 1px solid var(--color-channel-border);
-  color: var(--color-text);
-  padding: 3px 10px;
-  border-radius: 3px;
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  color: var(--color-text-muted);
+  padding: 4px 8px;
   cursor: pointer;
-  font-size: 0.85em;
+  transition: all 0.2s ease;
   
   &:hover {
-    background-color: var(--color-primary);
-    border-color: var(--color-primary);
-    color: #f0f0f0;
-  }
-}
-
-.curveSlider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 4px;
-  background: var(--color-channel-border);
-  outline: none;
-  border-radius: 2px;
-  
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-  
-  &::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-}
-
-.rangeValueDisplay {
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 2px 5px;
-  border-radius: 3px;
-  min-width: 30px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--color-text);
-}
-
-.curveTrack {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.curveVisualizer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(to right, var(--color-primary-light), var(--color-primary));
-  opacity: 0.7;
-}
-
-.curveLabel {
-  font-size: 0.75em;
-  opacity: 0.7;
-  padding: 0 2px;
-  min-width: 25px;
-}
-
-.detachButton {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 3px;
-  transition: all var(--transition-speed) ease;
-  margin-right: 4px;
-  
-  &:hover {
-    background-color: var(--color-primary);
-    color: var(--text-primary);
+    background-color: var(--color-card-hover);
+    color: var(--color-text);
   }
   
   i {
-    font-size: 0.9rem;
+    margin-right: 4px;
   }
 }
 
-.detachedWindow {
-  background-color: var(--bg-primary);
-  border: 2px solid var(--color-primary);
-  border-radius: var(--border-radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+.detailButtons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.fullscreenButton,
+.detachButton {
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  
+  i {
+    font-size: 0.8rem;
+  }
+  
+  &:hover {
+    background-color: var(--color-primary-dark);
+  }
+  
+  &:disabled {
+    background-color: var(--color-disabled);
+    cursor: not-allowed;
+  }
+}
+
+// Body class for when a DMX channel is in fullscreen mode
+:global(body.dmx-channel-fullscreen-active) {
   overflow: hidden;
-  resize: both;
-  min-width: 300px;
-  min-height: 400px;
-  
-  .detachedHeader {
-    background: linear-gradient(135deg, var(--color-primary), #45b7b8);
-    color: #f0f0f0;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: move;
-    user-select: none;
-    font-weight: bold;
-    
-    .closeDetachedButton {
-      background: none;
-      border: none;
-      color: #f0f0f0;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 3px;
-      transition: background-color 0.2s ease;
-      
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-      }
-    }
-  }
-  
-  .detachedContent {
-    padding: 20px;
-    height: calc(100% - 60px);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
 }
 
 .channel {

@@ -43,6 +43,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   const [localOscAddress, setLocalOscAddress] = useState('');
   const [activityIndicator, setActivityIndicator] = useState(false);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<HTMLDivElement>(null);
 
   const [showMidiRangeControls, setShowMidiRangeControls] = useState(false);
   const [midiRangeMapping, setMidiRangeMapping] = useState<ExtendedMidiRangeMapping>({
@@ -179,10 +180,24 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   const dmxAddress = index + 1;
   const currentOscValue = oscActivity[index]?.value;
   const lastOscTimestamp = oscActivity[index]?.timestamp;
-
   const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
     setShowDetails(true);
+    
+    // Handle document body classes for fullscreen mode
+    if (newFullscreenState) {
+      document.body.classList.add('dmx-channel-fullscreen-active');
+    } else {
+      document.body.classList.remove('dmx-channel-fullscreen-active');
+    }
+    
+    // Scroll into view when maximizing
+    if (newFullscreenState && channelRef.current) {
+      setTimeout(() => {
+        channelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
   };
 
   const toggleDetached = () => {
@@ -190,9 +205,24 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     setShowDetails(true);
   };
 
+  // Add ESC key handler to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        toggleFullscreen();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
   return (
     <div
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''}`}
+      ref={channelRef}
+      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isFullscreen ? styles.fullscreen : ''}`}
       onClick={() => !isFullscreen && !isDetached && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
@@ -209,23 +239,54 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
           </button>
         </div>
-      </div>
+      </div>      {isFullscreen ? (
+        <>
+          <div className={styles.fullscreenHeader}>
+            <h2>DMX Channel {dmxAddress}</h2>
+            <p>{name}</p>
+          </div>
+          
+          <div 
+            className={`${styles.value} ${styles.fullscreenValue}`} 
+            style={{ backgroundColor: getBackgroundColor() }}
+          >
+            {value}
+            <div className={styles.valuePercentOverlay}>
+              {Math.round((value / 255) * 100)}%
+            </div>
+          </div>
+          
+          <div className={`${styles.slider} ${styles.fullscreenSlider}`} data-dmx-channel={index}>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={value}
+              onChange={handleValueChange}
+              onClick={(e) => e.stopPropagation()}
+              data-slider-index={index}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={`${styles.value}`} style={{ backgroundColor: getBackgroundColor() }}>
+            {value}
+          </div>
 
-      <div className={`${styles.value}`} style={{ backgroundColor: getBackgroundColor() }}>
-        {value}
-      </div>
-
-      <div className={`${styles.slider}`} data-dmx-channel={index}>
-        <input
-          type="range"
-          min="0"
-          max="255"
-          value={value}
-          onChange={handleValueChange}
-          onClick={(e) => e.stopPropagation()}
-          data-slider-index={index}
-        />
-      </div>
+          <div className={`${styles.slider}`} data-dmx-channel={index}>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={value}
+              onChange={handleValueChange}
+              onClick={(e) => e.stopPropagation()}
+              data-slider-index={index}
+            />
+          </div>
+        </>
+      )}
 
       {showDetails && (
         <div className={styles.details} onClick={(e) => e.stopPropagation()}>
@@ -264,9 +325,79 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
                 </span>
               )}
             </div>
-          )}
+          )}          <MidiLearnButton channelIndex={index} />
 
-          <MidiLearnButton channelIndex={index} />
+          <div className={styles.midiRangeControls}>
+            <button
+              className={styles.rangeToggle}
+              onClick={() => setShowMidiRangeControls(!showMidiRangeControls)}
+            >
+              {showMidiRangeControls ? 'Hide MIDI Range Controls' : 'Show MIDI Range Controls'}
+            </button>
+            
+            {showMidiRangeControls && (
+              <div className={styles.midiRangeForm}>
+                <div className={styles.midiRangeRow}>
+                  <div className={styles.midiRangeColumn}>
+                    <label>MIDI Input Min:</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="127" 
+                      value={midiRangeMapping.inputMin}
+                      onChange={(e) => handleMidiRangeChange('inputMin', parseInt(e.target.value))}
+                    />
+                  </div>
+                  <div className={styles.midiRangeColumn}>
+                    <label>MIDI Input Max:</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="127" 
+                      value={midiRangeMapping.inputMax}
+                      onChange={(e) => handleMidiRangeChange('inputMax', parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+                <div className={styles.midiRangeRow}>
+                  <div className={styles.midiRangeColumn}>
+                    <label>DMX Output Min:</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="255" 
+                      value={midiRangeMapping.outputMin}
+                      onChange={(e) => handleMidiRangeChange('outputMin', parseInt(e.target.value))}
+                    />
+                  </div>
+                  <div className={styles.midiRangeColumn}>
+                    <label>DMX Output Max:</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="255" 
+                      value={midiRangeMapping.outputMax}
+                      onChange={(e) => handleMidiRangeChange('outputMax', parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+                <div className={styles.midiRangeRow}>
+                  <div className={styles.midiRangeColumn}>
+                    <label>Response Curve:</label>
+                    <input 
+                      type="range" 
+                      min="0.1" 
+                      max="3" 
+                      step="0.1" 
+                      value={midiRangeMapping.curve}
+                      onChange={(e) => handleMidiRangeChange('curve', parseFloat(e.target.value))}
+                    />
+                    <span>{midiRangeMapping.curve?.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className={styles.valueDisplay}>
             <div className={styles.valueHex}>
@@ -275,6 +406,36 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             <div className={styles.valuePercent}>
               {Math.round((value / 255) * 100)}%
             </div>
+          </div>
+            <div className={styles.detailButtons}>
+            {allowFullscreen && (
+              <button 
+                className={styles.fullscreenButton} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+              >
+                <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+                <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
+              </button>
+            )}
+            
+            {allowDetach && !isFullscreen && (
+              <button 
+                className={styles.detachButton} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDetached();
+                }}
+                title={isDetached ? "Dock Window" : "Detach Window"}
+                disabled={isFullscreen}
+              >
+                <i className={`fas fa-${isDetached ? 'thumbtack' : 'external-link-alt'}`}></i>
+                <span>{isDetached ? "Dock" : "Detach"}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

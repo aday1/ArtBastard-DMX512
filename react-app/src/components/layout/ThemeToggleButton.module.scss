@@ -1,7 +1,7 @@
 .themeToggleContainer {
   position: fixed;
-  top: 20px;
-  right: 20px; // Adjusted right position to make space if DebugInfo is also at 20px or to group them
+  top: 70px; // Moved down from 20px to avoid overlapping with Debug button
+  right: 20px;
   z-index: 1050;
   display: flex;
   gap: 8px; // Space between the buttons
