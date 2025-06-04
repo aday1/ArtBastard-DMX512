@@ -107,15 +107,20 @@ graph TB
     ReactConsciousness --> ScenePalace
     ControlPortals --> TemporalEngine
     ScenePalace --> ArtNetMultiverse
-    TemporalEngine --> SocketBridge    ArtNetMultiverse --> PhysicalOutput
-    SocketBridge --> FixtureArray    %% Dimensional Styles
+    TemporalEngine --> SocketBridge
+    ArtNetMultiverse --> PhysicalOutput
+    SocketBridge --> FixtureArray
+    
+    %% Dimensional Styles
     classDef layer7 fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef layer6 fill:#3a86ff,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef layer5 fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef layer4 fill:#8338ec,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef layer3 fill:#06ffa5,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef layer2 fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer1 fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold    class PhysicalOutput,FixtureArray layer7
+    classDef layer1 fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    
+    class PhysicalOutput,FixtureArray layer7
     class ArtNetMultiverse,SocketBridge layer6
     class ScenePalace,TemporalEngine layer5
     class ReactConsciousness,ControlPortals layer4
@@ -153,7 +158,9 @@ graph TB
     %% Connections
     MIDILearn --> Faders
     Universe --> Output
-    Effects --> Visualizer    %% Styles
+    Effects --> Visualizer
+    
+    %% Styles
     classDef core fill:#ff6b6b,stroke:#d63031,stroke-width:4px,color:#fff
     classDef protocol fill:#45b7d1,stroke:#00b894,stroke-width:3px,color:#fff
     classDef interface fill:#a29bfe,stroke:#5f27cd,stroke-width:3px,color:#fff
