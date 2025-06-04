@@ -72,9 +72,17 @@ export const MidiClock: React.FC = () => {
   }, [clockRef.current]); // Recalculate if ref changes or on resize
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    localStorage.setItem('midiClockPositionX', info.point.x.toString());
-    localStorage.setItem('midiClockPositionY', info.point.y.toString());
-    setPosition(info.point);
+    // These are the known initial CSS positions for MidiClock,
+    // consistent with values used in the constraints calculation useEffect.
+    const effectiveInitialCssLeft = 860;
+    const effectiveInitialCssTop = 20;
+
+    const newTransformX = info.point.x - effectiveInitialCssLeft;
+    const newTransformY = info.point.y - effectiveInitialCssTop;
+
+    localStorage.setItem('midiClockPositionX', newTransformX.toString());
+    localStorage.setItem('midiClockPositionY', newTransformY.toString());
+    setPosition({ x: newTransformX, y: newTransformY });
   };
 
   useEffect(() => {

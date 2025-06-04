@@ -12,11 +12,11 @@
   position: absolute;
   width: 4px;
   height: 4px;
-  background-color: white;
+  background-color: #fdeebc; // Light, warm gold/yellow
   border-radius: 50%;
   opacity: 0;
   animation: sparkle-animation 1s ease-in-out forwards;
-  box-shadow: 0 0 6px 2px white; // Glow effect
+  box-shadow: 0 0 6px 2px #fdeebc; // Glow effect with the same warm color
 }
 
 @keyframes sparkle-animation {
