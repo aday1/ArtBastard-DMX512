@@ -2,37 +2,37 @@
 @use './font-fallbacks.scss';
 
 // Base variables
-:root {  // Light mode colors - Warmer, more comfortable color scheme
-  --color-background: #f5f0e1; /* Warmer off-white */
-  --color-text: #5a5047; /* Slightly warmer dark gray */
-  --color-primary: #c77f5b; /* Adjusted for warmth */
-  --color-secondary: #8f7a5d; /* Adjusted for warmth */
-  --color-accent: #d9781f; /* Adjusted for warmth */
-  --color-success: #2ecc71; // Keeping original success color
-  --color-warning: #f39c12; // Keeping original warning color
-  --color-error: #e74c3c;   // Keeping original error color
-  --color-card-bg: #faf3e8; /* Warmer card background */
-  --color-card-border: #e6dacb; /* Warmer card border */
-  --color-slider-track: #e6dacb; /* Warmer slider track */
-  --color-slider-thumb: #c77f5b; /* Matches new primary */
-  --color-button-bg: #c77f5b; /* Matches new primary */
-  --color-button-text: #fcfaf7; /* Off-white instead of pure white */
-  --color-nav-active: #c77f5b; /* Matches new primary */
-  --color-nav-inactive: #8f7a5d; /* Matches new secondary */
-  --color-channel-bg: #faf3e8; /* Warmer channel background */
-  --color-channel-border: #e0d8ce; /* Warmer channel border */
-  --color-channel-selected: rgba(199, 127, 91, 0.1); /* Based on new primary */
-  --color-status-connected: #2aa764; /* Slightly desaturated green */
-  --color-status-disconnected: #e24338; /* Slightly desaturated red */
-  --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
-  --color-status-active: #2aa764; /* Matches connected status */
+:root {  // Light mode colors - Blue, light orange, and light red color scheme
+  --color-background: #f0f4f8; /* Light blue-gray background */
+  --color-text: #2d3748; /* Dark blue-gray text */
+  --color-primary: #4299e1; /* Medium blue primary */
+  --color-secondary: #63b3ed; /* Light blue secondary */
+  --color-accent: #ed8936; /* Light orange accent */
+  --color-success: #38a169; /* Green success color */
+  --color-warning: #d69e2e; /* Orange warning color */
+  --color-error: #e53e3e;   /* Light red error color */
+  --color-card-bg: #edf2f7; /* Very light blue-gray card background */
+  --color-card-border: #cbd5e0; /* Light blue-gray border */
+  --color-slider-track: #cbd5e0; /* Light blue-gray slider track */
+  --color-slider-thumb: #4299e1; /* Blue slider thumb */
+  --color-button-bg: #4299e1; /* Blue button background */
+  --color-button-text: #ffffff; /* White button text */
+  --color-nav-active: #4299e1; /* Blue active nav */
+  --color-nav-inactive: #a0aec0; /* Light gray inactive nav */
+  --color-channel-bg: #edf2f7; /* Light blue-gray channel background */
+  --color-channel-border: #cbd5e0; /* Light blue-gray channel border */
+  --color-channel-selected: rgba(66, 153, 225, 0.1); /* Light blue selection */
+  --color-status-connected: #38a169; /* Green connected status */
+  --color-status-disconnected: #e53e3e; /* Light red disconnected status */
+  --color-status-inactive: #a0aec0; /* Light gray inactive status */
+  --color-status-active: #38a169; /* Green active status */
   
   // Additional UI variables for components
   --bg-primary: var(--color-background);
   --bg-secondary: var(--color-card-bg);
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
-  --accent-color: #46b8af; /* Adjusted accent for overall harmony */
+  --accent-color: #ed8936; /* Light orange accent for overall harmony */
   
   // Fonts
   --font-heading: 'Playfair Display', serif;

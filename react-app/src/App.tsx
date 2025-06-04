@@ -21,13 +21,6 @@ function App() {
   const isTransitioning = useStore((state) => state.isTransitioning);
   const currentTransitionFrame = useStore((state) => state.currentTransitionFrame);
   const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId);
-
-  const unmountedRef = useRef(false);
-  useEffect(() => {
-    return () => {
-      unmountedRef.current = true;
-    };
-  }, []);
   
   console.log('[App] Store hooks initialized');
   
@@ -74,18 +67,26 @@ function App() {
     // Fetch initial state
     fetchInitialState()
   }, [fetchInitialState])
-
   // Scene Transition Animation Loop
   useEffect(() => {
     let frameId: number | null = null;
+    let isMounted = true;
 
     const tick = () => {
+      // Check if component is still mounted before proceeding
+      if (!isMounted) {
+        return;
+      }
+
       const currentState = useStore.getState(); 
 
       if (!currentState.isTransitioning || !currentState.transitionStartTime || !currentState.fromDmxValues || !currentState.toDmxValues) {
         if (currentState.currentTransitionFrame) {
           cancelAnimationFrame(currentState.currentTransitionFrame);
-          currentState.setCurrentTransitionFrameId(null);
+          // Only update state if component is still mounted
+          if (isMounted) {
+            currentState.setCurrentTransitionFrameId(null);
+          }
         }
         return;
       }
@@ -101,13 +102,16 @@ function App() {
         newDmxValues[i] = Math.round(fromVal + (toVal - fromVal) * progress);
       }
       
-      currentState.setDmxChannelsForTransition(newDmxValues);
+      // Only update state if component is still mounted
+      if (isMounted) {
+        currentState.setDmxChannelsForTransition(newDmxValues);
 
-      if (progress >= 1) {
-        currentState.clearTransitionState(); 
-      } else {
-        frameId = requestAnimationFrame(tick);
-        currentState.setCurrentTransitionFrameId(frameId);
+        if (progress >= 1) {
+          currentState.clearTransitionState(); 
+        } else {
+          frameId = requestAnimationFrame(tick);
+          currentState.setCurrentTransitionFrameId(frameId);
+        }
       }
     };
 
@@ -116,21 +120,26 @@ function App() {
         cancelAnimationFrame(currentTransitionFrame);
       }
       frameId = requestAnimationFrame(tick);
-      setCurrentTransitionFrameId(frameId);
+      if (isMounted) {
+        setCurrentTransitionFrameId(frameId);
+      }
     } else {
       if (currentTransitionFrame) {
         cancelAnimationFrame(currentTransitionFrame);
-        setCurrentTransitionFrameId(null);
+        if (isMounted) {
+          setCurrentTransitionFrameId(null);
+        }
       }
     }
 
     return () => {
+      isMounted = false;
       const latestFrameIdInStore = useStore.getState().currentTransitionFrame;
       if (latestFrameIdInStore) {
         cancelAnimationFrame(latestFrameIdInStore);
-        if (!unmountedRef.current) {
-          setCurrentTransitionFrameId(null);
-        }
+      }
+      if (frameId) {
+        cancelAnimationFrame(frameId);
       }
     };
   }, [isTransitioning, setCurrentTransitionFrameId, currentTransitionFrame]);

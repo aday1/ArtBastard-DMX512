@@ -23,10 +23,11 @@ export default defineConfig({
         plugins: []
       }
     })
-  ],
-  // Add better error handling for development
+  ],  // Add better error handling for development
   esbuild: {
-    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
+    sourcemap: true, // Enable source maps in esbuild
+    keepNames: true // Keep function and class names for better stack traces
   },
   resolve: {
     alias: {
@@ -64,25 +65,9 @@ export default defineConfig({
     },
     // Force Rollup to avoid native dependencies - fixes @rollup/rollup-win32-x64-msvc error
     exclude: ['@rollup/rollup-win32-x64-msvc']  },  build: {
-    minify: 'terser', // Re-enable minification with terser
-    terserOptions: {
-      compress: {
-        drop_console: true, // Keep console logs for debugging
-        drop_debugger: false,
-        pure_funcs: [], // Don't remove any functions
-        unsafe_methods: false, // Conservative approach
-        unsafe_proto: false,
-        unsafe_regexp: false,
-      },
-      mangle: {
-        keep_fnames: true, // Keep function names
-        keep_classnames: true, // Keep class names
-        reserved: ['props', 'children', 'className', 'ref', 'nodeRef'], // Don't mangle these common React props
-      },
-      format: {
-        comments: false,
-      }
-    },
+    minify: false, // Disabled minification for better debugging
+    // terserOptions removed since minification is disabled
+    sourcemap: true, // Enable source maps for better debugging
     reportCompressedSize: !skipTypeChecking,
     rollupOptions: {
       // Force Rollup to use JavaScript fallback instead of native binaries

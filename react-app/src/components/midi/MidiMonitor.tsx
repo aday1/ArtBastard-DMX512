@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useDragControls, PanInfo } from 'framer-motion';
 import { LucideIcon } from '../ui/LucideIcon';
 import { useStore } from '../../store';
 import styles from './MidiMonitor.module.scss';
@@ -10,16 +9,6 @@ export const MidiMonitor: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
   const monitorRef = useRef<HTMLDivElement>(null);
-  const dragControls = useDragControls();
-
-  // position stores transform offsets (x, y) from the initial CSS position
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
-  // Define initial CSS fixed position (these are component constants, not state)
-  const initialCssTop = 20;
-  const initialCssRight = 20;
-  // This will store the calculated initial CSS left offset, needed for handleDragEnd
-  const initialCssLeftRef = useRef<number | null>(null);
 
 
   // Load position from localStorage (these are transform offsets)
