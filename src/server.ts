@@ -62,13 +62,12 @@ try {
     pingTimeout: 60000,
     pingInterval: 25000,
     transports: ['websocket', 'polling'],
-    allowUpgrades: true,
-    connectTimeout: 45000,
+    allowUpgrades: true,    connectTimeout: 45000,
     maxHttpBufferSize: 1e8, // 100MB
     path: '/socket.io',
     
     // Add more robust connection handling
-    connectionStateRecovery = {
+    connectionStateRecovery: {
       maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
       skipMiddlewares: true,
     }

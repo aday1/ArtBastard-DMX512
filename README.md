@@ -674,7 +674,6 @@ graph LR
 }}%%
 graph TD
     subgraph "✨ THE ARTISTIC MANIFESTATION PIPELINE"
-        direction TD
         
         subgraph "🧠 STAGE 1: CREATIVE INCEPTION"
             HumanIntent[("👤 Human Artistic Intent<br/>💭 <i>Pure Creative Vision</i><br/>🎨 Aesthetic concept<br/>✨ Emotional energy<br/>🌟 Artistic inspiration")]
