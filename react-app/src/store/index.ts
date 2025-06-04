@@ -205,12 +205,12 @@ interface State {
   autoSceneLastTapTime: number; // For tap tempo calculation
   autoSceneTapTimes: number[]; // Stores recent tap intervals
   autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
-
   // Actions
   fetchInitialState: () => Promise<void>
+  getDmxChannelValue: (channel: number) => number
   setDmxChannel: (channel: number, value: number) => void
   setMultipleDmxChannels: (updates: DmxChannelBatchUpdate) => void; // New action for batch updates
-  setDmxChannelValue: (channel: number, value: number) => void 
+  setDmxChannelValue: (channel: number, value: number) => void
   setDmxChannelsForTransition: (values: number[]) => void; 
   setCurrentTransitionFrameId: (frameId: number | null) => void; 
   clearTransitionState: () => void; 
@@ -447,11 +447,18 @@ export const useStore = create<State>()(
             fixtureLayout: [], 
             masterSliders: [], 
             transitionDuration: 1000, 
-          })
-        }
+          })        }
       },
       
-      setDmxChannel: (channel, value) => { 
+      getDmxChannelValue: (channel) => {
+        const dmxChannels = get().dmxChannels;
+        if (channel >= 0 && channel < dmxChannels.length) {
+          return dmxChannels[channel] || 0;
+        }
+        return 0;
+      },
+      
+      setDmxChannel: (channel, value) => {
         const dmxChannels = [...get().dmxChannels]
         dmxChannels[channel] = value
         set({ dmxChannels })

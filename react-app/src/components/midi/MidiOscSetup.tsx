@@ -23,6 +23,9 @@ export const MidiOscSetup: React.FC = () => {
   const [activeInterfaces, setActiveInterfaces] = useState<string[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [oscConfig, setOscConfig] = useState({ host: '127.0.0.1', port: 8000 })
+  const [midiClockOutputs, setMidiClockOutputs] = useState<string[]>([])
+  const [currentMidiClockOutput, setCurrentMidiClockOutput] = useState<string | null>(null)
+  const [isLoadingMidiOutputs, setIsLoadingMidiOutputs] = useState(false)
   
   const midiMessages = useStore(state => state.midiMessages)
   const clearAllMidiMappings = useStore(state => state.clearAllMidiMappings)

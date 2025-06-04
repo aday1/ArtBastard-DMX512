@@ -68,7 +68,7 @@ try {
     path: '/socket.io',
     
     // Add more robust connection handling
-    connectionStateRecovery: {
+    connectionStateRecovery = {
       maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
       skipMiddlewares: true,
     }
@@ -209,7 +209,32 @@ try {
       log(`Client ${socket.id} toggleMasterClockPlayPause`, 'CLOCK');
       console.log('Server: Received toggleMasterClockPlayPause socket event, calling clockManager.togglePlayPause()');
       clockManager.togglePlayPause();
-      console.log('Server: clockManager.togglePlayPause() call completed');
+    });
+    
+    socket.on('getMidiClockOutputs', async () => {
+      log(`Client ${socket.id} requesting MIDI clock outputs`, 'CLOCK');
+      const outputs = await clockManager.refreshMidiOutputs();
+      const currentOutput = clockManager.getCurrentMidiOutput();
+      socket.emit('midiClockOutputs', { outputs, currentOutput });
+    });
+    
+    socket.on('setMidiClockOutput', async (outputName: string) => {
+      log(`Client ${socket.id} setMidiClockOutput: ${outputName}`, 'CLOCK');
+      const success = await clockManager.setMidiOutput(outputName);
+      
+      if (success) {
+        // Broadcast the change to all clients
+        io.emit('midiClockOutputChanged', { outputName });
+        socket.emit('notification', { 
+          message: `MIDI Clock output set to ${outputName}`,
+          type: 'success'
+        });
+      } else {
+        socket.emit('notification', { 
+          message: `Failed to set MIDI Clock output to ${outputName}`,
+          type: 'error'
+        });
+      }
     });
 
     socket.on('setMasterClockBeat', (beat: number) => {
