@@ -157,13 +157,11 @@ graph TB
     %% Connections
     MIDILearn --> Faders
     Universe --> Output
-    Effects --> Visualizer
-
-    %% Styles
-    classDef core fill:linear-gradient(to bottom right, #ff6b6b, #ee52553),stroke:#d63031,stroke-width:4px,color:#fff
-    classDef protocol fill:linear-gradient(to bottom right, #45b7d1, #0abde3),stroke:#00b894,stroke-width:3px,color:#fff
-    classDef interface fill:linear-gradient(to bottom right, #a29bfe, #6c5ce7),stroke:#5f27cd,stroke-width:3px,color:#fff
-    classDef flow fill:linear-gradient(to bottom right, #ffd32a, #ffa502),stroke:#ff6b6b,stroke-width:3px,color:#111
+    Effects --> Visualizer    %% Styles
+    classDef core fill:#ff6b6b,stroke:#d63031,stroke-width:4px,color:#fff
+    classDef protocol fill:#45b7d1,stroke:#00b894,stroke-width:3px,color:#fff
+    classDef interface fill:#a29bfe,stroke:#5f27cd,stroke-width:3px,color:#fff
+    classDef flow fill:#ffd32a,stroke:#ff6b6b,stroke-width:3px,color:#111
 
     class Root,Backend,Frontend,Network,Output core
     class DMX,MIDI,OSC,ArtNet protocol
@@ -356,10 +354,10 @@ graph TB
     ScenePanel --> Master
     
     %% Styles
-    classDef root fill:linear-gradient(to bottom right, #a29bfe, #6c5ce7),stroke:#5f27cd,stroke-width:4px,color:#fff
-    classDef panel fill:linear-gradient(to bottom right, #ff6b6b, #ee5253),stroke:#d63031,stroke-width:3px,color:#fff
-    classDef vis fill:linear-gradient(to bottom right, #1dd1a1, #10ac84),stroke:#00b894,stroke-width:3px,color:#fff
-    classDef control fill:linear-gradient(to bottom right, #ffd32a, #ffa502),stroke:#ff6b6b,stroke-width:3px,color:#111
+    classDef root fill:#a29bfe,stroke:#5f27cd,stroke-width:4px,color:#fff
+    classDef panel fill:#ff6b6b,stroke:#d63031,stroke-width:3px,color:#fff
+    classDef vis fill:#1dd1a1,stroke:#00b894,stroke-width:3px,color:#fff
+    classDef control fill:#ffd32a,stroke:#ff6b6b,stroke-width:3px,color:#111
 
     class Root root
     class DMXPanel,AudioPanel,MIDIPanel,ScenePanel panel
@@ -667,15 +665,15 @@ graph TB
     FixtureGroup --> FixtureSetup
     
     %% Mystical Styling
-    classDef root fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef control fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef fixture fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef visual fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef debug fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef state fill:linear-gradient(135deg, #ff006e, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff
-    classDef audio fill:linear-gradient(135deg, #ffbe0b, #8338ec),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef network fill:linear-gradient(135deg, #3a86ff, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef ui fill:linear-gradient(135deg, #8338ec, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef root fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef control fill:#3a86ff,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef fixture fill:#ffbe0b,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef visual fill:#8338ec,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef debug fill:#06ffa5,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef state fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff
+    classDef audio fill:#ffbe0b,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef network fill:#3a86ff,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef ui fill:#8338ec,stroke:#ffffff,stroke-width:3px,color:#ffffff
     
     class AppJS,IndexJS root
     class ChannelControl,GroupControl,MasterControl control
@@ -818,11 +816,11 @@ graph LR
     renderComponent --> updateCanvas
     
     %% Mystical Function Styling
-    classDef coreFunc fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef controlFunc fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef audioFunc fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef networkFunc fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:3px,color:#ffffff
-    classDef persistFunc fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef coreFunc fill:#ff006e,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef controlFunc fill:#3a86ff,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef audioFunc fill:#ffbe0b,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef networkFunc fill:#8338ec,stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef persistFunc fill:#06ffa5,stroke:#ffffff,stroke-width:3px,color:#ffffff
     
     class useState,useReducer,useEffect,renderComponent,updateCanvas,drawVisualization coreFunc
     class setChannelValue,updateGroupValues,handleFaderChange,startMidiLearn,handleMidiMessage,mapMidiControl controlFunc
@@ -936,8 +934,9 @@ graph TD
     AudienceExperience -.-> HumanIntent
     
     %% Sacred Manifestation Styling
-    classDef inception fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef processing fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold    classDef genesis fill:#ff006e,stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
+    classDef inception fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef processing fill:#3a86ff,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef genesis fill:#ff006e,stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
     classDef visual fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef translation fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef transmission fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
@@ -975,7 +974,7 @@ graph TD
 - **🎭 Sacred Venue Blueprints**: Pre-configured lighting setups for theaters, galleries, clubs, festivals, and mystical ceremony spacesnalysis*
 - **🌈 Instant Art Installation Generator**: One-click deployment of complex artistic visions for different venue types and audience consciousness levelstion*
 - **📐 Automated Fixture Positioning**: AI-calculated optimal placement algorithms for maximum artistic impact and emotional resonancergy*
-- **🎪 Cultural Event Templates**: Specialized consciousness patterns for weddings, corporate events, spiritual ceremonies, and transcendental gatherings
+- **🎪 Cultural Event Templates**: Specialized spiritual ceremonies, sprit summoning, and transcendental gatherings
 - **🎵 Psychoacoustic Intelligence Integration**
 ### 🌊 **MEDIUM-TERM CONSCIOUSNESS REVOLUTION** *(Sacred Seasons Ahead)* TensorFlow.js*
 

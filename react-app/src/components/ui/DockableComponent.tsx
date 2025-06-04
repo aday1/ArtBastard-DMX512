@@ -15,6 +15,7 @@ interface DockableComponentProps {
   onCollapsedChange?: (collapsed: boolean) => void;
   width?: string;
   height?: string;
+  isDraggable?: boolean;
 }
 
 export const DockableComponent: React.FC<DockableComponentProps> = ({
@@ -30,6 +31,7 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
   onCollapsedChange,
   width = 'auto',
   height = 'auto',
+  isDraggable = true,
 }) => {
   const dragControls = useDragControls();
   const componentRef = useRef<HTMLDivElement>(null);
@@ -110,7 +112,6 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     // Calculate offset from a reference point (e.g., top-left)
     return { x, y };
   };
-
   const getPositionStyle = (): React.CSSProperties => {
     if (!dockedComponent) return {};
 
@@ -133,6 +134,8 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
         return { left: 20, top: '50%', transform: 'translateY(-50%)' };
       case 'right-center':
         return { right: 20, top: '50%', transform: 'translateY(-50%)' };
+      case 'middle-left':
+        return { left: 20, top: '40%', transform: 'translateY(-50%)' };
       case 'floating':
       default:
         return {
@@ -141,12 +144,13 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
         };
     }
   };
-
   const handlePointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) {
       return; // Don't start drag if clicking a button
     }
-    dragControls.start(e);
+    if (isDraggable && dockedComponent.position.zone === 'floating') {
+      dragControls.start(e);
+    }
   };
 
   if (!dockedComponent) {
@@ -162,12 +166,11 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     ...style,
   };
 
-  return (
-    <motion.div
+  return (    <motion.div
       ref={componentRef}
       className={className}
       style={motionStyle}
-      drag={dockedComponent.position.zone === 'floating'}
+      drag={isDraggable && dockedComponent.position.zone === 'floating'}
       dragControls={dragControls}
       dragListener={false}
       onDragStart={handleDragStart}
@@ -180,10 +183,9 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
         right: window.innerWidth - 400, // Assuming component width
         bottom: window.innerHeight - 200, // Assuming component height
       } : undefined}
-    >
-      <div
+    >      <div
         onPointerDown={handlePointerDown}
-        style={{ cursor: 'grab' }}
+        style={{ cursor: isDraggable && dockedComponent.position.zone === 'floating' ? 'grab' : 'default' }}
       >
         {children}
       </div>

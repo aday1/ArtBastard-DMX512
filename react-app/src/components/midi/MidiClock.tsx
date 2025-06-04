@@ -202,17 +202,16 @@ export const MidiClock: React.FC = () => {
       return () => clearTimeout(timer);
     }
     previousBeatRef.current = midiClockCurrentBeat;
-  }, [midiClockCurrentBeat]);
-  return (
+  }, [midiClockCurrentBeat]);  return (
     <DockableComponent
       id="midi-clock"
       title="MIDI Clock"
       component="midi-clock"
-      defaultPosition={{ zone: 'bottom-right' }}
+      defaultPosition={{ zone: 'top-center' }}
       defaultZIndex={1030}
       isCollapsed={isCollapsed}
       onCollapsedChange={setIsCollapsed}
-      className={clockClasses}
+      className={clockClasses}      isDraggable={false}
     >
       <div ref={clockRef}>
         {renderHeader()}
