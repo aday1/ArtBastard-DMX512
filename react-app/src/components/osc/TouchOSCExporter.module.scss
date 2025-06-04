@@ -12,7 +12,7 @@
 .modernHeader {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem;
-  color: white;
+  color: #f0f0f0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
@@ -42,7 +42,7 @@
 
       i {
         font-size: 1.8rem;
-        color: white;
+        color: #f0f0f0;
       }
     }
 
@@ -75,7 +75,7 @@
     .previewButton {
       padding: 0.75rem 1.5rem;
       background: rgba(255, 255, 255, 0.15);
-      color: white;
+      color: #f0f0f0;
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 12px;
       cursor: pointer;
@@ -100,7 +100,7 @@
     .exportButton {
       padding: 0.75rem 2rem;
       background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-      color: white;
+      color: #f0f0f0;
       border: none;
       border-radius: 12px;
       cursor: pointer;
@@ -208,7 +208,7 @@
 
       .controlCount {
         background: var(--accent-color);
-        color: white;
+        color: #f0f0f0;
         padding: 0.25rem 0.5rem;
         border-radius: 8px;
         font-size: 0.8rem;
@@ -246,7 +246,7 @@
 
         &.danger:hover {
           background: #ff4757;
-          color: white;
+          color: #f0f0f0;
           border-color: #ff4757;
         }
       }
@@ -256,7 +256,7 @@
   .addPageButton {
     padding: 1rem;
     background: linear-gradient(135deg, var(--accent-color), #45b7b8);
-    color: white;
+    color: #f0f0f0;
     border: none;
     border-radius: 12px;
     cursor: pointer;
@@ -312,7 +312,7 @@
   width: 100%;
   padding: 1rem;
   background: linear-gradient(135deg, #a29bfe, #6c5ce7);
-  color: white;
+  color: #f0f0f0;
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -568,7 +568,7 @@
   .controlName {
     font-size: 0.8rem;
     font-weight: 600;
-    color: white;
+    color: #f0f0f0;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
     text-align: center;
     white-space: nowrap;
@@ -608,7 +608,7 @@
         left: -3px;
         width: 10px;
         height: 8px;
-        background: white;
+        background: #f0f0f0;
         border-radius: 2px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
       }
@@ -645,7 +645,7 @@
       font-size: 0.7rem;
       transition: all 0.2s ease;
       background: rgba(0, 0, 0, 0.7);
-      color: white;
+      color: #f0f0f0;
 
       &:hover {
         background: var(--accent-color);
@@ -695,7 +695,7 @@
     .quickStartButton {
       padding: 0.75rem 1.5rem;
       background: var(--accent-color);
-      color: white;
+      color: #f0f0f0;
       border: none;
       border-radius: 8px;
       cursor: pointer;
@@ -742,7 +742,7 @@
 
     .modalHeader {
       background: linear-gradient(135deg, var(--accent-color), #45b7b8);
-      color: white;
+      color: #f0f0f0;
       padding: 1.5rem;
       display: flex;
       justify-content: space-between;
@@ -763,7 +763,7 @@
         background: rgba(255, 255, 255, 0.15);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 8px;
-        color: white;
+        color: #f0f0f0;
         cursor: pointer;
         transition: all 0.2s ease;
         display: flex;
@@ -885,7 +885,7 @@
         background: linear-gradient(135deg, var(--accent-color), #45b7b8);
         border: none;
         border-radius: 8px;
-        color: white;
+        color: #f0f0f0;
         cursor: pointer;
         font-weight: 600;
         transition: all 0.3s ease;

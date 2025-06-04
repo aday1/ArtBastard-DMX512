@@ -99,25 +99,25 @@
   &.success {
     background: linear-gradient(135deg, rgba(46, 213, 115, 0.95), rgba(46, 213, 115, 0.85));
     border-color: rgba(46, 213, 115, 0.3);
-    color: white;
+    color: #f0f0f0;
   }
   
   &.error {
     background: linear-gradient(135deg, rgba(255, 71, 87, 0.95), rgba(255, 71, 87, 0.85));
     border-color: rgba(255, 71, 87, 0.3);
-    color: white;
+    color: #f0f0f0;
   }
 
   &.warning {
     background: linear-gradient(135deg, rgba(255, 159, 67, 0.95), rgba(255, 159, 67, 0.85));
     border-color: rgba(255, 159, 67, 0.3);
-    color: white;
+    color: #f0f0f0;
   }
   
   &.info {
     background: linear-gradient(135deg, rgba(78, 205, 196, 0.95), rgba(78, 205, 196, 0.85));
     border-color: rgba(78, 205, 196, 0.3);
-    color: white;
+    color: #f0f0f0;
   }
 
   // Hover effects

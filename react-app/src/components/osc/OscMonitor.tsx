@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useDragControls, PanInfo } from 'framer-motion';
+// import { motion, useDragControls, PanInfo } from 'framer-motion'; // Removed framer-motion
 import { LucideIcon } from '../ui/LucideIcon';
 import { useStore } from '../../store';
 import styles from './OscMonitor.module.scss';
@@ -16,113 +16,37 @@ export const OscMonitor: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { socket, connected: socketConnected } = useSocket();
   const monitorRef = useRef<HTMLDivElement>(null);
-  const dragControls = useDragControls();
+  // const dragControls = useDragControls(); // Removed
 
-  // position stores transform offsets (x, y) from the initial CSS position
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
+  // // position stores transform offsets (x, y) from the initial CSS position
+  // const [position, setPosition] = useState({ x: 0, y: 0 }); // Removed
+  // const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined); // Removed
 
-  // Define initial CSS fixed position (these are component constants, not state)
-  const initialCssTop = 20;
-  const initialCssRight = 440; // Equivalent to 'calc(20px + 400px + 20px)'
-  // This will store the calculated initial CSS left offset, needed for handleDragEnd and constraints
-  const initialCssLeftRef = useRef<number | null>(null);
+  // // Define initial CSS fixed position (these are component constants, not state)
+  // const initialCssTop = 20; // Removed
+  // const initialCssRight = 440; // Removed
+  // // This will store the calculated initial CSS left offset, needed for handleDragEnd and constraints
+  // const initialCssLeftRef = useRef<number | null>(null); // Removed
 
-  // Load position from localStorage (these are transform offsets)
-  useEffect(() => {
-    const savedX = localStorage.getItem('oscMonitorPositionX');
-    const savedY = localStorage.getItem('oscMonitorPositionY');
-    let x = 0;
-    let y = 0;
-    if (savedX !== null) x = parseFloat(savedX);
-    if (savedY !== null) y = parseFloat(savedY);
-    setPosition({ x, y });
-  }, []);
+  // // Load position from localStorage (these are transform offsets)
+  // useEffect(() => {
+  //   const savedX = localStorage.getItem('oscMonitorPositionX');
+  //   const savedY = localStorage.getItem('oscMonitorPositionY');
+  //   let x = 0;
+  //   let y = 0;
+  //   if (savedX !== null) x = parseFloat(savedX);
+  //   if (savedY !== null) y = parseFloat(savedY);
+  //   setPosition({ x, y });
+  // }, []); // Removed localStorage logic
 
-  // Effect to calculate and set drag constraints, and validate initial position
-  useEffect(() => {
-    const calculateAndValidate = () => {
-      if (monitorRef.current) {
-        const componentWidth = monitorRef.current.offsetWidth;
-        const componentHeight = monitorRef.current.offsetHeight;
+  // // Effect to calculate and set drag constraints, and validate initial position
+  // useEffect(() => {
+  //   // ... Entire calculateAndValidate logic removed ...
+  // }, [monitorRef, position.x, position.y]); // Removed constraint logic
 
-        // Calculate the initial CSS left offset based on initialCssRight and componentWidth
-        const calculatedCssLeft = window.innerWidth - componentWidth - initialCssRight;
-        initialCssLeftRef.current = calculatedCssLeft; // Store for use in handleDragEnd
-
-        // Validate current position (transform offsets + CSS position)
-        let currentX = position.x;
-        let currentY = position.y;
-
-        const effectiveScreenX = calculatedCssLeft + currentX;
-        const effectiveScreenY = initialCssTop + currentY;
-
-        let positionNeedsReset = false;
-        const visibilityThreshold = 50;
-
-        const isMostlyOffScreenLeft = effectiveScreenX + componentWidth < visibilityThreshold;
-        const isMostlyOffScreenTop = effectiveScreenY + componentHeight < visibilityThreshold;
-        const isMostlyOffScreenRight = effectiveScreenX > window.innerWidth - visibilityThreshold;
-        const isMostlyOffScreenBottom = effectiveScreenY > window.innerHeight - visibilityThreshold;
-
-        if (isMostlyOffScreenLeft || isMostlyOffScreenTop || isMostlyOffScreenRight || isMostlyOffScreenBottom) {
-          currentX = 0;
-          currentY = 0;
-          positionNeedsReset = true;
-        } else {
-          if (effectiveScreenX < 0) {
-            currentX = -calculatedCssLeft;
-            positionNeedsReset = true;
-          }
-          if (effectiveScreenY < 0) {
-            currentY = -initialCssTop;
-            positionNeedsReset = true;
-          }
-          if (effectiveScreenX + componentWidth > window.innerWidth) {
-            currentX = window.innerWidth - componentWidth - calculatedCssLeft;
-            positionNeedsReset = true;
-          }
-          if (effectiveScreenY + componentHeight > window.innerHeight) {
-            currentY = window.innerHeight - componentHeight - initialCssTop;
-            positionNeedsReset = true;
-          }
-        }
-
-        if (positionNeedsReset) {
-          setPosition({ x: currentX, y: currentY });
-          localStorage.setItem('oscMonitorPositionX', currentX.toString());
-          localStorage.setItem('oscMonitorPositionY', currentY.toString());
-        }
-
-        // Set drag constraints based on transform model
-        setConstraints({
-          left: -calculatedCssLeft,
-          top: -initialCssTop,
-          right: window.innerWidth - componentWidth - calculatedCssLeft,
-          bottom: window.innerHeight - componentHeight - initialCssTop,
-        });
-      }
-    };
-
-    if (monitorRef.current) {
-       calculateAndValidate();
-    }
-
-    window.addEventListener('resize', calculateAndValidate);
-    return () => window.removeEventListener('resize', calculateAndValidate);
-  }, [monitorRef, position.x, position.y]); // monitorRef is stable, position changes trigger validation.
-
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (monitorRef.current && initialCssLeftRef.current !== null) {
-        const calculatedCssLeft = initialCssLeftRef.current;
-        const newTransformX = info.point.x - calculatedCssLeft;
-        const newTransformY = info.point.y - initialCssTop;
-
-        localStorage.setItem('oscMonitorPositionX', newTransformX.toString());
-        localStorage.setItem('oscMonitorPositionY', newTransformY.toString());
-        setPosition({ x: newTransformX, y: newTransformY });
-    }
-  };
+  // const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  //   // ... Entire handleDragEnd logic removed ...
+  // }; // Removed drag end handler
 
   useEffect(() => {
     if (socket && socketConnected) {
@@ -164,17 +88,17 @@ export const OscMonitor: React.FC = () => {
   const renderHeader = () => (
     <div
       className={`${styles.header} handle`}
-      onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest('button')) {
-          return;
-        }
-        dragControls.start(e);
-      }}
-      style={{ cursor: 'grab' }}
+      // onPointerDown={(e) => { // Removed onPointerDown
+      //   if ((e.target as HTMLElement).closest('button')) {
+      //     return;
+      //   }
+      //   // dragControls.start(e); // Removed dragControls
+      // }}
+      // style={{ cursor: 'grab' }} // Removed cursor style
     >
-      <div className={styles.dragHandle}>
+      {/* <div className={styles.dragHandle}> // Removed drag handle icon container
         <LucideIcon name="GripVertical" size={18} strokeWidth={1.5} />
-      </div>
+      </div> */}
       <span className={styles.title}>OSC Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
       <div className={styles.controls}>
@@ -248,29 +172,29 @@ export const OscMonitor: React.FC = () => {
 
   return (
     <>
-      <motion.div
+      <div // Changed from motion.div to div
         ref={monitorRef}
         className={monitorClasses}
-        style={{
-          position: 'fixed',
-          top: initialCssTop,
-          right: initialCssRight,
-          zIndex: 1040,
-          width: '400px',
-          x: position.x,
-          y: position.y,
+        style={{ // Removed inline positioning, will be handled by SCSS
+          // position: 'fixed',
+          // top: initialCssTop,
+          // right: initialCssRight,
+          zIndex: 1040, // Keep zIndex
+          // width: '400px', // Will be in SCSS
+          // x: position.x, // Removed
+          // y: position.y, // Removed
         }}
-        drag
-        dragControls={dragControls}
-        dragListener={false} // We use the header with onPointerDown to start dragging
-        onDragEnd={handleDragEnd}
-        dragConstraints={constraints}
-        // While dragging, ensure the cursor indicates grabbing
-        whileDrag={{ cursor: 'grabbing' }}
+        // Removed all drag props
+        // drag
+        // dragControls={dragControls}
+        // dragListener={false}
+        // onDragEnd={handleDragEnd}
+        // dragConstraints={constraints}
+        // whileDrag={{ cursor: 'grabbing' }}
       >
         {renderHeader()}
         {renderContent()}
-      </motion.div>
+      </div>
 
       {/* Hover tooltip - position relative to mouse, so should be fine */}
       {hoveredMessage && !isCollapsed && (

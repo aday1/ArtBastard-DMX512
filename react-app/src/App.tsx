@@ -133,7 +133,7 @@ function App() {
         }
       }
     };
-  }, [isTransitioning, setCurrentTransitionFrameId, currentTransitionFrame]);
+  }, [isTransitioning, setCurrentTransitionFrameId]);
 
   console.log('[App] About to render JSX...');
   try {
