@@ -17,8 +17,17 @@ export interface Fixture {
 }
 
 export interface Group {
-  name: string
-  fixtureIndices: number[]
+  id: string;
+  name: string;
+  fixtureIndices: number[];
+  // New fields for enhanced functionality
+  lastStates: number[]; // Last known DMX values for each fixture in the group
+  position?: { x: number; y: number }; // Position on 2D canvas
+  isMuted: boolean;
+  isSolo: boolean;
+  masterValue: number; // Current master value (0-255)
+  midiMapping?: MidiMapping;
+  oscAddress?: string;
 }
 
 export interface Scene {
@@ -124,7 +133,12 @@ interface State {
   midiInterfaces: string[]
   activeInterfaces: string[]
   midiMappings: Record<number, MidiMapping | undefined> 
-  midiLearnTarget: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'placedControl', fixtureId: string, controlId: string } | null;
+  midiLearnTarget: 
+    | { type: 'masterSlider'; id: string }
+    | { type: 'dmxChannel'; channelIndex: number }
+    | { type: 'placedControl'; fixtureId: string; controlId: string }
+    | { type: 'group'; groupId: string }
+    | null;
   midiLearnScene: string | null 
   midiMessages: any[]
   oscMessages: OscMessage[]; // Added for OSC Monitor
@@ -253,7 +267,111 @@ interface State {
   resetAutoSceneIndex: () => void;
   setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
   recordTapTempo: () => void;         // For auto-scene tap tempo
+
+  // Enhanced Group State
+  updateGroup: (groupId: string, groupData: Partial<Group>) => void;  
+  addGroupToCanvas: (group: Group, position: { x: number; y: number }) => void;
+  updateGroupPosition: (groupId: string, position: { x: number; y: number }) => void;
+  setGroupMasterValue: (groupId: string, value: number) => void;
+  setGroupMute: (groupId: string, isMuted: boolean) => void;
+  setGroupSolo: (groupId: string, isSolo: boolean) => void;
+  saveGroupLastStates: (groupId: string) => void;
+
+  // Group MIDI actions
+  startGroupMidiLearn: (groupId: string) => {
+    set(() => ({ midiLearnTarget: { type: 'group', groupId } }));
+    get().addNotification({ 
+      message: `MIDI Learn started for group - send a MIDI message`,
+      type: 'info',
+      priority: 'normal'
+    });
+  },
+
+  cancelGroupMidiLearn: () =>
+    set(state => {
+      const currentTarget = state.midiLearnTarget;
+      if (currentTarget?.type === 'group') {
+        return { midiLearnTarget: null };
+      }
+      return state;
+    }),
+
+  setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) =>
+    set((state) => ({
+      groups: state.groups.map(g =>
+        g.id === groupId ? { ...g, midiMapping: mapping } : g
+      )
+    })),
+
+  handleMidiForGroups: (message: any) => {
+    const state = get();
+    
+    // Handle MIDI learn mode for groups
+    if (state.midiLearnTarget?.type === 'group') {
+      const group = state.groups.find(g => g.id === state.midiLearnTarget.groupId);
+      if (!group) return;
+
+      let midiMapping: MidiMapping;
+      if (message._type === 'cc' && message.controller !== undefined) {
+        midiMapping = {
+          channel: message.channel,
+          controller: message.controller
+        };
+      } else if (message._type === 'noteon' && message.note !== undefined) {
+        midiMapping = {
+          channel: message.channel,
+          note: message.note
+        };
+      } else {
+        return; // Ignore other MIDI message types
+      }
+
+      get().setGroupMidiMapping(state.midiLearnTarget.groupId, midiMapping);
+      set({ midiLearnTarget: null });
+      get().addNotification({
+        message: `MIDI mapping assigned to group ${group.name}`,
+        type: 'success',
+        priority: 'normal'
+      });
+      return;
+    }
+
+    // Handle incoming MIDI messages for mapped groups
+    state.groups.forEach(group => {
+      if (!group.midiMapping) return;
+
+      const mapping = group.midiMapping;
+      if (message._type === 'cc' && mapping.controller !== undefined && 
+          message.channel === mapping.channel && message.controller === mapping.controller) {
+        // Scale MIDI CC value (0-127) to DMX value (0-255)
+        const value = Math.round((message.value / 127) * 255);
+        get().setGroupMasterValue(group.id, value);
+      } else if (message._type === 'noteon' && mapping.note !== undefined && 
+               message.channel === mapping.channel && message.note === mapping.note) {
+        // Toggle between 0 and full (255) for note messages
+        const newValue = group.masterValue === 0 ? 255 : 0;
+        get().setGroupMasterValue(group.id, newValue);
+      }
+    });
+  },
 }
+
+// Helper function to initialize darkMode from localStorage with fallback to true
+const initializeDarkMode = (): boolean => {
+  try {
+    const stored = localStorage.getItem('darkMode');
+    const darkMode = stored !== null ? stored === 'true' : true; // Default to true if not found
+    
+    // Apply theme immediately on initialization
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    
+    return darkMode;
+  } catch (error) {
+    console.warn('Failed to read darkMode from localStorage, using default (true):', error);
+    document.documentElement.setAttribute('data-theme', 'dark');
+    return true;
+  }
+};
 
 export const useStore = create<State>()(
   devtools(
@@ -287,7 +405,7 @@ export const useStore = create<State>()(
       },
       artNetStatus: 'disconnected',
       theme: 'artsnob',
-      darkMode: true,
+      darkMode: initializeDarkMode(),
       // statusMessage: null, // Deprecated
       notifications: [], 
       oscActivity: {}, 
@@ -306,15 +424,14 @@ export const useStore = create<State>()(
       currentTransitionFrame: null,
       
       socket: null,
-      setSocket: (socket) => set({ socket }),
-
-      // MIDI Clock Sync State Init
+      setSocket: (socket) => set({ socket }),      // MIDI Clock Sync State Init
       availableMidiClockHosts: [
-        { id: 'none', name: 'None (Internal Clock)' },
+        { id: 'internal', name: 'Internal Clock' },
+        { id: 'none', name: 'None (Disabled)' },
         { id: 'ableton-link', name: 'Ableton Sync Link' },
         // Other hosts would be populated dynamically
       ],
-      selectedMidiClockHostId: 'none',
+      selectedMidiClockHostId: 'internal',
       midiClockBpm: 120.0,
       midiClockIsPlaying: false,
       midiClockCurrentBeat: 1,
@@ -610,7 +727,8 @@ export const useStore = create<State>()(
         if (existingIndex !== -1) {
           scenes[existingIndex] = newScene
         } else {
-          scenes.push(newScene)
+          scenes.push(newScene
+          )
         }
         
         set({ scenes })
@@ -989,6 +1107,138 @@ export const useStore = create<State>()(
         }
         set({ autoSceneCurrentIndex: nextIndex, autoScenePingPongDirection: nextPingPongDirection });
       },
+
+      // Group State Management
+      updateGroup: (groupId: string, groupData: Partial<Group>) => 
+        set((state) => ({
+          groups: state.groups.map(g => 
+            g.id === groupId ? { ...g, ...groupData } : g
+          )
+        })),
+
+      addGroupToCanvas: (group: Group, position: { x: number; y: number }) =>
+        set((state) => ({
+          groups: state.groups.map(g =>
+            g.id === group.id ? { ...g, position } : g
+          )
+        })),
+
+      updateGroupPosition: (groupId: string, position: { x: number; y: number }) =>
+        set((state) => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, position } : g
+          )
+        })),
+
+      setGroupMasterValue: (groupId: string, value: number) =>
+        set((state) => {
+          const group = state.groups.find(g => g.id === groupId);
+          if (!group) return state;
+
+          // Calculate the scaling factor for the transition from current to last known states
+          const scaleFactor = value / 255;
+          
+          // Create new DMX state applying the master value
+          const newDmxChannels = [...state.dmxChannels];
+          
+          group.fixtureIndices.forEach(fixtureIndex => {
+            const fixture = state.fixtures[fixtureIndex];
+            if (fixture) {
+              for (let i = 0; i < fixture.channels.length; i++) {
+                const dmxChannel = fixture.startAddress + i - 1;
+                const lastValue = group.lastStates[dmxChannel] || 0;
+                newDmxChannels[dmxChannel] = Math.round(lastValue * scaleFactor);
+              }
+            }
+          });
+
+          return {
+            groups: state.groups.map(g =>
+              g.id === groupId ? { ...g, masterValue: value } : g
+            ),
+            dmxChannels: newDmxChannels
+          };
+        }),
+
+      setGroupMute: (groupId: string, isMuted: boolean) =>
+        set((state) => {
+          const group = state.groups.find(g => g.id === groupId);
+          if (!group) return state;
+
+          const newDmxChannels = [...state.dmxChannels];
+          
+          // If unmuting and not soloed, restore to master value
+          // If muting, set channels to 0
+          group.fixtureIndices.forEach(fixtureIndex => {
+            const fixture = state.fixtures[fixtureIndex];
+            if (fixture) {
+              for (let i = 0; i < fixture.channels.length; i++) {
+                const dmxChannel = fixture.startAddress + i - 1;
+                const lastValue = group.lastStates[dmxChannel] || 0;
+                newDmxChannels[dmxChannel] = isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255));
+              }
+            }
+          });
+
+          return {
+            groups: state.groups.map(g =>
+              g.id === groupId ? { ...g, isMuted } : g
+            ),
+            dmxChannels: newDmxChannels
+          };
+        }),
+
+      setGroupSolo: (groupId: string, isSolo: boolean) =>
+        set((state) => {
+          // Create new DMX state
+          const newDmxChannels = [...state.dmxChannels];
+          
+          // If soloing this group, save states and black out all other groups
+          state.groups.forEach(group => {
+            group.fixtureIndices.forEach(fixtureIndex => {
+              const fixture = state.fixtures[fixtureIndex];
+              if (fixture) {
+                for (let i = 0; i < fixture.channels.length; i++) {
+                  const dmxChannel = fixture.startAddress + i - 1;
+                  const lastValue = group.lastStates[dmxChannel] || 0;
+                  
+                  if (group.id === groupId) {
+                    // This is the soloed group
+                    newDmxChannels[dmxChannel] = isSolo ? 
+                      Math.round(lastValue * (group.masterValue / 255)) : 
+                      (group.isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255)));
+                  } else {
+                    // Other groups
+                    newDmxChannels[dmxChannel] = isSolo ? 0 : 
+                      (group.isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255)));
+                  }
+                }
+              }
+            });
+          });
+
+          return {
+            groups: state.groups.map(g =>
+              g.id === groupId ? { ...g, isSolo } : { ...g, isSolo: false }
+            ),
+            dmxChannels: newDmxChannels
+          };
+        }),
+
+      saveGroupLastStates: (groupId: string) =>
+        set((state) => {
+          const group = state.groups.find(g => g.id === groupId);
+          if (!group) return state;
+
+          const lastStates = [...state.dmxChannels];
+
+          return {
+            groups: state.groups.map(g =>
+              g.id === groupId ? { ...g, lastStates } : g
+            )
+          };
+        }),
+
     }),
     { name: 'ArtBastard-DMX-Store' } 
   )

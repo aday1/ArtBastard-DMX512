@@ -5,7 +5,7 @@ import { Navbar } from './Navbar'
 import { ToastContainer } from './ToastContainer' // Import ToastContainer
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
-import MidiDebugger from '../midi/MidiDebugger'
+import DebugMenu from '../debug/DebugMenu'
 // MidiMonitor is likely not needed here if it's a floating component managed elsewhere
 // import MidiMonitor from '../midi/MidiMonitor'
 import styles from './Layout.module.scss'
@@ -44,10 +44,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           )}
             <main className={styles.contentArea}>
             {children}
-          </main>
-
-          {/* Add MIDI Debugger for troubleshooting */}
-          <MidiDebugger />
+          </main>          {/* Add Debug Menu for troubleshooting */}
+          <DebugMenu position="top-right" />
         </div>
       </div>
       

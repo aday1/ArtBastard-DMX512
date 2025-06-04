@@ -160,6 +160,48 @@
   }
 }
 
+.fixtureActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editButton,
+.deleteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  font-size: 0.8rem;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.editButton {
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  
+  &:hover {
+    background-color: rgba(var(--color-primary-rgb), 0.2);
+  }
+}
+
+.deleteButton {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  
+  &:hover {
+    background-color: rgba(220, 53, 69, 0.2);
+  }
+}
+
 .fixtureDmx,
 .groupCount {
   font-size: 0.8rem;

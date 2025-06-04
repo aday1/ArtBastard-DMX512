@@ -5,7 +5,6 @@ import styles from './AutoSceneControl.module.scss';
 export const AutoSceneControl: React.FC = () => {
   // Retrieve all scenes for selection purposes
   const allScenes = useStore(state => state.scenes);
-
   // Auto-Scene state from the store
   const {
     autoSceneEnabled,
@@ -31,8 +30,9 @@ export const AutoSceneControl: React.FC = () => {
     autoSceneCurrentIndex: state.autoSceneCurrentIndex,
     selectedMidiClockHostId: state.selectedMidiClockHostId,
     midiClockBpm: state.midiClockBpm,
+    midiClockIsPlaying: state.midiClockIsPlaying, // Added this line
+    midiClockCurrentBeat: state.midiClockCurrentBeat, // Added this line
   }));
-
   // Auto-Scene actions from the store
   const {
     setAutoSceneEnabled,
@@ -44,6 +44,7 @@ export const AutoSceneControl: React.FC = () => {
     recordTapTempo,
     loadScene, // Needed for effects
     setNextAutoSceneIndex, // Needed for effects
+    requestToggleMasterClockPlayPause, // Added for PLAY button
   } = useStore(state => ({
     setAutoSceneEnabled: state.setAutoSceneEnabled,
     setAutoSceneList: state.setAutoSceneList,
@@ -52,23 +53,82 @@ export const AutoSceneControl: React.FC = () => {
     setAutoSceneTempoSource: state.setAutoSceneTempoSource,
     setManualBpm: state.setManualBpm,
     recordTapTempo: state.recordTapTempo,
+    loadScene: state.loadScene, // Added this line
+    setNextAutoSceneIndex: state.setNextAutoSceneIndex, // Added this line
+    requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause, // Added for PLAY button
   }));
 
   // Local state for UI, e.g., for multi-select interaction if needed
   // Local state for UI, e.g., for multi-select interaction if needed
   const [selectedScenesForList, setSelectedScenesForList] = useState<string[]>(autoSceneList);
-
   // Local state for beat tracking and refs
   const [localBeatCounter, setLocalBeatCounter] = useState(0);
+  const [isLocalClockPlaying, setIsLocalClockPlaying] = useState(false);
   const prevBeatRef = useRef<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effect to update local selectedScenesForList when autoSceneList changes from store (e.g. loaded state)
   useEffect(() => {
     setSelectedScenesForList(autoSceneList);
   }, [autoSceneList]);
-
-  // useEffect for Beat Tracking:
+  // Independent clock management for manual_bpm and tap_tempo modes
   useEffect(() => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    if (!autoSceneEnabled || autoSceneList.length === 0 || autoSceneBeatDivision <= 0) {
+      setLocalBeatCounter(0);
+      setIsLocalClockPlaying(false);
+      return;
+    }
+
+    // Reset local clock playing state when tempo source changes
+    if (autoSceneTempoSource === 'internal_clock') {
+      setIsLocalClockPlaying(false);
+      setLocalBeatCounter(0);
+      return;
+    }
+
+    if (autoSceneTempoSource === 'manual_bpm' || autoSceneTempoSource === 'tap_tempo') {
+      // Use independent clock for manual BPM and tap tempo
+      if (isLocalClockPlaying) {
+        const bpm = autoSceneTempoSource === 'manual_bpm' ? autoSceneManualBpm : autoSceneTapTempoBpm;
+        const intervalMs = (60000 / bpm); // Milliseconds per beat
+        
+        intervalRef.current = setInterval(() => {
+          setLocalBeatCounter(current => current + 1);
+        }, intervalMs);
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoSceneEnabled, autoSceneList.length, autoSceneBeatDivision, autoSceneTempoSource, autoSceneManualBpm, autoSceneTapTempoBpm, isLocalClockPlaying]);
+
+  // Reset local clock when tempo source changes
+  useEffect(() => {
+    if (autoSceneTempoSource === 'internal_clock') {
+      setIsLocalClockPlaying(false);
+      setLocalBeatCounter(0);
+    }
+  }, [autoSceneTempoSource]);
+
+  // Beat tracking for internal_clock mode (syncs with master clock)
+  useEffect(() => {
+    if (autoSceneTempoSource !== 'internal_clock') {
+      // Reset master clock tracking when not using internal clock
+      prevBeatRef.current = null;
+      return;
+    }
+
     if (!autoSceneEnabled || !midiClockIsPlaying || autoSceneList.length === 0 || autoSceneBeatDivision <= 0) {
       setLocalBeatCounter(0);
       prevBeatRef.current = null;
@@ -81,27 +141,38 @@ export const AutoSceneControl: React.FC = () => {
       }
       prevBeatRef.current = midiClockCurrentBeat;
     }
-  }, [autoSceneEnabled, midiClockIsPlaying, midiClockCurrentBeat, autoSceneList, autoSceneBeatDivision]);
+  }, [autoSceneEnabled, midiClockIsPlaying, midiClockCurrentBeat, autoSceneList, autoSceneBeatDivision, autoSceneTempoSource]);
 
-  // useEffect for Triggering Scene Change Logic:
+  // Scene change triggering logic
   useEffect(() => {
-    if (localBeatCounter >= autoSceneBeatDivision && autoSceneEnabled && midiClockIsPlaying && autoSceneList.length > 0) {
+    const shouldTriggerChange = localBeatCounter >= autoSceneBeatDivision && 
+                               autoSceneEnabled && 
+                               autoSceneList.length > 0 &&
+                               ((autoSceneTempoSource === 'internal_clock' && midiClockIsPlaying) ||
+                                (autoSceneTempoSource !== 'internal_clock' && isLocalClockPlaying));
+
+    if (shouldTriggerChange) {
       setNextAutoSceneIndex();
       setLocalBeatCounter(0); // Reset counter for the next cycle
     }
-  }, [localBeatCounter, autoSceneBeatDivision, autoSceneEnabled, midiClockIsPlaying, autoSceneList, setNextAutoSceneIndex]);
+  }, [localBeatCounter, autoSceneBeatDivision, autoSceneEnabled, autoSceneList, setNextAutoSceneIndex, autoSceneTempoSource, midiClockIsPlaying, isLocalClockPlaying]);
 
-  // useEffect for Loading the Scene:
+  // Scene loading logic
   useEffect(() => {
-    if (autoSceneEnabled && midiClockIsPlaying && autoSceneCurrentIndex !== -1 && autoSceneList.length > 0) {
+    const shouldLoadScene = autoSceneEnabled && 
+                           autoSceneCurrentIndex !== -1 && 
+                           autoSceneList.length > 0 &&
+                           ((autoSceneTempoSource === 'internal_clock' && midiClockIsPlaying) ||
+                            (autoSceneTempoSource !== 'internal_clock' && isLocalClockPlaying));
+
+    if (shouldLoadScene) {
       const sceneToLoad = autoSceneList[autoSceneCurrentIndex];
       if (sceneToLoad) {
         loadScene(sceneToLoad);
         console.log(`Auto-Scene: Loading scene "${sceneToLoad}" (Index: ${autoSceneCurrentIndex})`);
       }
     }
-  }, [autoSceneEnabled, midiClockIsPlaying, autoSceneCurrentIndex, autoSceneList, loadScene]);
-
+  }, [autoSceneEnabled, autoSceneCurrentIndex, autoSceneList, loadScene, autoSceneTempoSource, midiClockIsPlaying, isLocalClockPlaying]);
   const handleToggleSceneInList = (sceneName: string) => {
     const newSelectedScenes = selectedScenesForList.includes(sceneName)
       ? selectedScenesForList.filter(name => name !== sceneName)
@@ -109,6 +180,22 @@ export const AutoSceneControl: React.FC = () => {
     setSelectedScenesForList(newSelectedScenes);
     setAutoSceneList(newSelectedScenes); // Update store
   };
+
+  const handlePlayPauseToggle = () => {
+    if (autoSceneTempoSource === 'internal_clock') {
+      // Use master clock for internal clock mode
+      requestToggleMasterClockPlayPause();
+    } else {
+      // Use local clock for manual_bpm and tap_tempo modes
+      setIsLocalClockPlaying(!isLocalClockPlaying);
+      if (!isLocalClockPlaying) {
+        // Starting: reset beat counter
+        setLocalBeatCounter(0);
+      }
+    }
+  };
+
+  const isPlaying = autoSceneTempoSource === 'internal_clock' ? midiClockIsPlaying : isLocalClockPlaying;
 
   return (
     <div className={styles.autoSceneControl}>
@@ -125,6 +212,35 @@ export const AutoSceneControl: React.FC = () => {
             checked={autoSceneEnabled}
             onChange={(e) => setAutoSceneEnabled(e.target.checked)}
           />
+        </div>
+      </div>
+
+      {/* Auto-Scene Transport Controls */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Transport Controls</h3>        <div className={styles.controlGroup}>
+          <button
+            className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
+            onClick={handlePlayPauseToggle}
+            disabled={!autoSceneEnabled || autoSceneList.length === 0}
+            title={isPlaying ? 'Pause Auto-Scene Control' : 'Start Auto-Scene Control'}
+          >
+            {isPlaying ? (
+              <>
+                <i className="fas fa-pause"></i>
+                Pause
+              </>
+            ) : (
+              <>
+                <i className="fas fa-play"></i>
+                Play
+              </>
+            )}
+          </button>
+          <span className={styles.playStatus}>
+            {!autoSceneEnabled ? 'Auto-Scene Disabled' :
+             autoSceneList.length === 0 ? 'No Scenes Selected' :
+             isPlaying ? 'Running' : 'Stopped'}
+          </span>
         </div>
       </div>
 
@@ -220,9 +336,7 @@ export const AutoSceneControl: React.FC = () => {
             <span>Detected BPM: {autoSceneTapTempoBpm.toFixed(2)}</span>
           </div>
         )}
-      </div>
-
-      {/* Status Display Section */}
+      </div>      {/* Status Display Section */}
       <div className={styles.statusDisplay}>
         <h4 className={styles.sectionTitle}>Status</h4>
         <div className={styles.statusItem}>Enabled: {autoSceneEnabled ? 'Yes' : 'No'}</div>
@@ -235,10 +349,16 @@ export const AutoSceneControl: React.FC = () => {
           {autoSceneTempoSource === 'internal_clock' ? `${midiClockBpm.toFixed(2)} (Master Clock)` :
            autoSceneTempoSource === 'manual_bpm' ? `${autoSceneManualBpm.toFixed(2)} (Manual)` :
            `${autoSceneTapTempoBpm.toFixed(2)} (Tap)`}
+        </div>        <div className={styles.statusItem}>Master Clock Source: {selectedMidiClockHostId}</div>
+        <div className={styles.statusItem}>
+          Auto-Scene Playing: {isPlaying ? 'Yes' : 'No'}
+          {autoSceneTempoSource === 'internal_clock' && ` (Master Clock: ${midiClockIsPlaying ? 'Playing' : 'Stopped'})`}
         </div>
-        <div className={styles.statusItem}>Master Clock Source: {selectedMidiClockHostId}</div>
         <div className={styles.statusItem}>Local Beat Counter: {localBeatCounter}</div>
-      </div>
+        <div className={styles.statusItem}>
+          Next Scene Change: {autoSceneEnabled && isPlaying && autoSceneList.length > 0 ? 
+            `${autoSceneBeatDivision - localBeatCounter} beats` : 'Waiting...'}
+        </div></div>
     </div>
   );
 };

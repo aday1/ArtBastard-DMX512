@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useStore, PlacedFixture } from '../../store' // Import PlacedFixture
+import { useStore, PlacedFixture, Group } from '../../store' // Import PlacedFixture and Group
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 // import { FixtureVisualizer3D } from './FixtureVisualizer3D' // Removed
@@ -93,24 +93,44 @@ export const FixtureSetup: React.FC = () => {
     setCanvasBackgroundImage: state.setCanvasBackgroundImage,
   }));
   const groups = useStore(state => state.groups)
-  
-  const [showCreateFixture, setShowCreateFixture] = useState(false)
+    const [showCreateFixture, setShowCreateFixture] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null)
   const [fixtureForm, setFixtureForm] = useState<FixtureFormData>({
     name: '',
     startAddress: 1,
     channels: [{ name: 'Intensity', type: 'dimmer' }]
-  })
-  const [groupForm, setGroupForm] = useState({
+  })  const [groupForm, setGroupForm] = useState<Partial<Group>>({
     name: '',
-    fixtureIndices: [] as number[]
+    fixtureIndices: [],
+    lastStates: new Array(512).fill(0),
+    isMuted: false,
+    isSolo: false,
+    masterValue: 255
   })
-
   const calculateNextStartAddress = () => {
     if (fixtures.length === 0) return 1;
     // Ensure addresses are numbers and positive before using Math.max
     const lastAddresses = fixtures.map(f => (f.startAddress || 1) + (f.channels?.length || 0));
     return Math.max(1, ...lastAddresses.map(addr => Math.max(1, addr)));
+  };
+
+  // Check for DMX address conflicts
+  const checkDmxConflict = (startAddress: number, channelCount: number, excludeFixtureId?: string): string | null => {
+    const endAddress = startAddress + channelCount - 1;
+    
+    for (const fixture of fixtures) {
+      if (excludeFixtureId && fixture.id === excludeFixtureId) continue;
+      
+      const fixtureEnd = fixture.startAddress + fixture.channels.length - 1;
+      
+      // Check if ranges overlap
+      if (!(endAddress < fixture.startAddress || startAddress > fixtureEnd)) {
+        return `Conflicts with "${fixture.name}" (DMX ${fixture.startAddress}-${fixtureEnd})`;
+      }
+    }
+    
+    return null; // No conflict
   };
   
   // Handle fixture form changes
@@ -140,10 +160,31 @@ export const FixtureSetup: React.FC = () => {
       channels: prev.channels.filter((_, i) => i !== index)
     }))
   }
-  
-  // Save fixture to store
+    // Save fixture to store
   const saveFixture = () => {
+    if (editingFixtureId) {
+      // Update existing fixture
+      updateFixture()
+    } else {
+      // Create new fixture
+      createFixture()
+    }
+  }
+  // Create new fixture
+  const createFixture = () => {
+    // Validate DMX address conflict
+    const conflict = checkDmxConflict(fixtureForm.startAddress, fixtureForm.channels.length);
+    if (conflict) {
+      useStoreUtils.getState().addNotification({
+        message: `Cannot create fixture: ${conflict}`,
+        type: 'error',
+        priority: 'high'
+      });
+      return;
+    }
+
     const newFixture = {
+      id: `fixture-${Date.now()}-${Math.random()}`,
       name: fixtureForm.name,
       startAddress: fixtureForm.startAddress,
       channels: fixtureForm.channels
@@ -153,15 +194,7 @@ export const FixtureSetup: React.FC = () => {
       fixtures: [...state.fixtures, newFixture]
     }))
     
-    // Reset form and hide it
-    setFixtureForm({
-      name: '',
-      startAddress: fixtures.length > 0 
-        ? Math.max(...fixtures.map(f => f.startAddress + f.channels.length)) + 1 
-        : 1,
-      channels: [{ name: 'Intensity', type: 'dimmer' }]
-    });
-    setShowCreateFixture(false);
+    resetForm()
     
     // Show success message
     useStoreUtils.getState().addNotification({
@@ -169,6 +202,85 @@ export const FixtureSetup: React.FC = () => {
       type: 'success',
       priority: 'normal'
     })
+  }
+
+  // Update existing fixture
+  const updateFixture = () => {
+    if (!editingFixtureId) return
+
+    // Validate DMX address conflict (exclude current fixture from check)
+    const conflict = checkDmxConflict(fixtureForm.startAddress, fixtureForm.channels.length, editingFixtureId);
+    if (conflict) {
+      useStoreUtils.getState().addNotification({
+        message: `Cannot update fixture: ${conflict}`,
+        type: 'error',
+        priority: 'high'
+      });
+      return;
+    }
+
+    const updatedFixture = {
+      id: editingFixtureId,
+      name: fixtureForm.name,
+      startAddress: fixtureForm.startAddress,
+      channels: fixtureForm.channels
+    }
+    
+    useStoreUtils.setState(state => ({
+      fixtures: state.fixtures.map(f => f.id === editingFixtureId ? updatedFixture : f)
+    }))
+    
+    resetForm()
+    
+    // Show success message
+    useStoreUtils.getState().addNotification({
+      message: `Fixture "${updatedFixture.name}" updated`,
+      type: 'success',
+      priority: 'normal'
+    })
+  }
+
+  // Start editing a fixture
+  const startEditFixture = (fixture: any) => {
+    setEditingFixtureId(fixture.id)
+    setFixtureForm({
+      name: fixture.name,
+      startAddress: fixture.startAddress,
+      channels: [...fixture.channels] // Create a copy to avoid direct mutation
+    })
+    setShowCreateFixture(true)
+  }
+
+  // Delete a fixture
+  const deleteFixture = (fixtureId: string) => {
+    const fixture = fixtures.find(f => f.id === fixtureId)
+    if (!fixture) return
+
+    if (window.confirm(`Are you sure you want to delete "${fixture.name}"?`)) {
+      useStoreUtils.setState(state => ({
+        fixtures: state.fixtures.filter(f => f.id !== fixtureId)
+      }))
+      
+      // Show success message
+      useStoreUtils.getState().addNotification({
+        message: `Fixture "${fixture.name}" deleted`,
+        type: 'success',
+        priority: 'normal'
+      })
+    }
+  }
+
+  // Reset form and close it
+  const resetForm = () => {
+    setFixtureForm({
+      name: '',
+      startAddress: fixtures.length > 0 
+        ? Math.max(...fixtures.map(f => f.startAddress + f.channels.length)) + 1 
+        : 1,
+      channels: [{ name: 'Intensity', type: 'dimmer' }]
+    })
+    setShowCreateFixture(false)
+    setEditingFixtureId(null)
   }
   // Toggle fixture selection for group
   const toggleFixtureForGroup = (index: number) => {
@@ -185,28 +297,39 @@ export const FixtureSetup: React.FC = () => {
   
   // Save group to store
   const saveGroup = () => {
-    const newGroup = {
-      name: groupForm.name,
-      fixtureIndices: [...groupForm.fixtureIndices]
-    }
-      useStoreUtils.setState(state => ({
+    const newGroup: Group = {
+      id: `group-${Date.now()}-${Math.random()}`,
+      name: groupForm.name!,
+      fixtureIndices: [...groupForm.fixtureIndices!],
+      lastStates: new Array(512).fill(0), // Start with all channels at 0
+      isMuted: false,
+      isSolo: false,
+      masterValue: 255, // Full brightness by default
+      position: undefined // Will be set when added to canvas
+    };
+
+    useStoreUtils.setState(state => ({
       groups: [...state.groups, newGroup]
-    }))
+    }));
     
     // Reset form and hide it
     setGroupForm({
       name: '',
-      fixtureIndices: []
-    })
-    setShowCreateGroup(false)
+      fixtureIndices: [],
+      lastStates: new Array(512).fill(0),
+      isMuted: false,
+      isSolo: false,
+      masterValue: 255
+    });
+    setShowCreateGroup(false);
     
     // Show success message
     useStoreUtils.getState().addNotification({
       message: `Group "${newGroup.name}" created`,
       type: 'success',
       priority: 'normal'
-    })
-  }
+    });
+  };
   
   return (
     <div className={styles.fixtureSetup}>
@@ -244,15 +367,30 @@ export const FixtureSetup: React.FC = () => {
                 <i className="fas fa-lightbulb"></i>
                 <p>No fixtures have been created yet</p>
               </div>
-            ) : (
-              <div className={styles.fixtureList}>
+            ) : (              <div className={styles.fixtureList}>
                 {fixtures.map((fixture, index) => (
-                  <div key={index} className={styles.fixtureItem}>
+                  <div key={fixture.id || index} className={styles.fixtureItem}>
                     <div className={styles.fixtureHeader}>
                       <h4>{fixture.name}</h4>
-                      <span className={styles.fixtureDmx}>
-                        DMX: {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
-                      </span>
+                      <div className={styles.fixtureActions}>
+                        <span className={styles.fixtureDmx}>
+                          DMX: {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
+                        </span>
+                        <button
+                          className={styles.editButton}
+                          onClick={() => startEditFixture(fixture)}
+                          title="Edit fixture"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button
+                          className={styles.deleteButton}
+                          onClick={() => deleteFixture(fixture.id)}
+                          title="Delete fixture"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </div>
                     <div className={styles.fixtureChannels}>
                       {fixture.channels.map((channel, chIndex) => (
@@ -267,13 +405,22 @@ export const FixtureSetup: React.FC = () => {
                 ))}
               </div>
             )}
-            
-            {showCreateFixture ? (
+              {showCreateFixture ? (
               <div className={styles.fixtureForm}>
                 <h4>
-                  {theme === 'artsnob' && 'Create New Fixture: Birth of a Light Vessel'}
-                  {theme === 'standard' && 'New Fixture'}
-                  {theme === 'minimal' && 'New Fixture'}
+                  {editingFixtureId ? (
+                    <>
+                      {theme === 'artsnob' && 'Refine Fixture: Sculpting Light Anew'}
+                      {theme === 'standard' && 'Edit Fixture'}
+                      {theme === 'minimal' && 'Edit Fixture'}
+                    </>
+                  ) : (
+                    <>
+                      {theme === 'artsnob' && 'Create New Fixture: Birth of a Light Vessel'}
+                      {theme === 'standard' && 'New Fixture'}
+                      {theme === 'minimal' && 'New Fixture'}
+                    </>
+                  )}
                 </h4>
                 
                 <div className={styles.formGroup}>
@@ -357,11 +504,10 @@ export const FixtureSetup: React.FC = () => {
                   >
                     <i className="fas fa-plus"></i> Add Channel
                   </button>
-                  
-                  <div className={styles.saveActions}>
+                    <div className={styles.saveActions}>
                     <button 
                       className={styles.cancelButton}
-                      onClick={() => setShowCreateFixture(false)}
+                      onClick={resetForm}
                     >
                       Cancel
                     </button>
@@ -371,15 +517,24 @@ export const FixtureSetup: React.FC = () => {
                       disabled={!fixtureForm.name || fixtureForm.channels.length === 0}
                     >
                       <i className="fas fa-save"></i>
-                      {theme === 'artsnob' && 'Immortalize Fixture'}
-                      {theme === 'standard' && 'Save Fixture'}
-                      {theme === 'minimal' && 'Save'}
+                      {editingFixtureId ? (
+                        <>
+                          {theme === 'artsnob' && 'Refine & Preserve'}
+                          {theme === 'standard' && 'Update Fixture'}
+                          {theme === 'minimal' && 'Update'}
+                        </>
+                      ) : (
+                        <>
+                          {theme === 'artsnob' && 'Immortalize Fixture'}
+                          {theme === 'standard' && 'Save Fixture'}
+                          {theme === 'minimal' && 'Save'}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
-            ) : (
-              <button 
+            ) : (              <button 
                 className={styles.createButton}
                 onClick={() => {
                   setFixtureForm({ 
@@ -387,6 +542,7 @@ export const FixtureSetup: React.FC = () => {
                     startAddress: calculateNextStartAddress(),
                     channels: [{ name: 'Intensity', type: 'dimmer' }]
                   });
+                  setEditingFixtureId(null);
                   setShowCreateFixture(true);
                 }}
               >
@@ -414,14 +570,13 @@ export const FixtureSetup: React.FC = () => {
                         let counter = 1;
                         while (existingNames.includes(suggestedName)) {
                           suggestedName = `${template.defaultNamePrefix} ${counter++}`;
-                        }
-
-                        setFixtureForm({
+                        }                        setFixtureForm({
                           name: suggestedName,
                           startAddress: nextAddress,
                           // Deep copy channels to prevent modifying template array
                           channels: JSON.parse(JSON.stringify(template.channels)) 
                         });
+                        setEditingFixtureId(null);
                         setShowCreateFixture(true);
                       }}
                     >

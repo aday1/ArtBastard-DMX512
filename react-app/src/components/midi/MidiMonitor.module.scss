@@ -1,7 +1,7 @@
 .midiMonitor {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  left: 20px; /* Changed from right to left */
+  bottom: 20px;
   width: 400px;
   max-height: 300px; /* This will be the overall max-height including header */
   background-color: #2a2a2a;

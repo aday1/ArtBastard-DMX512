@@ -1,42 +1,62 @@
 /* SCSS module for AutoSceneControl */
 
 .autoSceneControl {
-  padding: 1rem;
+  padding: 1.5rem;
   margin-top: 1rem;
   border: 1px solid var(--color-card-border);
   border-radius: var(--border-radius);
   background-color: var(--color-card-bg);
   box-shadow: var(--card-shadow);
+  max-width: 800px;
 }
 
 .section {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px dashed var(--color-card-border);
+  
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
 }
 
 .sectionTitle {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--color-primary);
-  margin-bottom: 0.5rem;
-}
-
-.controlGroup {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  
+  &::before {
+    content: '';
+    width: 4px;
+    height: 1em;
+    background-color: var(--color-primary);
+    border-radius: 2px;
+  }
+}
+
+.controlGroup {
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .controlGroup label {
   font-weight: 500;
+  min-width: 120px;
+  color: var(--color-text);
 }
 
 .statusDisplay {
-  margin-top: 1rem;
-  padding: 0.5rem;
-  background-color: var(--color-background); /* Slightly different background for status */
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--color-background) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
   border-radius: var(--border-radius);
   border: 1px solid var(--color-card-border);
 }
@@ -95,4 +115,51 @@ button {
   padding: 0.5rem;
   border-radius: var(--border-radius);
   background-color: var(--color-background);
+}
+
+/* Transport Controls Styles */
+.playButton {
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
+  
+  &:not(:disabled) {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+    
+    &:hover {
+      background-color: var(--color-primary-dark, var(--color-primary));
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    &.playing {
+      background-color: #dc3545; /* Red for pause/stop */
+      border-color: #dc3545;
+      
+      &:hover {
+        background-color: #c82333;
+      }
+    }
+  }
+  
+  i {
+    font-size: 0.9em;
+  }
+}
+
+.playStatus {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius);
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }

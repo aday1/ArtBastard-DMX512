@@ -6,7 +6,7 @@ import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon' // Using our adapter for lucide-react icons
 
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'oscDebug' | 'audio' | 'touchosc' | 'misc'
+type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'audio' | 'touchosc' | 'misc'
 
 const navItems: Array<{
   id: ViewType
@@ -42,22 +42,13 @@ const navItems: Array<{
       artsnob: 'Fixture Composition',
       standard: 'Fixture Setup',
       minimal: 'Fix'
-    }
-  },  {
+    }  },  {
     id: 'scenes',
     icon: 'fa-theater-masks',
     title: {
       artsnob: 'Scene Gallery',
       standard: 'Scenes',
       minimal: 'Scn'
-    }
-  },  {
-    id: 'oscDebug',
-    icon: 'fa-bug',
-    title: {
-      artsnob: 'OSC Debugging',
-      standard: 'OSC Debug',
-      minimal: 'OSC'
     }
   },
   {

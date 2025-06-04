@@ -1,21 +1,20 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { MidiLearnButton } from '../midi/MidiLearnButton';
 import styles from './DmxChannel.module.scss';
 
-// We're now using the globally declared MidiRangeMapping type from types/midi-dmx-processor.d.ts
 interface DmxChannelProps {
   index: number;
   key?: number | string;
-  allowFullscreen?: boolean; // New prop to enable/disable fullscreen
+  allowFullscreen?: boolean;
+  allowDetach?: boolean;
 }
 
-// Extended MidiRangeMapping to include curve parameter
 interface ExtendedMidiRangeMapping extends MidiRangeMapping {
   curve?: number;
 }
 
-export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true }) => {
+export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true }) => {
   const {
     dmxChannels,
     channelNames,
@@ -38,18 +37,20 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
 
   const [showDetails, setShowDetails] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDetached, setIsDetached] = useState(false);
+  const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
+  const [detachedSize, setDetachedSize] = useState({ width: 400, height: 600 });
   const [localOscAddress, setLocalOscAddress] = useState('');
   const [activityIndicator, setActivityIndicator] = useState(false);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // State for MIDI range limiting
   const [showMidiRangeControls, setShowMidiRangeControls] = useState(false);
   const [midiRangeMapping, setMidiRangeMapping] = useState<ExtendedMidiRangeMapping>({
     inputMin: 0,
     inputMax: 127,
     outputMin: 0,
     outputMax: 255,
-    curve: 1 // Linear by default
+    curve: 1
   });
 
   useEffect(() => {
@@ -76,19 +77,16 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     };
   }, [oscActivity, index]);
 
-  // Apply MIDI range settings to the MidiDmxProcessor
   const applyMidiRangeSettings = () => {
     if (window.midiDmxProcessor && typeof window.midiDmxProcessor.setChannelRangeMapping === 'function') {
       window.midiDmxProcessor.setChannelRangeMapping(index, midiRangeMapping);
     }
   };
 
-  // Handle changes to MIDI range values
   const handleMidiRangeChange = (field: keyof ExtendedMidiRangeMapping, value: number) => {
     setMidiRangeMapping(prev => {
       const newMapping = { ...prev, [field]: value };
       
-      // Ensure min doesn't exceed max
       if (field === 'inputMin' && value > prev.inputMax!) {
         newMapping.inputMin = prev.inputMax;
       }
@@ -106,12 +104,10 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     });
   };
 
-  // Apply MIDI range settings whenever they change
   useEffect(() => {
     applyMidiRangeSettings();
   }, [midiRangeMapping, index]);
 
-  // When the component mounts, check if there are existing range mappings
   useEffect(() => {
     if (window.midiDmxProcessor && typeof window.midiDmxProcessor.getChannelRangeMappings === 'function') {
       const mappings = window.midiDmxProcessor.getChannelRangeMappings();
@@ -124,25 +120,16 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     }
   }, [index]);
 
-  // Listen for DMX channel update events from MidiDmxProcessor
   useEffect(() => {
     const handleDmxChannelUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<{channel: number, value: number}>;
-      // Log all received events for debugging
-      console.log(`[DmxChannel] Received event for channel ${customEvent.detail?.channel}, current channel: ${index}`);
-      
       if (customEvent.detail && customEvent.detail.channel === index) {
-        console.log(`[DmxChannel ${index}] Handling update event with value:`, customEvent.detail.value);
-        // Update DMX channel value directly through the store
         setDmxChannel(index, customEvent.detail.value);
       }
     };
     
-    // Add event listener
     window.addEventListener('dmxChannelUpdate', handleDmxChannelUpdate);
-    console.log(`[DmxChannel ${index}] Added dmxChannelUpdate event listener`);
     
-    // Clean up
     return () => {
       window.removeEventListener('dmxChannelUpdate', handleDmxChannelUpdate);
     };
@@ -195,50 +182,23 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
-    setShowDetails(true); // Auto-expand details in fullscreen
+    setShowDetails(true);
   };
 
-  // Handle ESC key to exit fullscreen
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
-    };
+  const toggleDetached = () => {
+    setIsDetached(!isDetached);
+    setShowDetails(true);
+  };
 
-    if (isFullscreen) {
-      document.addEventListener('keydown', handleKeyPress);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyPress);
-      document.body.style.overflow = 'auto';
-    };
-  }, [isFullscreen]);
   return (
     <div
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isFullscreen ? styles.fullscreen : ''}`}
-      onClick={() => !isFullscreen && toggleChannelSelection(index)}
+      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''}`}
+      onClick={() => !isFullscreen && !isDetached && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
         <div className={styles.address}>{dmxAddress}</div>
         <div className={styles.name}>{name}</div>
         <div className={styles.headerControls}>
-          {allowFullscreen && (
-            <button
-              className={styles.fullscreenButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFullscreen();
-              }}
-              title={isFullscreen ? 'Exit Fullscreen (ESC)' : 'Fullscreen'}
-            >
-              <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-            </button>
-          )}
           <button
             className={styles.detailsToggle}
             onClick={(e) => {
@@ -251,19 +211,11 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
         </div>
       </div>
 
-      {isFullscreen && (
-        <div className={styles.fullscreenHeader}>
-          <h2>🎚️ DMX Channel {dmxAddress}</h2>
-          <p>{name}</p>
-        </div>
-      )}
-
-      <div className={`${styles.value} ${showDetails ? styles.expandedValue : ''} ${isFullscreen ? styles.fullscreenValue : ''}`} style={{ backgroundColor: getBackgroundColor() }}>
+      <div className={`${styles.value}`} style={{ backgroundColor: getBackgroundColor() }}>
         {value}
-        {(showDetails || isFullscreen) && <span className={styles.valuePercentOverlay}>{Math.round((value / 255) * 100)}%</span>}
       </div>
 
-      <div className={`${styles.slider} ${showDetails ? styles.expandedSlider : ''} ${isFullscreen ? styles.fullscreenSlider : ''}`} data-dmx-channel={index}>
+      <div className={`${styles.slider}`} data-dmx-channel={index}>
         <input
           type="range"
           min="0"
@@ -315,149 +267,6 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
           )}
 
           <MidiLearnButton channelIndex={index} />
-
-          <div className={styles.midiRangeSection}>
-            <div className={styles.midiRangeHeader}>
-              <span>MIDI Range Limiting</span>
-              <button 
-                className={styles.midiRangeToggle} 
-                onClick={() => setShowMidiRangeControls(!showMidiRangeControls)}
-              >
-                <i className={`fas fa-${showMidiRangeControls ? 'chevron-up' : 'cog'}`}></i>
-              </button>
-            </div>
-            
-            {showMidiRangeControls && (
-              <div className={styles.midiRangeControls}>
-                <div className={styles.rangeRow}>
-                  <label>MIDI In:</label>
-                  <div className={styles.rangeInputs}>
-                    <div className={styles.rangeValueDisplay}>
-                      {midiRangeMapping.inputMin}
-                    </div>
-                    <div className={styles.rangeSliderContainer}>
-                      <div className={styles.rangeSliderTrack}>
-                        <div 
-                          className={styles.rangeSliderActiveTrack}
-                          style={{
-                            left: `${(midiRangeMapping.inputMin / 127) * 100}%`, 
-                            width: `${((midiRangeMapping.inputMax - midiRangeMapping.inputMin) / 127) * 100}%`
-                          }}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="127"
-                        value={midiRangeMapping.inputMin}
-                        onChange={(e) => handleMidiRangeChange('inputMin', parseInt(e.target.value, 10))}
-                        className={styles.rangeSliderLeft}
-                      />
-                      <input
-                        type="range"
-                        min="0"
-                        max="127"
-                        value={midiRangeMapping.inputMax}
-                        onChange={(e) => handleMidiRangeChange('inputMax', parseInt(e.target.value, 10))}
-                        className={styles.rangeSliderRight}
-                      />
-                    </div>
-                    <div className={styles.rangeValueDisplay}>
-                      {midiRangeMapping.inputMax}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className={styles.rangeRow}>
-                  <label>DMX Out:</label>
-                  <div className={styles.rangeInputs}>
-                    <div className={styles.rangeValueDisplay}>
-                      {midiRangeMapping.outputMin}
-                    </div>
-                    <div className={styles.rangeSliderContainer}>
-                      <div className={styles.rangeSliderTrack}>
-                        <div 
-                          className={styles.rangeSliderActiveTrack}
-                          style={{
-                            left: `${(midiRangeMapping.outputMin / 255) * 100}%`, 
-                            width: `${((midiRangeMapping.outputMax - midiRangeMapping.outputMin) / 255) * 100}%`
-                          }}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="255"
-                        value={midiRangeMapping.outputMin}
-                        onChange={(e) => handleMidiRangeChange('outputMin', parseInt(e.target.value, 10))}
-                        className={styles.rangeSliderLeft}
-                      />
-                      <input
-                        type="range"
-                        min="0"
-                        max="255"
-                        value={midiRangeMapping.outputMax}
-                        onChange={(e) => handleMidiRangeChange('outputMax', parseInt(e.target.value, 10))}
-                        className={styles.rangeSliderRight}
-                      />
-                    </div>
-                    <div className={styles.rangeValueDisplay}>
-                      {midiRangeMapping.outputMax}
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.rangeRow}>
-                  <label>Curve:</label>
-                  <div className={styles.rangeInputs}>
-                    <span className={styles.curveLabel}>Log</span>
-                    <div className={styles.rangeSliderContainer}>
-                      <div className={styles.curveTrack}>
-                        <div 
-                          className={styles.curveVisualizer}
-                          style={{
-                            clipPath: midiRangeMapping.curve && midiRangeMapping.curve < 1 
-                              ? `polygon(0 100%, 0 ${100 - Math.pow(0.2, midiRangeMapping.curve) * 100}%, 20% ${100 - Math.pow(0.4, midiRangeMapping.curve) * 100}%, 40% ${100 - Math.pow(0.6, midiRangeMapping.curve) * 100}%, 60% ${100 - Math.pow(0.8, midiRangeMapping.curve) * 100}%, 100% 0%, 100% 100%)`
-                              : `polygon(0 100%, 0 ${100 - Math.pow(0, midiRangeMapping.curve || 1) * 100}%, 20% ${100 - Math.pow(0.2, midiRangeMapping.curve || 1) * 100}%, 40% ${100 - Math.pow(0.4, midiRangeMapping.curve || 1) * 100}%, 60% ${100 - Math.pow(0.6, midiRangeMapping.curve || 1) * 100}%, 80% ${100 - Math.pow(0.8, midiRangeMapping.curve || 1) * 100}%, 100% 0%, 100% 100%)`
-                          }}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="5"
-                        step="0.1"
-                        value={midiRangeMapping.curve || 1}
-                        onChange={(e) => handleMidiRangeChange('curve', parseFloat(e.target.value))}
-                        className={styles.curveSlider}
-                      />
-                    </div>
-                    <span className={styles.curveLabel}>Exp</span>
-                    <div className={styles.rangeValueDisplay}>
-                      {(midiRangeMapping.curve || 1).toFixed(1)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className={styles.rangeActions}>
-                  <button 
-                    className={styles.resetButton}
-                    onClick={() => {
-                      setMidiRangeMapping({
-                        inputMin: 0,
-                        inputMax: 127,
-                        outputMin: 0,
-                        outputMax: 255,
-                        curve: 1
-                      });
-                    }}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
 
           <div className={styles.valueDisplay}>
             <div className={styles.valueHex}>

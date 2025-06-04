@@ -1,7 +1,7 @@
 .oscMonitor {
   position: fixed;
-  right: 20px;
-  top: 340px; /* MidiMonitor (top 20 + max-height 300) + 20px spacing */
+  right: 20px; /* Keep on right side */
+  bottom: 20px; /* Bottom positioning */
   width: 400px;
   max-height: 300px; /* This will be the overall max-height including header */
   background-color: #2a2a2a;
