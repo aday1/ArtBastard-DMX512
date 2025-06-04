@@ -1,6 +1,6 @@
 // src/clockManager.ts
 
-export type MasterClockSourceId = 'internal' | 'ableton-link' | 'midi-input'; // Added 'midi-input'
+export type MasterClockSourceId = 'internal' | 'midi-input';
 
 export interface ClockState {
   bpm: number;
@@ -28,8 +28,7 @@ export class ClockManager {
   private midiOutput: any = null; // easymidi.Output instance
   private selectedMidiOutputName: string | null = null; // Currently selected MIDI output
   private availableMidiOutputs: string[] = []; // List of available MIDI output ports
-  
-  // MIDI Input
+    // MIDI Input
   private midiInput: any = null; // easymidi.Input instance
   private selectedMidiInputName: string | null = null;  private availableMidiInputs: string[] = [];
   private isReceivingMidiClock: boolean = false;
@@ -37,12 +36,6 @@ export class ClockManager {
   private midiClockTickIntervals: number[] = []; // For averaging BPM
   private derivedExternalMidiBPM: number = 120.0;
   private externalMidiClockTickCount: number = 0; // Beat tracking for external MIDI
-
-  // Ableton Link properties
-  private abletonLinkConnected: boolean = false;
-  private abletonLinkPeers: number = 0;
-  private abletonLinkBPM: number = 120.0;
-  private abletonLinkIsPlaying: boolean = false;
 
   constructor() {
     // Initialization logic, if any, beyond property defaults
@@ -69,7 +62,6 @@ export class ClockManager {
       this.availableMidiOutputs = [];
     }
   }
-
   private async initializeMidiInput(): Promise<void> {
     try {
       const easymidi = await import('easymidi');
@@ -79,28 +71,6 @@ export class ClockManager {
     } catch (error) {
       console.warn('Failed to initialize MIDI Input system:', error);
       this.availableMidiInputs = [];
-    }
-  }
-
-  private async initializeAbletonLink(): Promise<void> {
-    try {
-      // TODO: Implement actual Ableton Link integration
-      // For now, this is a placeholder that simulates Link connection
-      console.log('Initializing Ableton Link connection...');
-      
-      // Simulate connection attempt
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      this.abletonLinkConnected = true;
-      this.abletonLinkPeers = 0; // Start with 0 peers
-      this.abletonLinkBPM = 120.0; // Default BPM
-      this.abletonLinkIsPlaying = false;
-      
-      console.log('Ableton Link initialized (simulated)');
-      this.notifySubscribers();
-    } catch (error) {
-      console.warn('Failed to initialize Ableton Link:', error);
-      this.abletonLinkConnected = false;
     }
   }
 
@@ -115,8 +85,7 @@ export class ClockManager {
   private notifySubscribers(): void {
     const state = this.getCurrentClockState();
     this.subscribers.forEach(callback => callback(state));
-  }
-  private getCurrentClockState(): ClockState {
+  }  private getCurrentClockState(): ClockState {
     if (this.currentSource === 'internal') {
       return {
         bpm: this.internalBPM,
@@ -125,20 +94,12 @@ export class ClockManager {
         beat: this.beat,
         bar: this.bar,
       };
-    } else if (this.currentSource === 'ableton-link') {
-      return {
-        bpm: this.abletonLinkBPM,
-        isPlaying: this.abletonLinkIsPlaying,
-        source: this.currentSource,
-        beat: this.beat, // Note: Beat/bar for Link might need dedicated handling
-        bar: this.bar,
-      };
     } else if (this.currentSource === 'midi-input') {
       return {
         bpm: this.derivedExternalMidiBPM,
-        isPlaying: this.isReceivingMidiClock, // Or a more specific isPlaying for MIDI input
+        isPlaying: this.isReceivingMidiClock,
         source: this.currentSource,
-        beat: this.beat, // Beat/bar driven by external MIDI
+        beat: this.beat,
         bar: this.bar,
       };
     } else {
@@ -151,15 +112,12 @@ export class ClockManager {
       };
     }
   }
-
   public setSource(sourceId: MasterClockSourceId): void {
     if (this.currentSource === sourceId) return;
 
     // Teardown for the current source
     if (this.currentSource === 'internal') {
       this.stopInternalClock();
-    } else if (this.currentSource === 'ableton-link') {
-      // TODO: Add teardown for Ableton Link if necessary
     } else if (this.currentSource === 'midi-input') {
       this.stopListeningToMidiInput();
     }
@@ -171,9 +129,6 @@ export class ClockManager {
       if (this.isInternalPlaying && !this.internalIntervalId) { // Should be !this.isInternalPlaying
         // If was playing, resume. For now, let togglePlayPause handle starting.
       }
-    } else if (sourceId === 'ableton-link') {
-      this.initializeAbletonLink();
-      console.log('Ableton Link selected - attempting connection...');
     } else if (sourceId === 'midi-input') {
       if (this.selectedMidiInputName) {
         this.startListeningToMidiInput(this.selectedMidiInputName);
@@ -199,8 +154,7 @@ export class ClockManager {
       this.startInternalClock(false); // Restart with new BPM, don't reset beat/bar
     }
     this.notifySubscribers();
-  }
-  public togglePlayPause(): void {
+  }  public togglePlayPause(): void {
     console.log(`ClockManager: togglePlayPause called - currentSource: ${this.currentSource}, isInternalPlaying: ${this.isInternalPlaying}`);
     
     if (this.currentSource === 'internal') {
@@ -211,9 +165,6 @@ export class ClockManager {
         console.log('ClockManager: Starting internal clock');
         this.startInternalClock(true); // Reset beat/bar on play
       }
-    } else if (this.currentSource === 'ableton-link') {
-      console.log('Play/Pause for Ableton Link not yet fully implemented.');
-      // TODO: Send play/pause to Ableton Link
     } else if (this.currentSource === 'midi-input') {
       console.warn('Play/Pause is controlled by the external MIDI master when source is midi-input.');
       // Play/Pause is driven by MIDI start/stop messages
@@ -222,8 +173,7 @@ export class ClockManager {
   }  public getAvailableSources(): Array<{ id: MasterClockSourceId; name: string }> {
     return [
       { id: 'internal', name: 'Internal Clock' },
-      { id: 'ableton-link', name: 'Ableton Link' },
-      { id: 'midi-input', name: 'External MIDI Clock'} // Added MIDI Input
+      { id: 'midi-input', name: 'External MIDI Clock'}
     ];
   }
   
@@ -444,16 +394,8 @@ export class ClockManager {
     this.notifySubscribers(); // Notify on tick for BPM updates, or less frequently if preferred
   };
 
-
   public getState(): ClockState {
     return this.getCurrentClockState();
-  }
-
-  public getAbletonLinkStatus(): { connected: boolean; peers: number } {
-    return {
-      connected: this.abletonLinkConnected,
-      peers: this.abletonLinkPeers
-    };
   }
 
   public subscribeMidiClockTick(callback: () => void): () => void {

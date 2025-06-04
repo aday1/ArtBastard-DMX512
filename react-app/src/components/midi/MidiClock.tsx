@@ -114,7 +114,6 @@ export const MidiClock: React.FC = () => {
       </div>
     );
   };
-
   const renderContent = () => {
     if (isCollapsed) {
       return null;
@@ -122,8 +121,37 @@ export const MidiClock: React.FC = () => {
 
     return (
       <div className={styles.content}>
-        <div className={styles.bpmDisplay}>
-          BPM: {midiClockBpm.toFixed(2)} | Bar: {midiClockCurrentBar} | Beat: {midiClockCurrentBeat}
+        <div className={styles.bpmSection}>
+          <div className={styles.bpmDisplay}>
+            Bar: {midiClockCurrentBar} | Beat: {midiClockCurrentBeat}
+          </div>
+          {selectedMidiClockHostId === 'internal' && (
+            <div className={styles.bpmInput}>
+              <label>BPM:</label>
+              <input
+                type="number"
+                value={midiClockBpm.toFixed(1)}
+                onChange={(e) => {
+                  const newBpm = parseFloat(e.target.value);
+                  if (!isNaN(newBpm) && newBpm > 0 && newBpm <= 300) {                    // Request BPM change via socket
+                    const { socket } = useStore.getState();
+                    if (socket?.connect) {
+                      socket.emit('setInternalClockBPM', newBpm);
+                    }
+                  }
+                }}
+                min="30"
+                max="300"
+                step="0.1"
+                className={styles.bpmInputField}
+              />
+            </div>
+          )}
+          {selectedMidiClockHostId !== 'internal' && (
+            <div className={styles.bpmDisplay}>
+              BPM: {midiClockBpm.toFixed(2)}
+            </div>
+          )}
         </div>
           <div className={styles.transportControls}>
           <button
@@ -173,18 +201,10 @@ export const MidiClock: React.FC = () => {
             <LucideIcon name="Zap" size={16} />
             TAP
           </button>
-        </div>
-
-        {renderClockSelection()}
-        
-        {selectedMidiClockHostId === 'ableton-link' && (
-          <div className={styles.linkStatus}>
-            Link Peers: 0
-          </div>
-        )}
+        </div>        {renderClockSelection()}
       </div>
     );
-  };  const clockClasses = [
+  };const clockClasses = [
     styles.midiClock,
     isCollapsed ? styles.collapsed : '',
     selectedMidiClockHostId !== 'none' ? styles.externalSync : '',
@@ -207,11 +227,12 @@ export const MidiClock: React.FC = () => {
       id="midi-clock"
       title="MIDI Clock"
       component="midi-clock"
-      defaultPosition={{ zone: 'top-center' }}
-      defaultZIndex={1030}
+      defaultPosition={{ zone: 'bottom-center' }}
+      defaultZIndex={1020}
       isCollapsed={isCollapsed}
       onCollapsedChange={setIsCollapsed}
-      className={clockClasses}      isDraggable={false}
+      className={clockClasses}
+      isDraggable={false}
     >
       <div ref={clockRef}>
         {renderHeader()}

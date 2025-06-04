@@ -9,6 +9,8 @@ import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
 import { MidiClock } from '../components/midi/MidiClock' // Added MidiClock import
+import { SceneQuickLaunch } from '../components/scenes/SceneQuickLaunch'
+import { AutoSceneControlMini } from '../components/scenes/AutoSceneControlMini'
 import { OscDebug } from '../components/osc/OscDebug'
 import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'
 import { AudioControlPanel } from '../components/audio/AudioControlPanel'
@@ -57,14 +59,15 @@ const MainPage: React.FC = () => {
             Connection lost - attempting to reconnect...
           </div>
         )}
-          <div className={styles.viewContainer}>
-          {currentView === 'main' && (
+          <div className={styles.viewContainer}>          {currentView === 'main' && (
             <>
               <MasterFader />
               <DmxControlPanel />
               <MidiMonitor />
               <OscMonitor />
               <MidiClock /> {/* Added MidiClock */}
+              <SceneQuickLaunch /> {/* Added SceneQuickLaunch */}
+              <AutoSceneControlMini /> {/* Added AutoSceneControlMini */}
             </>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}
