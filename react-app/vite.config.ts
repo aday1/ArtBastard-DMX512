@@ -67,7 +67,7 @@ export default defineConfig({
     minify: 'terser', // Re-enable minification with terser
     terserOptions: {
       compress: {
-        drop_console: false, // Keep console logs for debugging
+        drop_console: true, // Keep console logs for debugging
         drop_debugger: false,
         pure_funcs: [], // Don't remove any functions
         unsafe_methods: false, // Conservative approach

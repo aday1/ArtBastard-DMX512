@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Layout } from './components/layout/Layout'
 import { SocketProvider } from './context/SocketContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -21,6 +21,13 @@ function App() {
   const isTransitioning = useStore((state) => state.isTransitioning);
   const currentTransitionFrame = useStore((state) => state.currentTransitionFrame);
   const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId);
+
+  const unmountedRef = useRef(false);
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
   
   console.log('[App] Store hooks initialized');
   
@@ -121,7 +128,9 @@ function App() {
       const latestFrameIdInStore = useStore.getState().currentTransitionFrame;
       if (latestFrameIdInStore) {
         cancelAnimationFrame(latestFrameIdInStore);
-        setCurrentTransitionFrameId(null); 
+        if (!unmountedRef.current) {
+          setCurrentTransitionFrameId(null);
+        }
       }
     };
   }, [isTransitioning, setCurrentTransitionFrameId, currentTransitionFrame]);
