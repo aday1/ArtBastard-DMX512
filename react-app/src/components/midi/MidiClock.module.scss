@@ -1,7 +1,7 @@
 .midiClock {
-  position: absolute;
-  top: 20px; /* Default position */
-  left: 860px; /* Default position next to OSC Monitor */
+  position: fixed; /* Changed from absolute to fixed */
+  top: 660px; /* OscMonitor (top 340 + max-height 300) + 20px spacing */
+  right: 20px; /* Align with other monitors */
   width: 280px;
   background-color: #2c2c2c;
   border: 2px solid #555;
@@ -30,7 +30,7 @@
   align-items: center;
   background-color: #383838;
   padding: 6px 10px;
-  cursor: grab;
+  /* cursor: grab; */ /* REMOVED */
   user-select: none;
   border-bottom: 1px solid #4a4a4a;
 
@@ -42,7 +42,8 @@
 .dragHandle {
   margin-right: 8px;
   color: #999;
-  cursor: grab;
+  /* cursor: grab; */ /* REMOVED */
+  display: none; /* Hide the drag handle element */
 }
 
 .title {
@@ -64,12 +65,12 @@
 
   &.synced {
     background-color: #2a9d8f; // Teal for synced
-    color: #fff;
+    color: #f0f0f0;
   }
 
   &.notSynced {
     background-color: #e76f51; // Coral for not synced/internal
-    color: #fff;
+    color: #f0f0f0;
   }
 }
 
@@ -91,7 +92,7 @@
 
     &:hover {
       background-color: #555;
-      color: #fff;
+      color: #f0f0f0;
     }
   }
 }
@@ -131,7 +132,7 @@
 
   button {
     background-color: #4f4f4f;
-    color: #fff;
+    color: #f0f0f0;
     border: none;
     padding: 8px 12px;
     border-radius: 4px;

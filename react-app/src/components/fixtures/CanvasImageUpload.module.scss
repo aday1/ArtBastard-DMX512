@@ -29,7 +29,7 @@
     .clearButton {
       padding: 0.5rem 1rem;
       background: #ff4757;
-      color: white;
+      color: #f0f0f0;
       border: none;
       border-radius: 6px;
       cursor: pointer;
@@ -123,7 +123,7 @@
         border-radius: 8px;
         border: 2px solid var(--border-color);
         object-fit: contain;
-        background: white;
+        background: #f0f0f0;
       }
 
       .imageInfo {

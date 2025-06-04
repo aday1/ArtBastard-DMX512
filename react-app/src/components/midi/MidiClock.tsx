@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useDragControls, PanInfo } from 'framer-motion';
+// import { motion, useDragControls, PanInfo } from 'framer-motion'; // Removed framer-motion
 import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
 import styles from './MidiClock.module.scss';
 import { useStore } from '../../store';
@@ -8,10 +8,10 @@ export const MidiClock: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const clockRef = useRef<HTMLDivElement>(null);
-  const dragControls = useDragControls();
+  // const dragControls = useDragControls(); // Removed
 
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined);
+  // const [position, setPosition] = useState({ x: 0, y: 0 }); // Removed
+  // const [constraints, setConstraints] = useState<{ top: number; left: number; right: number; bottom: number } | undefined>(undefined); // Removed
 
   const {
     selectedMidiClockHostId = 'internal', // Default to 'internal' for safety
@@ -31,59 +31,34 @@ export const MidiClock: React.FC = () => {
     requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause, // Updated action
   }));
 
-  // Load position from localStorage
-  useEffect(() => {
-    const savedX = localStorage.getItem('midiClockPositionX');
-    const savedY = localStorage.getItem('midiClockPositionY');
-    let initialX = 0;
-    let initialY = 0;
-    if (savedX !== null) initialX = parseFloat(savedX);
-    if (savedY !== null) initialY = parseFloat(savedY);
-    setPosition({ x: initialX, y: initialY });
-  }, []);
+  // // Load position from localStorage // Removed
+  // useEffect(() => {
+  //   const savedX = localStorage.getItem('midiClockPositionX');
+  //   const savedY = localStorage.getItem('midiClockPositionY');
+  //   let initialX = 0;
+  //   let initialY = 0;
+  //   if (savedX !== null) initialX = parseFloat(savedX);
+  //   if (savedY !== null) initialY = parseFloat(savedY);
+  //   setPosition({ x: initialX, y: initialY });
+  // }, []);
 
-  // Effect to calculate and set drag constraints
-  useEffect(() => {
-    const calculateConstraints = () => {
-      if (clockRef.current) {
-        const componentWidth = clockRef.current.offsetWidth;
-        const componentHeight = clockRef.current.offsetHeight;
+  // // Effect to calculate and set drag constraints // Removed
+  // useEffect(() => {
+  //   const calculateConstraints = () => {
+  //     if (clockRef.current) {
+  //       const componentWidth = clockRef.current.offsetWidth;
+  //       const componentHeight = clockRef.current.offsetHeight;
+  //       // ... constraint logic removed
+  //     }
+  //   };
+  //   calculateConstraints();
+  //   window.addEventListener('resize', calculateConstraints);
+  //   return () => window.removeEventListener('resize', calculateConstraints);
+  // }, [clockRef.current]);
 
-        // From MidiClock.module.scss
-        const initialCssTop = 20;
-        const initialCssLeft = 860;
-
-        // Assuming the 'parent' for absolute positioning is the viewport
-        const parentWidth = window.innerWidth;
-        const parentHeight = window.innerHeight;
-
-        setConstraints({
-          left: -initialCssLeft, // Allows dragging left until component's left edge hits viewport left
-          top: -initialCssTop,   // Allows dragging up until component's top edge hits viewport top
-          right: parentWidth - initialCssLeft - componentWidth, // Allows dragging right until component's right edge hits viewport right
-          bottom: parentHeight - initialCssTop - componentHeight, // Allows dragging down until component's bottom edge hits viewport bottom
-        });
-      }
-    };
-
-    calculateConstraints();
-    window.addEventListener('resize', calculateConstraints);
-    return () => window.removeEventListener('resize', calculateConstraints);
-  }, [clockRef.current]); // Recalculate if ref changes or on resize
-
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    // These are the known initial CSS positions for MidiClock,
-    // consistent with values used in the constraints calculation useEffect.
-    const effectiveInitialCssLeft = 860;
-    const effectiveInitialCssTop = 20;
-
-    const newTransformX = info.point.x - effectiveInitialCssLeft;
-    const newTransformY = info.point.y - effectiveInitialCssTop;
-
-    localStorage.setItem('midiClockPositionX', newTransformX.toString());
-    localStorage.setItem('midiClockPositionY', newTransformY.toString());
-    setPosition({ x: newTransformX, y: newTransformY });
-  };
+  // const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => { // Removed
+  //   // ... drag end logic removed
+  // };
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -117,15 +92,15 @@ export const MidiClock: React.FC = () => {
     return (
       <div
         className={`${styles.header} handle`} // Retain 'handle' for styling if needed
-        onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest('button')) {
-            return; // Don't start drag if a button in header is clicked
-          }
-          dragControls.start(e);
-        }}
-        style={{ cursor: 'grab' }}
+        // onPointerDown={(e) => { // Removed
+        //   if ((e.target as HTMLElement).closest('button')) {
+        //     return;
+        //   }
+        //   // dragControls.start(e); // Removed
+        // }}
+        // style={{ cursor: 'grab' }} // Removed
       >
-        <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} />
+        {/* <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} /> */} {/* Removed */}
         <span className={styles.title}>MIDI Clock</span>
         {!isCollapsed && (
           <span className={`${styles.syncStatus} ${isActuallySynced ? styles.synced : styles.notSynced}`}>
@@ -195,25 +170,26 @@ export const MidiClock: React.FC = () => {
   ].join(' ');
 
   return (
-    <motion.div
+    <div // Changed from motion.div to div
       ref={clockRef}
-      className={clockClasses} // This class provides initial position (top, left) and other styles
+      className={clockClasses}
       style={{
-        // position: 'absolute' is set by the CSS class.
-        // top, left are also set by CSS. Framer Motion will add transform: translate(x,y)
-        x: position.x, // Apply stored/initial transform X
-        y: position.y, // Apply stored/initial transform Y
+        // position: 'absolute' will be changed to 'fixed' in SCSS.
+        // top, left will be set in SCSS.
+        // x: position.x, // Removed
+        // y: position.y, // Removed
       }}
-      drag
-      dragControls={dragControls}
-      dragListener={false} // Use onPointerDown on the handle
-      onDragEnd={handleDragEnd}
-      dragConstraints={constraints}
-      whileDrag={{ cursor: 'grabbing' }}
+      // Removed all drag props
+      // drag
+      // dragControls={dragControls}
+      // dragListener={false}
+      // onDragEnd={handleDragEnd}
+      // dragConstraints={constraints}
+      // whileDrag={{ cursor: 'grabbing' }}
     >
       {renderHeader()}
       {renderContent()}
-    </motion.div>
+    </div>
   );
 };
 

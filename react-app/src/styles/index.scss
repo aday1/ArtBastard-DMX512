@@ -3,7 +3,7 @@
 
 // Base variables
 :root {  // Light mode colors - Warmer, more comfortable color scheme
-  --color-background: #f5f0e1; /* Warmer off-white */
+  --color-background: #f5f0e1; /* Warmer off-#f0f0f0 */
   --color-text: #5a5047; /* Slightly warmer dark gray */
   --color-primary: #c77f5b; /* Adjusted for warmth */
   --color-secondary: #8f7a5d; /* Adjusted for warmth */
@@ -16,7 +16,7 @@
   --color-slider-track: #e6dacb; /* Warmer slider track */
   --color-slider-thumb: #c77f5b; /* Matches new primary */
   --color-button-bg: #c77f5b; /* Matches new primary */
-  --color-button-text: #fcfaf7; /* Off-white instead of pure white */
+  --color-button-text: #fcfaf7; /* Off-#f0f0f0 instead of pure #f0f0f0 */
   --color-nav-active: #c77f5b; /* Matches new primary */
   --color-nav-inactive: #8f7a5d; /* Matches new secondary */
   --color-channel-bg: #faf3e8; /* Warmer channel background */
@@ -60,7 +60,7 @@
   --color-slider-track: #3a3a3c;
   --color-slider-thumb: #0a84ff;
   --color-button-bg: #0a84ff;
-  --color-button-text: #ffffff;
+  --color-button-text: #f0f0f0;
   --color-nav-active: #0a84ff;
   --color-nav-inactive: #86868b;
   --color-channel-bg: #2c2c2e;

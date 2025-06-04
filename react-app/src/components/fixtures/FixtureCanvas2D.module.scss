@@ -44,7 +44,7 @@
 .fixtureCanvas {
   border: 1px solid var(--border-color-strong, #ccc);
   border-radius: var(--border-radius-sm, 4px);
-  background-color: #fff; // Explicit background for the canvas itself
+  background-color: #f0f0f0; // Explicit background for the canvas itself
   cursor: crosshair; // Indicate it's a drawing surface
   // Ensure it doesn't exceed container width if canvasSize is very large
   max-width: 100%; 
@@ -233,7 +233,7 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
     background-color: var(--accent-color, #4ecdc4);
-    color: white;
+    color: #f0f0f0;
     border: none;
     margin-top: 0.5rem;
 
@@ -336,7 +336,7 @@
 
   .deleteButton {
     background-color: var(--color-danger, #e74c3c);
-    color: white;
+    color: #f0f0f0;
     border: none;
     margin-right: 0.5rem;
 
@@ -381,7 +381,7 @@
   border-radius: var(--border-radius-sm, 4px);
   cursor: pointer;
   font-size: 0.85rem;
-  color: white; // Text color will be white for colored buttons
+  color: #f0f0f0; // Text color will be #f0f0f0 for colored buttons
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 

@@ -77,7 +77,7 @@
       // Button styles for all action buttons
       .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
         padding: 0.6rem 1rem;
-        color: white;
+        color: #f0f0f0;
         border: none;
         border-radius: 8px;
         cursor: pointer;
@@ -291,7 +291,7 @@
           .learnButton {
             padding: 0.6rem 1.2rem; // Adjusted padding
             background: var(--accent-color);
-            color: white;
+            color: #f0f0f0;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -320,7 +320,7 @@
           .clearButton {
             padding: 0.4rem; // Adjusted padding
             background: #ff4757;
-            color: white;
+            color: #f0f0f0;
             border: none;
             border-radius: 6px;
             cursor: pointer;
