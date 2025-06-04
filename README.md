@@ -762,7 +762,7 @@ graph TD
     classDef manifestation fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     
     class HumanIntent,InterfaceTouch inception
-    class EventCapture,ValueTransformation,MIDIOSCProcessing processing    class HumanIntent,InterfaceTouch inception
+    class EventCapture,ValueTransformation,MIDIOSCProcessing processing
     class UIUpdate,CanvasRendering,AudioVisualization visual
     class StateCalculation,DMXPacketCreation,UniverseMapping translation
     class SerialTransmission,ArtNetBroadcast,OSCTelemetry transmission
