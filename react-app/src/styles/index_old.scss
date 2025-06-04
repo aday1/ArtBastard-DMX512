@@ -2,8 +2,34 @@
 @use './font-fallbacks.scss';
 
 // Base variables
+<<<<<<< HEAD
+:root {  // Light mode colors - Blue, light orange, and light red color scheme
+  --color-background: #f0f4f8; /* Light blue-gray background */
+  --color-text: #2d3748; /* Dark blue-gray text */
+  --color-primary: #4299e1; /* Medium blue primary */
+  --color-secondary: #63b3ed; /* Light blue secondary */
+  --color-accent: #ed8936; /* Light orange accent */
+  --color-success: #38a169; /* Green success color */
+  --color-warning: #d69e2e; /* Orange warning color */
+  --color-error: #e53e3e;   /* Light red error color */
+  --color-card-bg: #edf2f7; /* Very light blue-gray card background */
+  --color-card-border: #cbd5e0; /* Light blue-gray border */
+  --color-slider-track: #cbd5e0; /* Light blue-gray slider track */
+  --color-slider-thumb: #4299e1; /* Blue slider thumb */
+  --color-button-bg: #4299e1; /* Blue button background */
+  --color-button-text: #ffffff; /* White button text */
+  --color-nav-active: #4299e1; /* Blue active nav */
+  --color-nav-inactive: #a0aec0; /* Light gray inactive nav */
+  --color-channel-bg: #edf2f7; /* Light blue-gray channel background */
+  --color-channel-border: #cbd5e0; /* Light blue-gray channel border */
+  --color-channel-selected: rgba(66, 153, 225, 0.1); /* Light blue selection */
+  --color-status-connected: #38a169; /* Green connected status */
+  --color-status-disconnected: #e53e3e; /* Light red disconnected status */
+  --color-status-inactive: #a0aec0; /* Light gray inactive status */
+  --color-status-active: #38a169; /* Green active status */
+=======
 :root {  // Light mode colors - Warmer, more comfortable color scheme
-  --color-background: #f5f0e1; /* Warmer off-white */
+  --color-background: #f5f0e1; /* Warmer off-#f0f0f0 */
   --color-text: #5a5047; /* Slightly warmer dark gray */
   --color-primary: #c77f5b; /* Adjusted for warmth */
   --color-secondary: #8f7a5d; /* Adjusted for warmth */
@@ -16,7 +42,7 @@
   --color-slider-track: #e6dacb; /* Warmer slider track */
   --color-slider-thumb: #c77f5b; /* Matches new primary */
   --color-button-bg: #c77f5b; /* Matches new primary */
-  --color-button-text: #fcfaf7; /* Off-white instead of pure white */
+  --color-button-text: #fcfaf7; /* Off-#f0f0f0 instead of pure #f0f0f0 */
   --color-nav-active: #c77f5b; /* Matches new primary */
   --color-nav-inactive: #8f7a5d; /* Matches new secondary */
   --color-channel-bg: #faf3e8; /* Warmer channel background */
@@ -26,6 +52,7 @@
   --color-status-disconnected: #e24338; /* Slightly desaturated red */
   --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
   --color-status-active: #2aa764; /* Matches connected status */
+>>>>>>> 85b244f2b97560e54c981132c9a31aaddfa8f7ae
   
   // Additional UI variables for components
   --bg-primary: var(--color-background);
@@ -66,8 +93,7 @@
   --color-channel-bg: #2c2c2e;
   --color-channel-border: #3a3a3c;
   --color-channel-selected: rgba(10, 132, 255, 0.3);
-  --color-status-connected: #30d158;
-  --color-status-disconnected: #ff453a;
+  --color-status-connected: #30d158;  --color-status-disconnected: #ff453a;
   --color-status-inactive: #3a3a3c;
   --color-status-active: #30d158;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
