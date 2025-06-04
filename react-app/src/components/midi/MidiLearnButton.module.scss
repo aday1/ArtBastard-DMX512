@@ -29,18 +29,18 @@
   
   &.learning {
     background-color: var(--color-primary);
-    color: white;
+    color: #f0f0f0;
     animation: pulse 1.5s infinite;
   }
   
   &.success {
     background-color: var(--color-success);
-    color: white;
+    color: #f0f0f0;
   }
   
   &.error {
     background-color: var(--color-error);
-    color: white;
+    color: #f0f0f0;
   }
   
   &.mapped {

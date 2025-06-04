@@ -9,6 +9,7 @@ export const MidiMonitor: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
   const monitorRef = useRef<HTMLDivElement>(null);
+<<<<<<< HEAD
 
 
   // Load position from localStorage (these are transform offsets)
@@ -110,6 +111,8 @@ export const MidiMonitor: React.FC = () => {
         setPosition({ x: newTransformX, y: newTransformY });
     }
   };
+=======
+>>>>>>> 85b244f2b97560e54c981132c9a31aaddfa8f7ae
 
   // Update the displayed messages when new MIDI messages arrive
   useEffect(() => {
@@ -126,15 +129,15 @@ export const MidiMonitor: React.FC = () => {
   const renderHeader = () => (
     <div
       className={`${styles.header} handle`}
-      onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest('button')) {
-          return; // Don't start drag if a button in header is clicked
-        }
-        dragControls.start(e);
-      }}
-      style={{ cursor: 'grab' }}
+      // onPointerDown={(e) => {
+      //   if ((e.target as HTMLElement).closest('button')) {
+      //     return; // Don't start drag if a button in header is clicked
+      //   }
+      //   // dragControls.start(e); // Removed drag controls
+      // }}
+      // style={{ cursor: 'grab' }} // Removed cursor style
     >
-      <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} />
+      {/* <LucideIcon name="GripVertical" size={18} className={styles.dragHandle} /> Removed drag handle */}
       <span className={styles.title}>MIDI Monitor</span>
       {!isCollapsed && <span className={styles.status}>Recent: {midiMessages.length}</span>}
       <div className={styles.controls}>
@@ -204,27 +207,27 @@ export const MidiMonitor: React.FC = () => {
   ].join(' ');
 
   return (
-    <motion.div
+    <div // Changed from motion.div to div
       ref={monitorRef}
-      className={monitorClasses}      style={{
-        position: 'fixed',
-        top: 20, // Initial CSS position
-        right: 20, // Initial CSS position
-        zIndex: 1050,
-        width: '400px',
-        x: position.x, // Apply stored/initial transform X
-        y: position.y, // Apply stored/initial transform Y
+      className={monitorClasses}
+      style={{ // Removed x and y, position will be handled by CSS
+        // position: 'fixed', // This will be in SCSS
+        // top: 20, // This will be in SCSS
+        // right: 20, // This will be in SCSS
+        zIndex: 1050, // Keep zIndex for stacking context
+        // width: '400px', // This will be in SCSS
       }}
-      drag
-      dragControls={dragControls}
-      dragListener={false} // Use onPointerDown on the handle
-      onDragEnd={handleDragEnd}
-      dragConstraints={constraints}
-      whileDrag={{ cursor: 'grabbing' }}
+      // Removed drag props
+      // drag
+      // dragControls={dragControls}
+      // dragListener={false}
+      // onDragEnd={handleDragEnd}
+      // dragConstraints={constraints}
+      // whileDrag={{ cursor: 'grabbing' }}
     >
       {renderHeader()}
       {renderContent()}
-    </motion.div>
+    </div>
   );
 };
 

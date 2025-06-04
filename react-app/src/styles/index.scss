@@ -2,6 +2,7 @@
 @use './font-fallbacks.scss';
 
 // Base variables
+<<<<<<< HEAD
 :root {  // Light mode colors - Blue, light orange, and light red color scheme
   --color-background: #f0f4f8; /* Light blue-gray background */
   --color-text: #2d3748; /* Dark blue-gray text */
@@ -26,6 +27,32 @@
   --color-status-disconnected: #e53e3e; /* Light red disconnected status */
   --color-status-inactive: #a0aec0; /* Light gray inactive status */
   --color-status-active: #38a169; /* Green active status */
+=======
+:root {  // Light mode colors - Warmer, more comfortable color scheme
+  --color-background: #f5f0e1; /* Warmer off-#f0f0f0 */
+  --color-text: #5a5047; /* Slightly warmer dark gray */
+  --color-primary: #c77f5b; /* Adjusted for warmth */
+  --color-secondary: #8f7a5d; /* Adjusted for warmth */
+  --color-accent: #d9781f; /* Adjusted for warmth */
+  --color-success: #2ecc71; // Keeping original success color
+  --color-warning: #f39c12; // Keeping original warning color
+  --color-error: #e74c3c;   // Keeping original error color
+  --color-card-bg: #faf3e8; /* Warmer card background */
+  --color-card-border: #e6dacb; /* Warmer card border */
+  --color-slider-track: #e6dacb; /* Warmer slider track */
+  --color-slider-thumb: #c77f5b; /* Matches new primary */
+  --color-button-bg: #c77f5b; /* Matches new primary */
+  --color-button-text: #fcfaf7; /* Off-#f0f0f0 instead of pure #f0f0f0 */
+  --color-nav-active: #c77f5b; /* Matches new primary */
+  --color-nav-inactive: #8f7a5d; /* Matches new secondary */
+  --color-channel-bg: #faf3e8; /* Warmer channel background */
+  --color-channel-border: #e0d8ce; /* Warmer channel border */
+  --color-channel-selected: rgba(199, 127, 91, 0.1); /* Based on new primary */
+  --color-status-connected: #2aa764; /* Slightly desaturated green */
+  --color-status-disconnected: #e24338; /* Slightly desaturated red */
+  --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
+  --color-status-active: #2aa764; /* Matches connected status */
+>>>>>>> 85b244f2b97560e54c981132c9a31aaddfa8f7ae
   
   // Additional UI variables for components
   --bg-primary: var(--color-background);
@@ -60,7 +87,7 @@
   --color-slider-track: #3a3a3c;
   --color-slider-thumb: #0a84ff;
   --color-button-bg: #0a84ff;
-  --color-button-text: #ffffff;
+  --color-button-text: #f0f0f0;
   --color-nav-active: #0a84ff;
   --color-nav-inactive: #86868b;
   --color-channel-bg: #2c2c2e;

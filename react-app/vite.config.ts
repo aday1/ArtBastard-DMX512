@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config' // Changed to 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
@@ -162,5 +162,13 @@ export default defineConfig({
         }
       }
     }
+  },
+  // Vitest configuration
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts', // Path to your setup file
+    // You can add more Vitest options here as needed
+    // css: true, // if you want to process CSS in tests (experimental)
   }
 });
