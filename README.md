@@ -29,7 +29,7 @@ The system operates across **Seven Functional Layers**:
 ## 🎪 **Transcendental System Architecture Mandala**
 
 ```mermaid
-graph TB
+graph TD
     subgraph SystemArchitecture["🧠 FUNCTIONAL ARCHITECTURE"]
         
         subgraph Layer7["🌌 Layer 7: Physical Manifestation"]
