@@ -165,7 +165,8 @@
 }
 
 .muteButton,
-.soloButton {
+.soloButton,
+.ignoreButton {
   flex: 1;
   display: flex;
   align-items: center;
@@ -183,10 +184,15 @@
     background: var(--bg-hover);
     color: var(--text-primary);
   }
-
   &.active {
     background: var(--color-primary);
     border-color: var(--color-primary);
+    color: var(--text-inverse);
+  }
+
+  &.ignoreButton.active {
+    background: var(--color-warning);
+    border-color: var(--color-warning);
     color: var(--text-inverse);
   }
 

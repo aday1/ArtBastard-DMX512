@@ -114,6 +114,10 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
     }
   };
 
+  const handleIgnoreToggle = () => {
+    updateGroup(group.id, { ignoreSceneChanges: !group.ignoreSceneChanges });
+  };
+
   const getMidiStatusText = () => {
     const mapping = group.midiMapping;
     if (!mapping) return 'MIDI Learn';
@@ -164,7 +168,8 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
             onChange={(e) => handleMasterChange(parseInt(e.target.value))}
             className={`${styles.slider} ${isFading ? styles.fading : ''}`}
           />
-          <div className={styles.midiOscControls}>            <button
+          <div className={styles.midiOscControls}>
+            <button
               className={`${styles.midiLearn} ${
                 midiLearnTarget?.type === 'group' && midiLearnTarget.groupId === group.id
                   ? styles.learning
@@ -204,6 +209,14 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
           >
             <i className="fas fa-spotlight" />
             Solo
+          </button>
+          <button
+            className={`${styles.ignoreButton} ${group.ignoreSceneChanges ? styles.active : ''}`}
+            onClick={handleIgnoreToggle}
+            title={group.ignoreSceneChanges ? "Allow Scene Changes" : "Ignore Scene Changes"}
+          >
+            <i className="fas fa-shield-alt" />
+            Ignore Scenes
           </button>
         </div>
       </div>

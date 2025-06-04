@@ -1,14 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DockableComponent } from '@/components/ui/DockableComponent';
+import { useStore } from '../../store';
 import styles from './SceneQuickLaunch.module.scss';
-
-interface Scene {
-  id: string;
-  name: string;
-  description?: string;
-  channels: { [channelId: string]: number };
-  isActive?: boolean;
-}
 
 interface SceneQuickLaunchProps {
   isCollapsed?: boolean;
@@ -19,46 +12,17 @@ export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
   isCollapsed = false,
   onCollapsedChange,
 }) => {
-  const [scenes, setScenes] = useState<Scene[]>([]);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Load scenes from API
-  useEffect(() => {
-    const loadScenes = async () => {
-      try {
-        const response = await fetch('/api/scenes');
-        if (response.ok) {
-          const scenesData = await response.json();
-          setScenes(scenesData);
-        }
-      } catch (error) {
-        console.error('Failed to load scenes:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadScenes();
-  }, []);
-
-  const handleSceneActivate = async (sceneId: string) => {
+  
+  // Get scenes from store instead of API
+  const { scenes, loadScene } = useStore(state => ({
+    scenes: state.scenes,
+    loadScene: state.loadScene
+  }));
+  const handleSceneActivate = async (sceneName: string) => {
     try {
-      const response = await fetch(`/api/scenes/${sceneId}/activate`, {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        setActiveSceneId(sceneId);
-        
-        // Update scenes list to reflect active state
-        setScenes(prevScenes => 
-          prevScenes.map(scene => ({
-            ...scene,
-            isActive: scene.id === sceneId
-          }))
-        );
-      }
+      loadScene(sceneName);
+      setActiveSceneId(sceneName);
     } catch (error) {
       console.error('Failed to activate scene:', error);
     }
@@ -68,17 +32,7 @@ export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
     const newCollapsed = !isCollapsed;
     onCollapsedChange?.(newCollapsed);
   };
-
   const renderContent = () => {
-    if (loading) {
-      return (
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <span>Loading scenes...</span>
-        </div>
-      );
-    }
-
     if (scenes.length === 0) {
       return (
         <div className={styles.empty}>
@@ -92,13 +46,13 @@ export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
       <div className={styles.sceneGrid}>
         {scenes.map((scene) => (
           <button
-            key={scene.id}
-            className={`${styles.sceneButton} ${scene.isActive ? styles.active : ''}`}
-            onClick={() => handleSceneActivate(scene.id)}
-            title={scene.description || scene.name}
+            key={scene.name}
+            className={`${styles.sceneButton} ${scene.name === activeSceneId ? styles.active : ''}`}
+            onClick={() => handleSceneActivate(scene.name)}
+            title={scene.oscAddress || scene.name}
           >
             <div className={styles.sceneName}>{scene.name}</div>
-            {scene.isActive && (
+            {scene.name === activeSceneId && (
               <div className={styles.activeIndicator}>●</div>
             )}
           </button>

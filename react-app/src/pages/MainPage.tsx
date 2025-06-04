@@ -8,7 +8,6 @@ import { MasterFader } from '../components/dmx/MasterFader'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
-import { MidiClock } from '../components/midi/MidiClock' // Added MidiClock import
 import { SceneQuickLaunch } from '../components/scenes/SceneQuickLaunch'
 import { AutoSceneControlMini } from '../components/scenes/AutoSceneControlMini'
 import { OscDebug } from '../components/osc/OscDebug'
@@ -28,6 +27,9 @@ const MainPage: React.FC = () => {
   const connected = socketContext.connected
   const addNotification = useStore(state => state.addNotification)
   const [currentView, setCurrentView] = useState<ViewType>('main')
+  
+  // State for AutoSceneControl minimize functionality
+  const [isAutoSceneMinimized, setIsAutoSceneMinimized] = useState(false)
 
   // Handle view changes from navbar
   useEffect(() => {
@@ -65,17 +67,18 @@ const MainPage: React.FC = () => {
               <DmxControlPanel />
               <MidiMonitor />
               <OscMonitor />
-              <MidiClock /> {/* Added MidiClock */}
-              <SceneQuickLaunch /> {/* Added SceneQuickLaunch */}
-              <AutoSceneControlMini /> {/* Added AutoSceneControlMini */}
+              <SceneQuickLaunch />
+              <AutoSceneControlMini />
             </>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}
-          {currentView === 'fixture' && <FixtureSetup />}
-          {currentView === 'scenes' && (
+          {currentView === 'fixture' && <FixtureSetup />}          {currentView === 'scenes' && (
             <>
               <SceneGallery />
-              <AutoSceneControl />
+              <AutoSceneControl 
+                isMinimized={isAutoSceneMinimized}
+                onMinimizedChange={setIsAutoSceneMinimized}
+              />
             </>
           )}
           {currentView === 'oscDebug' && <OscDebug />}

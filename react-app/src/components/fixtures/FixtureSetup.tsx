@@ -97,6 +97,7 @@ export const FixtureSetup: React.FC = () => {
     const [showCreateFixture, setShowCreateFixture] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [fixtureForm, setFixtureForm] = useState<FixtureFormData>({
     name: '',    startAddress: 1,
     channels: [{ name: 'Intensity', type: 'dimmer' }]
@@ -303,18 +304,17 @@ export const FixtureSetup: React.FC = () => {
       id: `group-${Date.now()}-${Math.random()}`,
       name: groupForm.name!,
       fixtureIndices: [...groupForm.fixtureIndices!],
-      lastStates: new Array(512).fill(0), // Start with all channels at 0
+      lastStates: new Array(512).fill(0),
       isMuted: false,
       isSolo: false,
-      masterValue: 255, // Full brightness by default
-      position: undefined // Will be set when added to canvas
+      masterValue: 255,
+      position: undefined
     };
 
     useStoreUtils.setState(state => ({
       groups: [...state.groups, newGroup]
     }));
     
-    // Reset form and hide it
     setGroupForm({
       name: '',
       fixtureIndices: [],
@@ -325,9 +325,73 @@ export const FixtureSetup: React.FC = () => {
     });
     setShowCreateGroup(false);
     
-    // Show success message
     useStoreUtils.getState().addNotification({
       message: `Group "${newGroup.name}" created`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  // Delete a group
+  const deleteGroup = (group: Group) => {
+    if (window.confirm(`Are you sure you want to delete "${group.name}"?`)) {
+      useStoreUtils.setState(state => ({
+        groups: state.groups.filter(g => g.id !== group.id)
+      }));
+      
+      useStoreUtils.getState().addNotification({
+        message: `Group "${group.name}" deleted`,
+        type: 'success',
+        priority: 'normal'
+      });
+    }
+  };
+
+  // Start editing a group
+  const startEditGroup = (group: Group) => {
+    setGroupForm({
+      name: group.name,
+      fixtureIndices: [...group.fixtureIndices],
+      lastStates: [...group.lastStates],
+      isMuted: group.isMuted,
+      isSolo: group.isSolo,
+      masterValue: group.masterValue
+    });
+    setEditingGroupId(group.id);
+    setShowCreateGroup(true);
+  };
+
+  // Update existing group
+  const updateGroup = () => {
+    if (!editingGroupId) return;
+
+    const updatedGroup: Group = {
+      id: editingGroupId,
+      name: groupForm.name!,
+      fixtureIndices: [...groupForm.fixtureIndices!],
+      lastStates: [...groupForm.lastStates!],
+      isMuted: groupForm.isMuted!,
+      isSolo: groupForm.isSolo!,
+      masterValue: groupForm.masterValue!
+    };
+
+    useStoreUtils.setState(state => ({
+      groups: state.groups.map(g => g.id === editingGroupId ? updatedGroup : g)
+    }));
+
+    setGroupForm({
+      name: '',
+      fixtureIndices: [],
+      lastStates: new Array(512).fill(0),
+      isMuted: false,
+      isSolo: false,
+      masterValue: 255
+    });
+    setShowCreateGroup(false);
+    setEditingGroupId(null);
+
+    useStoreUtils.getState().addNotification({
+      message: `Group "${updatedGroup.name}" updated`,
       type: 'success',
       priority: 'normal'
     });
@@ -613,12 +677,27 @@ export const FixtureSetup: React.FC = () => {
             ) : (
               <div className={styles.groupList}>
                 {groups.map((group, index) => (
-                  <div key={index} className={styles.groupItem}>
-                    <div className={styles.groupHeader}>
+                  <div key={index} className={styles.groupItem}>                    <div className={styles.groupHeader}>
                       <h4>{group.name}</h4>
-                      <span className={styles.groupCount}>
-                        {group.fixtureIndices.length} fixture{group.fixtureIndices.length !== 1 ? 's' : ''}
-                      </span>
+                      <div className={styles.groupActions}>
+                        <span className={styles.groupCount}>
+                          {group.fixtureIndices.length} fixture{group.fixtureIndices.length !== 1 ? 's' : ''}
+                        </span>
+                        <button
+                          className={styles.editButton}
+                          onClick={() => startEditGroup(group)}
+                          title="Edit group"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                        <button
+                          className={styles.deleteButton}
+                          onClick={() => deleteGroup(group)}
+                          title="Delete group"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </div>
                     <div className={styles.groupFixtures}>
                       {group.fixtureIndices.map(fixtureIndex => (
@@ -626,6 +705,22 @@ export const FixtureSetup: React.FC = () => {
                           {fixtures[fixtureIndex]?.name || `Fixture #${fixtureIndex}`}
                         </div>
                       ))}
+                    </div>
+                    <div className={styles.groupActions}>
+                      <button
+                        className={styles.editButton}
+                        onClick={() => startEditGroup(group)}
+                        title="Edit group"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        className={styles.deleteButton}
+                        onClick={() => deleteGroup(group)}
+                        title="Delete group"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -694,16 +789,25 @@ export const FixtureSetup: React.FC = () => {
                     onClick={() => setShowCreateGroup(false)}
                   >
                     Cancel
-                  </button>
-                  <button 
-                    className={styles.saveButton}
-                    onClick={saveGroup}
-                    disabled={!groupForm.name || groupForm.fixtureIndices.length === 0}
-                  >
-                    <i className="fas fa-save"></i>
-                    {theme === 'artsnob' && 'Establish Collective'}
-                    {theme === 'standard' && 'Save Group'}
-                    {theme === 'minimal' && 'Save'}
+                  </button>                    <button 
+                      className={styles.saveButton}
+                      onClick={editingGroupId ? updateGroup : saveGroup}
+                      disabled={!groupForm.name || groupForm.fixtureIndices.length === 0}
+                    >
+                      <i className="fas fa-save"></i>
+                      {editingGroupId ? (
+                        <>
+                          {theme === 'artsnob' && 'Update Collective'}
+                          {theme === 'standard' && 'Update Group'}
+                          {theme === 'minimal' && 'Update'}
+                        </>
+                      ) : (
+                        <>
+                          {theme === 'artsnob' && 'Establish Collective'}
+                          {theme === 'standard' && 'Save Group'}
+                          {theme === 'minimal' && 'Save'}
+                        </>
+                      )}
                   </button>
                 </div>
               </div>

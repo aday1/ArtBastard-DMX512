@@ -6,6 +6,10 @@
   color: #eaeaea;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+
+  &.flashing {
+    animation: flashBorder 0.2s ease-in-out;
+  }
 }
 
 .header {
@@ -140,6 +144,19 @@
   padding: 2px 4px;
   background-color: #333;
   border-radius: 3px;
+}
+
+@keyframes flashBorder {
+  0% {
+    border-color: #555;
+  }
+  50% {
+    border-color: #a855f7;
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  }
+  100% {
+    border-color: #555;
+  }
 }
 
 @keyframes pulse {

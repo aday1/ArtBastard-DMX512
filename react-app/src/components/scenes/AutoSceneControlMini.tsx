@@ -20,8 +20,8 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
     autoSceneTempoSource,
     autoSceneManualBpm,
     autoSceneTapTempoBpm,
-    midiClockBpm,
-    midiClockIsPlaying,
+    autoSceneBeatDivision,
+    autoSceneIsFlashing, // Use shared flashing state
   } = useStore(state => ({
     autoSceneEnabled: state.autoSceneEnabled,
     autoSceneList: state.autoSceneList,
@@ -29,24 +29,23 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
     autoSceneTempoSource: state.autoSceneTempoSource,
     autoSceneManualBpm: state.autoSceneManualBpm,
     autoSceneTapTempoBpm: state.autoSceneTapTempoBpm,
-    midiClockBpm: state.midiClockBpm,
-    midiClockIsPlaying: state.midiClockIsPlaying,
+    autoSceneBeatDivision: state.autoSceneBeatDivision,
+    autoSceneIsFlashing: state.autoSceneIsFlashing, // Use shared flashing state
   }));
 
   const {
     setAutoSceneEnabled,
     setAutoSceneTempoSource,
     recordTapTempo,
+    requestToggleMasterClockPlayPause,
   } = useStore(state => ({
     setAutoSceneEnabled: state.setAutoSceneEnabled,
     setAutoSceneTempoSource: state.setAutoSceneTempoSource,
     recordTapTempo: state.recordTapTempo,
+    requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause,
   }));
-
   const getCurrentBpm = () => {
     switch (autoSceneTempoSource) {
-      case 'internal_clock':
-        return midiClockBpm;
       case 'manual_bpm':
         return autoSceneManualBpm;
       case 'tap_tempo':
@@ -85,13 +84,11 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
           </div>
         </div>
 
-        <div className={styles.tempoControls}>
-          <select
+        <div className={styles.tempoControls}>          <select
             value={autoSceneTempoSource}
             onChange={(e) => setAutoSceneTempoSource(e.target.value as any)}
             className={styles.tempoSelect}
           >
-            <option value="internal_clock">MIDI Clock</option>
             <option value="manual_bpm">Manual BPM</option>
             <option value="tap_tempo">Tap Tempo</option>
           </select>
@@ -116,7 +113,6 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
       </div>
     );
   };
-
   return (
     <DockableComponent
       id="auto-scene-control-mini"
@@ -126,7 +122,7 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
       defaultZIndex={1025}
       isCollapsed={isCollapsed}
       onCollapsedChange={onCollapsedChange}
-      className={styles.container}
+      className={`${styles.container} ${autoSceneIsFlashing ? styles.flashing : ''}`}
       isDraggable={true}
     >
       <div className={styles.header}>

@@ -211,17 +211,38 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
               )}
             </div>
           </div>
-          
-          <button 
-            className={styles.saveButton}
-            onClick={saveScene}
-            disabled={!newSceneName.trim()}
-          >
-            <i className="fas fa-save"></i>
-            {theme === 'artsnob' && 'Immortalize Scene'}
-            {theme === 'standard' && 'Save Scene'}
-            {theme === 'minimal' && 'Save'}
-          </button>
+            <div className={styles.buttonGroup}>
+            <button 
+              className={styles.saveButton}
+              onClick={saveScene}
+              disabled={!newSceneName.trim()}
+            >
+              <i className="fas fa-save"></i>
+              {theme === 'artsnob' && 'Immortalize Scene'}
+              {theme === 'standard' && 'Save Scene'}
+              {theme === 'minimal' && 'Save'}
+            </button>
+            
+            <button 
+              className={styles.quickSaveButton}
+              onClick={() => {
+                const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-');
+                const quickName = `Quick_${timestamp}`;
+                useStore.getState().saveScene(quickName, `/scene/${quickName.toLowerCase()}`);
+                useStore.getState().addNotification({
+                  message: `Quick saved as "${quickName}"`,
+                  type: 'success',
+                  priority: 'normal'
+                });
+              }}
+              title="Quick save current DMX state with timestamp"
+            >
+              <i className="fas fa-bolt"></i>
+              {theme === 'artsnob' && 'Quick Capture'}
+              {theme === 'standard' && 'Quick Save'}
+              {theme === 'minimal' && 'Quick Save'}
+            </button>
+          </div>
         </div>
       </div>
       

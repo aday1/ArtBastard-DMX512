@@ -18,32 +18,13 @@ export const MidiOscSetup: React.FC = () => {
     disconnectBrowserInput,
     refreshDevices
   } = useBrowserMidi()
-  
-  const [midiInterfaces, setMidiInterfaces] = useState<string[]>([])
+    const [midiInterfaces, setMidiInterfaces] = useState<string[]>([])
   const [activeInterfaces, setActiveInterfaces] = useState<string[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [oscConfig, setOscConfig] = useState({ host: '127.0.0.1', port: 8000 })
-  const [midiClockOutputs, setMidiClockOutputs] = useState<string[]>([])
-  const [currentMidiClockOutput, setCurrentMidiClockOutput] = useState<string | null>(null)
-  const [isLoadingMidiOutputs, setIsLoadingMidiOutputs] = useState(false)
   
   const midiMessages = useStore(state => state.midiMessages)
   const clearAllMidiMappings = useStore(state => state.clearAllMidiMappings)
-
-  // Zustand store values for Master Clock
-  const {
-    availableMidiClockHosts,
-    selectedMidiClockHostId,
-    midiClockBpm,
-    setSelectedMidiClockHostId,
-    setMidiClockBpm,
-  } = useStore(state => ({
-    availableMidiClockHosts: state.availableMidiClockHosts,
-    selectedMidiClockHostId: state.selectedMidiClockHostId,
-    midiClockBpm: state.midiClockBpm,
-    setSelectedMidiClockHostId: state.setSelectedMidiClockHostId,
-    setMidiClockBpm: state.setMidiClockBpm,
-  }));
   
   // Request MIDI interfaces on component mount
   useEffect(() => {
@@ -376,55 +357,6 @@ export const MidiOscSetup: React.FC = () => {
               {theme === 'standard' && 'Click "MIDI Learn" on any DMX channel and move a control on your MIDI device to create a mapping.'}
               {theme === 'minimal' && 'Use MIDI Learn on DMX channels to map controls.'}
             </p>
-          </div>
-        </div>
-
-        {/* Master Clock Settings Card */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>
-              {theme === 'artsnob' && 'Chronometer Configuration: The Pulse of Creation'}
-              {theme === 'standard' && 'Master Clock Settings'}
-              {theme === 'minimal' && 'Master Clock'}
-            </h3>
-          </div>
-          <div className={styles.cardBody}>
-            <div className={styles.formGroup}>
-              <label htmlFor="masterClockSource">Master Clock Source:</label>
-              <select
-                id="masterClockSource"
-                value={selectedMidiClockHostId || ''}
-                onChange={(e) => setSelectedMidiClockHostId(e.target.value)}
-                className={styles.selectInput}
-              >
-                {availableMidiClockHosts.map(host => (
-                  <option key={host.id} value={host.id}>
-                    {host.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedMidiClockHostId === 'internal' && (
-              <div className={styles.formGroup}>
-                <label htmlFor="internalBpm">Internal Clock BPM:</label>
-                <input
-                  type="number"
-                  id="internalBpm"
-                  value={midiClockBpm}
-                  onChange={(e) => {
-                    const newBpm = parseFloat(e.target.value);
-                    if (!isNaN(newBpm)) {
-                      setMidiClockBpm(newBpm);
-                    }
-                  }}
-                  min="30"
-                  max="300"
-                  step="0.01"
-                  className={styles.numberInput}
-                />
-              </div>
-            )}
           </div>
         </div>
         

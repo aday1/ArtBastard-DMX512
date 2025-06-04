@@ -28,6 +28,7 @@ export interface Group {
   masterValue: number; // Current master value (0-255)
   midiMapping?: MidiMapping;
   oscAddress?: string;
+  ignoreSceneChanges?: boolean; // Whether this group ignores scene changes
 }
 
 export interface Scene {
@@ -122,6 +123,52 @@ export type AddNotificationInput = Omit<Notification, 'id' | 'timestamp'>;
 // Type for batch DMX channel updates
 export type DmxChannelBatchUpdate = Record<number, number>;
 
+// Auto-Scene settings interface for localStorage persistence
+interface AutoSceneSettings {
+  autoSceneEnabled: boolean;
+  autoSceneList: string[];
+  autoSceneMode: 'forward' | 'ping-pong' | 'random';
+  autoSceneBeatDivision: number;
+  autoSceneManualBpm: number;
+  autoSceneTapTempoBpm: number;
+  autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
+}
+
+// Helper functions for localStorage persistence
+const AUTO_SCENE_STORAGE_KEY = 'artbastard-auto-scene-settings';
+
+const saveAutoSceneSettings = (settings: AutoSceneSettings) => {
+  try {
+    localStorage.setItem(AUTO_SCENE_STORAGE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.warn('Failed to save auto-scene settings to localStorage:', error);
+  }
+};
+
+const loadAutoSceneSettings = (): Partial<AutoSceneSettings> => {
+  try {
+    const stored = localStorage.getItem(AUTO_SCENE_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    console.warn('Failed to load auto-scene settings from localStorage:', error);
+    return {};
+  }
+};
+
+// Helper to save current auto-scene settings from store state
+const saveCurrentAutoSceneSettings = (state: any) => {
+  const settings: AutoSceneSettings = {
+    autoSceneEnabled: state.autoSceneEnabled,
+    autoSceneList: state.autoSceneList,
+    autoSceneMode: state.autoSceneMode,
+    autoSceneBeatDivision: state.autoSceneBeatDivision,
+    autoSceneManualBpm: state.autoSceneManualBpm,
+    autoSceneTapTempoBpm: state.autoSceneTapTempoBpm,
+    autoSceneTempoSource: state.autoSceneTempoSource,
+  };
+  saveAutoSceneSettings(settings);
+};
+
 interface State {
   // DMX State
   dmxChannels: number[]
@@ -192,7 +239,6 @@ interface State {
   midiClockIsPlaying: boolean;
   midiClockCurrentBeat: number;
   midiClockCurrentBar: number;
-
   // Auto-Scene Feature State
   autoSceneEnabled: boolean;
   autoSceneList: string[]; // Names of scenes selected for auto-sequencing
@@ -205,6 +251,7 @@ interface State {
   autoSceneLastTapTime: number; // For tap tempo calculation
   autoSceneTapTimes: number[]; // Stores recent tap intervals
   autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
+  autoSceneIsFlashing: boolean; // Shared flashing state for downbeat border flash
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -263,7 +310,6 @@ interface State {
   setMidiClockIsPlaying: (isPlaying: boolean) => void; // Called by WS handler
   setMidiClockBeatBar: (beat: number, bar: number) => void; // Called by WS handler
   requestToggleMasterClockPlayPause: () => void; // Renamed action
-
   // Auto-Scene Actions
   setAutoSceneEnabled: (enabled: boolean) => void;
   setAutoSceneList: (sceneNames: string[]) => void;
@@ -274,6 +320,7 @@ interface State {
   resetAutoSceneIndex: () => void;
   setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
   recordTapTempo: () => void;         // For auto-scene tap tempo
+  triggerAutoSceneFlash: () => void;  // Triggers the shared flashing state
 
   // Enhanced Group State
   updateGroup: (groupId: string, groupData: Partial<Group>) => void;  
@@ -362,33 +409,36 @@ export const useStore = create<State>()(
       fromDmxValues: null,
       toDmxValues: null,
       currentTransitionFrame: null,
+        socket: null,
+      setSocket: (socket) => set({ socket }),
       
-      socket: null,
-      setSocket: (socket) => set({ socket }),      // MIDI Clock Sync State Init
+      // MIDI Clock Sync State Init
       availableMidiClockHosts: [
         { id: 'internal', name: 'Internal Clock' },
-        { id: 'none', name: 'None (Disabled)' },
-        { id: 'ableton-link', name: 'Ableton Sync Link' },
         // Other hosts would be populated dynamically
       ],
       selectedMidiClockHostId: 'internal',
       midiClockBpm: 120.0,
       midiClockIsPlaying: false,
       midiClockCurrentBeat: 1,
-      midiClockCurrentBar: 1,
-
-      // Auto-Scene Feature State Init
-      autoSceneEnabled: false,
-      autoSceneList: [],
-      autoSceneMode: 'forward',
-      autoSceneCurrentIndex: -1, // Indicates no scene selected or sequence not started
-      autoScenePingPongDirection: 'forward',
-      autoSceneBeatDivision: 4, // Default to 1 bar (4 beats)
-      autoSceneManualBpm: 120,
-      autoSceneTapTempoBpm: 120,
-      autoSceneLastTapTime: 0,
-      autoSceneTapTimes: [],
-      autoSceneTempoSource: 'internal_clock',
+      midiClockCurrentBar: 1,      // Auto-Scene Feature State Init - Load from localStorage if available
+      ...((): any => {
+        const savedSettings = loadAutoSceneSettings();
+        return {
+          autoSceneEnabled: savedSettings.autoSceneEnabled ?? false,
+          autoSceneList: savedSettings.autoSceneList ?? [],
+          autoSceneMode: savedSettings.autoSceneMode ?? 'forward',
+          autoSceneCurrentIndex: -1, // Always start fresh, don't persist current index
+          autoScenePingPongDirection: 'forward', // Always start fresh
+          autoSceneBeatDivision: savedSettings.autoSceneBeatDivision ?? 4,
+          autoSceneManualBpm: savedSettings.autoSceneManualBpm ?? 120,
+          autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
+          autoSceneLastTapTime: 0, // Don't persist timing state
+          autoSceneTapTimes: [], // Don't persist timing state
+          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'internal_clock',
+          autoSceneIsFlashing: false, // Initial flashing state
+        };
+      })(),
       
       // Actions
       fetchInitialState: async () => {
@@ -689,9 +739,8 @@ export const useStore = create<State>()(
             get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
           })
       },
-      
-      loadScene: (name) => { 
-        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration } = get();
+        loadScene: (name) => { 
+        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
         const scene = scenes.find(s => s.name === name);
         
         if (scene) {
@@ -700,10 +749,32 @@ export const useStore = create<State>()(
             set({ currentTransitionFrame: null }); 
           }
 
+          // Create a copy of scene values that we can modify
+          const targetDmxValues = [...scene.channelValues];
+
+          // For each group that ignores scene changes, restore their current DMX values
+          groups.forEach(group => {
+            if (group.ignoreSceneChanges) {
+              group.fixtureIndices.forEach(fixtureIndex => {
+                const fixture = fixtures[fixtureIndex];
+                if (fixture) {
+                  // Calculate the DMX range for this fixture
+                  const startAddr = fixture.startAddress - 1; // Convert to 0-based
+                  const endAddr = startAddr + fixture.channels.length;
+                  
+                  // Copy current values for these channels
+                  for (let i = startAddr; i < endAddr; i++) {
+                    targetDmxValues[i] = currentDmxState[i];
+                  }
+                }
+              });
+            }
+          });
+
           set({
             isTransitioning: true,
             fromDmxValues: [...currentDmxState], 
-            toDmxValues: [...scene.channelValues],
+            toDmxValues: targetDmxValues,
             transitionStartTime: Date.now(),
           });
           
@@ -979,23 +1050,35 @@ export const useStore = create<State>()(
             type: 'error',
           });
         }
+      },      // Auto-Scene Actions Implementations
+      setAutoSceneEnabled: (enabled) => {
+        set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
+        saveCurrentAutoSceneSettings(get());
       },
-
-      // Auto-Scene Actions Implementations
-      setAutoSceneEnabled: (enabled) => set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }), // Reset index when enabling/disabling
-      setAutoSceneList: (sceneNames) => set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }), // Reset index
-      setAutoSceneMode: (mode) => set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }), // Reset index and direction
-      setAutoSceneBeatDivision: (division) => set({ autoSceneBeatDivision: Math.max(1, division) }), // Ensure division is at least 1
-      setAutoSceneTempoSource: (source) => set({ autoSceneTempoSource: source }),
-      resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),
-      setManualBpm: (bpm) => {
+      setAutoSceneList: (sceneNames) => {
+        set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }); // Reset index
+        saveCurrentAutoSceneSettings(get());
+      },
+      setAutoSceneMode: (mode) => {
+        set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }); // Reset index and direction
+        saveCurrentAutoSceneSettings(get());
+      },
+      setAutoSceneBeatDivision: (division) => {
+        set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure division is at least 1
+        saveCurrentAutoSceneSettings(get());
+      },
+      setAutoSceneTempoSource: (source) => {
+        set({ autoSceneTempoSource: source });
+        saveCurrentAutoSceneSettings(get());
+      },
+      resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),      setManualBpm: (bpm) => {
         const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
         set({ autoSceneManualBpm: newBpm });
         if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
           get().setMidiClockBpm(newBpm); // Also update main internal clock
         }
-      },
-      recordTapTempo: () => {
+        saveCurrentAutoSceneSettings(get());
+      },      recordTapTempo: () => {
         const now = Date.now();
         const lastTapTime = get().autoSceneLastTapTime;
         let newTapTimes = [...get().autoSceneTapTimes];
@@ -1022,6 +1105,7 @@ export const useStore = create<State>()(
             if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
               get().setMidiClockBpm(newBpm); // Also update main internal clock
             }
+            saveCurrentAutoSceneSettings(get()); // Save when BPM changes
           }
         }
       },
@@ -1034,237 +1118,32 @@ export const useStore = create<State>()(
 
         let nextIndex = autoSceneCurrentIndex;
         let nextPingPongDirection = autoScenePingPongDirection;
-        const listLength = autoSceneList.length;
-
-        if (autoSceneMode === 'forward') {
+        const listLength = autoSceneList.length;        if (autoSceneMode === 'forward') {
           nextIndex = (autoSceneCurrentIndex + 1) % listLength;
-        } else if (autoSceneMode === 'random') {
-          if (listLength <= 1) {
-            nextIndex = 0;
-          } else {
-            let randomIndex = Math.floor(Math.random() * listLength);
-            // Ensure it's not the same as current, if possible
-            while (randomIndex === autoSceneCurrentIndex && listLength > 1) {
-              randomIndex = Math.floor(Math.random() * listLength);
-            }
-            nextIndex = randomIndex;
-          }
         } else if (autoSceneMode === 'ping-pong') {
-          if (listLength === 1) {
-            nextIndex = 0;
+          if (nextPingPongDirection === 'forward') {
+            nextIndex = (autoSceneCurrentIndex + 1) % listLength;
+            if (nextIndex === 0) nextPingPongDirection = 'backward';
           } else {
-            if (nextPingPongDirection === 'forward') {
-              if (autoSceneCurrentIndex >= listLength - 1) {
-                nextIndex = Math.max(0, listLength - 2);
-                nextPingPongDirection = 'backward';
-              } else {
-                nextIndex = autoSceneCurrentIndex + 1;
-              }
-            } else { // Backward
-              if (autoSceneCurrentIndex <= 0) {
-                nextIndex = Math.min(1, listLength - 1);
-                nextPingPongDirection = 'forward';
-              } else {
-                nextIndex = autoSceneCurrentIndex - 1;
-              }
-            }
+            nextIndex = (autoSceneCurrentIndex - 1 + listLength) % listLength;
+            if (nextIndex === listLength - 1) nextPingPongDirection = 'forward';
           }
+        } else if (autoSceneMode === 'random') {
+          // Random selection
+          do {
+            nextIndex = Math.floor(Math.random() * listLength);
+          } while (nextIndex === autoSceneCurrentIndex && listLength > 1);
         }
+
         set({ autoSceneCurrentIndex: nextIndex, autoScenePingPongDirection: nextPingPongDirection });
       },
-
-      // Group State Management
-      updateGroup: (groupId: string, groupData: Partial<Group>) => 
-        set((state) => ({
-          groups: state.groups.map(g => 
-            g.id === groupId ? { ...g, ...groupData } : g
-          )
-        })),
-
-      addGroupToCanvas: (group: Group, position: { x: number; y: number }) =>
-        set((state) => ({
-          groups: state.groups.map(g =>
-            g.id === group.id ? { ...g, position } : g
-          )
-        })),
-
-      updateGroupPosition: (groupId: string, position: { x: number; y: number }) =>
-        set((state) => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, position } : g
-          )
-        })),
-
-      setGroupMasterValue: (groupId: string, value: number) =>
-        set((state) => {
-          const group = state.groups.find(g => g.id === groupId);
-          if (!group) return state;
-
-          // Calculate the scaling factor for the transition from current to last known states
-          const scaleFactor = value / 255;
-          
-          // Create new DMX state applying the master value
-          const newDmxChannels = [...state.dmxChannels];
-          
-          group.fixtureIndices.forEach(fixtureIndex => {
-            const fixture = state.fixtures[fixtureIndex];
-            if (fixture) {
-              for (let i = 0; i < fixture.channels.length; i++) {
-                const dmxChannel = fixture.startAddress + i - 1;
-                const lastValue = group.lastStates[dmxChannel] || 0;
-                newDmxChannels[dmxChannel] = Math.round(lastValue * scaleFactor);
-              }
-            }
-          });
-
-          return {
-            groups: state.groups.map(g =>
-              g.id === groupId ? { ...g, masterValue: value } : g
-            ),
-            dmxChannels: newDmxChannels
-          };
-        }),
-
-      setGroupMute: (groupId: string, isMuted: boolean) =>
-        set((state) => {
-          const group = state.groups.find(g => g.id === groupId);
-          if (!group) return state;
-
-          const newDmxChannels = [...state.dmxChannels];
-          
-          // If unmuting and not soloed, restore to master value
-          // If muting, set channels to 0
-          group.fixtureIndices.forEach(fixtureIndex => {
-            const fixture = state.fixtures[fixtureIndex];
-            if (fixture) {
-              for (let i = 0; i < fixture.channels.length; i++) {
-                const dmxChannel = fixture.startAddress + i - 1;
-                const lastValue = group.lastStates[dmxChannel] || 0;
-                newDmxChannels[dmxChannel] = isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255));
-              }
-            }
-          });
-
-          return {
-            groups: state.groups.map(g =>
-              g.id === groupId ? { ...g, isMuted } : g
-            ),
-            dmxChannels: newDmxChannels
-          };
-        }),
-
-      setGroupSolo: (groupId: string, isSolo: boolean) =>
-        set((state) => {
-          // Create new DMX state
-          const newDmxChannels = [...state.dmxChannels];
-          
-          // If soloing this group, save states and black out all other groups
-          state.groups.forEach(group => {
-            group.fixtureIndices.forEach(fixtureIndex => {
-              const fixture = state.fixtures[fixtureIndex];
-              if (fixture) {
-                for (let i = 0; i < fixture.channels.length; i++) {
-                  const dmxChannel = fixture.startAddress + i - 1;
-                  const lastValue = group.lastStates[dmxChannel] || 0;
-                  
-                  if (group.id === groupId) {
-                    // This is the soloed group
-                    newDmxChannels[dmxChannel] = isSolo ? 
-                      Math.round(lastValue * (group.masterValue / 255)) : 
-                      (group.isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255)));
-                  } else {
-                    // Other groups
-                    newDmxChannels[dmxChannel] = isSolo ? 0 : 
-                      (group.isMuted ? 0 : Math.round(lastValue * (group.masterValue / 255)));
-                  }
-                }
-              }
-            });
-          });
-
-          return {
-            groups: state.groups.map(g =>
-              g.id === groupId ? { ...g, isSolo } : { ...g, isSolo: false }
-            ),
-            dmxChannels: newDmxChannels
-          };
-        }),
-
-      saveGroupLastStates: (groupId: string) =>
-        set((state) => {
-          const group = state.groups.find(g => g.id === groupId);
-          if (!group) return state;
-
-          const lastStates = [...state.dmxChannels];
-
-          return {
-            groups: state.groups.map(g =>
-              g.id === groupId ? { ...g, lastStates } : g
-            )
-          };
-        }),
-
-      // Group MIDI Learn implementations
-      startGroupMidiLearn: (groupId: string) =>
-        set(() => ({
-          midiLearnTarget: { type: 'group', groupId }
-        })),
-
-      cancelGroupMidiLearn: () =>
-        set(() => ({
-          midiLearnTarget: null
-        })),
-
-      setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) =>
-        set((state) => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, midiMapping: mapping } : g
-          )
-        })),
-
-      handleMidiForGroups: (message: any) =>
-        set((state) => {
-          // Handle MIDI messages for groups
-          const updatedGroups = state.groups.map(group => {
-            if (group.midiMapping && 
-                group.midiMapping.cc === message.controller &&
-                group.midiMapping.channel === message.channel) {
-              
-              const normalizedValue = message.value / 127;
-              const intensity = Math.round(normalizedValue * 255);
-              
-              // Apply intensity to all fixtures in the group
-              const newDmxChannels = [...state.dmxChannels];
-              group.fixtures.forEach(fixture => {
-                fixture.channels.forEach(channel => {
-                  if (channel.channelIndex < newDmxChannels.length) {
-                    newDmxChannels[channel.channelIndex] = intensity;
-                  }
-                });
-              });
-              
-              return { ...group, intensity: normalizedValue };
-            }
-            return group;
-          });
-
-          return {
-            groups: updatedGroups,
-            dmxChannels: state.dmxChannels // Updated above if needed
-          };
-        }),
-
-    }),
-    { name: 'ArtBastard-DMX-Store' } 
+      triggerAutoSceneFlash: () => {
+        set({ autoSceneIsFlashing: true });
+        // Auto-clear the flashing state after 200ms
+        setTimeout(() => {
+          set({ autoSceneIsFlashing: false });
+        }, 200);
+      },
+    })
   )
 );
-
-declare global {
-  interface Window {
-    useStore: typeof useStore;
-  }
-}
-
-if (typeof window !== 'undefined') {
-  window.useStore = useStore;
-}
