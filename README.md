@@ -752,15 +752,14 @@ graph TD
     
     %% Return Loop
     AudienceExperience -.-> HumanIntent
-    
-    %% Styling
+      %% Styling
     classDef inception fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef processing fill:#3a86ff,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     classDef genesis fill:#ff006e,stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef visual fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef translation fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef transmission fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef manifestation fill:linear-gradient(135deg, #ff006e, #ffd32a),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef visual fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef translation fill:#8338ec,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef transmission fill:#06ffa5,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef manifestation fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
     
     class HumanIntent,InterfaceTouch inception
     class EventCapture,ValueTransformation,MIDIOSCProcessing processing    class HumanIntent,InterfaceTouch inception
