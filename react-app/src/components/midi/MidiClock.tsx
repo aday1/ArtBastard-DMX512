@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-// import { motion, useDragControls, PanInfo } from 'framer-motion'; // Removed framer-motion
-import { LucideIcon } from '../ui/LucideIcon'; // Use LucideIcon wrapper instead
+import { LucideIcon } from '../ui/LucideIcon';
+import { DockableComponent } from '../ui/DockableComponent';
 import styles from './MidiClock.module.scss';
 import { useStore } from '../../store';
 
@@ -203,15 +203,22 @@ export const MidiClock: React.FC = () => {
     }
     previousBeatRef.current = midiClockCurrentBeat;
   }, [midiClockCurrentBeat]);
-
   return (
-    <div
-      ref={clockRef}
+    <DockableComponent
+      id="midi-clock"
+      title="MIDI Clock"
+      component="midi-clock"
+      defaultPosition={{ zone: 'bottom-right' }}
+      defaultZIndex={1030}
+      isCollapsed={isCollapsed}
+      onCollapsedChange={setIsCollapsed}
       className={clockClasses}
     >
-      {renderHeader()}
-      {renderContent()}
-    </div>
+      <div ref={clockRef}>
+        {renderHeader()}
+        {renderContent()}
+      </div>
+    </DockableComponent>
   );
 };
 

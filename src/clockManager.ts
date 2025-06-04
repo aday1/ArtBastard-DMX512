@@ -142,12 +142,15 @@ export class ClockManager {
     }
     this.notifySubscribers();
   }
-
   public togglePlayPause(): void {
+    console.log(`ClockManager: togglePlayPause called - currentSource: ${this.currentSource}, isInternalPlaying: ${this.isInternalPlaying}`);
+    
     if (this.currentSource === 'internal') {
       if (this.isInternalPlaying) {
+        console.log('ClockManager: Stopping internal clock');
         this.stopInternalClock();
       } else {
+        console.log('ClockManager: Starting internal clock');
         this.startInternalClock(true); // Reset beat/bar on play
       }    } else if (this.currentSource === 'ableton-link') {
       console.log('Play/Pause for Ableton Link not yet fully implemented.');

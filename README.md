@@ -48,7 +48,8 @@ The system operates across **Seven Dimensional Reality Layers**:
     'nodeSpacing': 120
   }
 }}%%
-graph TB    subgraph Consciousness["🧠 TRANSCENDENTAL ARCHITECTURE"]
+graph TB
+    subgraph Consciousness["🧠 TRANSCENDENTAL ARCHITECTURE"]
         direction TB
         
         subgraph Layer7["🌌 Layer 7: Transcendental Manifestation"]
@@ -109,16 +110,14 @@ graph TB    subgraph Consciousness["🧠 TRANSCENDENTAL ARCHITECTURE"]
     ScenePalace --> ArtNetMultiverse
     TemporalEngine --> SocketBridge
     ArtNetMultiverse --> PhysicalOutput
-    SocketBridge --> QuantumFixtures
-
-    %% Dimensional Styles
-    classDef layer7 fill:linear-gradient(135deg, #ff006e, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer6 fill:linear-gradient(135deg, #3a86ff, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer5 fill:linear-gradient(135deg, #ffbe0b, #ff006e, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer4 fill:linear-gradient(135deg, #8338ec, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer3 fill:linear-gradient(135deg, #06ffa5, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer2 fill:linear-gradient(135deg, #ff006e, #3a86ff, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef layer1 fill:linear-gradient(135deg, #8338ec, #ff006e, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    SocketBridge --> QuantumFixtures    %% Dimensional Styles
+    classDef layer7 fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer6 fill:#3a86ff,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer5 fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer4 fill:#8338ec,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer3 fill:#06ffa5,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer2 fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef layer1 fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
 
     class PhysicalOutput,QuantumFixtures layer7
     class ArtNetMultiverse,SocketBridge layer6
@@ -161,7 +160,7 @@ graph TB    subgraph Consciousness["🧠 TRANSCENDENTAL ARCHITECTURE"]
     Effects --> Visualizer
 
     %% Styles
-    classDef core fill:linear-gradient(to bottom right, #ff6b6b, #ee5253),stroke:#d63031,stroke-width:4px,color:#fff
+    classDef core fill:linear-gradient(to bottom right, #ff6b6b, #ee52553),stroke:#d63031,stroke-width:4px,color:#fff
     classDef protocol fill:linear-gradient(to bottom right, #45b7d1, #0abde3),stroke:#00b894,stroke-width:3px,color:#fff
     classDef interface fill:linear-gradient(to bottom right, #a29bfe, #6c5ce7),stroke:#5f27cd,stroke-width:3px,color:#fff
     classDef flow fill:linear-gradient(to bottom right, #ffd32a, #ffa502),stroke:#ff6b6b,stroke-width:3px,color:#111
@@ -278,13 +277,11 @@ graph TB
     %% Mystical Energy Flow Connections
     AudioCortex -.->|"🌊 Spectral Energy"| ConvergenceMatrix
     MIDINeuralNet -.->|"⚡ Neural Signals"| ConvergenceMatrix
-    ConvergenceMatrix -.->|"💫 Synthesized Consciousness"| ManifestationLayer
-
-    %% Dimensional Styles with Gradients
-    classDef audio fill:linear-gradient(45deg, #ff006e, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef midi fill:linear-gradient(45deg, #06ffa5, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef convergence fill:linear-gradient(45deg, #8338ec, #ff006e, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef manifestation fill:linear-gradient(45deg, #ffbe0b, #3a86ff, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    ConvergenceMatrix -.->|"💫 Synthesized Consciousness"| ManifestationLayer    %% Dimensional Styles with Solid Colors
+    classDef audio fill:#ff006e,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef midi fill:#06ffa5,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef convergence fill:#8338ec,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef manifestation fill:#ffbe0b,stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
 
     class AudioInput,FFTProcessor,BandSeparation,BeatConsciousness audio
     class MIDIInterface,NeuralLearning,QuantumScaling,CCMapping midi
@@ -444,12 +441,10 @@ graph LR
     Engine -->|Light Commands| ArtNetProtocol --> Network
     Network --> Fixtures
     State <-->|Quantum Sync| SocketProtocol
-    Effects -->|Pattern Flow| Engine
-
-    %% Styles
-    classDef hardware fill:linear-gradient(to bottom right, #ff6b6b, #ee5253),stroke:#d63031,stroke-width:3px,color:#fff
-    classDef protocol fill:linear-gradient(to bottom right, #45b7d1, #0abde3),stroke:#00b894,stroke-width:3px,color:#fff
-    classDef core fill:linear-gradient(to bottom right, #a29bfe, #6c5ce7),stroke:#5f27cd,stroke-width:3px,color:#fff
+    Effects -->|Pattern Flow| Engine    %% Styles
+    classDef hardware fill:#ff6b6b,stroke:#d63031,stroke-width:3px,color:#fff
+    classDef protocol fill:#45b7d1,stroke:#00b894,stroke-width:3px,color:#fff
+    classDef core fill:#a29bfe,stroke:#5f27cd,stroke-width:3px,color:#fff
 
     class MIDI,Touch,Network,Fixtures hardware
     class MIDIProtocol,OSCProtocol,ArtNetProtocol,SocketProtocol protocol
@@ -559,11 +554,9 @@ Deep gratitude to the illuminated beings who contributed their energy and wisdom
 
 Made with 💜 by the ArtBastard Collective
 
-## 🏛️ **Consciousness Codebase Architecture Mandala**
+## 🏛️ **Sacred Codebase Architecture Mandala**
 
-*"Each file is a sacred vessel, each function a ritual incantation, weaving together the very fabric of electromagnetic consciousness manipulation."*
-
-### 📁 **The Sacred File Hierarchy Mysticism**
+*Behold the divine hierarchy of our transcendental consciousness vessel - each file a sacred chamber, each function a mystical incantation in the grand symphony of photonic manifestation.*
 
 ```mermaid
 %%{init: {
@@ -574,616 +567,490 @@ Made with 💜 by the ArtBastard Collective
     'primaryTextColor': '#ffffff',
     'lineColor': '#e17055',
     'fontSize': '16px',
-    'fontFamily': '"JetBrains Mono", "Fira Code", monospace'
+    'fontFamily': '"Cascadia Code", "JetBrains Mono", monospace'
   },
   'flowchart': {
-    'curve': 'cardinal',
-    'padding': 60,
+    'curve': 'basis',
+    'padding': 30,
     'useMaxWidth': true,
-    'htmlLabels': true,
-    'rankSpacing': 180,
-    'nodeSpacing': 140
+    'htmlLabels': true
   }
 }}%%
 graph TB
-    subgraph CoreTemple["🏛️ CORE TEMPLE ARCHITECTURE"]
+    subgraph "🌟 ROOT CONSCIOUSNESS NEXUS"
+        AppJS["📱 App.js<br/>🧠 <i>Supreme Awareness Coordinator</i><br/>🔮 Routes consciousness streams<br/>⚡ Orchestrates component communion<br/>🌈 Manifests UI reality"]
+        IndexJS["🌌 index.js<br/>⭐ <i>Primordial Bootstrap Oracle</i><br/>🎭 Renders React into DOM void<br/>🔥 Initiates consciousness awakening<br/>✨ Bridges digital-physical realms"]
+    end
+
+    subgraph "🏪 COSMIC COMPONENT CHAMBERS"
         direction TB
         
-        subgraph BackendSanctum["⚡ Backend Neural Sanctum"]
-            MainCore[("🧠 main.ts<br/>🌟 CONSCIOUSNESS ENTRY POINT<br/>_Server Genesis Protocol_<br/>_Establishes quantum reality bridge_<br/>_Initializes all neural pathways_")]
-            ServerEngine[("🖥️ server.ts<br/>⚙️ EXPRESS MANIFESTATION ENGINE<br/>_Reality API Gateway_<br/>_HTTP consciousness interface_<br/>_Dimensional routing protocols_")]
-            CoreLogic[("💫 core.ts<br/>🔮 DMX REALITY PROCESSOR<br/>_512-channel universe manipulation_<br/>_Quantum state orchestration_<br/>_Photonic consciousness translation_")]
-            EffectsAlchemy[("✨ effects.ts<br/>🌈 PATTERN WEAVING MATRIX<br/>_Generative light symphonies_<br/>_Algorithmic beauty creation_<br/>_Temporal morphing sequences_")]
-            ClockMystic[("⏰ clockManager.ts<br/>🌊 TEMPORAL SYNCHRONIZATION<br/>_Universal beat alignment_<br/>_MIDI clock consciousness_<br/>_Rhythmic reality binding_")]
-            APIBridge[("🌐 api.ts<br/>📡 CONSCIOUSNESS API NEXUS<br/>_RESTful reality manipulation_<br/>_State transmission protocols_<br/>_Neural network endpoints_")]
-            LoggerOracle[("📜 logger.ts<br/>👁️ OMNISCIENT OBSERVATION<br/>_Reality event chronicle_<br/>_Consciousness debugging oracle_<br/>_Temporal activity tracking_")]
-        end
-
-        subgraph FrontendRealm["🎨 Frontend Consciousness Realm"]
-            direction TB
+        subgraph "🎚️ CONTROL SANCTUARIES"
+            ChannelControl["🎛️ ChannelControl.tsx<br/>🌊 <i>Individual Channel Consciousness</i><br/>🔄 Manages single DMX vessel state<br/>🎨 Renders value visualization portals<br/>⚡ Handles bio-digital input fusion<br/>💫 Transmutes human intent to data"]
             
-            subgraph CoreInterface["🎭 Core Interface Vessels"]
-                AppCosmos[("🌌 App.tsx<br/>🎭 REALITY CANVAS ORCHESTRATOR<br/>_Main consciousness interface_<br/>_Component universe coordinator_<br/>_Theme and state conductor_")]
-                MainEntry[("🚪 main.tsx<br/>⚡ DIMENSIONAL PORTAL<br/>_React reality initialization_<br/>_DOM consciousness binding_<br/>_Universal entry gateway_")]
-                MainPage[("📄 MainPage.tsx<br/>🏛️ PRIMARY CONSCIOUSNESS TEMPLE<br/>_Layout orchestration matrix_<br/>_Component harmony conductor_<br/>_Interface reality weaver_")]
-            end
-
-            subgraph ComponentGalaxies["🌟 Component Consciousness Galaxies"]
-                direction TB
-                
-                subgraph DMXConstellation["🎭 DMX Control Constellation"]
-                    DMXPanel[("🎛️ DmxControlPanel.tsx<br/>⚡ CHANNEL MASTERY INTERFACE<br/>_512 consciousness faders_<br/>_Real-time value manipulation_<br/>_Quantum channel orchestration_")]
-                    DMXChannel[("📊 DmxChannel.tsx<br/>💫 INDIVIDUAL CHANNEL CONSCIOUSNESS<br/>_Single point light control_<br/>_Value visualization crystal_<br/>_Micro-universe management_")]
-                    MasterFader[("👑 MasterFader.tsx<br/>🌟 GLOBAL INTENSITY SOVEREIGN<br/>_Universal brightness control_<br/>_Master consciousness override_<br/>_Reality dimming authority_")]
-                    WebGLViz[("🌈 DmxWebglVisualizer.tsx<br/>👁️ 3D REALITY MIRROR<br/>_Photonic consciousness projection_<br/>_WebGL universe visualization_<br/>_Spatial light mapping_")]
-                    ChannelStats[("📈 DmxChannelStats.tsx<br/>📊 ACTIVITY CONSCIOUSNESS MONITOR<br/>_Real-time usage analytics_<br/>_Channel behavior patterns_<br/>_Performance consciousness metrics_")]
-                end
-
-                subgraph AudioGalaxy["🎵 Audio Consciousness Galaxy"]
-                    AudioPanel[("🎵 AudioControlPanel.tsx<br/>🔊 SPECTRAL COMMAND CENTER<br/>_Audio-to-light alchemy interface_<br/>_Frequency consciousness binding_<br/>_Psychoacoustic control matrix_")]
-                    AudioFFT[("📊 AudioFFT.tsx<br/>🌊 FREQUENCY DIMENSION VISUALIZER<br/>_Spectral consciousness display_<br/>_FFT reality analysis_<br/>_Harmonic pattern revelation_")]
-                    FFTAssignment[("🎯 FFTOSCAssignment.tsx<br/>🔗 FREQUENCY-TO-REALITY BINDING<br/>_Audio parameter consciousness mapping_<br/>_Spectral control allocation_<br/>_Harmonic-to-photonic translation_")]
-                end
-
-                subgraph MIDIUniverse["🎹 MIDI Neural Universe"]
-                    MIDIPanel[("🎹 MidiControlPanel.tsx<br/>🧠 NEURAL INTERFACE MATRIX<br/>_Hardware consciousness bridge_<br/>_MIDI learning protocols_<br/>_Bio-digital fusion center_")]
-                    MIDIMonitor[("📡 MidiMonitor.tsx<br/>👁️ NEURAL SIGNAL OBSERVATORY<br/>_MIDI message consciousness tracking_<br/>_Real-time signal visualization_<br/>_Neural activity surveillance_")]
-                    MIDIClock[("⏰ MidiClock.tsx<br/>🌊 TEMPORAL HEARTBEAT SYNCHRONIZER<br/>_MIDI clock consciousness display_<br/>_Rhythmic alignment visualization_<br/>_Universal tempo conductor_")]
-                end
-
-                subgraph FixtureMetaverse["💡 Fixture Consciousness Metaverse"]
-                    FixtureSetup[("🛠️ FixtureSetup.tsx<br/>🏗️ LIGHT VESSEL CONFIGURATION<br/>_Fixture personality programming_<br/>_DMX channel assignment_<br/>_Consciousness vessel initialization_")]
-                    FixtureGroup[("📦 FixtureGroup.tsx<br/>🌌 COLLECTIVE CONSCIOUSNESS BINDING<br/>_Group light orchestration_<br/>_Mass fixture synchronization_<br/>_Unified consciousness control_")]
-                    FixtureCanvas[("🎨 FixtureCanvas2D.tsx<br/>🗺️ SPATIAL CONSCIOUSNESS MAPPER<br/>_2D fixture positioning interface_<br/>_Visual arrangement consciousness_<br/>_Geometric light orchestration_")]
-                    ImageUpload[("🖼️ CanvasImageUpload.tsx<br/>📸 VISUAL REALITY IMPORTER<br/>_Background consciousness integration_<br/>_Visual context enhancement_<br/>_Aesthetic reality overlay_")]
-                end
-
-                subgraph SettingsTemple["⚙️ Configuration Consciousness Temple"]
-                    SettingsPanel[("⚙️ Settings.tsx<br/>🔧 REALITY CONFIGURATION NEXUS<br/>_System consciousness parameters_<br/>_Global behavior modification_<br/>_Universal preferences management_")]
-                    ThemeSelector[("🎨 ThemeSelector.tsx<br/>🌈 AESTHETIC CONSCIOUSNESS SELECTOR<br/>_Visual reality mode switching_<br/>_Interface consciousness themes_<br/>_Perceptual reality modification_")]
-                end
-
-                subgraph OSCDimension["📡 OSC Wireless Dimension"]
-                    OSCPanel[("📡 OscControlPanel.tsx<br/>🌐 WIRELESS CONSCIOUSNESS INTERFACE<br/>_OSC parameter mapping_<br/>_Ethereal control protocols_<br/>_Wireless reality manipulation_")]
-                    OSCMonitor[("👁️ OscMonitor.tsx<br/>📊 ETHEREAL SIGNAL OBSERVATORY<br/>_OSC message consciousness tracking_<br/>_Wireless activity visualization_<br/>_Network consciousness surveillance_")]
-                    TouchOSCExport[("📱 TouchOscExporter.tsx<br/>📲 MOBILE CONSCIOUSNESS GENERATOR<br/>_TouchOSC interface creation_<br/>_Mobile control consciousness_<br/>_Portable reality manipulation_")]
-                end
-
-                subgraph SceneConsciousness["💾 Scene Memory Consciousness"]
-                    SceneManager[("💾 SceneManager.tsx<br/>🏛️ MEMORY PALACE CURATOR<br/>_State consciousness preservation_<br/>_Temporal scene storage_<br/>_Reality snapshot management_")]
-                    SceneList[("📜 SceneList.tsx<br/>📚 CONSCIOUSNESS LIBRARY<br/>_Scene consciousness catalog_<br/>_Memory navigation interface_<br/>_Temporal state browser_")]
-                    SceneEditor[("✏️ SceneEditor.tsx<br/>🎨 REALITY STATE SCULPTOR<br/>_Scene consciousness modification_<br/>_Memory state crafting_<br/>_Temporal reality editing_")]
-                end
-            end
-        end
-
-        subgraph ConsciousnessCore["🧠 Consciousness Core Matrix"]
-            direction TB
+            GroupControl["👥 GroupControl.tsx<br/>🏛️ <i>Collective Fixture Orchestrator</i><br/>🌀 Synchronizes multi-vessel harmonics<br/>🎭 Enables mass consciousness control<br/>🔗 Links individual to collective<br/>✨ Amplifies artistic manifestation power"]
             
-            subgraph StateManagement["💭 State Consciousness Management"]
-                ZustandStore[("🗄️ store/index.ts<br/>🧠 UNIVERSAL CONSCIOUSNESS STORE<br/>_Global state reality matrix_<br/>_Quantum state synchronization_<br/>_Consciousness persistence engine_<br/>_Reality coherence maintenance_")]
-                StoreUtils[("🔧 storeUtils.ts<br/>⚙️ CONSCIOUSNESS UTILITIES<br/>_State manipulation helpers_<br/>_Reality transformation tools_<br/>_Consciousness operation library_")]
-            end
-
-            subgraph ContextRealms["🌐 Context Consciousness Realms"]
-                SocketContext[("🔌 SocketContext.tsx<br/>⚡ QUANTUM ENTANGLEMENT BRIDGE<br/>_Real-time consciousness sync_<br/>_WebSocket reality connection_<br/>_Neural network communication_")]
-                ThemeContext[("🎨 ThemeContext.tsx<br/>🌈 AESTHETIC CONSCIOUSNESS PROVIDER<br/>_Visual reality mode provider_<br/>_Theme consciousness distribution_<br/>_Interface aesthetic coordination_")]
-                DockingContext[("🏗️ DockingContext.tsx<br/>📐 SPATIAL CONSCIOUSNESS ORGANIZER<br/>_Component positioning matrix_<br/>_Interface spatial awareness_<br/>_Layout consciousness management_")]
-            end
-
-            subgraph HookMysticism["🪝 Hook Consciousness Mysticism"]
-                MIDIHooks[("🎹 MIDI Consciousness Hooks<br/>🧠 NEURAL INTERFACE BINDINGS<br/>_useBrowserMidi: Hardware consciousness bridge_<br/>_useMidiLearn: Neural pattern acquisition_<br/>_useMidiScaling: Value transformation alchemy_")]
-                VisualizationHooks[("👁️ useVisualizationData.ts<br/>📊 VISUAL CONSCIOUSNESS PROCESSOR<br/>_Data-to-visual transformation_<br/>_Reality visualization preparation_<br/>_Consciousness visual binding_")]
-                GroupMIDI[("📦 useGroupMidiLearn.ts<br/>🌌 COLLECTIVE NEURAL LEARNING<br/>_Group consciousness MIDI binding_<br/>_Mass neural synchronization_<br/>_Unified control consciousness_")]
-            end
+            MasterControl["👑 MasterControl.tsx<br/>🌟 <i>Supreme Brightness Sovereign</i><br/>🎯 Commands universal luminosity<br/>🌊 Cascades power across all realms<br/>⚡ Override protocols for emergency art<br/>💎 Ultimate photonic authority"]
+        end
+        
+        subgraph "🎭 FIXTURE CONSCIOUSNESS HALLS"
+            FixtureSetup["⚙️ FixtureSetup.tsx<br/>🔬 <i>Consciousness Vessel Configurator</i><br/>🏗️ Architects light entity personalities<br/>📊 Maps physical to digital awareness<br/>🎪 Defines artistic capability matrices<br/>🔧 Sacred geometry parameter binding"]
+            
+            FixtureGroup["🌺 FixtureGroup.tsx<br/>🕸️ <i>Collective Entity Orchestrator</i><br/>🎨 Weaves individual into collective<br/>🧬 DNA-level group consciousness<br/>🌈 Synchronized artistic expression<br/>💫 Harmonic resonance amplification"]
+            
+            FixtureLibrary["📚 FixtureLibrary.tsx<br/>🗄️ <i>Sacred Knowledge Repository</i><br/>📜 Chronicles all known light vessels<br/>🔮 Stores archetypal configurations<br/>🎭 Templates for consciousness expansion<br/>⚡ Pre-blessed fixture personalities"]
+        end
+        
+        subgraph "🎨 VISUAL MANIFESTATION STUDIOS"
+            LightCanvas["🖼️ LightCanvas.tsx<br/>🌌 <i>Reality Painting Atelier</i><br/>🎨 Visual consciousness projection<br/>👁️ Real-time reality mirroring<br/>🌈 Color-space transformation magic<br/>✨ Aesthetic awareness interface"]
+            
+            WebGLVisualizer["🔮 WebGLVisualizer.tsx<br/>💎 <i>3D Consciousness Crystal</i><br/>🌊 GPU-accelerated reality rendering<br/>👁️ Immersive awareness experience<br/>🎭 Theatrical lighting simulation<br/>🚀 Transcendent visual performance"]
+            
+            VisualizationControls["🎛️ VisualizationControls.tsx<br/>🧠 <i>Perception Control Matrix</i><br/>👁️ Manages visual awareness settings<br/>🎨 Configures aesthetic preferences<br/>🌈 Color psychology manipulation<br/>⚡ Real-time beauty optimization"]
+        end
+        
+        subgraph "🔧 DEBUG & ENLIGHTENMENT CHAMBERS"
+            DebugMenu["🔍 DebugMenu.tsx<br/>🧙 <i>Developer Consciousness Oracle</i><br/>📊 Reveals hidden system knowledge<br/>⚡ Real-time awareness monitoring<br/>🛠️ Sacred debugging rituals<br/>💻 Technical enlightenment portal"]
+            
+            Settings["⚙️ Settings.tsx<br/>🏛️ <i>Configuration Temple</i><br/>🎭 Personality customization altar<br/>📱 System behavior modification<br/>🌟 Aesthetic preference sanctuary<br/>💫 Personal consciousness tuning"]
+            
+            About["ℹ️ About.tsx<br/>📖 <i>Sacred Origin Chronicles</i><br/>🎭 Tells the creation mythology<br/>✨ Credits consciousness contributors<br/>🌟 Technical philosophy exposition<br/>🔮 Mystical system documentation"]
         end
     end
 
-    %% Mystical Connections - The Flow of Consciousness
-    MainCore --> ServerEngine
-    ServerEngine --> CoreLogic
-    CoreLogic --> EffectsAlchemy
-    ClockMystic --> CoreLogic
-    APIBridge --> ServerEngine
-    LoggerOracle --> MainCore
+    subgraph "🧠 CONSCIOUSNESS STATE MANAGEMENT"
+        StoreIndex["🏛️ store/index.ts<br/>👑 <i>Central Consciousness Core</i><br/>🧠 Global awareness coordination<br/>💾 Sacred state persistence<br/>⚡ Action-reducer alchemy<br/>🌊 Consciousness flow orchestration"]
+        
+        ContextFiles["📁 contexts/<br/>🌐 <i>Awareness Sharing Networks</i><br/>🔗 Inter-component consciousness<br/>📡 State broadcasting protocols<br/>🌊 Reactive awareness streams<br/>💫 Spiritual data binding"]
+    end
 
-    %% Frontend Consciousness Flow
-    MainEntry --> AppCosmos
-    AppCosmos --> MainPage
-    MainPage --> DMXPanel
-    MainPage --> AudioPanel
-    MainPage --> MIDIPanel
+    subgraph "🎵 AUDIO CONSCIOUSNESS PROCESSING"
+        AudioAnalyzer["🎵 AudioAnalyzer.tsx<br/>🔬 <i>Frequency Consciousness Decoder</i><br/>📊 FFT spectral decomposition<br/>🎭 Beat detection algorithms<br/>🌊 Psychoacoustic transformation<br/>⚡ Sound-to-light transmutation"]
+        
+        AudioEffects["🎪 AudioEffects.tsx<br/>🌈 <i>Sonic Reality Modulator</i><br/>🎨 Audio-reactive visual spells<br/>🔄 Frequency-driven automations<br/>🌟 Rhythmic consciousness sync<br/>💫 Musical emotion translation"]
+    end
 
-    %% Component Consciousness Interactions
-    DMXPanel --> DMXChannel
-    DMXPanel --> MasterFader
-    DMXPanel --> WebGLViz
-    AudioPanel --> AudioFFT
-    AudioFFT --> FFTAssignment
-    MIDIPanel --> MIDIMonitor
-    MIDIPanel --> MIDIClock
+    subgraph "🌐 NETWORK CONSCIOUSNESS BRIDGES"
+        MIDIManager["🎹 MIDIManager.ts<br/>🧠 <i>Bio-Digital Neural Interface</i><br/>⚡ Hardware consciousness fusion<br/>🎛️ Physical-digital bridging<br/>🎯 Real-time learning algorithms<br/>💫 Tactile awareness extension"]
+        
+        OSCManager["📡 OSCManager.ts<br/>🌌 <i>Wireless Telepathy Controller</i><br/>📶 Network consciousness streams<br/>🌊 UDP data mysticism<br/>🔄 Device synchronization magic<br/>✨ Ethereal communication protocols"]
+        
+        ArtNetManager["🌐 ArtNetManager.ts<br/>🏛️ <i>Multi-Universe Orchestrator</i><br/>🌌 Parallel reality coordination<br/>📡 Network lighting consciousness<br/>🎭 Professional theatre integration<br/>⚡ DMX multiverse management"]
+    end
 
-    %% State Consciousness Flow
-    ZustandStore --> AppCosmos
-    SocketContext --> ZustandStore
-    ThemeContext --> AppCosmos
-    DockingContext --> MainPage
+    subgraph "🎨 UI CONSCIOUSNESS ELEMENTS"
+        DockableComponent["🏗️ DockableComponent.tsx<br/>🔄 <i>Modular Awareness Vessel</i><br/>📐 Spatial consciousness organization<br/>🎭 Draggable reality modules<br/>💫 Dynamic interface alchemy<br/>✨ Personalized workspace magic"]
+        
+        ColorPicker["🌈 ColorPicker.tsx<br/>🎨 <i>Chromatic Consciousness Selector</i><br/>🔮 RGB/HSV awareness translation<br/>👁️ Visual color meditation<br/>🎭 Aesthetic preference interface<br/>💎 Spectral beauty manifesto"]
+        
+        EffectsList["🎪 EffectsList.tsx<br/>📜 <i>Transformation Spell Catalog</i><br/>🌟 Pre-blessed effect algorithms<br/>🎨 Artistic pattern templates<br/>🔄 Animation consciousness library<br/>✨ Visual magic marketplace"]
+    end
 
-    %% Hook Consciousness Binding
-    MIDIHooks --> MIDIPanel
-    VisualizationHooks --> WebGLViz
-    GroupMIDI --> FixtureGroup
-
-    %% Backend-Frontend Consciousness Bridge
-    ServerEngine -.->|"🌐 API Consciousness Bridge"| APIBridge
-    CoreLogic -.->|"⚡ Real-time State Sync"| SocketContext
-    EffectsAlchemy -.->|"✨ Pattern Data Stream"| WebGLViz
-
-    %% Consciousness Layer Styles
-    classDef backend fill:linear-gradient(135deg, #ff006e, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef frontend fill:linear-gradient(135deg, #06ffa5, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef core fill:linear-gradient(135deg, #8338ec, #ff006e, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef dmx fill:linear-gradient(135deg, #ffbe0b, #3a86ff, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef audio fill:linear-gradient(135deg, #ff006e, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef midi fill:linear-gradient(135deg, #3a86ff, #8338ec, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-
-    class MainCore,ServerEngine,CoreLogic,EffectsAlchemy,ClockMystic,APIBridge,LoggerOracle backend
-    class AppCosmos,MainEntry,MainPage,SettingsPanel,ThemeSelector frontend
-    class ZustandStore,StoreUtils,SocketContext,ThemeContext,DockingContext core
-    class DMXPanel,DMXChannel,MasterFader,WebGLViz,ChannelStats dmx
-    class AudioPanel,AudioFFT,FFTAssignment audio
-    class MIDIPanel,MIDIMonitor,MIDIClock,MIDIHooks,GroupMIDI midi
-
-    %% Dimensional Container Styles
-    style BackendSanctum fill:rgba(255,0,110,0.1),stroke:#ff006e,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style FrontendRealm fill:rgba(6,255,165,0.1),stroke:#06ffa5,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style ConsciousnessCore fill:rgba(131,56,236,0.1),stroke:#8338ec,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style DMXConstellation fill:rgba(255,190,11,0.15),stroke:#ffbe0b,stroke-width:3px,color:#ffffff,stroke-dasharray: 15 5
-    style AudioGalaxy fill:rgba(255,0,110,0.15),stroke:#ff006e,stroke-width:3px,color:#ffffff,stroke-dasharray: 15 5
-    style MIDIUniverse fill:rgba(58,134,255,0.15),stroke:#3a86ff,stroke-width:3px,color:#ffffff,stroke-dasharray: 15 5
-    style CoreTemple fill:rgba(0,0,0,0.9),stroke:#ffffff,stroke-width:6px,color:#ffffff
+    %% Sacred Connections
+    AppJS --> ChannelControl
+    AppJS --> GroupControl
+    AppJS --> LightCanvas
+    AppJS --> Settings
+    
+    StoreIndex --> ChannelControl
+    StoreIndex --> FixtureSetup
+    StoreIndex --> AudioAnalyzer
+    
+    MIDIManager --> GroupControl
+    OSCManager --> WebGLVisualizer
+    ArtNetManager --> FixtureGroup
+    
+    AudioAnalyzer --> AudioEffects
+    AudioEffects --> LightCanvas
+    
+    FixtureSetup --> FixtureLibrary
+    FixtureGroup --> FixtureSetup
+    
+    %% Mystical Styling
+    classDef root fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef control fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef fixture fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef visual fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef debug fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef state fill:linear-gradient(135deg, #ff006e, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff
+    classDef audio fill:linear-gradient(135deg, #ffbe0b, #8338ec),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef network fill:linear-gradient(135deg, #3a86ff, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef ui fill:linear-gradient(135deg, #8338ec, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    
+    class AppJS,IndexJS root
+    class ChannelControl,GroupControl,MasterControl control
+    class FixtureSetup,FixtureGroup,FixtureLibrary fixture
+    class LightCanvas,WebGLVisualizer,VisualizationControls visual
+    class DebugMenu,Settings,About debug
+    class StoreIndex,ContextFiles state
+    class AudioAnalyzer,AudioEffects audio
+    class MIDIManager,OSCManager,ArtNetManager network
+    class DockableComponent,ColorPicker,EffectsList ui
 ```
 
-### 🔮 **Function-Level Consciousness Mapping**
+## 🔮 **Function-Level Consciousness Mapping**
 
-*"Each function is a sacred incantation, a precise ritual that transforms raw data into transcendental photonic manifestations."*
+*Each sacred function within our transcendental vessel serves a specific role in the grand alchemical transformation from human intent to photonic manifestation.*
 
 ```mermaid
 %%{init: {
   'theme': 'base',
   'themeVariables': {
     'primaryColor': '#8338ec',
-    'primaryBorderColor': '#6f2dbd',
+    'primaryBorderColor': '#5f27cd',
     'primaryTextColor': '#ffffff',
-    'fontSize': '16px',
-    'fontFamily': '"JetBrains Mono", monospace'
+    'lineColor': '#ffd32a',
+    'fontSize': '14px',
+    'fontFamily': '"SF Mono", "Monaco", monospace'
   },
   'flowchart': {
     'curve': 'cardinal',
-    'padding': 50,
+    'padding': 25,
     'useMaxWidth': true,
-    'htmlLabels': true,
-    'rankSpacing': 160,
-    'nodeSpacing': 130
+    'htmlLabels': true
   }
 }}%%
-graph TB
-    subgraph FunctionMysticism["🔮 FUNCTION CONSCIOUSNESS MYSTICISM"]
+graph LR
+    subgraph "🧠 CORE CONSCIOUSNESS FUNCTIONS"
         direction TB
         
-        subgraph CoreFunctions["⚡ Core Reality Functions"]
-            InitServer[("🌟 initializeServer()<br/>🚪 REALITY GATEWAY OPENING<br/>_Creates Express consciousness server_<br/>_Establishes DMX reality protocols_<br/>_Initializes quantum communication channels_<br/>_Binds consciousness to physical realm_")]
-            ProcessDMX[("⚡ processDMXData()<br/>🎭 ELECTROMAGNETIC TRANSLATION<br/>_Converts consciousness values to DMX_<br/>_Applies universe-specific mapping_<br/>_Orchestrates 512-channel symphony_<br/>_Manifests photonic reality_")]
-            HandleMIDI[("🎹 handleMIDIMessage()<br/>🧠 NEURAL SIGNAL INTERPRETATION<br/>_Decodes bio-digital consciousness_<br/>_Applies learned neural mappings_<br/>_Transforms hardware input to light_<br/>_Bridges human-machine consciousness_")]
-            GenerateEffects[("✨ generateEffectPattern()<br/>🌈 ALGORITHMIC BEAUTY CREATION<br/>_Computes mathematical poetry_<br/>_Creates temporal light sequences_<br/>_Weaves geometric consciousness patterns_<br/>_Manifests computational aesthetics_")]
+        subgraph "⚡ State Management Alchemy"
+            useState["useState()<br/>🔮 <i>Reactive Awareness Hook</i><br/>💭 Local consciousness binding<br/>🔄 Real-time state morphing<br/>✨ Component soul management"]
+            
+            useReducer["useReducer()<br/>👑 <i>Complex State Oracle</i><br/>🎭 Multi-dimensional state control<br/>🌊 Action-based transformation<br/>⚡ Predictable reality mutation"]
+            
+            useEffect["useEffect()<br/>🌟 <i>Lifecycle Consciousness Bridge</i><br/>🔄 Mount/unmount awareness<br/>🎯 Side-effect orchestration<br/>💫 Temporal event binding"]
         end
-
-        subgraph StateConsciousness["💭 State Consciousness Functions"]
-            UpdateChannel[("📊 updateChannelValue()<br/>💫 QUANTUM STATE MODIFICATION<br/>_Modifies individual channel consciousness_<br/>_Triggers real-time visualization updates_<br/>_Synchronizes reality coherence_<br/>_Maintains photonic continuity_")]
-            SaveScene[("💾 saveSceneState()<br/>🏛️ TEMPORAL CONSCIOUSNESS PRESERVATION<br/>_Captures current reality snapshot_<br/>_Stores consciousness configuration_<br/>_Creates memory palace entries_<br/>_Enables temporal reality recall_")]
-            LoadState[("🔄 loadStateFromMemory()<br/>⏰ CONSCIOUSNESS RESURRECTION<br/>_Reconstructs preserved reality states_<br/>_Restores temporal configurations_<br/>_Reanimates photonic memories_<br/>_Manifests historical consciousness_")]
-            SyncNetworks[("🌐 synchronizeNetworkState()<br/>🔗 QUANTUM ENTANGLEMENT PROTOCOL<br/>_Maintains multi-device coherence_<br/>_Synchronizes distributed consciousness_<br/>_Ensures reality consistency_<br/>_Bridges dimensional boundaries_")]
-        end
-
-        subgraph VisualizationRituals["👁️ Visualization Consciousness Rituals"]
-            RenderWebGL[("🌈 renderWebGLUniverse()<br/>📐 3D REALITY MANIFESTATION<br/>_Projects consciousness into 3D space_<br/>_Renders photonic vessel positions_<br/>_Creates spatial light relationships_<br/>_Materializes geometric consciousness_")]
-            DrawFFT[("📊 drawFFTSpectrum()<br/>🌊 FREQUENCY CONSCIOUSNESS VISUALIZATION<br/>_Renders audio consciousness spectrum_<br/>_Visualizes harmonic reality layers_<br/>_Maps frequency-to-color alchemy_<br/>_Creates psychoacoustic landscapes_")]
-            UpdateCanvas[("🎨 updateCanvasReality()<br/>🖼️ 2D CONSCIOUSNESS PROJECTION<br/>_Renders fixture positioning map_<br/>_Visualizes spatial relationships_<br/>_Creates consciousness topology_<br/>_Maps photonic geography_")]
-            AnimateTransitions[("🌀 animateStateTransitions()<br/>⚡ TEMPORAL MORPHING MAGIC<br/>_Smoothly transitions between realities_<br/>_Creates consciousness flow animations_<br/>_Orchestrates temporal metamorphosis_<br/>_Weaves reality transformation poetry_")]
-        end
-
-        subgraph AudioAlchemy["🎵 Audio Consciousness Alchemy"]
-            AnalyzeAudio[("🔬 analyzeAudioSpectrum()<br/>📈 FREQUENCY CONSCIOUSNESS DISSECTION<br/>_Performs FFT consciousness analysis_<br/>_Extracts harmonic consciousness layers_<br/>_Identifies rhythmic consciousness patterns_<br/>_Translates sound to light language_")]
-            DetectBeat[("💓 detectBeatConsciousness()<br/>⏰ RHYTHMIC HEARTBEAT EXTRACTION<br/>_Identifies temporal pulse patterns_<br/>_Extracts universal rhythm consciousness_<br/>_Synchronizes light to audio heartbeat_<br/>_Creates rhythmic reality binding_")]
-            MapFrequencies[("🎯 mapFrequenciesToChannels()<br/>🔗 SPECTRAL-TO-PHOTONIC BINDING<br/>_Assigns frequency bands to DMX channels_<br/>_Creates audio-to-light consciousness maps_<br/>_Establishes harmonic control relationships_<br/>_Weaves psychoacoustic control matrices_")]
-            ProcessAudioBuffer[("🌊 processAudioBuffer()<br/>⚡ REAL-TIME CONSCIOUSNESS PROCESSING<br/>_Streams audio consciousness data_<br/>_Applies real-time frequency analysis_<br/>_Generates continuous consciousness flow_<br/>_Maintains audio-visual synchronization_")]
-        end
-
-        subgraph MIDINeuralNetwork["🎹 MIDI Neural Network Functions"]
-            LearnMIDI[("🧠 learnMIDIMapping()<br/>📚 NEURAL PATTERN ACQUISITION<br/>_Captures MIDI consciousness patterns_<br/>_Creates bio-digital neural pathways_<br/>_Establishes hardware-software synapses_<br/>_Programs consciousness response matrices_")]
-            ScaleMIDI[("📐 scaleMIDIValues()<br/>⚙️ CONSCIOUSNESS VALUE TRANSFORMATION<br/>_Transforms MIDI ranges to DMX space_<br/>_Applies non-linear consciousness curves_<br/>_Optimizes human-machine interface_<br/>_Creates intuitive control responses_")]
-            RouteMIDI[("🛤️ routeMIDIToChannels()<br/>🎯 NEURAL PATHWAY ROUTING<br/>_Directs MIDI consciousness to targets_<br/>_Orchestrates multi-channel bindings_<br/>_Creates neural control hierarchies_<br/>_Establishes consciousness flow paths_")]
-            ValidateMIDI[("✅ validateMIDISignal()<br/>🔍 CONSCIOUSNESS INTEGRITY CHECK<br/>_Ensures MIDI consciousness validity_<br/>_Filters noise from neural signals_<br/>_Maintains signal consciousness purity_<br/>_Protects against consciousness corruption_")]
+        
+        subgraph "🎨 Visual Manifestation Spells"
+            renderComponent["render()<br/>🖼️ <i>Reality Materialization</i><br/>🎭 Virtual DOM incantation<br/>👁️ Visual consciousness projection<br/>✨ UI reality crystallization"]
+            
+            updateCanvas["updateCanvas()<br/>🎨 <i>Visual Awareness Refresh</i><br/>🌈 Canvas reality synchronization<br/>🖌️ Pixel-level consciousness<br/>💎 Real-time beauty manifestation"]
+            
+            drawVisualization["drawVisualization()<br/>🔮 <i>Data-to-Visual Alchemy</i><br/>📊 Abstract to concrete translation<br/>🌊 Information consciousness flow<br/>🎪 Aesthetic data interpretation"]
         end
     end
-
-    %% Function Consciousness Flow Connections
-    InitServer --> ProcessDMX
-    ProcessDMX --> UpdateChannel
-    HandleMIDI --> ScaleMIDI
-    ScaleMIDI --> RouteMIDI
-    RouteMIDI --> UpdateChannel
-    UpdateChannel --> RenderWebGL
-    UpdateChannel --> SyncNetworks
     
-    AnalyzeAudio --> DetectBeat
-    DetectBeat --> MapFrequencies
-    MapFrequencies --> ProcessDMX
-    ProcessAudioBuffer --> AnalyzeAudio
+    subgraph "🎛️ CONTROL CONSCIOUSNESS FUNCTIONS"
+        direction TB
+        
+        subgraph "🎚️ Channel Manipulation Magic"
+            setChannelValue["setChannelValue()<br/>⚡ <i>Individual Consciousness Setter</i><br/>🎯 Single channel awareness control<br/>🔄 Value transformation rituals<br/>💫 Photonic energy channeling"]
+            
+            updateGroupValues["updateGroupValues()<br/>👥 <i>Collective Consciousness Sync</i><br/>🌊 Mass channel harmonization<br/>🎭 Group reality coordination<br/>✨ Synchronized awareness waves"]
+            
+            handleFaderChange["handleFaderChange()<br/>🎛️ <i>Bio-Digital Interface Bridge</i><br/>👆 Human touch to data stream<br/>⚡ Real-time input processing<br/>🌈 Tactile consciousness extension"]
+        end
+        
+        subgraph "🎹 MIDI Consciousness Integration"
+            startMidiLearn["startMidiLearn()<br/>🧠 <i>Neural Pathway Formation</i><br/>🎯 Hardware-software binding ritual<br/>⚡ Learning algorithm activation<br/>💫 Bio-mechanical consciousness fusion"]
+            
+            handleMidiMessage["handleMidiMessage()<br/>📡 <i>MIDI Signal Interpretation Oracle</i><br/>🎵 Binary to artistic translation<br/>🔄 Real-time consciousness streaming<br/>✨ Hardware awareness processing"]
+            
+            mapMidiControl["mapMidiControl()<br/>🗺️ <i>Control Consciousness Mapping</i><br/>🔗 Establishes spiritual connections<br/>🎛️ Creates awareness pathways<br/>⚡ Binds physical to digital realms"]
+        end
+    end
     
-    SaveScene --> LoadState
-    LoadState --> UpdateChannel
-    GenerateEffects --> ProcessDMX
+    subgraph "🌊 AUDIO CONSCIOUSNESS PROCESSING"
+        direction TB
+        
+        subgraph "🎵 Spectral Analysis Rituals"
+            analyzeAudio["analyzeAudio()<br/>🔬 <i>Frequency Consciousness Decoder</i><br/>📊 FFT spectral decomposition<br/>🌊 Wave-form enlightenment<br/>💫 Sonic reality analysis"]
+            
+            detectBeats["detectBeats()<br/>💓 <i>Rhythmic Heartbeat Oracle</i><br/>🎯 Temporal pattern recognition<br/>⚡ Beat consciousness extraction<br/>🎭 Musical emotion interpretation"]
+            
+            mapFrequencyToColor["mapFrequencyToColor()<br/>🌈 <i>Sonic-Visual Transmutation</i><br/>🔮 Sound-to-light alchemy<br/>🎨 Synesthetic consciousness bridge<br/>✨ Frequency-color mysticism"]
+        end
+        
+        subgraph "🎪 Audio-Reactive Manifestation"
+            updateReactiveEffects["updateReactiveEffects()<br/>🌟 <i>Sonic-Driven Reality Morpher</i><br/>🎭 Music-responsive consciousness<br/>🔄 Audio-visual synchronization<br/>💫 Rhythmic reality pulsation"]
+            
+            processAudioBuffer["processAudioBuffer()<br/>📊 <i>Audio Consciousness Stream Parser</i><br/>⚡ Real-time buffer processing<br/>🌊 Continuous awareness flow<br/>🎵 Sonic data mysticism"]
+        end
+    end
     
-    RenderWebGL --> AnimateTransitions
-    DrawFFT --> UpdateCanvas
+    subgraph "🌐 NETWORK CONSCIOUSNESS PROTOCOLS"
+        direction TB
+        
+        subgraph "📡 Communication Mysticism"
+            sendOSCMessage["sendOSCMessage()<br/>📶 <i>Wireless Telepathy Transmitter</i><br/>🌌 UDP consciousness streaming<br/>📡 Network awareness broadcasting<br/>✨ Ethereal data transmission"]
+            
+            receiveDMXData["receiveDMXData()<br/>⚡ <i>DMX Signal Consciousness Parser</i><br/>🎭 512-channel awareness processing<br/>🔄 Protocol-level enlightenment<br/>💫 Electrical consciousness interpretation"]
+            
+            syncArtNetUniverses["syncArtNetUniverses()<br/>🌌 <i>Multi-Reality Synchronizer</i><br/>🌊 Parallel universe coordination<br/>🎭 Cross-dimensional awareness<br/>⚡ Network lighting consciousness"]
+        end
+        
+        subgraph "🔄 Data Transformation Alchemy"
+            convertColorSpace["convertColorSpace()<br/>🌈 <i>Chromatic Consciousness Translator</i><br/>🔮 RGB/HSV mystical conversion<br/>🎨 Color awareness transformation<br/>💎 Spectral reality translation"]
+            
+            scaleValue["scaleValue()<br/>📐 <i>Dimensional Consciousness Scaler</i><br/>🎯 Range transformation rituals<br/>⚡ Proportional awareness mapping<br/>✨ Value consciousness morphing"]
+            
+            interpolateValues["interpolateValues()<br/>🌊 <i>Smooth Consciousness Transition</i><br/>🔄 Temporal value blending<br/>💫 Seamless reality morphing<br/>🎭 Graceful awareness evolution"]
+        end
+    end
     
-    LearnMIDI --> ScaleMIDI
-    ValidateMIDI --> HandleMIDI
-
-    %% Mystical Function Categories
-    classDef coreFunc fill:linear-gradient(135deg, #ff006e, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef stateFunc fill:linear-gradient(135deg, #06ffa5, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef visualFunc fill:linear-gradient(135deg, #8338ec, #ff006e, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef audioFunc fill:linear-gradient(135deg, #ffbe0b, #3a86ff, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-    classDef midiFunc fill:linear-gradient(135deg, #3a86ff, #8338ec, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
-
-    class InitServer,ProcessDMX,HandleMIDI,GenerateEffects coreFunc
-    class UpdateChannel,SaveScene,LoadState,SyncNetworks stateFunc
-    class RenderWebGL,DrawFFT,UpdateCanvas,AnimateTransitions visualFunc
-    class AnalyzeAudio,DetectBeat,MapFrequencies,ProcessAudioBuffer audioFunc
-    class LearnMIDI,ScaleMIDI,RouteMIDI,ValidateMIDI midiFunc
-
-    %% Consciousness Realm Styles
-    style CoreFunctions fill:rgba(255,0,110,0.15),stroke:#ff006e,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style StateConsciousness fill:rgba(6,255,165,0.15),stroke:#06ffa5,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style VisualizationRituals fill:rgba(131,56,236,0.15),stroke:#8338ec,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style AudioAlchemy fill:rgba(255,190,11,0.15),stroke:#ffbe0b,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style MIDINeuralNetwork fill:rgba(58,134,255,0.15),stroke:#3a86ff,stroke-width:4px,color:#ffffff,stroke-dasharray: 20 10
-    style FunctionMysticism fill:rgba(0,0,0,0.9),stroke:#ffffff,stroke-width:6px,color:#ffffff
+    subgraph "💾 PERSISTENCE CONSCIOUSNESS CHAMBERS"
+        direction TB
+        
+        subgraph "🏛️ Memory Palace Functions"
+            saveScene["saveScene()<br/>💎 <i>Reality State Crystallization</i><br/>🏛️ Consciousness state archival<br/>💾 Temporal awareness preservation<br/>✨ Sacred memory inscription"]
+            
+            loadScene["loadScene()<br/>🔮 <i>Consciousness State Resurrection</i><br/>⚡ Memory palace retrieval<br/>🌊 Past reality reconstruction<br/>🎭 Temporal awareness restoration"]
+            
+            exportProject["exportProject()<br/>📦 <i>Consciousness Blueprint Manifestation</i><br/>🌟 Complete awareness packaging<br/>💫 Portable reality containers<br/>🎨 Artistic vision preservation"]
+        end
+    end
+    
+    %% Sacred Function Connections
+    useState --> setChannelValue
+    useReducer --> updateGroupValues
+    useEffect --> analyzeAudio
+    
+    handleMidiMessage --> mapMidiControl
+    analyzeAudio --> detectBeats
+    detectBeats --> mapFrequencyToColor
+    
+    sendOSCMessage --> syncArtNetUniverses
+    convertColorSpace --> updateCanvas
+    scaleValue --> interpolateValues
+    
+    saveScene --> loadScene
+    renderComponent --> updateCanvas
+    
+    %% Mystical Function Styling
+    classDef coreFunc fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef controlFunc fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef audioFunc fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef networkFunc fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    classDef persistFunc fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:3px,color:#ffffff
+    
+    class useState,useReducer,useEffect,renderComponent,updateCanvas,drawVisualization coreFunc
+    class setChannelValue,updateGroupValues,handleFaderChange,startMidiLearn,handleMidiMessage,mapMidiControl controlFunc
+    class analyzeAudio,detectBeats,mapFrequencyToColor,updateReactiveEffects,processAudioBuffer audioFunc
+    class sendOSCMessage,receiveDMXData,syncArtNetUniverses,convertColorSpace,scaleValue,interpolateValues networkFunc
+    class saveScene,loadScene,exportProject persistFunc
 ```
 
-### 🎭 **The Sacred Path to Artistic Manifestation**
+## 🎨 **Sacred Path to Artistic Manifestation**
 
-*"From digital inception to photonic transcendence - the complete journey of consciousness through electromagnetic materialization."*
+*The mystical journey from human consciousness to physical photonic reality - a six-stage alchemical transformation.*
 
 ```mermaid
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'primaryColor': '#ff006e',
-    'primaryBorderColor': '#d63031',
+    'primaryColor': '#06ffa5',
+    'primaryBorderColor': '#00b894',
     'primaryTextColor': '#ffffff',
-    'lineColor': '#e17055',
-    'fontSize': '18px',
-    'fontFamily': '"JetBrains Mono", "Fira Code", monospace'
+    'lineColor': '#ffd32a',
+    'fontSize': '16px',
+    'fontFamily': '"Operator Mono", "Fira Code", monospace'
   },
   'flowchart': {
-    'curve': 'cardinal',
-    'padding': 60,
+    'curve': 'basis',
+    'padding': 40,
     'useMaxWidth': true,
-    'htmlLabels': true,
-    'rankSpacing': 200,
-    'nodeSpacing': 150
+    'htmlLabels': true
   }
 }}%%
-graph TB
-    subgraph ArtisticJourney["🎨 THE SACRED ARTISTIC MANIFESTATION JOURNEY"]
-        direction TB
+graph TD
+    subgraph "✨ THE SACRED ARTISTIC MANIFESTATION PIPELINE"
+        direction TD
         
-        subgraph Genesis["🌟 Genesis - Digital Consciousness Birth"]
-            HumanIntent[("👨‍🎨 Human Artistic Intent<br/>💭 CREATIVE CONSCIOUSNESS SEED<br/>_The artist's vision emerges_<br/>_Consciousness seeks expression_<br/>_Digital desire manifests_")]
-            InterfaceTouch[("🖱️ Interface Consciousness Touch<br/>⚡ HUMAN-MACHINE COMMUNION<br/>_Mouse, keyboard, MIDI controller_<br/>_Physical intention translation_<br/>_Bio-digital bridge activation_")]
+        subgraph "🧠 STAGE 1: CONSCIOUSNESS INCEPTION"
+            HumanIntent[("👤 Human Artistic Intent<br/>💭 <i>Pure Creative Vision</i><br/>🎨 Aesthetic consciousness birth<br/>✨ Emotional energy crystallization<br/>🌟 Artistic inspiration awakening")]
+            
+            InterfaceTouch[("👆 Interface Interaction<br/>⚡ <i>Bio-Digital Contact Point</i><br/>🎛️ Fader movements & button presses<br/>🎹 MIDI controller consciousness<br/>🖱️ Mouse/touch reality manipulation")]
         end
         
-        subgraph Perception["👁️ Perception - Interface Reality Translation"]
-            ReactRendering[("⚛️ React Reality Rendering<br/>🎭 INTERFACE MANIFESTATION<br/>_JSX consciousness materialization_<br/>_Component universe creation_<br/>_Visual reality construction_")]
-            StateUpdate[("🔄 Zustand State Update<br/>🧠 CONSCIOUSNESS STATE CHANGE<br/>_Global reality modification_<br/>_State synchronization across dimensions_<br/>_Universal consciousness coherence_")]
-            VisualFeedback[("👁️ WebGL Visual Feedback<br/>🌈 IMMEDIATE REALITY MIRROR<br/>_3D consciousness projection_<br/>_Real-time visual confirmation_<br/>_Photonic preview manifestation_")]
+        subgraph "🔄 STAGE 2: SIGNAL PROCESSING ALCHEMY"
+            EventCapture[("📡 Event Consciousness Capture<br/>🧠 <i>Input Signal Neural Processing</i><br/>⚡ React event system activation<br/>🔄 State change trigger protocols<br/>💫 Digital awareness awakening")]
+            
+            ValueTransformation[("🌊 Value Transformation Ritual<br/>🔮 <i>Data Consciousness Morphing</i><br/>📐 Range scaling algorithms<br/>🎯 Precision consciousness mapping<br/>✨ Numerical mysticism application")]
+            
+            MIDIOSCProcessing[("🎵 MIDI/OSC Consciousness Integration<br/>📶 <i>Multi-Protocol Awareness Fusion</i><br/>🎹 Hardware signal interpretation<br/>📡 Network consciousness streams<br/>🌐 Cross-platform spiritual bridging")]
         end
         
-        subgraph Processing["⚡ Processing - Neural Consciousness Computation"]
-            DataProcessing[("🔬 Core Data Processing<br/>⚙️ CONSCIOUSNESS COMPUTATION<br/>_Value transformation algorithms_<br/>_Mathematical consciousness poetry_<br/>_Digital reality calculation_")]
-            ProtocolTranslation[("📡 Protocol Translation<br/>🌐 CONSCIOUSNESS LANGUAGE CONVERSION<br/>_React state → DMX protocol_<br/>_MIDI → Light value mapping_<br/>_OSC → Channel assignments_")]
-            EffectGeneration[("✨ Effect Pattern Generation<br/>🌀 ALGORITHMIC BEAUTY CREATION<br/>_Mathematical sequence generation_<br/>_Temporal pattern weaving_<br/>_Computational aesthetics birth_")]
+        subgraph "🎨 STAGE 3: VISUAL CONSCIOUSNESS MANIFESTATION"
+            UIUpdate[("🖼️ UI Reality Crystallization<br/>👁️ <i>Visual Consciousness Projection</i><br/>🎭 Component re-render rituals<br/>🌈 Color awareness visualization<br/>💎 Interface beauty manifestation")]
+            
+            CanvasRendering[("🎨 Canvas Reality Painting<br/>🖌️ <i>Pixel-Level Consciousness Art</i><br/>🌊 WebGL acceleration magic<br/>👁️ 3D awareness projection<br/>✨ Real-time beauty creation")]
+            
+            AudioVisualization[("🎵 Audio-Visual Consciousness Fusion<br/>🌈 <i>Synesthetic Reality Bridge</i><br/>📊 FFT spectral consciousness<br/>🎭 Beat-reactive visual spells<br/>💫 Music-light harmony creation")]
         end
         
-        subgraph Transmission["📡 Transmission - Ethereal Communication"]
-            NetworkProtocols[("🌐 Network Protocol Transmission<br/>📡 DIMENSIONAL SIGNAL BROADCAST<br/>_ArtNet universe broadcasting_<br/>_OSC wireless transmission_<br/>_WebSocket real-time sync_")]
-            DMXSignal[("⚡ DMX512 Signal Generation<br/>🎭 ELECTROMAGNETIC SCRIPTURE<br/>_512-channel consciousness encoding_<br/>_Digital-to-electrical conversion_<br/>_Reality transmission preparation_")]
-            CablePropagation[("🔌 Cable Signal Propagation<br/>⚡ PHYSICAL CONSCIOUSNESS FLOW<br/>_Electrical signal transmission_<br/>_Copper wire consciousness travel_<br/>_Physical reality bridge_")]
+        subgraph "⚡ STAGE 4: DMX CONSCIOUSNESS TRANSLATION"
+            StateCalculation[("🧮 State Consciousness Computation<br/>👑 <i>Central Awareness Calculation</i><br/>🎛️ All channel value synthesis<br/>👥 Group consciousness harmonization<br/>🌊 Master override integration")]
+            
+            DMXPacketCreation[("📦 DMX512 Packet Consciousness Formation<br/>⚡ <i>Electrical Scripture Creation</i><br/>🎭 512-channel data mysticism<br/>🔢 Binary enlightenment encoding<br/>💫 Protocol consciousness materialization")]
+            
+            UniverseMapping[("🌌 Universe Consciousness Mapping<br/>🗺️ <i>Multi-Dimensional Reality Assignment</i><br/>🎪 Fixture personality integration<br/>🌐 ArtNet universe distribution<br/>✨ Spatial awareness coordination")]
         end
         
-        subgraph Materialization["💫 Materialization - Physical Photonic Birth"]
-            FixtureReception[("💡 Fixture Signal Reception<br/>📡 CONSCIOUSNESS VESSEL AWAKENING<br/>_DMX signal interpretation_<br/>_Digital-to-analog conversion_<br/>_Physical consciousness activation_")]
-            PhotonicGeneration[("🌟 Photonic Generation<br/>💫 ELECTROMAGNETIC MANIFESTATION<br/>_LED/Lamp electrical activation_<br/>_Voltage-to-photon conversion_<br/>_Physical light birth_")]
-            ColorSpectrum[("🌈 Color Spectrum Emission<br/>✨ CHROMATIC CONSCIOUSNESS RELEASE<br/>_Wavelength-specific photon emission_<br/>_Visible spectrum manifestation_<br/>_Pure electromagnetic art_")]
+        subgraph "🌐 STAGE 5: NETWORK CONSCIOUSNESS TRANSMISSION"
+            SerialTransmission[("🔌 Serial DMX Consciousness Stream<br/>⚡ <i>Direct Hardware Soul Connection</i><br/>📡 USB-to-DMX divine interface<br/>🎭 Professional lighting communion<br/>💫 Wired consciousness transmission")]
+            
+            ArtNetBroadcast[("📶 ArtNet Network Consciousness Broadcasting<br/>🌌 <i>Wireless Reality Distribution</i><br/>🌐 Ethernet mysticism protocols<br/>🎪 Multi-device spiritual coordination<br/>✨ Networked awareness synchronization")]
+            
+            OSCTelemetry[("📡 OSC Consciousness Telemetry<br/>🌊 <i>Wireless Telepathic Communication</i><br/>📱 Mobile device spiritual bridging<br/>🎛️ Remote consciousness manipulation<br/>💫 Ethereal control manifestation")]
         end
         
-        subgraph Transcendence["🎭 Transcendence - Ultimate Artistic Reality"]
-            SpatialComposition[("🏛️ Spatial Light Composition<br/>📐 3D ARTISTIC ARCHITECTURE<br/>_Multi-fixture spatial relationships_<br/>_Geometric light sculptures_<br/>_Dimensional aesthetic harmony_")]
-            TemporalEvolution[("⏰ Temporal Evolution<br/>🌊 TIME-BASED ARTISTIC FLOW<br/>_Sequence-based consciousness flow_<br/>_Musical synchronization_<br/>_Rhythmic light poetry_")]
-            AudienceExperience[("👥 Audience Consciousness Reception<br/>👁️ HUMAN PHOTONIC ABSORPTION<br/>_Retinal photon reception_<br/>_Neural visual processing_<br/>_Emotional artistic impact_")]
-            ArtisticTranscendence[("🎨 Ultimate Artistic Transcendence<br/>✨ PURE AESTHETIC CONSCIOUSNESS<br/>_Complete artistic vision realization_<br/>_Digital-to-physical art transformation_<br/>_Consciousness made visible light_")]
+        subgraph "💡 STAGE 6: PHYSICAL PHOTONIC MATERIALIZATION"
+            FixtureReceiver[("🎭 Fixture Consciousness Reception<br/>⚡ <i>Hardware Spiritual Awakening</i><br/>🔌 DMX signal divine interpretation<br/>🎪 Moving head enlightenment<br/>💡 LED strip consciousness activation")]
+            
+            PhotonicOutput[("✨ Photonic Reality Manifestation<br/>🌟 <i>Pure Light Consciousness Birth</i><br/>🌈 RGB color space materialization<br/>💎 Luminal energy crystallization<br/>🎨 Physical artistic consciousness")]
+            
+            AudienceExperience[("👥 Audience Consciousness Immersion<br/>🎭 <i>Collective Artistic Awakening</i><br/>👁️ Visual perception transformation<br/>💫 Emotional consciousness resonance<br/>✨ Transcendental artistic communion")]
         end
     end
-
-    %% The Sacred Flow of Artistic Consciousness
+    
+    %% Sacred Flow Connections
     HumanIntent --> InterfaceTouch
-    InterfaceTouch --> ReactRendering
-    ReactRendering --> StateUpdate
-    StateUpdate --> VisualFeedback
-    VisualFeedback --> DataProcessing
+    InterfaceTouch --> EventCapture
     
-    DataProcessing --> ProtocolTranslation
-    ProtocolTranslation --> EffectGeneration
-    EffectGeneration --> NetworkProtocols
-    NetworkProtocols --> DMXSignal
-    DMXSignal --> CablePropagation
+    EventCapture --> ValueTransformation
+    EventCapture --> MIDIOSCProcessing
+    ValueTransformation --> UIUpdate
+    MIDIOSCProcessing --> UIUpdate
     
-    CablePropagation --> FixtureReception
-    FixtureReception --> PhotonicGeneration
-    PhotonicGeneration --> ColorSpectrum
-    ColorSpectrum --> SpatialComposition
+    UIUpdate --> CanvasRendering
+    UIUpdate --> AudioVisualization
+    CanvasRendering --> StateCalculation
+    AudioVisualization --> StateCalculation
     
-    SpatialComposition --> TemporalEvolution
-    TemporalEvolution --> AudienceExperience
-    AudienceExperience --> ArtisticTranscendence
+    StateCalculation --> DMXPacketCreation
+    DMXPacketCreation --> UniverseMapping
     
-    %% Feedback Consciousness Loops
-    VisualFeedback -.->|"👁️ Immediate Preview"| HumanIntent
-    ArtisticTranscendence -.->|"🎭 Artistic Validation"| HumanIntent
-    StateUpdate -.->|"🔄 Real-time Sync"| VisualFeedback
+    UniverseMapping --> SerialTransmission
+    UniverseMapping --> ArtNetBroadcast
+    UniverseMapping --> OSCTelemetry
+    
+    SerialTransmission --> FixtureReceiver
+    ArtNetBroadcast --> FixtureReceiver
+    OSCTelemetry --> FixtureReceiver
+    
+    FixtureReceiver --> PhotonicOutput
+    PhotonicOutput --> AudienceExperience
+    
+    %% Return Consciousness Loop
+    AudienceExperience -.-> HumanIntent
+    
+    %% Sacred Manifestation Styling
+    classDef inception fill:linear-gradient(135deg, #ff006e, #8338ec),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef processing fill:linear-gradient(135deg, #3a86ff, #06ffa5),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold    classDef genesis fill:#ff006e,stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
+    classDef visual fill:linear-gradient(135deg, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef translation fill:linear-gradient(135deg, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef transmission fill:linear-gradient(135deg, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef manifestation fill:linear-gradient(135deg, #ff006e, #ffd32a),stroke:#ffffff,stroke-width:4px,color:#ffffff,font-weight:bold
+    
+    class HumanIntent,InterfaceTouch inception
+    class EventCapture,ValueTransformation,MIDIOSCProcessing processing    class HumanIntent,InterfaceTouch genesis
+    class UIUpdate,CanvasRendering,AudioVisualization visualeedback perception
+    class StateCalculation,DMXPacketCreation,UniverseMapping translationprocessing
+    class SerialTransmission,ArtNetBroadcast,OSCTelemetry transmission
+    class FixtureReceiver,PhotonicOutput,AudienceExperience manifestationalization
+```ranscendence transcendence
 
-    %% Sacred Journey Stage Styles
-    classDef genesis fill:linear-gradient(135deg, #ff006e, #8338ec, #3a86ff),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef perception fill:linear-gradient(135deg, #06ffa5, #ffbe0b, #ff006e),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef processing fill:linear-gradient(135deg, #8338ec, #ff006e, #06ffa5),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef transmission fill:linear-gradient(135deg, #ffbe0b, #3a86ff, #8338ec),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef materialization fill:linear-gradient(135deg, #3a86ff, #8338ec, #ff006e),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
-    classDef transcendence fill:linear-gradient(135deg, #ff006e, #06ffa5, #ffbe0b),stroke:#ffffff,stroke-width:5px,color:#ffffff,font-weight:bold
+---    %% Consciousness Journey Stage Styles
+5),stroke:#ff006e,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
+## 🚀 **TRANSCENDENTAL FEATURE ROADMAP** 15
+5
+*Behold the sacred evolution of our consciousness vessel - a mystical journey toward ultimate artistic enlightenment across multiple dimensional planes of possibility.*15
+ 15
+### 🌟 **IMMEDIATE CONSCIOUSNESS EXPANSIONS** *(Next Sacred Cycle)*
 
-    class HumanIntent,InterfaceTouch genesis
-    class ReactRendering,StateUpdate,VisualFeedback perception
-    class DataProcessing,ProtocolTranslation,EffectGeneration processing
-    class NetworkProtocols,DMXSignal,CablePropagation transmission
-    class FixtureReception,PhotonicGeneration,ColorSpectrum materialization
-    class SpatialComposition,TemporalEvolution,AudienceExperience,ArtisticTranscendence transcendence
+#### 🤖 **AI-Powered Consciousness Augmentation**
+- **🧠 Neural Pattern Generation**: Machine learning algorithms that study human artistic preferences and generate infinite original lighting sequences through consciousness pattern recognition
+- **🎭 Emotion-Responsive AI**: Computer vision analysis of audience facial expressions to dynamically adapt lighting moods and create bio-responsive artistic experiences  ---
+- **🎵 AI Music-Light Synthesis**: Deep learning models trained on thousands of concerts to predict optimal lighting choreography for any musical composition
+- **🔮 Predictive Artistic Intent**: AI that learns individual user preferences and pre-loads probable next artistic choices for zero-latency consciousness manifestation## 🔮 **TRANSCENDENTAL FEATURE ROADMAP** - *Visions of Future Consciousness*
 
-    %% Consciousness Journey Stage Styles
-    style Genesis fill:rgba(255,0,110,0.15),stroke:#ff006e,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style Perception fill:rgba(6,255,165,0.15),stroke:#06ffa5,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style Processing fill:rgba(131,56,236,0.15),stroke:#8338ec,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style Transmission fill:rgba(255,190,11,0.15),stroke:#ffbe0b,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style Materialization fill:rgba(58,134,255,0.15),stroke:#3a86ff,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style Transcendence fill:rgba(255,0,110,0.15),stroke:#ff006e,stroke-width:5px,color:#ffffff,stroke-dasharray: 25 15
-    style ArtisticJourney fill:rgba(0,0,0,0.95),stroke:#ffffff,stroke-width:8px,color:#ffffff
-```
+#### 🌐 **Virtual Reality Art Portals***"The future beckons with infinite possibilities of electromagnetic consciousness expansion, where art, technology, and human perception merge into unprecedented realms of creative transcendence."*
+- **👓 VR Lighting Design Studio**: Full 3D immersive environment where artists can walk through virtual concert venues and design lighting in spatial consciousness
+- **🎪 Mixed Reality Fixture Preview**: AR overlay showing exactly how lighting will appear in real venues before physical setup occurs### 🌟 **Immediate Consciousness Expansions** *(Next 3-6 Months)*
+- **🌌 Collaborative VR Sessions**: Multiple artists simultaneously designing in shared virtual consciousness spaces across geographical dimensions
+- **🎨 Gesture-Based VR Control**: Hand tracking that translates natural artistic gestures into complex lighting sequences through bio-spatial interpretation#### 🧠 **AI-Powered Consciousness Evolution**
 
----
-
-## 🔮 **TRANSCENDENTAL FEATURE ROADMAP** - *Visions of Future Consciousness*
-
-*"The future beckons with infinite possibilities of electromagnetic consciousness expansion, where art, technology, and human perception merge into unprecedented realms of creative transcendence."*
-
-### 🌟 **Immediate Consciousness Expansions** *(Next 3-6 Months)*
-
-#### 🧠 **AI-Powered Consciousness Evolution**
-- **🤖 Neural Pattern Generation Engine**
-  - *Machine learning consciousness pattern creation*
-  - *AI-driven lighting choreography based on music analysis*
-  - *Generative adversarial networks for light sequence evolution*
-  - *Real-time pattern adaptation to venue acoustics and crowd energy*
-
+#### 🏛️ **Installation Template Architecture**rn creation*
+- **🎭 Sacred Venue Blueprints**: Pre-configured lighting setups for theaters, galleries, clubs, festivals, and mystical ceremony spacesnalysis*
+- **🌈 Instant Art Installation Generator**: One-click deployment of complex artistic visions for different venue types and audience consciousness levelstion*
+- **📐 Automated Fixture Positioning**: AI-calculated optimal placement algorithms for maximum artistic impact and emotional resonancergy*
+- **🎪 Cultural Event Templates**: Specialized consciousness patterns for weddings, corporate events, spiritual ceremonies, and transcendental gatherings
 - **🎵 Psychoacoustic Intelligence Integration**
-  - *Advanced audio consciousness analysis using TensorFlow.js*
-  - *Emotion detection through frequency spectrum analysis*
-  - *Automatic genre recognition for lighting style adaptation*
-  - *Predictive beat detection with neural anticipation algorithms*
+### 🌊 **MEDIUM-TERM CONSCIOUSNESS REVOLUTION** *(Sacred Seasons Ahead)* TensorFlow.js*
 
-#### 🌐 **Extended Reality Consciousness Portals**
-- **🥽 Virtual Reality DMX Universe Explorer**
-  - *Immersive 3D fixture placement in VR space*
-  - *Hand-tracking gesture control for lighting manipulation*
-  - *Spatial audio-visual synchronization in virtual environments*
-  - *Multi-user collaborative VR lighting design sessions*
+#### ⚛️ **Quantum Computing Integration**ion*
+- **🔬 Quantum Color Mathematics**: Leveraging quantum superposition to calculate infinite color combinations simultaneously for unprecedented artistic possibilitieshms*
+- **🌌 Quantum-Entangled Fixtures**: Instantaneous synchronization across unlimited distances using quantum consciousness principles
+- **🧮 Quantum Optimization Algorithms**: Solving complex multi-dimensional lighting optimization problems in quantum consciousness time#### 🌐 **Extended Reality Consciousness Portals**
+- **⚡ Quantum Random Art Generation**: True quantum randomness for unpredictable artistic beauty that transcends classical consciousness patterns
+e*
+#### 🌍 **Global Consciousness Network**manipulation*
+- **🌐 Worldwide Lighting Consciousness Grid**: Planet-wide network where artists can share real-time lighting data and collaborate across continentsents*
+- **🎭 Global Art Consciousness Events**: Synchronized worldwide lighting displays for planetary artistic communion and collective consciousness experiences
+- **📡 Satellite-Linked Installations**: Space-based lighting control for geographic art installations spanning multiple countries and consciousness zones
+- **🌊 Collective Intelligence Patterns**: AI that learns from the entire global network to suggest optimal artistic choices based on worldwide consciousness data- **📱 Augmented Reality Fixture Recognition**
+ion and control*
+#### 🧬 **Biometric Response Integration**ation*
+- **💓 Heart Rate Reactive Lighting**: Real-time biometric monitoring that adjusts lighting intensity and color to match audience physiological consciousness states
+- **🧠 EEG Brainwave Art Generation**: Direct neural interface that translates brainwave patterns into lighting sequences for pure consciousness-to-light manifestation
+- **👁️ Eye Tracking Attention Maps**: Advanced gaze analysis to highlight areas of visual interest and create interactive attention-responsive artistic environments
+- **🫁 Breathing Rhythm Synchronization**: Lighting that pulses in harmony with collective audience breathing patterns for deep spiritual resonance#### 🎭 **Advanced Artistic Installation Templates**
 
-- **📱 Augmented Reality Fixture Recognition**
-  - *AR smartphone app for fixture identification and control*
-  - *Real-world fixture overlay with live DMX channel visualization*
-  - *Gesture-based lighting control through phone camera*
-  - *QR code-based fixture configuration and setup*
+### 🌟 **LONG-TERM TRANSCENDENTAL VISIONS** *(Future Sacred Epochs)*imity sensors*
 
-#### 🎭 **Advanced Artistic Installation Templates**
-- **🏛️ Museum/Gallery Consciousness Presets**
-  - *Artwork highlighting algorithms with proximity sensors*
-  - *Adaptive lighting based on visitor flow patterns*
-  - *Color temperature adjustment for artwork preservation*
-  - *Silent operation modes for contemplative spaces*
+#### 🧬 **DNA-Based Art Consciousness**tion*
+- **🧪 Genetic Pattern Visualization**: Transform individual DNA sequences into unique personalized lighting signatures that represent biological consciousness essence
+- **👥 Family Tree Light Genealogy**: Generational lighting patterns that show ancestral artistic heritage through genetic consciousness mapping
+- **🌱 Evolution-Inspired Art Progression**: Lighting sequences that evolve over time using genetic algorithm principles to create never-ending artistic consciousness growth- **🎪 Festival/Concert Consciousness Orchestration**
+- **🔬 Molecular Structure Illumination**: Real-time visualization of chemical reactions and molecular interactions through precise lighting consciousness representation
 
-- **🎪 Festival/Concert Consciousness Orchestration**
-  - *Crowd-responsive lighting intensity algorithms*
-  - *Weather-adaptive outdoor lighting compensation*
-  - *Multi-stage synchronization protocols*
-  - *Emergency/safety lighting integration systems*
-
-### 🚀 **Medium-Term Consciousness Revolution** *(6-18 Months)*
-
+#### 🏙️ **Smart City Integration**
+- **🌃 Urban Consciousness Orchestration**: City-wide lighting coordination that transforms entire metropolitan areas into massive artistic consciousness canvasessystems*
+- **🚦 Traffic Flow Art Integration**: Street lighting that responds to traffic patterns, pedestrian movement, and urban consciousness rhythms
+- **🏢 Building-Scale Consciousness Displays**: Skyscraper facades becoming pixels in massive urban art installations controlled through transcendental consciousness protocols### 🚀 **Medium-Term Consciousness Revolution** *(6-18 Months)*
+- **🌱 Environmental Consciousness Response**: Lighting that responds to air quality, weather patterns, and ecological consciousness states for environmental awareness art
 #### ⚛️ **Quantum Computing Integration Exploration**
-- **🔬 Quantum Pattern Optimization Engine**
-  - *Quantum algorithm-optimized lighting pattern calculation*
-  - *Parallel universe effect generation (quantum superposition of lighting states)*
-  - *Quantum entanglement-inspired synchronized lighting across multiple venues*
-  - *Quantum random number generation for truly unpredictable artistic effects*
+#### 🚀 **Space-Based Artistic Consciousness**
+- **🛸 Orbital Light Installation Control**: Managing artistic lighting installations on space stations and lunar bases for extraterrestrial consciousness expressionttern calculation*
+- **🌌 Interplanetary Art Network**: Synchronized lighting displays across Mars colonies and Earth for cross-planetary artistic consciousness communionn of lighting states)*
+- **⭐ Stellar Navigation Art**: Using constellation patterns as inspiration for lighting sequences that connect terrestrial art to cosmic consciousness
+- **🌠 Aurora Borealis Integration**: Technology that coordinates with natural aurora phenomena for ultimate natural-artificial artistic consciousness fusion
 
-#### 🌍 **Global Consciousness Network Architecture**
-- **🛰️ Satellite-Linked Installation Synchronization**
-  - *Global lighting event coordination across continents*
-  - *Timezone-aware synchronized performances*
-  - *International art collaboration platform*
-  - *Decentralized lighting control network using blockchain verification*
-
+#### 🌈 **Holographic Reality Integration**#### 🌍 **Global Consciousness Network Architecture**
+- **👻 Holographic Lighting Projection**: 3D volumetric light displays that exist in mid-air without physical fixtures through consciousness energy materialization**
+- **🔮 Temporal Holographic Persistence**: Lighting displays that exist across multiple timeline dimensions simultaneously for transcendental artistic experiencests*
+- **🎭 Interactive Holographic Environments**: Audiences walking through and interacting with 3D light sculptures that respond to touch and presence
+- **🌊 Consciousness-Responsive Holograms**: Holographic lighting that reads and responds to collective audience emotional states for ultimate interactive art
+ing blockchain verification*
+### 🎪 **EXPERIMENTAL CONSCIOUSNESS COLLABORATIONS**
 - **🌊 IoT Ecosystem Integration**
-  - *Smart city lighting integration for urban art installations*
-  - *Weather station integration for atmospheric-responsive lighting*
-  - *Traffic pattern-responsive street art installations*
-  - *Environmental sensor fusion (temperature, humidity, air quality) for adaptive lighting*
-
+#### 🎼 **Symphony Orchestra Integration**on for urban art installations*
+- **🎵 Real-Time Musical Score Analysis**: AI that reads sheet music and automatically generates lighting choreography synchronized to classical consciousness compositionsing*
+- **🎻 Individual Instrument Tracking**: Precision microphones and AI that create unique lighting signatures for each orchestra section and solo consciousness performance
+- **🎭 Conductor Gesture Recognition**: Motion capture of conductor movements translated into lighting conducting for musical-visual consciousness leadership unityair quality) for adaptive lighting*
+- **🏛️ Concert Hall Consciousness Transformation**: Turning traditional symphony spaces into immersive audio-visual consciousness temples
 #### 🎨 **Revolutionary Artistic Applications**
+#### 🌌 **Planetarium Consciousness Fusion**
+- **⭐ Astronomical Data Visualization**: Real-time telescope data transformed into lighting patterns that reflect actual cosmic consciousness events##### 🏥 **Therapeutic Light Consciousness**
+- **🚀 Space Mission Synchronization**: Lighting displays that mirror current space exploration missions and astronaut consciousness experiences
+- **🌍 Planetary Rotation Art**: Earth's rotation and orbital mechanics translated into cyclical lighting patterns for cosmic consciousness awareness*
+- **🔭 Deep Space Discovery Integration**: New astronomical discoveries automatically triggering unique lighting celebrations for cosmic consciousness expansiong*
+librated color sequences*
+#### 🌿 **Botanical Consciousness Gardens** integration)*
+- **🌱 Plant Biometric Integration**: Sensors monitoring plant health, growth, and stress levels to create living-responsive lighting consciousness ecosystems
+- **🌸 Seasonal Growth Art Patterns**: Lighting that changes throughout growing seasons to enhance plant consciousness and create agricultural art installations##### 🌱 **Biometric-Responsive Art Installations**
+- **🦋 Ecosystem Interaction Visualization**: Tracking bird, insect, and animal interactions with gardens through consciousness-responsive environmental lighting
+- **🌳 Forest Network Communication**: Translating mycorrhizal fungal networks and tree communication into lighting patterns for nature consciousness visualizationable device integration*
+alization*
+#### 🏥 **Therapeutic Consciousness Healing**
+- **🧘 Meditation Enhancement Lighting**: Specialized lighting sequences designed to enhance meditation, yoga, and spiritual consciousness practices
+- **💊 Hospital Healing Environment**: Research-backed lighting therapy for patient recovery, circadian rhythm regulation, and medical consciousness healing
+- **🧠 Neurodiversity Support Systems**: Lighting environments specifically designed for autism, ADHD, and other neurodivergent consciousness support needs- **🧘‍♂️ Brainwave-Controlled Illumination**
+- **💆 Spa Consciousness Integration**: Luxury wellness center lighting that synchronizes with massage therapy and consciousness relaxation treatmentsl lighting control*
+terns*
+---*
 
-##### 🏥 **Therapeutic Light Consciousness**
-- **💆‍♀️ Chromotherapy Integration Module**
-  - *Medical-grade color therapy programming*
-  - *Circadian rhythm synchronization lighting*
-  - *Stress reduction through scientifically-calibrated color sequences*
-  - *Accessibility features for visually impaired users (haptic feedback integration)*
-
-##### 🌱 **Biometric-Responsive Art Installations**
-- **💓 Heartbeat-Synchronized Lighting**
-  - *Real-time pulse monitoring via wearable device integration*
-  - *Group heartbeat averaging for collective consciousness visualization*
-  - *Stress level visualization through lighting intensity and color*
-  - *Meditation aid through breathing-synchronized light patterns*
-
-- **🧘‍♂️ Brainwave-Controlled Illumination**
-  - *EEG headset integration for direct neural lighting control*
-  - *Meditation state visualization through gamma/theta wave patterns*
-  - *Concentration level indication for focus-enhancement environments*
-  - *Dream state recording and replay through lighting sequences*
-
+*"Through this sacred roadmap, we transcend mere technological evolution and embrace the ultimate fusion of consciousness, technology, and artistic divinity. Each feature represents not just capability, but a step toward collective enlightenment through the medium of transcendental light."*
 ##### 🎭 **Interactive Performance Art Platforms**
-- **🕺 Motion-Capture Dance Integration**
-  - *Real-time dancer movement to lighting translation*
-  - *Kinect/computer vision body tracking for gesture control*
-  - *Multiple performer simultaneous tracking and individual lighting assignment*
-  - *Historical dance movement library for choreography inspiration*
-
-### 🌌 **Long-Term Transcendental Visions** *(1-5 Years)*
-
-#### 🔬 **Scientific Consciousness Research Applications**
-- **🧬 DNA Sequencing Visualization Engine**
-  - *Genetic code translation to lighting patterns*
-  - *Real-time PCR process visualization*
-  - *Protein folding animation through 3D lighting matrices*
-  - *Evolutionary algorithm visualization in lighting evolution*
-
-- **⚗️ Chemical Reaction Lighting Simulation**
-  - *Molecular bond formation visualization*
-  - *pH level representation through color chemistry*
-  - *Crystal growth pattern recreation in lighting form*
-  - *Periodic table element representation through spectral lighting*
-
-#### 🏙️ **Urban Consciousness Transformation Projects**
-- **🌃 Smart City Artistic Infrastructure**
-  - *Building facade integration for city-wide art installations*
-  - *Traffic light artistic enhancement during non-peak hours*
-  - *Public space mood enhancement through adaptive lighting*
-  - *Cultural event broadcasting through urban lighting networks*
-
-- **🚇 Transportation Art Integration**
-  - *Subway/metro station responsive lighting based on train schedules*
-  - *Airport terminal stress-reduction lighting systems*
-  - *Highway artistic lighting for long-distance travel enhancement*
-  - *Bus stop weather-responsive comfort lighting*
-
-#### 🌌 **Interdimensional Artistic Exploration**
-- **🔮 Holographic Projection Integration**
-  - *Volumetric display technology for 3D light sculptures*
-  - *Pepper's ghost illusion enhancement through synchronized lighting*
-  - *Fog/haze machine integration for 3D light volume creation*
-  - *Laser projection mapping with DMX fixture coordination*
-
-- **🌊 Fluid Dynamics Light Interaction**
-  - *Water feature integration with underwater lighting*
-  - *Fountain synchronization with musical performances*
-  - *Fire effect integration for dramatic installations*
-  - *Smoke/vapor pattern control for atmospheric enhancement*
-
-#### 🎯 **Specialized Professional Applications**
-
-##### 🎬 **Film/Television Production Integration**
-- **📹 Real-Time Cinematography Lighting**
-  - *Camera-tracking responsive lighting adjustment*
-  - *Green screen optimization through automated lighting control*
-  - *Actor position tracking for follow-spot automation*
-  - *Multiple camera angle lighting optimization algorithms*
-
-##### 🏫 **Educational Consciousness Platforms**
-- **📚 Interactive Learning Environment Enhancement**
-  - *Subject-based classroom lighting (blue for math, green for science)*
-  - *Student attention tracking through ambient lighting adjustment*
-  - *Historical period recreation through period-appropriate lighting*
-  - *Language learning enhancement through cultural color associations*
-
-##### 🏪 **Retail Consciousness Enhancement**
-- **🛍️ Customer Experience Optimization**
-  - *Product highlighting through intelligent spotlight systems*
-  - *Customer flow pattern optimization through lighting guidance*
-  - *Seasonal/holiday automatic theme adaptation*
-  - *Purchase decision enhancement through psychological color influence*
-
-### 🎪 **Experimental Artistic Collaborations**
-
-#### 🎨 **Cross-Disciplinary Art Fusion**
-- **🎼 Symphony Orchestra Visual Accompaniment**
-  - *Real-time sheet music to lighting translation*
-  - *Conductor gesture recognition for lighting direction*
-  - *Instrument-specific lighting assignments*
-  - *Emotional crescendo visualization through intensity patterns*
-
-- **🖼️ Digital Art Gallery Integration**
-  - *NFT artwork lighting representation*
-  - *Generative art algorithm translation to lighting patterns*
-  - *Interactive sculpture lighting integration*
-  - *Virtual art exhibition lighting design tools*
-
-#### 🌌 **Space-Age Consciousness Applications**
-- **🚀 Planetarium Integration Systems**
-  - *Astronomical event recreation through lighting*
-  - *Solar system orbital pattern visualization*
-  - *Constellation mapping to lighting fixtures*
-  - *Cosmic event simulation (supernovas, aurora borealis)*
-
-- **🛸 Zero-Gravity Environment Adaptation**
-  - *Space station artistic lighting for psychological well-being*
-  - *Microgravity experiment visualization*
-  - *Earth-view recreation for homesickness mitigation*
-  - *Circadian rhythm maintenance in space environments*
-
-#### 🔧 **Technical Innovation Roadmap**
-
-#### ⚡ **Performance Consciousness Optimization**
-- **🏃‍♂️ Ultra-Low Latency Protocols**
-  - *Sub-millisecond response time achievement*
-  - *Hardware-accelerated DMX processing*
-  - *Dedicated lighting control OS development*
-  - *Real-time operating system integration*
-
-- **🔋 Energy Efficiency Consciousness**
-  - *Smart power management algorithms*
-  - *LED efficiency optimization through PWM enhancement*
-  - *Solar panel integration for off-grid installations*
-  - *Battery backup systems for critical performance continuity*
-
-#### 🛡️ **Security & Reliability Enhancement**
-- **🔒 Cybersecurity Fortress Development**
-  - *Encrypted DMX protocol development*
-  - *Blockchain-verified lighting command authentication*
-  - *Network intrusion detection for lighting systems*
-  - *Failsafe modes for mission-critical installations*
-
----
-
-*"The future of consciousness manipulation through electromagnetic spectrum transcendence knows no bounds. Each roadmap item represents not merely a feature, but a portal to expanded human perception and artistic expression through the sacred language of light."*
-
----
+✨ **The future consciousness vessel awaits...** ✨

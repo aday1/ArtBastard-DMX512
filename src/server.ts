@@ -205,11 +205,11 @@ try {
          log(`Invalid BPM value from ${socket.id}: ${bpm}`, 'WARN');
          // socket.emit('error', 'Invalid BPM value'); // Optional feedback
       }
-    });
-
-    socket.on('toggleMasterClockPlayPause', () => {
+    });    socket.on('toggleMasterClockPlayPause', () => {
       log(`Client ${socket.id} toggleMasterClockPlayPause`, 'CLOCK');
+      console.log('Server: Received toggleMasterClockPlayPause socket event, calling clockManager.togglePlayPause()');
       clockManager.togglePlayPause();
+      console.log('Server: clockManager.togglePlayPause() call completed');
     });
 
     socket.on('setMasterClockBeat', (beat: number) => {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { Layout } from './components/layout/Layout'
 import { SocketProvider } from './context/SocketContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { DockingProvider } from './context/DockingContext'
 import { useStore } from './store'
 import MainPage from './pages/MainPage'
 import { useBrowserMidi } from './hooks/useBrowserMidi'
@@ -143,24 +144,25 @@ function App() {
       }
     };
   }, [isTransitioning, setCurrentTransitionFrameId]);
-
   console.log('[App] About to render JSX...');
   try {
     return (
       <ThemeProvider>
         <SocketProvider>
-          {/* Debug and background processors */}
-          <div style={{ display: 'none' }}>
-            <MidiDmxProcessor />
-            <MidiDebugHelper />
-            <MidiDmxDebug />
-          </div>
-          {/* Main UI should live inside SocketProvider */}
-          <ThemeToggleButton />
-          <DebugInfo position="top-right" />
-          <Layout>
-            <MainPage />
-          </Layout>
+          <DockingProvider>
+            {/* Debug and background processors */}
+            <div style={{ display: 'none' }}>
+              <MidiDmxProcessor />
+              <MidiDebugHelper />
+              <MidiDmxDebug />
+            </div>
+            {/* Main UI should live inside SocketProvider */}
+            <ThemeToggleButton />
+            <DebugInfo position="top-right" />
+            <Layout>
+              <MainPage />
+            </Layout>
+          </DockingProvider>
         </SocketProvider>
       </ThemeProvider>
     );
