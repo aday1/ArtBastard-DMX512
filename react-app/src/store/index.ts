@@ -29,6 +29,7 @@ export interface Group {
   midiMapping?: MidiMapping;
   oscAddress?: string;
   ignoreSceneChanges?: boolean; // Whether this group ignores scene changes
+  ignoreMasterFader?: boolean;
 }
 
 export interface Scene {
