@@ -63,6 +63,11 @@ interface ArtNetConfig {
     base_refresh_interval: number;
 }
 
+interface OscConfig {
+    host: string;
+    port: number;
+}
+
 // Variable declarations
 let dmxChannels: number[] = new Array(512).fill(0);
 let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/dmx/${i + 1}`); // Updated default pattern
@@ -76,6 +81,12 @@ let midiInput: Input | null = null;
 let currentMidiLearnChannel: number | null = null;
 let currentMidiLearnScene: string | null = null;
 let midiLearnTimeout: NodeJS.Timeout | null = null;
+
+// OSC Configuration
+let oscConfig: OscConfig = {
+    host: '127.0.0.1',
+    port: 57121
+};
 
 // Constants and configurations
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -116,21 +127,25 @@ function loadConfig() {
         artNetConfig = { ...artNetConfig, ...parsedConfig.artNetConfig };
         midiMappings = parsedConfig.midiMappings || {};
         oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/dmx/${i + 1}`); // Load OSC assignments or use default
+        oscConfig = { ...oscConfig, ...parsedConfig.oscConfig }; // Load OSC config or use default
         log('Config loaded', 'INFO', { artNetConfig });
         log('MIDI mappings loaded', 'MIDI', { midiMappings });
         log('OSC assignments loaded', 'OSC', { oscAssignmentsCount: oscAssignments.length });
+        log('OSC config loaded', 'OSC', { oscConfig });
         
         return {
             artNetConfig,
             midiMappings,
-            oscAssignments // Return loaded assignments
+            oscAssignments, // Return loaded assignments
+            oscConfig // Return loaded OSC config
         };
     } else {
         saveConfig(); // This will save defaults including the new oscAssignments default
         return {
             artNetConfig,
             midiMappings,
-            oscAssignments
+            oscAssignments,
+            oscConfig
         };
     }
 }
@@ -139,7 +154,8 @@ function saveConfig() {
     const configToSave = {
         artNetConfig,
         midiMappings,
-        oscAssignments // Save OSC assignments
+        oscAssignments, // Save OSC assignments
+        oscConfig // Save OSC config
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(configToSave, null, 2));
     log('Config saved', 'INFO', { config: configToSave });
@@ -302,15 +318,20 @@ function disconnectMidiInput(io: Server, inputName: string) {
 
 function initOsc(io: Server) {
     try {
+        log('Initializing OSC...', 'OSC');
+        log('OSC Configuration:', 'OSC');
+        log('  - Listen Address: 0.0.0.0 (all interfaces)', 'OSC');
+        log(`  - Listen Port: ${oscConfig.port} (UDP)`, 'OSC');
+        
         const oscPort = new osc.UDPPort({
             localAddress: "0.0.0.0",
-            localPort: 57121,
+            localPort: oscConfig.port,
             metadata: true
-        });
-
-        oscPort.on("ready", () => {
+        });        oscPort.on("ready", () => {
             log("OSC Port is ready", 'OSC');
-            io.emit('oscStatus', { status: 'connected' });
+            log(`OSC: Receiving on port ${oscConfig.port} (UDP)`, 'OSC');
+            log(`OSC: Sending to configured targets`, 'OSC');
+            io.emit('oscStatus', { status: 'connected', receivePort: oscConfig.port });
             sender = oscPort;
         });
 
@@ -972,6 +993,24 @@ function updateArtNetConfig(config: Partial<ArtNetConfig>) {
     }
 }
 
+// Create an updateOscConfig function
+function updateOscConfig(io: Server, config: Partial<OscConfig>) {
+    oscConfig = { ...oscConfig, ...config };
+    log('OSC config updated', 'OSC', { oscConfig });
+    
+    // Close existing OSC port if it exists
+    if (sender && typeof sender.close === 'function') {
+        sender.close();
+        log('Closed existing OSC port', 'OSC');
+    }
+    
+    // Reinitialize OSC with new config
+    initOsc(io);
+    
+    saveConfig(); // Persist changes
+    return true;
+}
+
 // Create an updateOscAssignment function
 export function updateOscAssignment(channelIndex: number, address: string): boolean {
     if (channelIndex < 0 || channelIndex >= oscAssignments.length) {
@@ -1008,5 +1047,6 @@ export {
     saveScenes,
     pingArtNetDevice,
     clearMidiMappings,
-    updateArtNetConfig
+    updateArtNetConfig,
+    updateOscConfig
 };

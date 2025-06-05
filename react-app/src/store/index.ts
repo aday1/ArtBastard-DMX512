@@ -47,6 +47,11 @@ export interface ArtNetConfig {
   base_refresh_interval: number
 }
 
+export interface OscConfig {
+  host: string
+  port: number
+}
+
 export interface OscActivity {
   value: number // Float value 0.0 to 1.0
   timestamp: number // Timestamp of the last message
@@ -204,10 +209,10 @@ interface State {
   
   // Scenes
   scenes: Scene[]
-  
-  // ArtNet
+    // ArtNet
   artNetConfig: ArtNetConfig
-  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'  
+  oscConfig: OscConfig
+  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'
   // UI State
   theme: 'artsnob' | 'standard' | 'minimal';
   darkMode: boolean;

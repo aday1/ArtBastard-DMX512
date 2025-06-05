@@ -70,6 +70,11 @@ interface ArtNetConfig {
     base_refresh_interval: number;
 }
 
+interface OscConfig {
+    host: string;
+    port: number;
+}
+
 // --- Global state ---
 let dmxChannels: number[] = new Array(512).fill(0);
 let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`);
@@ -92,6 +97,10 @@ let artNetConfig: ArtNetConfig = {
     port: 6454,
     base_refresh_interval: 1000
 };
+let oscConfig: OscConfig = {
+    host: '127.0.0.1',
+    port: 57121
+};
 let artnetSender: any;
 
 // --- Core functionality ---
@@ -100,17 +109,20 @@ function loadConfig() {
         const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
         const parsedConfig = JSON.parse(data);
         artNetConfig = { ...artNetConfig, ...parsedConfig.artNetConfig };
+        oscConfig = { ...oscConfig, ...parsedConfig.oscConfig };
         midiMappings = parsedConfig.midiMappings || {};
-        log('Config loaded', 'INFO', { artNetConfig });
+        log('Config loaded', 'INFO', { artNetConfig, oscConfig });
 
         return {
             artNetConfig,
+            oscConfig,
             midiMappings
         };
     } else {
         saveConfig();
         return {
             artNetConfig,
+            oscConfig,
             midiMappings
         };
     }
@@ -119,6 +131,7 @@ function loadConfig() {
 function saveConfig() {
     const configToSave = {
         artNetConfig,
+        oscConfig,
         midiMappings
     };
 
@@ -129,6 +142,18 @@ function saveConfig() {
 
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(configToSave, null, 2));
     log('Config saved', 'INFO');
+}
+
+function updateOscConfig(newOscConfig: OscConfig) {
+    log('Updating OSC configuration', 'OSC', { oldConfig: oscConfig, newConfig: newOscConfig });
+    
+    // Update the configuration
+    oscConfig = { ...oscConfig, ...newOscConfig };
+    
+    // Save the updated configuration
+    saveConfig();
+    
+    log('OSC configuration updated successfully', 'OSC', { oscConfig });
 }
 
 function isRunningInWsl(): boolean {
@@ -271,15 +296,20 @@ function listMidiInterfaces() {
 
 function initOsc(io: Server) {
     try {
+        log('Initializing OSC...', 'OSC');
+        log('OSC Configuration:', 'OSC');
+        log(`  - Listen Address: 0.0.0.0 (all interfaces)`, 'OSC');
+        log(`  - Listen Port: ${oscConfig.port} (UDP)`, 'OSC');
+        
         const oscPort = new UDPPort({
             localAddress: "0.0.0.0",
-            localPort: 57121,
+            localPort: oscConfig.port,
             metadata: true
-        });
-
-        oscPort.on("ready", () => {
+        });        oscPort.on("ready", () => {
             log("OSC Port is ready", 'OSC');
-            io.emit('oscStatus', { status: 'connected' });
+            log(`OSC: Receiving on port ${oscConfig.port} (UDP)`, 'OSC');
+            log(`OSC: Sending to configured targets`, 'OSC');
+            io.emit('oscStatus', { status: 'connected', receivePort: oscConfig.port });
             sender = oscPort;
         });
 

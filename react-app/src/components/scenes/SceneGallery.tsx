@@ -134,9 +134,9 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
     }
     
     cancelEditing()
-  }
-    // Calculate the number of active channels in a scene
-  const getActiveChannelCount = (channelValues: number[]) => {
+  }    // Calculate the number of active channels in a scene
+  const getActiveChannelCount = (channelValues: number[] | undefined) => {
+    if (!channelValues) return 0
     return channelValues.filter(v => v > 0).length
   }
 
@@ -248,9 +248,8 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
                 {getActiveChannelCount(dmxChannels)} active channels
               </span>
             </div>
-            
-            <div className={styles.channelPreview}>
-              {dmxChannels.map((value, index) => 
+              <div className={styles.channelPreview}>
+              {dmxChannels?.map((value, index) => 
                 value > 0 ? (
                   <div 
                     key={index}

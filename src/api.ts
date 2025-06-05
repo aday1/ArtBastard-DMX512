@@ -17,6 +17,7 @@ import {
   pingArtNetDevice,
   updateArtNetConfig,
   updateOscAssignment,
+  updateOscConfig, // Added import
   getDmxChannels, // Added import
   getChannelNames // Added import
 } from './index';
@@ -114,6 +115,7 @@ apiRouter.get('/state', (req, res) => {
     // Return all state, using actual values from server where available
     res.json({
       artNetConfig: config.artNetConfig,
+      oscConfig: config.oscConfig, // Include OSC configuration
       midiMappings: config.midiMappings,
       scenes,
       dmxChannels: getDmxChannels(), // Use getter for actual DMX channel state
@@ -502,6 +504,26 @@ function setupSocketHandlers(io: Server) {
       }
     });
     
+    // Handle OSC configuration changes
+    socket.on('saveOscConfig', (oscConfig) => {      try {
+        log('Received OSC config update via socket', 'OSC', { oscConfig, socketId: socket.id });
+        
+        // Update OSC configuration
+        updateOscConfig(io, oscConfig);
+        
+        // Notify all clients of the configuration change
+        io.emit('oscConfigUpdate', oscConfig);
+        
+        socket.emit('oscConfigSaved', { success: true });
+      } catch (error) {
+        log('Error updating OSC config via socket', 'ERROR', { error, oscConfig, socketId: socket.id });
+        socket.emit('oscConfigSaved', { 
+          success: false, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    });
+
     // Handle ArtNet ping
     socket.on('pingArtNet', (ip) => {
       pingArtNetDevice(io, ip);
