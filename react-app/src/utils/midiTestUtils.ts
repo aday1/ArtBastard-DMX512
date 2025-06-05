@@ -5,6 +5,8 @@
  * of the ArtBastard DMX application.
  */
 
+import { useStore } from '../store';
+
 /**
  * Send a simulated MIDI CC message with a specified value
  * 
@@ -14,9 +16,9 @@
  */
 export function sendTestCCWithValue(channel = 0, controller = 7, value = 0) {
   try {
-    if (typeof window !== 'undefined' && window.useStore) {
+    if (typeof window !== 'undefined' && useStore) {
       // Get access to the store
-      const store = window.useStore.getState();
+      const store = useStore.getState();
       
       // Create a MIDI message
       const message = {

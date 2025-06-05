@@ -8,6 +8,8 @@
 // Make this file a proper TypeScript module
 export {};
 
+import { useStore } from '../store';
+
 /**
  * Simulates a MIDI note-on message being received
  * 
@@ -16,7 +18,7 @@ export {};
  * @param {number} velocity - Note velocity (0-127)
  */
 export function sendTestNoteOnMessage(channel = 0, note = 60, velocity = 127) {
-  if (typeof window === 'undefined' || !window.useStore) {
+  if (typeof window === 'undefined' || !useStore) {
     console.error('Global store not available for MIDI test');
     return;
   }
@@ -32,7 +34,7 @@ export function sendTestNoteOnMessage(channel = 0, note = 60, velocity = 127) {
   };
   
   try {
-    const { addMidiMessage } = window.useStore.getState();
+    const { addMidiMessage } = useStore.getState();
     if (addMidiMessage) {
       addMidiMessage(testMessage);
       console.log('Test MIDI message dispatched to store:', testMessage);
@@ -52,7 +54,7 @@ export function sendTestNoteOnMessage(channel = 0, note = 60, velocity = 127) {
  * @param {number} value - CC value (0-127)
  */
 export function sendTestCCMessage(channel = 0, controller = 1, value = 127) {
-  if (typeof window === 'undefined' || !window.useStore) {
+  if (typeof window === 'undefined' || !useStore) {
     console.error('Global store not available for MIDI test');
     return;
   }
@@ -68,7 +70,7 @@ export function sendTestCCMessage(channel = 0, controller = 1, value = 127) {
   };
   
   try {
-    const { addMidiMessage } = window.useStore.getState();
+    const { addMidiMessage } = useStore.getState();
     if (addMidiMessage) {
       addMidiMessage(testMessage);
       console.log('Test MIDI message dispatched to store:', testMessage);
@@ -88,14 +90,14 @@ export function sendTestCCMessage(channel = 0, controller = 1, value = 127) {
  * @param {string} messageType - Type of MIDI message to send ('note' or 'cc')
  */
 export function testMidiLearnWorkflow(dmxChannel = 0, messageType = 'note') {
-  if (typeof window === 'undefined' || !window.useStore) {
+  if (typeof window === 'undefined' || !useStore) {
     console.error('Global store not available for MIDI learn test');
     return;
   }
   
   try {
     // Get functions from store
-    const { startMidiLearn } = window.useStore.getState();
+    const { startMidiLearn } = useStore.getState();
     
     if (!startMidiLearn) {
       console.error('startMidiLearn not available in store');
@@ -115,7 +117,7 @@ export function testMidiLearnWorkflow(dmxChannel = 0, messageType = 'note') {
       
       // Wait another 500ms and check if mapping was created
       setTimeout(() => {
-        const { midiMappings } = window.useStore.getState();
+        const { midiMappings } = useStore.getState();
         if (midiMappings && midiMappings[dmxChannel]) {
           console.log(`Success! MIDI mapping created for channel ${dmxChannel}:`, midiMappings[dmxChannel]);
         } else {
