@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
     "@react-three/drei": "^9.96.1",
     "@react-three/fiber": "^8.15.16",
     "@react-three/postprocessing": "^2.16.0",
@@ -23,6 +26,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -34,6 +38,7 @@
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.160.0",
     "@vitejs/plugin-react": "^4.5.1",
+    "copyfiles": "^2.4.1",
     "jsdom": "^26.1.0",
     "rollup": "^3.29.5",
     "sass": "^1.89.1",
@@ -47,7 +52,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "npm run copy-fonts",
+    "copy-fonts": "copyfiles -u 1 node_modules/@fortawesome/fontawesome-free/css/* public/fontawesome/css/ && copyfiles -u 1 node_modules/@fortawesome/fontawesome-free/webfonts/* public/fontawesome/webfonts/"
   },
   "eslintConfig": {
     "extends": [

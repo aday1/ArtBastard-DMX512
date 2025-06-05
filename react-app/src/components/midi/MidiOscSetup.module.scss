@@ -360,3 +360,29 @@
   text-align: center;
   padding: 2rem;
 }
+
+.cardDescription {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-primary-accent, rgba(255, 255, 255, 0.05));
+  border-radius: var(--border-radius-sm, 4px);
+  border-left: 3px solid var(--accent-color, #4ecdc4);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.mappingHint {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-info, rgba(78, 205, 196, 0.1));
+  border-radius: var(--border-radius-sm, 4px);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  
+  &::before {
+    content: "💡 ";
+    margin-right: 0.25rem;
+  }
+}

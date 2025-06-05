@@ -181,6 +181,24 @@ interface State {
   channelNames: string[]
   selectedChannels: number[]
   
+  // Navigation State
+  navVisibility: {
+    main: boolean
+    midiOsc: boolean
+    fixture: boolean
+    scenes: boolean
+    audio: boolean
+    touchosc: boolean
+    misc: boolean
+  }
+
+  // Debug State
+  debugTools: {
+    debugButton: boolean
+    midiMonitor: boolean
+    oscMonitor: boolean
+  }
+
   // MIDI State
   midiInterfaces: string[]
   activeInterfaces: string[]
@@ -368,6 +386,24 @@ export const useStore = create<State>()(
       channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
       selectedChannels: [],
       
+      // Navigation State
+      navVisibility: {
+        main: true,
+        midiOsc: true,
+        fixture: true,
+        scenes: true,
+        audio: true,
+        touchosc: true,
+        misc: true
+      },
+      
+      // Debug Tools
+      debugTools: {
+        debugButton: true,
+        midiMonitor: true,
+        oscMonitor: true
+      },
+      
       midiInterfaces: [],
       activeInterfaces: [],
       midiMappings: {},
@@ -440,7 +476,7 @@ export const useStore = create<State>()(
           autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
           autoSceneLastTapTime: 0, // Don't persist timing state
           autoSceneTapTimes: [], // Don't persist timing state
-          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'internal_clock',
+          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',
           autoSceneIsFlashing: false, // Initial flashing state
         };
       })(),

@@ -118,13 +118,17 @@ export const MidiOscSetup: React.FC = () => {
         {/* Server MIDI Interface Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3>
+            <h3 title="MIDI interfaces connected to the server - useful for external controllers and hardware devices">
               {theme === 'artsnob' && 'Server MIDI Interfaces: The Distant Muses'}
               {theme === 'standard' && 'Server MIDI Interfaces'}
               {theme === 'minimal' && 'Server MIDI'}
             </h3>
           </div>
           <div className={styles.cardBody}>
+            <p className={styles.cardDescription}>
+              Server MIDI interfaces are external MIDI devices connected to the computer running ArtBastard. 
+              These provide stable connections for professional MIDI controllers and hardware.
+            </p>
             <div className={styles.interfaceList}>
               {midiInterfaces.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -134,6 +138,7 @@ export const MidiOscSetup: React.FC = () => {
                     className={styles.refreshButton}
                     onClick={handleRefreshMidi}
                     disabled={isRefreshing}
+                    title="Scan for new MIDI devices connected to the server"
                   >
                     {isRefreshing ? (
                       <i className="fas fa-spinner fa-spin"></i>
@@ -162,6 +167,7 @@ export const MidiOscSetup: React.FC = () => {
                           <button 
                             className={`${styles.actionButton} ${styles.disconnectButton}`}
                             onClick={() => handleDisconnectMidi(interfaceName)}
+                            title={`Disconnect from ${interfaceName} - MIDI data will stop flowing from this device`}
                           >
                             <i className="fas fa-unlink"></i>
                             {theme !== 'minimal' && 'Disconnect'}
@@ -170,6 +176,7 @@ export const MidiOscSetup: React.FC = () => {
                           <button 
                             className={`${styles.actionButton} ${styles.connectButton}`}
                             onClick={() => handleConnectMidi(interfaceName)}
+                            title={`Connect to ${interfaceName} - Enable MIDI data flow from this device`}
                           >
                             <i className="fas fa-link"></i>
                             {theme !== 'minimal' && 'Connect'}
@@ -183,6 +190,7 @@ export const MidiOscSetup: React.FC = () => {
                     className={styles.refreshButton}
                     onClick={handleRefreshMidi}
                     disabled={isRefreshing}
+                    title="Scan for new MIDI devices connected to the server"
                   >
                     {isRefreshing ? (
                       <i className="fas fa-spinner fa-spin"></i>
@@ -200,13 +208,17 @@ export const MidiOscSetup: React.FC = () => {
         {/* Browser MIDI Interface Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3>
+            <h3 title="MIDI devices accessible through your web browser - requires Chrome/Edge and may have limited functionality">
               {theme === 'artsnob' && 'Browser MIDI Interfaces: The Local Orchestrators'}
               {theme === 'standard' && 'Browser MIDI Devices'}
               {theme === 'minimal' && 'Browser MIDI'}
             </h3>
           </div>
           <div className={styles.cardBody}>
+            <p className={styles.cardDescription}>
+              Browser MIDI uses the Web MIDI API to access devices directly in your browser. 
+              Requires Chrome or Edge browser and may have limitations compared to server interfaces.
+            </p>
             <div className={styles.interfaceList}>
               {!browserMidiSupported ? (
                 <div className={styles.emptyState}>
@@ -222,6 +234,7 @@ export const MidiOscSetup: React.FC = () => {
                     className={styles.refreshButton}
                     onClick={refreshDevices}
                     disabled={isRefreshing}
+                    title="Scan for MIDI devices accessible in your browser"
                   >
                     {isRefreshing ? (
                       <i className="fas fa-spinner fa-spin"></i>
@@ -253,6 +266,7 @@ export const MidiOscSetup: React.FC = () => {
                           <button 
                             className={`${styles.actionButton} ${styles.disconnectButton}`}
                             onClick={() => disconnectBrowserInput(input.id)}
+                            title={`Disconnect from ${input.name} - Browser MIDI data will stop flowing`}
                           >
                             <i className="fas fa-unlink"></i>
                             {theme !== 'minimal' && 'Disconnect'}
@@ -261,6 +275,7 @@ export const MidiOscSetup: React.FC = () => {
                           <button 
                             className={`${styles.actionButton} ${styles.connectButton}`}
                             onClick={() => connectBrowserInput(input.id)}
+                            title={`Connect to ${input.name} - Enable browser MIDI data flow`}
                           >
                             <i className="fas fa-link"></i>
                             {theme !== 'minimal' && 'Connect'}
@@ -274,6 +289,7 @@ export const MidiOscSetup: React.FC = () => {
                     className={styles.refreshButton}
                     onClick={refreshDevices}
                     disabled={isRefreshing}
+                    title="Scan for MIDI devices accessible in your browser"
                   >
                     {isRefreshing ? (
                       <i className="fas fa-spinner fa-spin"></i>
@@ -291,38 +307,49 @@ export const MidiOscSetup: React.FC = () => {
         {/* OSC Configuration Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3>
+            <h3 title="Open Sound Control - network protocol for real-time audio/visual control between devices and applications">
               {theme === 'artsnob' && 'OSC Configuration: Network Dialogue'}
               {theme === 'standard' && 'OSC Configuration'}
               {theme === 'minimal' && 'OSC'}
             </h3>
           </div>
           <div className={styles.cardBody}>
+            <p className={styles.cardDescription}>
+              OSC (Open Sound Control) enables network communication between devices and applications. 
+              Configure the host and port where ArtBastard will receive OSC messages.
+            </p>
             <div className={styles.formGroup}>
-              <label htmlFor="oscHost">Host Address:</label>
+              <label htmlFor="oscHost" title="IP address where OSC messages will be received. Use 127.0.0.1 for local connections or your network IP for remote devices">
+                Host Address:
+              </label>
               <input
                 type="text"
                 id="oscHost"
                 value={oscConfig.host}
                 onChange={(e) => setOscConfig({ ...oscConfig, host: e.target.value })}
                 placeholder="127.0.0.1"
+                title="Enter the IP address for OSC communication. 127.0.0.1 for local apps, your LAN IP for network devices"
               />
             </div>
             
             <div className={styles.formGroup}>
-              <label htmlFor="oscPort">Port:</label>
+              <label htmlFor="oscPort" title="Network port number for OSC messages. Common values: 8000, 9000, 53000 (TouchOSC), 57121 (SuperCollider)">
+                Port:
+              </label>
               <input
                 type="number"
                 id="oscPort"
                 value={oscConfig.port}
                 onChange={(e) => setOscConfig({ ...oscConfig, port: parseInt(e.target.value) })}
                 placeholder="8000"
+                title="Network port for OSC communication. Common ports: 8000, 9000, 53000 (TouchOSC)"
               />
             </div>
             
             <button 
               className={styles.saveButton}
               onClick={handleSaveOscConfig}
+              title="Save OSC configuration and restart the OSC server with new settings"
             >
               <i className="fas fa-save"></i>
               {theme === 'artsnob' && 'Commit to Memory'}
@@ -335,7 +362,7 @@ export const MidiOscSetup: React.FC = () => {
         {/* MIDI Mappings Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3>
+            <h3 title="MIDI Learn system - create connections between MIDI controls and DMX channels">
               {theme === 'artsnob' && 'MIDI Mappings: The Digital Correspondences'}
               {theme === 'standard' && 'MIDI Mappings'}
               {theme === 'minimal' && 'Mappings'}
@@ -345,6 +372,7 @@ export const MidiOscSetup: React.FC = () => {
             <button 
               className={styles.forgetAllButton}
               onClick={handleForgetAllMappings}
+              title="Remove all MIDI mappings and reset the learn system. This cannot be undone!"
             >
               <i className="fas fa-trash-alt"></i>
               {theme === 'artsnob' && 'Dissolve All Correspondences'}
@@ -357,13 +385,16 @@ export const MidiOscSetup: React.FC = () => {
               {theme === 'standard' && 'Click "MIDI Learn" on any DMX channel and move a control on your MIDI device to create a mapping.'}
               {theme === 'minimal' && 'Use MIDI Learn on DMX channels to map controls.'}
             </p>
+            <p className={styles.mappingHint}>
+              💡 Tip: You can map knobs, faders, buttons, and even keyboard keys to control different lighting parameters.
+            </p>
           </div>
         </div>
         
         {/* MIDI Messages Card */}
         <div className={`${styles.card} ${styles.fullWidth}`}>
           <div className={styles.cardHeader}>
-            <h3>
+            <h3 title="Real-time display of incoming MIDI messages from all connected devices">
               {theme === 'artsnob' && 'Incoming Messages: The Whispers of Digital Muses'}
               {theme === 'standard' && 'MIDI Messages'}
               {theme === 'minimal' && 'Messages'}
@@ -371,12 +402,16 @@ export const MidiOscSetup: React.FC = () => {
             <button 
               className={styles.clearButton}
               onClick={handleClearMidiMessages}
+              title="Clear all MIDI messages from the display"
             >
               <i className="fas fa-eraser"></i>
               {theme !== 'minimal' && 'Clear'}
             </button>
           </div>
           <div className={styles.cardBody}>
+            <p className={styles.cardDescription}>
+              Watch real-time MIDI data from your connected devices. Use this to test connections and troubleshoot MIDI mappings.
+            </p>
             {/* MIDI Visualizer Component */}
             <MidiVisualizer />
             
@@ -388,7 +423,11 @@ export const MidiOscSetup: React.FC = () => {
                 </div>
               ) : (
                 midiMessages.slice(-50).map((msg, index) => (
-                  <div key={index} className={styles.midiMessage}>
+                  <div 
+                    key={index} 
+                    className={styles.midiMessage}
+                    title={`${msg._type} message from ${msg.source || 'unknown source'} at ${new Date().toLocaleTimeString()}`}
+                  >
                     <span className={styles.timestamp}>
                       {new Date().toLocaleTimeString()}
                     </span>
@@ -412,7 +451,8 @@ export const MidiOscSetup: React.FC = () => {
                 )).reverse()
               )}
             </div>
-          </div>        </div>
+          </div>        
+        </div>
       </div>
     </div>
   )

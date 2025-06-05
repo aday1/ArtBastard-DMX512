@@ -143,12 +143,12 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
           top: position.offset?.y || 0,
         };
     }
-  };
-  const handlePointerDown = (e: React.PointerEvent) => {
+  };  const handlePointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) {
       return; // Don't start drag if clicking a button
     }
-    if (isDraggable && dockedComponent.position.zone === 'floating') {
+    if (isDraggable) {
+      // Allow dragging from any zone, not just floating
       dragControls.start(e);
     }
   };
@@ -165,27 +165,28 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     ...getPositionStyle(),
     ...style,
   };
-
-  return (    <motion.div
+  return (
+    <motion.div
       ref={componentRef}
       className={className}
       style={motionStyle}
-      drag={isDraggable && dockedComponent.position.zone === 'floating'}
+      drag={isDraggable} // Allow dragging from any zone
       dragControls={dragControls}
       dragListener={false}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       whileDrag={{ cursor: 'grabbing' }}
-      // Add drag constraints if floating
-      dragConstraints={dockedComponent.position.zone === 'floating' ? {
-        left: 0,
+      // Add more flexible drag constraints
+      dragConstraints={{
+        left: -100, // Allow some negative offset
         top: 0,
-        right: window.innerWidth - 400, // Assuming component width
-        bottom: window.innerHeight - 200, // Assuming component height
-      } : undefined}
-    >      <div
+        right: window.innerWidth - 100, // Leave small margin
+        bottom: window.innerHeight - 50, // Leave small margin
+      }}
+    >
+      <div
         onPointerDown={handlePointerDown}
-        style={{ cursor: isDraggable && dockedComponent.position.zone === 'floating' ? 'grab' : 'default' }}
+        style={{ cursor: isDraggable ? 'grab' : 'default' }}
       >
         {children}
       </div>

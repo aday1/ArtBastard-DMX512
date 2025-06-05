@@ -103,6 +103,45 @@ apiRouter.get('/health', (req, res) => {
   });
 });
 
+// Logs endpoints
+apiRouter.get('/logs', (req, res) => {
+  try {
+    const LOGS_DIR = path.join(__dirname, '..', 'logs');
+    const LOG_FILE = path.join(LOGS_DIR, 'app.log');
+    
+    // Check if log file exists
+    if (!fs.existsSync(LOG_FILE)) {
+      res.type('text/plain').send('');
+      return;
+    }
+    
+    // Read the log file content
+    const logContent = fs.readFileSync(LOG_FILE, 'utf-8');
+    res.type('text/plain').send(logContent);
+  } catch (error) {
+    log('Error reading log file', 'ERROR', { error });
+    res.status(500).type('text/plain').send('Error reading log file');
+  }
+});
+
+apiRouter.post('/logs/clear', (req, res) => {
+  try {
+    const LOGS_DIR = path.join(__dirname, '..', 'logs');
+    const LOG_FILE = path.join(LOGS_DIR, 'app.log');
+    
+    // Clear the log file by writing an empty string
+    if (fs.existsSync(LOG_FILE)) {
+      fs.writeFileSync(LOG_FILE, '');
+    }
+    
+    log('Log file cleared via API', 'SYSTEM');
+    res.json({ success: true, message: 'Logs cleared successfully' });
+  } catch (error) {
+    log('Error clearing log file', 'ERROR', { error });
+    res.status(500).json({ error: 'Failed to clear logs' });
+  }
+});
+
 // Get initial state
 apiRouter.get('/state', (req, res) => {
   try {

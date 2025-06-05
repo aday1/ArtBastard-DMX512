@@ -327,10 +327,12 @@ function initOsc(io: Server) {
             localAddress: "0.0.0.0",
             localPort: oscConfig.port,
             metadata: true
-        });        oscPort.on("ready", () => {
+        });        
+        
+        oscPort.on("ready", () => {
             log("OSC Port is ready", 'OSC');
             log(`OSC: Receiving on port ${oscConfig.port} (UDP)`, 'OSC');
-            log(`OSC: Sending to configured targets`, 'OSC');
+            log('OSC: Receive-only mode active', 'OSC');
             io.emit('oscStatus', { status: 'connected', receivePort: oscConfig.port });
             sender = oscPort;
         });

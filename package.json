@@ -17,6 +17,9 @@
     "build-launcher": "cd launcher && npm run build && mkdir -p ../launcher-dist && cp -r dist/* ../launcher-dist"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
     "@julusian/midi": "^3.6.1",
     "@types/cors": "^2.8.17",
     "@types/ping": "^0.4.4",

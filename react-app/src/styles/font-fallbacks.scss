@@ -3,34 +3,45 @@
  * Add this CSS to your main styles or include as a separate file
  */
 
-/* System font fallback stack */
+/* System font fallback stack with offline support */
 :root {
   /* Improved system font stacks with appropriate fallbacks */
-  --system-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --system-serif: "Playfair Display", "Georgia", "Times New Roman", serif;
   --system-sans: "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
-                 "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", 
-                 "Segoe UI Emoji", "Segoe UI Symbol";
+                 "Helvetica Neue", Arial, sans-serif;
   --system-mono: "Space Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", 
                  "Courier New", monospace;
 }
 
-/* Font-display settings for better performance */
+/* Local font loading with fallbacks */
 @font-face {
   font-family: 'Playfair Display';
-  font-display: swap; /* Use when available, otherwise use system fonts temporarily */
-  src: local('Playfair Display');
+  font-style: normal;
+  font-weight: 400;
+  src: local('Playfair Display'),
+       url('/fonts/playfair-display-regular.woff2') format('woff2'),
+       url('/fonts/playfair-display-regular.woff') format('woff');
+  font-display: swap;
 }
 
 @font-face {
   font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Source Sans Pro'),
+       url('/fonts/source-sans-pro-regular.woff2') format('woff2'),
+       url('/fonts/source-sans-pro-regular.woff') format('woff');
   font-display: swap;
-  src: local('Source Sans Pro');
 }
 
 @font-face {
   font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Space Mono'),
+       url('/fonts/space-mono-regular.woff2') format('woff2'),
+       url('/fonts/space-mono-regular.woff') format('woff');
   font-display: swap;
-  src: local('Space Mono');
 }
 
 /* Apply font-family settings to override the global styles */

@@ -46,7 +46,8 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     allFixtures,
     fixtureLayout,
     dmxChannels,
-    setDmxChannel 
+    setDmxChannel,
+    debugTools
   } = useStore(state => ({
     midiMessages: state.midiMessages,
     midiMappings: state.midiMappings,
@@ -54,8 +55,14 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     allFixtures: state.fixtures,
     fixtureLayout: state.fixtureLayout,
     dmxChannels: state.dmxChannels,
-    setDmxChannel: state.setDmxChannel
+    setDmxChannel: state.setDmxChannel,
+    debugTools: state.debugTools
   }));
+
+  // Don't render if debugButton is disabled in debugTools
+  if (!debugTools.debugButton) {
+    return null;
+  }
 
   const { socket, connected } = useSocket();
 
@@ -106,13 +113,11 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
       });
     };
 
-    window.addEventListener('error', errorHandler);
-
-    return () => {
+    window.addEventListener('error', errorHandler);    return () => {
       clearInterval(interval);
       window.removeEventListener('error', errorHandler);
     };
-  }, []);
+  }, [connected]); // Add connected dependency
 
   // OSC Test Functions
   const sendOscTestMessage = () => {

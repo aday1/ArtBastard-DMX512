@@ -1,0 +1,65 @@
+/* Playfair Display */
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./playfair-display-regular.woff2') format('woff2'),
+       url('./playfair-display-regular.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 400;
+  src: url('./playfair-display-italic.woff2') format('woff2'),
+       url('./playfair-display-italic.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 700;
+  src: url('./playfair-display-bold.woff2') format('woff2'),
+       url('./playfair-display-bold.woff') format('woff');
+  font-display: swap;
+}
+
+/* Source Sans Pro */
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 300;
+  src: url('./source-sans-pro-light.woff2') format('woff2'),
+       url('./source-sans-pro-light.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./source-sans-pro-regular.woff2') format('woff2'),
+       url('./source-sans-pro-regular.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 600;
+  src: url('./source-sans-pro-semibold.woff2') format('woff2'),
+       url('./source-sans-pro-semibold.woff') format('woff');
+  font-display: swap;
+}
+
+/* Space Mono */
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./space-mono-regular.woff2') format('woff2'),
+       url('./space-mono-regular.woff') format('woff');
+  font-display: swap;
+}

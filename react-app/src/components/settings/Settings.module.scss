@@ -499,6 +499,220 @@
   text-align: center;
 }
 
+// Simplified manifesto styles
+.manifestoSection {
+  background: linear-gradient(135deg, var(--color-card-bg) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-card-border);
+  padding: 2rem;
+  text-align: center;
+  margin-top: 2rem;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7b8, #96ceb4, #feca57);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rainbowGradient 3s ease-in-out infinite;
+    font-weight: 700;
+  }
+}
+
+.manifestoSummary {
+  max-width: 700px;
+  margin: 0 auto 2rem;
+  line-height: 1.8;
+  font-size: 1.1rem;
+  color: var(--color-text);
+  
+  strong {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+}
+
+.techTable {
+  max-width: 800px;
+  margin: 2rem auto;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+}
+
+.techTableHeader {
+  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
+  background-size: 400% 400%;
+  animation: rainbowGradient 4s ease-in-out infinite;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+  padding: 1rem;
+  font-size: 1.2rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.techTableBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.techRow {
+  display: contents;
+}
+
+.techCell {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-card-border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(var(--color-primary-rgb), 0.05);
+    transform: translateX(4px);
+  }
+
+  &.techLabel {
+    background: rgba(var(--color-primary-rgb), 0.03);
+    font-weight: 600;
+    color: var(--color-primary);
+    border-right: 1px solid var(--color-card-border);
+
+    @media (max-width: 768px) {
+      border-right: none;
+      border-bottom: none;
+    }
+  }
+
+  &.techValue {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    font-size: 0.95rem;
+
+    @media (max-width: 768px) {
+      border-bottom: 2px solid var(--color-card-border);
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  i {
+    color: var(--color-primary);
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+  }
+}
+
+.versionSection {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(69, 183, 184, 0.1));
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(78, 205, 196, 0.2);
+}
+
+.versionInfo {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+
+  .versionNumber {
+    font-family: var(--font-mono);
+    background: var(--color-primary);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+  }
+
+  .releaseNotesButton {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+    color: var(--color-primary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &:hover {
+      background: rgba(var(--color-primary-rgb), 0.2);
+      border-color: var(--color-primary);
+      transform: translateY(-1px);
+    }
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.licenseInfo {
+  font-size: 0.95rem;
+  color: var(--color-secondary);
+  line-height: 1.6;
+
+  .copyleft {
+    color: var(--color-primary);
+    font-weight: bold;
+    margin-right: 0.5rem;
+  }
+}
+
+.manifestoCreed {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(var(--color-primary-rgb), 0.05);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--color-primary);
+  
+  h4 {
+    color: var(--color-primary);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  em {
+    font-style: italic;
+    line-height: 1.7;
+    color: var(--color-text);
+    display: block;
+  }
+}
+
+@keyframes rainbowGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .formHint {
   display: block;
   margin-top: 0.25rem;

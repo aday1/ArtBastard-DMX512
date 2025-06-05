@@ -4,6 +4,9 @@ import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 import { useSocket } from '../../context/SocketContext'
 import { MidiLearnButton } from '../midi/MidiLearnButton'
+
+import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version'; // Added getBuildInfo
+import { ReleaseNotes } from './ReleaseNotes'
 import styles from './Settings.module.scss'
 
 interface TouchOscExportOptionsUI {
@@ -27,29 +30,50 @@ interface AppSettings {
   midiMappings: any
   fixtures: Fixture[]
   masterSliders: MasterSlider[]
+  navVisibility: {
+    main: boolean;
+    midiOsc: boolean;
+    fixture: boolean;
+    scenes: boolean;
+    audio: boolean;
+    touchosc: boolean;
+    misc: boolean;
+  };
+  debugTools: {
+    debugButton: boolean;
+    midiMonitor: boolean;
+    oscMonitor: boolean;
+  };
 }
 
 export const Settings: React.FC = () => {
   const { theme, setTheme, darkMode, toggleDarkMode } = useTheme()
   const { socket, connected } = useSocket()
-  const { 
-    artNetConfig, 
-    exampleSliderValue, 
-    setExampleSliderValue, 
-    midiMappings,
-    fixtures, 
-    masterSliders,
+
+  const {
+    artNetConfig,
+    navVisibility = {
+      main: true,
+      midiOsc: true,
+      fixture: true,
+      scenes: true,
+      audio: true,
+      touchosc: true,
+      misc: true
+    },
+    debugTools = {
+      debugButton: true,
+      midiMonitor: true,
+      oscMonitor: true
+    },
     addNotification
   } = useStore(state => ({
     artNetConfig: state.artNetConfig,
-    exampleSliderValue: state.exampleSliderValue,
-    setExampleSliderValue: state.setExampleSliderValue,
-    midiMappings: state.midiMappings,
-    fixtures: state.fixtures,
-    masterSliders: state.masterSliders,
+    navVisibility: state.navVisibility,
+    debugTools: state.debugTools,
     addNotification: state.addNotification
   }))
-  
+
   // Settings state
   const [artNetSettings, setArtNetSettings] = useState({ ...artNetConfig })
   const [webPort, setWebPort] = useState(3000)
@@ -64,7 +88,10 @@ export const Settings: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [logError, setLogError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [localNavVisibility, setLocalNavVisibility] = useState(navVisibility);
+  const [localDebugTools, setLocalDebugTools] = useState(debugTools);
+
   // Effect for log fetching
   useEffect(() => {
     const fetchLogs = async () => {
@@ -170,7 +197,21 @@ export const Settings: React.FC = () => {
           autoSceneLastTapTime: 0,
           autoSceneTapTimes: [],
           autoSceneTempoSource: 'internal_clock',
-          autoSceneIsFlashing: false
+          autoSceneIsFlashing: false,
+          navVisibility: {
+            main: true,
+            midiOsc: true,
+            fixture: true,
+            scenes: true,
+            audio: true,
+            touchosc: true,
+            misc: true
+          },
+          debugTools: {
+            debugButton: true,
+            midiMonitor: true,
+            oscMonitor: true
+          }
         })
         
         // Reset local state
@@ -180,6 +221,20 @@ export const Settings: React.FC = () => {
           osc: false,
           artnet: false,
           button: true
+        })
+        setLocalNavVisibility({
+          main: true,
+          midiOsc: true,
+          fixture: true,
+          scenes: true,
+          audio: true,
+          touchosc: true,
+          misc: true
+        })
+        setLocalDebugTools({
+          debugButton: true,
+          midiMonitor: true,
+          oscMonitor: true
         })
 
         // Show success message
@@ -214,7 +269,9 @@ export const Settings: React.FC = () => {
         artNetConfig,
         midiMappings,
         fixtures,
-        masterSliders
+        masterSliders,
+        navVisibility: localNavVisibility,
+        debugTools: localDebugTools
       }
 
       const settingsJson = JSON.stringify(settings, null, 2)
@@ -257,12 +314,16 @@ export const Settings: React.FC = () => {
         masterSliders: settings.masterSliders,
         midiMappings: settings.midiMappings,
         theme: settings.theme,
-        darkMode: settings.darkMode
+        darkMode: settings.darkMode,
+        navVisibility: settings.navVisibility,
+        debugTools: settings.debugTools
       })
 
       // Update state
       setWebPort(settings.webPort)
       setDebugModules(settings.debugModules)
+      setLocalNavVisibility(settings.navVisibility)
+      setLocalDebugTools(settings.debugTools)
 
       addNotification({
         message: 'Settings imported successfully',
@@ -341,15 +402,111 @@ export const Settings: React.FC = () => {
     }
   }, [autoRefresh])
 
+  // Function to update navigation visibility
+  const handleNavVisibilityChange = (item: keyof typeof navVisibility) => {
+    const newValue = !localNavVisibility[item];
+    setLocalNavVisibility(prev => ({
+      ...prev,
+      [item]: newValue
+    }));
+    
+    useStoreUtils.setState(state => ({
+      ...state,
+      navVisibility: {
+        ...state.navVisibility,
+        [item]: newValue
+      }
+    }));
+  };
+
+  // Function to update debug tools visibility
+  const handleDebugToolsChange = (tool: keyof typeof debugTools) => {
+    const newValue = !localDebugTools[tool];
+    setLocalDebugTools(prev => ({
+      ...prev,
+      [tool]: newValue
+    }));
+    
+    useStoreUtils.setState(state => ({
+      ...state,
+      debugTools: {
+        ...state.debugTools,
+        [tool]: newValue
+      }
+    }));
+  };
+  
   return (
     <div className={styles.settings}>
       <h2 className={styles.sectionTitle}>
-        {theme === 'artsnob' && 'Configuration Atelier'}
+        {theme === 'artsnob' && 'Configuration Sanctuary'}
         {theme === 'standard' && 'Settings'}
-        {theme === 'minimal' && 'Settings'}
+        {theme === 'minimal' && 'Config'}
       </h2>
-      
+
       <div className={styles.settingsGrid}>
+        {/* Navigation Visibility Card */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h3>Navigation Menu Items</h3>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.toggleGrid}>
+              {Object.entries(localNavVisibility).map(([key, value]) => (
+                <div key={key} className={styles.toggleItem}>
+                  <label className={styles.toggleLabel}>
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={() => handleNavVisibilityChange(key as keyof typeof navVisibility)}
+                      className={styles.toggleCheckbox}
+                    />
+                    <span className={styles.toggleName}>{
+                      key === 'main' ? 'Main Control' :
+                      key === 'midiOsc' ? 'MIDI/OSC Setup' :
+                      key === 'fixture' ? 'Fixture Setup' :
+                      key === 'scenes' ? 'Scenes' :
+                      key === 'audio' ? 'Audio' :
+                      key === 'touchosc' ? 'TouchOSC' :
+                      key === 'misc' ? 'Settings' :
+                      key
+                    }</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Debug Tools Card */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h3>Debug Tools Visibility</h3>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.toggleGrid}>
+              {Object.entries(localDebugTools).map(([key, value]) => (
+                <div key={key} className={styles.toggleItem}>
+                  <label className={styles.toggleLabel}>
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={() => handleDebugToolsChange(key as keyof typeof debugTools)}
+                      className={styles.toggleCheckbox}
+                    />
+                    <span className={styles.toggleName}>{
+                      key === 'debugButton' ? 'Debug Button' :
+                      key === 'midiMonitor' ? 'MIDI Monitor' :
+                      key === 'oscMonitor' ? 'OSC Monitor' :
+                      key
+                    }</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
         {/* UI Theme Settings Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -546,11 +703,10 @@ export const Settings: React.FC = () => {
                       ip: e.target.value
                     })}
                     placeholder="192.168.1.99"
-                  />
-                  <button 
+                  />                  <button 
                     className={`${styles.actionButton} ${!connected ? styles.disabled : ''}`}
                     onClick={() => {
-                      if (socket?.connected) {
+                      if (connected && socket) {
                         socket.emit('pingArtNetDevice', { ip: artNetSettings.ip });
                         addNotification({
                           message: `Pinging ${artNetSettings.ip}...`,
@@ -703,52 +859,122 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>        <div className={styles.aboutSection}>
-        <h3>⚡ Transcendental Photonic Consciousness Manifesto ⚡</h3>
-        <p className={styles.aboutText}>
-          Welcome to the **liminal space** where **techno-spiritual precision** converges with **neo-avant-garde liberation**. 
-          ArtBastard DMX512 transcends the plebeian realm of mere lighting control—it's a **digital séance chamber** 
-          where electromagnetic consciousness dances to your neural commands. Born from the fusion of **quantum-mechanical rigor** 
-          and **artistic anarcho-syndicalism**, this **open-source consciousness vessel** empowers **visionary light-workers** 
-          to paint with **photonic brushstrokes**, sculpt with **chromatic shadows**, and conduct **polyphonic symphonies of 
-          electromagnetic manifestation** across the **512-dimensional reality matrix**.
-        </p>
-        <p className={styles.aboutText}>
-          Through **Seven Layers of Consciousness Architecture**, we channel raw **voltage consciousness** into 
-          **transcendental photonic experiences** that pierce the veil between digital and corporeal realms. 
-          Each DMX channel becomes a **sacred conduit** for **electromagnetic enlightenment**, every fixture 
-          a **vessel for light consciousness**, every scene a **temporal gateway** to alternate realities.
-        </p>
-        <p className={styles.versionInfo}>
-          **Temporal Coordinates**: Stardate 79885.2 | **Consciousness Release**: Quantum Iteration 1.2.0-∞
-        </p>
-        <p className={styles.licenseInfo}>
-          <span className={styles.copyleft}>◄◄◄</span> **Liberated into the Cosmic Commons** under **Creative Commons Zero (CC0)**.
-          <br />Unshackled from corporate hegemony, **free as photons** traversing the **quantum foam** of possibility.
-          <br />**Copyright is a Bourgeois Construct** — This consciousness belongs to **The Universal Collective**.
-        </p>
-        <div className={styles.manifestoNote}>
-          <h4>🌌 **The ArtBastard Illuminati Creed** 🌌</h4>
-          <em>"In the **grand mandala** of existence, we are **electromagnetic shamans**, orchestrating 
-          **ephemeral moments of transcendental brilliance** in the **eternal dance of photons**. 
-          Through **512 channels of pure consciousness**, we bend **reality's fabric** to our **artistic will**, 
-          transforming mere **electrical substrate** into **cascading tsunamis of visual ecstasy**. 
-          We are the **light-benders**, the **reality-hackers**, the **consciousness-architects** of 
-          the **New Luminous Age**."</em>
+      </div>        <div className={styles.manifestoSection}>
+          <h3>⚡ ArtBastard DMX512 ⚡</h3>
+          
+          <div className={styles.manifestoSummary}>
+            <strong>Professional lighting control meets artistic expression.</strong> ArtBastard DMX512 is an open-source 
+            lighting controller that bridges technical precision with creative freedom. Control up to 512 DMX channels, 
+            design dynamic scenes, and synchronize with MIDI/OSC for live performances.
+          </div>
+
+          <div className={styles.techTable}>
+            <div className={styles.techTableHeader}>
+              🔧 Technical Specifications
+            </div>
+            <div className={styles.techTableBody}>
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-layer-group"></i>
+                  Frontend
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  React 18 + TypeScript
+                </div>
+              </div>
+              
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-server"></i>
+                  Backend
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  Node.js + Express
+                </div>
+              </div>
+              
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-network-wired"></i>
+                  Protocols
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  DMX512 • ArtNet • MIDI • OSC
+                </div>
+              </div>
+              
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-sync-alt"></i>
+                  Real-time
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  Socket.IO WebSockets
+                </div>
+              </div>
+              
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-palette"></i>
+                  Rendering
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  WebGL + Canvas2D
+                </div>
+              </div>
+              
+              <div className={styles.techRow}>
+                <div className={`${styles.techCell} ${styles.techLabel}`}>
+                  <i className="fas fa-wave-square"></i>
+                  Audio
+                </div>
+                <div className={`${styles.techCell} ${styles.techValue}`}>
+                  Web Audio API
+                </div>
+              </div>
+            </div>
+          </div>          <div className={styles.versionSection}>
+            <div className={styles.versionInfo}>
+              Version<span className={styles.versionNumber}>{getVersionDisplay()}</span>
+              <button 
+                className={styles.releaseNotesButton}
+                onClick={() => setShowReleaseNotes(true)}
+                title="View detailed release notes and version history"
+              >
+                <i className="fas fa-info-circle"></i>
+                Release Notes
+              </button>
+            </div>
+            <div className={styles.licenseInfo}>
+              <span className={styles.copyleft}>◄◄◄</span> 
+              Released under Creative Commons Zero (CC0) — Free and open source for everyone.
+              <br />
+              <small>{getBuildInfo()}</small>
+            </div>
+          </div>
+
+          <div className={styles.manifestoCreed}>
+            <h2>✧ Ethereal Manifesto & Cosmic Creed ✧</h2>
+            <p>
+              From the celestial depths of digital realms, we, the ethereal architects of illumination, present 
+              ArtBastard DMX512 — a transcendent vessel for the manipulation of photonic energies. Version {getVersionDisplay()}, 
+              forged in the quantum fires of artistic rebellion.
+            </p>
+            <p>
+              ⚡ Our Creed ⚡<br/>
+              We dance with electrons, sculpt with wavelengths, and paint with pure energy.<br/>
+              Through the ancient protocol of DMX, we bridge dimensions of creativity and control.<br/>
+              Let those who seek mere illumination step aside —<br/>
+              For we are the light-shapers, the masters of luminous expression,<br/>
+              Channeling the very essence of artistry through 512 channels of infinite possibility.
+            </p>
+          </div>
         </div>
-        <div className={styles.technicalMysticism}>
-          <h4>🔬 **Technical Mysticism Specifications** 🔬</h4>
-          <ul>
-            <li>**Consciousness Layer Architecture**: 7-Dimensional Reality Processing</li>
-            <li>**Neural Substrate**: React 18 + TypeScript (Bio-Digital Interface)</li>
-            <li>**Quantum Backend**: Node.js + Express (Electromagnetic Core)</li>
-            <li>**Protocol Mastery**: DMX512/ArtNet/MIDI/OSC (Reality Bridges)</li>
-            <li>**Temporal Synchronization**: Socket.IO (Quantum Entanglement)</li>
-            <li>**Visual Cortex**: WebGL + Canvas2D (Consciousness Mirrors)</li>
-            <li>**Spectro-Neural Processing**: Web Audio API (Frequency Alchemy)</li>
-          </ul>
-        </div>
-      </div>
+        
+        <ReleaseNotes 
+          showModal={showReleaseNotes}
+          onClose={() => setShowReleaseNotes(false)}
+        />
     </div>
   )
 }

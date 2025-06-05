@@ -8,6 +8,7 @@ import { OscMessage } from '../../store';
 
 export const OscMonitor: React.FC = () => {
   const oscMessagesFromStore = useStore(state => state.oscMessages);
+  const debugTools = useStore(state => state.debugTools);
   const addOscMessageToStore = useStore(state => state.addOscMessage);
   const [lastMessages, setLastMessages] = useState<Array<OscMessage>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -16,7 +17,11 @@ export const OscMonitor: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { socket, connected: socketConnected } = useSocket();
   const monitorRef = useRef<HTMLDivElement>(null);
-  // const dragControls = useDragControls(); // Removed
+
+  // Don't render if oscMonitor is disabled in debugTools
+  if (!debugTools.oscMonitor) {
+    return null;
+  }
 
   // // position stores transform offsets (x, y) from the initial CSS position
   // const [position, setPosition] = useState({ x: 0, y: 0 }); // Removed

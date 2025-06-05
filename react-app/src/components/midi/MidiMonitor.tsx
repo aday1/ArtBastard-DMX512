@@ -5,10 +5,16 @@ import styles from './MidiMonitor.module.scss';
 
 export const MidiMonitor: React.FC = () => {
   const midiMessages = useStore(state => state.midiMessages);
+  const debugTools = useStore(state => state.debugTools);
   const [lastMessages, setLastMessages] = useState<Array<any>>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
   const monitorRef = useRef<HTMLDivElement>(null);
+
+  // Don't render if midiMonitor is disabled in debugTools
+  if (!debugTools.midiMonitor) {
+    return null;
+  }
 
   // Update the displayed messages when new MIDI messages arrive
   useEffect(() => {

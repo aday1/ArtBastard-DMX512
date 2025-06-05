@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTheme } from '../../context/ThemeContext'
+import { useStore } from '../../store'
 import { NetworkStatus } from './NetworkStatus'
 import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
@@ -80,10 +81,11 @@ const navItems: Array<{
   }
 ]
 
-export const Navbar: React.FC = () => {
-  const { theme } = useTheme()
+export const Navbar: React.FC = () => {  const { theme } = useTheme()
   const [activeView, setActiveView] = useState<ViewType>('main')
   const [isCollapsed, setIsCollapsed] = useState(false)
+  
+  const navVisibility = useStore((state) => state.navVisibility)
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view)
@@ -110,18 +112,19 @@ export const Navbar: React.FC = () => {
       <nav className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
         <Sparkles />
         {/* Removed the old internal toggle button from here */}
-        <div className={styles.navButtons}>
-          {navItems.map((item) => (
-            <button
-            key={item.id}
-            className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
-            onClick={() => handleViewChange(item.id)}
-            title={item.title.standard}
-          >
-              <i className={`fas ${item.icon}`}></i>
-              <span>{item.title[theme]}</span>
-            </button>
-          ))}
+        <div className={styles.navButtons}>          {navItems
+            .filter(item => navVisibility[item.id])
+            .map((item) => (
+              <button
+                key={item.id}
+                className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
+                onClick={() => handleViewChange(item.id)}
+                title={item.title.standard}
+              >
+                <i className={`fas ${item.icon}`}></i>
+                <span>{item.title[theme]}</span>
+              </button>
+            ))}
         </div>
       </nav>
     </div>
