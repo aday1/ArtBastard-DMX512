@@ -137,6 +137,21 @@
   }
 }
 
+.bpmInput {
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #eee;
+  padding: 3px 6px;
+  font-size: 0.8em;
+  width: 60px;
+
+  &:focus {
+    outline: none;
+    border-color: #a855f7;
+  }
+}
+
 .currentScene {
   font-size: 0.75em;
   color: #ccc;

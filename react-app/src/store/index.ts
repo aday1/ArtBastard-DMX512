@@ -1108,8 +1108,7 @@ export const useStore = create<State>()(
             saveCurrentAutoSceneSettings(get()); // Save when BPM changes
           }
         }
-      },
-      setNextAutoSceneIndex: () => {
+      },      setNextAutoSceneIndex: () => {
         const { autoSceneList, autoSceneMode, autoSceneCurrentIndex, autoScenePingPongDirection } = get();
         if (!autoSceneList || autoSceneList.length === 0) {
           set({ autoSceneCurrentIndex: -1 });
@@ -1118,15 +1117,27 @@ export const useStore = create<State>()(
 
         let nextIndex = autoSceneCurrentIndex;
         let nextPingPongDirection = autoScenePingPongDirection;
-        const listLength = autoSceneList.length;        if (autoSceneMode === 'forward') {
+        const listLength = autoSceneList.length;
+
+        // If this is the first time (currentIndex is -1), start with index 0
+        if (autoSceneCurrentIndex === -1) {
+          nextIndex = 0;
+          nextPingPongDirection = 'forward';
+        } else if (autoSceneMode === 'forward') {
           nextIndex = (autoSceneCurrentIndex + 1) % listLength;
         } else if (autoSceneMode === 'ping-pong') {
           if (nextPingPongDirection === 'forward') {
-            nextIndex = (autoSceneCurrentIndex + 1) % listLength;
-            if (nextIndex === 0) nextPingPongDirection = 'backward';
+            nextIndex = autoSceneCurrentIndex + 1;
+            if (nextIndex >= listLength) {
+              nextIndex = Math.max(0, listLength - 2); // Go to second-to-last
+              nextPingPongDirection = 'backward';
+            }
           } else {
-            nextIndex = (autoSceneCurrentIndex - 1 + listLength) % listLength;
-            if (nextIndex === listLength - 1) nextPingPongDirection = 'forward';
+            nextIndex = autoSceneCurrentIndex - 1;
+            if (nextIndex < 0) {
+              nextIndex = Math.min(1, listLength - 1); // Go to second item
+              nextPingPongDirection = 'forward';
+            }
           }
         } else if (autoSceneMode === 'random') {
           // Random selection

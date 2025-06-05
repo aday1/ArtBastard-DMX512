@@ -318,6 +318,23 @@ apiRouter.delete('/scenes/:name', (req, res) => {
   }
 });
 
+// Clear all scenes (for factory reset)
+apiRouter.delete('/scenes', (req, res) => {
+  try {
+    // Clear all scenes by saving an empty array
+    saveScenes([]);
+    
+    // Notify all clients that scenes have been cleared
+    global.io.emit('sceneList', []);
+    
+    log('All scenes cleared via factory reset', 'INFO');
+    res.json({ success: true, message: 'All scenes cleared' });
+  } catch (error) {
+    log('Error clearing all scenes', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to clear all scenes: ${error}` });
+  }
+});
+
 // ArtNet configuration
 apiRouter.post('/config/artnet', (req, res) => {
   try {

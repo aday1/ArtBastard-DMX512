@@ -130,47 +130,76 @@ export const Settings: React.FC = () => {
       type: 'success'
     })
   }
-
   // Factory reset handler
-  const handleFactoryReset = () => {
+  const handleFactoryReset = async () => {
     if (window.confirm('Are you sure you want to reset all settings to factory defaults? This cannot be undone.')) {
-      // Clear localStorage
-      localStorage.clear()
-      
-      // Reset store to initial state
-      useStoreUtils.setState({
-        artNetConfig: {
-          ip: '192.168.1.199',
-          subnet: 0,
-          universe: 0,
-        },
-        fixtures: [],
-        masterSliders: [],
-        midiMappings: {},
-        theme: 'standard',
-        darkMode: true,
-        debugModules: {
+      try {
+        // Clear localStorage
+        localStorage.clear()
+        
+        // Clear server-side scenes
+        await fetch('/api/scenes', { method: 'DELETE' })
+        
+        // Reset store to initial state (including scenes and auto-scene settings)
+        useStoreUtils.setState({
+          artNetConfig: {
+            ip: '192.168.1.199',
+            subnet: 0,
+            universe: 0,
+          },
+          fixtures: [],
+          scenes: [], // Clear scenes array
+          masterSliders: [],
+          midiMappings: {},
+          theme: 'standard',
+          darkMode: true,
+          debugModules: {
+            midi: false,
+            osc: false,
+            artnet: false
+          },
+          // Reset auto-scene settings to defaults
+          autoSceneEnabled: false,
+          autoSceneList: [],
+          autoSceneMode: 'forward',
+          autoSceneCurrentIndex: -1,
+          autoScenePingPongDirection: 'forward',
+          autoSceneBeatDivision: 4,
+          autoSceneManualBpm: 120,
+          autoSceneTapTempoBpm: 120,
+          autoSceneLastTapTime: 0,
+          autoSceneTapTimes: [],
+          autoSceneTempoSource: 'internal_clock',
+          autoSceneIsFlashing: false
+        })
+        
+        // Reset local state
+        setWebPort(3000);
+        setDebugModules({
           midi: false,
           osc: false,
-          artnet: false
-        }
-      })      // Reset state
-      setWebPort(3000);
-      setDebugModules({
-        midi: false,
-        osc: false,
-        artnet: false,
-        button: true
-      })
+          artnet: false,
+          button: true
+        })
 
-      // Show success message
-      addNotification({
-        message: 'All settings have been reset to factory defaults',
-        type: 'success'
-      })
+        // Show success message
+        addNotification({
+          message: 'All settings have been reset to factory defaults, including scenes',
+          type: 'success'
+        })
 
-      // Reload the page to apply all changes
-      window.location.reload()
+        // Reload the page to apply all changes
+        window.location.reload()
+      } catch (error) {
+        console.error('Error during factory reset:', error)
+        addNotification({
+          message: 'Factory reset completed with some errors. Please check that all scenes were cleared.',
+          type: 'warning'
+        })
+        
+        // Still reload the page even if there were errors
+        window.location.reload()
+      }
     }
   }
 

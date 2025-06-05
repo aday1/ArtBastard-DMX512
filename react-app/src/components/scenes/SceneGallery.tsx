@@ -5,12 +5,24 @@ import { MidiLearnButton } from '../midi/MidiLearnButton'
 import styles from './SceneGallery.module.scss'
 
 export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
-  const { scenes, dmxChannels, loadScene, deleteScene, updateScene } = useStore(state => ({
+  const { 
+    scenes, 
+    dmxChannels, 
+    loadScene, 
+    deleteScene, 
+    updateScene,
+    autoSceneList,
+    setAutoSceneList,
+    autoSceneEnabled
+  } = useStore(state => ({
     scenes: state.scenes,
     dmxChannels: state.dmxChannels,
     loadScene: state.loadScene,
     deleteScene: state.deleteScene,
-    updateScene: state.updateScene
+    updateScene: state.updateScene,
+    autoSceneList: state.autoSceneList,
+    setAutoSceneList: state.setAutoSceneList,
+    autoSceneEnabled: state.autoSceneEnabled
   }))
     const [newSceneName, setNewSceneName] = useState('')
   const [newSceneOsc, setNewSceneOsc] = useState('/scene/new')
@@ -123,10 +135,51 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
     
     cancelEditing()
   }
-  
-  // Calculate the number of active channels in a scene
+    // Calculate the number of active channels in a scene
   const getActiveChannelCount = (channelValues: number[]) => {
     return channelValues.filter(v => v > 0).length
+  }
+
+  // Auto-scene management functions
+  const isSceneInAutoList = (sceneName: string) => {
+    return autoSceneList.includes(sceneName)
+  }
+
+  const toggleSceneInAutoList = (sceneName: string) => {
+    const newAutoSceneList = isSceneInAutoList(sceneName)
+      ? autoSceneList.filter(name => name !== sceneName)
+      : [...autoSceneList, sceneName]
+    
+    setAutoSceneList(newAutoSceneList)
+    
+    useStore.getState().addNotification({
+      message: isSceneInAutoList(sceneName) 
+        ? `Scene "${sceneName}" removed from auto-play list`
+        : `Scene "${sceneName}" added to auto-play list`,
+      type: 'success',
+      priority: 'normal'
+    })
+  }
+
+  const addAllScenesToAutoList = () => {
+    const allSceneNames = scenes.map(scene => scene.name)
+    setAutoSceneList(allSceneNames)
+    
+    useStore.getState().addNotification({
+      message: `All ${scenes.length} scenes added to auto-play list`,
+      type: 'success',
+      priority: 'normal'
+    })
+  }
+
+  const clearAutoSceneList = () => {
+    setAutoSceneList([])
+    
+    useStore.getState().addNotification({
+      message: 'Auto-play list cleared',
+      type: 'info',
+      priority: 'normal'
+    })
   }
   
   // Format time for display
@@ -287,7 +340,87 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
           </div>
         </div>
       </div>
-      
+        {/* Auto Scene Management Controls */}
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h3>
+            {theme === 'artsnob' && 'Auto Scene: The Choreographed Symphony'}
+            {theme === 'standard' && 'Auto Scene Management'}
+            {theme === 'minimal' && 'Auto Scenes'}
+          </h3>
+        </div>
+        <div className={styles.cardBody}>
+          <div className={styles.autoSceneInfo}>
+            <p>
+              {autoSceneList.length === 0 ? (
+                <>
+                  {theme === 'artsnob' && 'No scenes enlisted in the automated dance. Select scenes below to begin the choreography.'}
+                  {theme === 'standard' && 'No scenes in auto-play list. Add scenes below to enable auto-play.'}
+                  {theme === 'minimal' && 'No auto scenes selected.'}
+                </>
+              ) : (
+                <>
+                  {theme === 'artsnob' && `${autoSceneList.length} luminous compositions await their automated performance.`}
+                  {theme === 'standard' && `${autoSceneList.length} scenes in auto-play list${autoSceneEnabled ? ' (Active)' : ' (Inactive)'}.`}
+                  {theme === 'minimal' && `${autoSceneList.length} scenes selected${autoSceneEnabled ? ' (Active)' : ''}.`}
+                </>
+              )}
+            </p>
+          </div>
+          
+          <div className={styles.autoSceneBulkControls}>
+            <button
+              className={styles.bulkAddButton}
+              onClick={addAllScenesToAutoList}
+              disabled={scenes.length === 0}
+              title="Add all scenes to auto-play list"
+            >
+              <i className="fas fa-plus-circle"></i>
+              {theme === 'artsnob' && 'Enlist All'}
+              {theme === 'standard' && 'Add All'}
+              {theme === 'minimal' && 'Add All'}
+            </button>
+            
+            <button
+              className={styles.bulkClearButton}
+              onClick={clearAutoSceneList}
+              disabled={autoSceneList.length === 0}
+              title="Clear auto-play list"
+            >
+              <i className="fas fa-times-circle"></i>
+              {theme === 'artsnob' && 'Dismiss All'}
+              {theme === 'standard' && 'Clear All'}
+              {theme === 'minimal' && 'Clear'}
+            </button>
+          </div>
+          
+          {autoSceneList.length > 0 && (
+            <div className={styles.autoSceneList}>
+              <h4>
+                {theme === 'artsnob' && 'The Enlisted Compositions:'}
+                {theme === 'standard' && 'Auto-Play Queue:'}
+                {theme === 'minimal' && 'Queue:'}
+              </h4>
+              <div className={styles.autoSceneItems}>
+                {autoSceneList.map((sceneName, index) => (
+                  <div key={sceneName} className={styles.autoSceneItem}>
+                    <span className={styles.autoSceneIndex}>{index + 1}</span>
+                    <span className={styles.autoSceneName}>{sceneName}</span>
+                    <button
+                      className={styles.removeFromAutoButton}
+                      onClick={() => toggleSceneInAutoList(sceneName)}
+                      title="Remove from auto-play"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Scenes list */}
       <h3 className={styles.galleryTitle}>
         {theme === 'artsnob' && 'The Gallery: Luminous Compositions'}
@@ -301,12 +434,21 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
           <p>Your gallery awaits illumination. Create your first scene to begin.</p>
         </div>
       ) : (
-        <div className={styles.scenesGrid}>
-          {scenes.map((scene, index) => (
+        <div className={styles.scenesGrid}>          {scenes.map((scene, index) => (
             <div 
               key={index}
-              className={`${styles.sceneCard} ${activeSceneId === scene.name ? styles.active : ''}`}
-            >              <div className={styles.sceneHeader}>
+              className={`${styles.sceneCard} ${activeSceneId === scene.name ? styles.active : ''} ${isSceneInAutoList(scene.name) ? styles.inAutoList : ''}`}
+            >
+              {/* Auto Scene Indicator */}
+              <div className={styles.autoSceneIndicator}>
+                {isSceneInAutoList(scene.name) && (
+                  <div className={styles.autoSceneBadge} title="In auto-play list">
+                    <i className="fas fa-magic"></i>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.sceneHeader}>
                 {editingScene === scene.name ? (
                   <div className={styles.editingHeader}>
                     <input
@@ -337,6 +479,13 @@ export const SceneGallery: React.FC = () => {  const { theme } = useTheme()
                   <>
                     <h4>{scene.name}</h4>
                     <div className={styles.sceneControls}>
+                      <button
+                        className={`${styles.autoToggleButton} ${isSceneInAutoList(scene.name) ? styles.inAutoPlay : ''}`}
+                        onClick={() => toggleSceneInAutoList(scene.name)}
+                        title={isSceneInAutoList(scene.name) ? 'Remove from auto-play' : 'Add to auto-play'}
+                      >
+                        <i className={isSceneInAutoList(scene.name) ? 'fas fa-magic' : 'far fa-magic'}></i>
+                      </button>
                       <button
                         className={styles.editButton}
                         onClick={() => startEditingScene(scene)}
