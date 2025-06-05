@@ -96,9 +96,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     };
 
     updateSystemInfo();
-    const interval = setInterval(updateSystemInfo, 2000);
-
-    // Listen for errors
+    const interval = setInterval(updateSystemInfo, 2000);    // Listen for errors
     const errorHandler = (event: ErrorEvent) => {
       if (!(window as any).__reactErrors) {
         (window as any).__reactErrors = [];
@@ -113,7 +111,9 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
       });
     };
 
-    window.addEventListener('error', errorHandler);    return () => {
+    window.addEventListener('error', errorHandler);
+    
+    return () => {
       clearInterval(interval);
       window.removeEventListener('error', errorHandler);
     };

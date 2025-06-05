@@ -10,6 +10,7 @@ import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
 import { SceneQuickLaunch } from '../components/scenes/SceneQuickLaunch'
 import { AutoSceneControlMini } from '../components/scenes/AutoSceneControlMini'
+import ChromaticEnergyManipulatorMini from '../components/fixtures/ChromaticEnergyManipulatorMini'
 import { OscDebug } from '../components/osc/OscDebug'
 import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'
 import { AudioControlPanel } from '../components/audio/AudioControlPanel'
@@ -91,11 +92,11 @@ const MainPage: React.FC = () => {
                 </button>
               </div>
               <MasterFader />
-              <DmxControlPanel />
-              <MidiMonitor />
+              <DmxControlPanel />              <MidiMonitor />
               <OscMonitor />
               <SceneQuickLaunch />
               <AutoSceneControlMini />
+              <ChromaticEnergyManipulatorMini />
             </>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}

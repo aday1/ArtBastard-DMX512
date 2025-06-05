@@ -12,14 +12,16 @@ interface AutoSceneControlMiniProps {
 export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
-}) => {
+}) => {  // Local state for scene management
+  const [showSceneManagement, setShowSceneManagement] = useState(false);
+  const [newSceneName, setNewSceneName] = useState('');
+  const [showDirectionControls, setShowDirectionControls] = useState(false);
+
   // Local state for manual/tap tempo clock management
   const [localBeatCounter, setLocalBeatCounter] = useState(0);
   const [isLocalClockPlaying, setIsLocalClockPlaying] = useState(false);
   const prevBeatRef = useRef<number | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);  const {
     autoSceneEnabled,
     autoSceneList,
     autoSceneCurrentIndex,
@@ -28,8 +30,10 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
     autoSceneTapTempoBpm,
     autoSceneBeatDivision,
     autoSceneIsFlashing,
+    autoSceneMode,
     midiClockIsPlaying,
     midiClockCurrentBeat,
+    scenes,
   } = useStore(state => ({
     autoSceneEnabled: state.autoSceneEnabled,
     autoSceneList: state.autoSceneList,
@@ -39,13 +43,16 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
     autoSceneTapTempoBpm: state.autoSceneTapTempoBpm,
     autoSceneBeatDivision: state.autoSceneBeatDivision,
     autoSceneIsFlashing: state.autoSceneIsFlashing,
+    autoSceneMode: state.autoSceneMode || 'forward',
     midiClockIsPlaying: state.midiClockIsPlaying,
     midiClockCurrentBeat: state.midiClockCurrentBeat,
+    scenes: state.scenes,
   }));
-
   const {
     setAutoSceneEnabled,
     setAutoSceneTempoSource,
+    setAutoSceneMode,
+    setAutoSceneList,
     recordTapTempo,
     requestToggleMasterClockPlayPause,
     setManualBpm,
@@ -55,6 +62,8 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
   } = useStore(state => ({
     setAutoSceneEnabled: state.setAutoSceneEnabled,
     setAutoSceneTempoSource: state.setAutoSceneTempoSource,
+    setAutoSceneMode: state.setAutoSceneMode,
+    setAutoSceneList: state.setAutoSceneList,
     recordTapTempo: state.recordTapTempo,
     requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause,
     setManualBpm: state.setManualBpm,
@@ -178,7 +187,6 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
       }
     }
   };
-
   const getCurrentBpm = () => {
     switch (autoSceneTempoSource) {
       case 'manual_bpm':
@@ -188,6 +196,28 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
       default:
         return 120;
     }
+  };
+
+  // Helper functions for scene management
+  const isSceneInAutoList = (sceneName: string) => {
+    return autoSceneList.includes(sceneName);
+  };
+
+  const toggleSceneInAutoList = (sceneName: string) => {
+    const newAutoSceneList = isSceneInAutoList(sceneName)
+      ? autoSceneList.filter(name => name !== sceneName)
+      : [...autoSceneList, sceneName];
+    
+    setAutoSceneList(newAutoSceneList);
+  };
+
+  const addAllScenesToAutoList = () => {
+    const allSceneNames = scenes.map(scene => scene.name);
+    setAutoSceneList(allSceneNames);
+  };
+
+  const clearAutoSceneList = () => {
+    setAutoSceneList([]);
   };
 
   const renderContent = () => {
@@ -266,13 +296,94 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
               TAP
             </button>
           )}
-        </div>
-
-        {autoSceneList.length > 0 && (
+        </div>        {autoSceneList.length > 0 && (
           <div className={styles.currentScene}>
             Scene: {autoSceneCurrentIndex + 1}/{autoSceneList.length}
           </div>
         )}
+
+        {/* Direction Controls */}
+        <div className={styles.directionSection}>
+          <button
+            className={styles.toggleSection}
+            onClick={() => setShowDirectionControls(!showDirectionControls)}
+            title="Direction Controls"
+          >
+            <LucideIcon name="ArrowLeftRight" size={12} />
+            {autoSceneMode}
+          </button>
+          
+          {showDirectionControls && (
+            <div className={styles.directionControls}>
+              <select
+                value={autoSceneMode}
+                onChange={(e) => setAutoSceneMode(e.target.value as 'forward' | 'ping-pong' | 'random')}
+                className={styles.directionSelect}
+              >
+                <option value="forward">Forward</option>
+                <option value="ping-pong">Ping-Pong</option>
+                <option value="random">Random</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Scene Management */}
+        <div className={styles.sceneManagementSection}>
+          <button
+            className={styles.toggleSection}
+            onClick={() => setShowSceneManagement(!showSceneManagement)}
+            title="Scene Management"
+          >
+            <LucideIcon name="List" size={12} />
+            Scenes ({autoSceneList.length})
+          </button>
+          
+          {showSceneManagement && (
+            <div className={styles.sceneManagement}>
+              <div className={styles.sceneActions}>
+                <button
+                  className={styles.actionButton}
+                  onClick={addAllScenesToAutoList}
+                  disabled={scenes.length === 0}
+                  title="Add all scenes"
+                >
+                  <LucideIcon name="Plus" size={10} />
+                  All
+                </button>
+                <button
+                  className={styles.actionButton}
+                  onClick={clearAutoSceneList}
+                  disabled={autoSceneList.length === 0}
+                  title="Clear all scenes"
+                >
+                  <LucideIcon name="X" size={10} />
+                  Clear
+                </button>
+              </div>
+              
+              {scenes.length > 0 && (
+                <div className={styles.sceneList}>
+                  {scenes.map((scene) => (
+                    <div key={scene.name} className={styles.sceneItem}>
+                      <button
+                        className={`${styles.sceneToggle} ${isSceneInAutoList(scene.name) ? styles.active : ''}`}
+                        onClick={() => toggleSceneInAutoList(scene.name)}
+                        title={isSceneInAutoList(scene.name) ? 'Remove from auto-play' : 'Add to auto-play'}
+                      >
+                        <LucideIcon 
+                          name={isSceneInAutoList(scene.name) ? "Check" : "Plus"} 
+                          size={10} 
+                        />
+                        <span className={styles.sceneName}>{scene.name}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   };

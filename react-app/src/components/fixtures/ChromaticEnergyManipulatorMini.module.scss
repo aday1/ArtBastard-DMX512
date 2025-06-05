@@ -1,0 +1,232 @@
+// ChromaticEnergyManipulatorMini.module.scss
+.chromaticEnergyManipulatorMini {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .fixtureSection {
+    position: relative;
+    
+    .fixtureSelector {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 6px 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--accent-color);
+        background: var(--bg-secondary);
+      }
+
+      .fixtureName {
+        flex: 1;
+        text-align: left;
+        margin: 0 6px;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .fixtureDropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 1000;
+
+      .fixtureOption {
+        display: block;
+        width: 100%;
+        padding: 6px 8px;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 11px;
+        text-align: left;
+        transition: background 0.2s ease;
+
+        &:hover {
+          background: var(--bg-secondary);
+        }
+
+        &.selected {
+          background: var(--accent-color);
+          color: white;
+        }
+
+        &:first-child {
+          border-radius: 4px 4px 0 0;
+        }
+
+        &:last-child {
+          border-radius: 0 0 4px 4px;
+        }
+      }
+    }
+  }
+
+  .controlsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .colorControl,
+  .movementControl {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .controlLabel {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+    }
+  }
+
+  .colorCanvas {
+    width: 100%;
+    height: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+
+    &:hover {
+      border-color: var(--accent-color);
+    }
+  }
+
+  .movementControl {
+    align-items: center;
+
+    .movementCanvas {
+      width: 80px;
+      height: 80px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      background: var(--bg-primary);
+      transition: border-color 0.2s ease;
+
+      &:hover {
+        border-color: var(--accent-color);
+      }
+    }
+  }
+
+  .noChannels {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-align: center;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      color: var(--warning-color);
+    }
+  }
+}
+
+// Theme variations
+[data-theme="artsnob"] .chromaticEnergyManipulatorMini {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+  border-color: #444;
+  
+  .fixtureSelector {
+    background: linear-gradient(145deg, #333, #222);
+    border-color: #555;
+    
+    &:hover {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 8px rgba(var(--accent-color-rgb), 0.3);
+    }
+  }
+
+  .colorCanvas,
+  .movementCanvas {
+    border-color: #444;
+    
+    &:hover {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 6px rgba(var(--accent-color-rgb), 0.2);
+    }
+  }
+}
+
+[data-theme="minimal"] .chromaticEnergyManipulatorMini {
+  background: #fafafa;
+  border-color: #e0e0e0;
+  
+  .fixtureSelector {
+    background: white;
+    border-color: #ccc;
+    
+    &:hover {
+      border-color: #999;
+    }
+  }
+
+  .colorCanvas,
+  .movementCanvas {
+    border-color: #ccc;
+    
+    &:hover {
+      border-color: #666;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 480px) {
+  .chromaticEnergyManipulatorMini {
+    .container {
+      padding: 6px;
+    }
+
+    .movementCanvas {
+      width: 60px !important;
+      height: 60px !important;
+    }
+  }
+}

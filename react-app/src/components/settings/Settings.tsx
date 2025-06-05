@@ -444,8 +444,7 @@ export const Settings: React.FC = () => {
         {theme === 'minimal' && 'Config'}
       </h2>
 
-      <div className={styles.settingsGrid}>
-        {/* Navigation Visibility Card */}
+      <div className={styles.settingsGrid}>        {/* Navigation Visibility Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>Navigation Menu Items</h3>
@@ -454,14 +453,19 @@ export const Settings: React.FC = () => {
             <div className={styles.toggleGrid}>
               {Object.entries(localNavVisibility).map(([key, value]) => (
                 <div key={key} className={styles.toggleItem}>
-                  <label className={styles.toggleLabel}>
+                  <div className={styles.toggleSwitch}>
                     <input
                       type="checkbox"
+                      id={`nav-${key}`}
                       checked={value}
                       onChange={() => handleNavVisibilityChange(key as keyof typeof navVisibility)}
-                      className={styles.toggleCheckbox}
                     />
-                    <span className={styles.toggleName}>{
+                    <label htmlFor={`nav-${key}`} className={styles.toggleLabel}>
+                      <span className={styles.toggleDot}>
+                        <i className={`fas ${value ? 'fa-eye' : 'fa-eye-slash'}`}></i>
+                      </span>
+                    </label>
+                    <span className={styles.toggleText}>{
                       key === 'main' ? 'Main Control' :
                       key === 'midiOsc' ? 'MIDI/OSC Setup' :
                       key === 'fixture' ? 'Fixture Setup' :
@@ -471,7 +475,7 @@ export const Settings: React.FC = () => {
                       key === 'misc' ? 'Settings' :
                       key
                     }</span>
-                  </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -487,20 +491,25 @@ export const Settings: React.FC = () => {
             <div className={styles.toggleGrid}>
               {Object.entries(localDebugTools).map(([key, value]) => (
                 <div key={key} className={styles.toggleItem}>
-                  <label className={styles.toggleLabel}>
+                  <div className={styles.toggleSwitch}>
                     <input
                       type="checkbox"
+                      id={`debug-${key}`}
                       checked={value}
                       onChange={() => handleDebugToolsChange(key as keyof typeof debugTools)}
-                      className={styles.toggleCheckbox}
                     />
-                    <span className={styles.toggleName}>{
+                    <label htmlFor={`debug-${key}`} className={styles.toggleLabel}>
+                      <span className={styles.toggleDot}>
+                        <i className={`fas ${value ? 'fa-bug' : 'fa-times'}`}></i>
+                      </span>
+                    </label>
+                    <span className={styles.toggleText}>{
                       key === 'debugButton' ? 'Debug Button' :
                       key === 'midiMonitor' ? 'MIDI Monitor' :
                       key === 'oscMonitor' ? 'OSC Monitor' :
                       key
                     }</span>
-                  </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -581,8 +590,7 @@ export const Settings: React.FC = () => {
           <div className={styles.cardHeader}>
             <h3>Additional Settings</h3>
           </div>
-          <div className={styles.cardBody}>
-            <div className={styles.formGroup}>
+          <div className={styles.cardBody}>            <div className={styles.formGroup}>
               <label htmlFor="webPort">Web Port</label>
               <input
                 type="number"
@@ -592,48 +600,6 @@ export const Settings: React.FC = () => {
                 min={1}
                 max={65535}
               />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Debug Modules</label>
-              <div className={styles.debugToggles}>
-                <label className={styles.debugToggle} title="Enable MIDI protocol debugging for troubleshooting MIDI mappings and controllers">
-                  <input
-                    type="checkbox"
-                    checked={debugModules.midi}
-                    onChange={() => toggleDebugModule('midi')}
-                  />
-                  <span>MIDI Debug</span>
-                  <div className={styles.settingDescription}>Shows MIDI message traffic for troubleshooting controllers</div>
-                </label>
-                <label className={styles.debugToggle} title="Enable OSC protocol debugging for troubleshooting OSC communication">
-                  <input
-                    type="checkbox"
-                    checked={debugModules.osc}
-                    onChange={() => toggleDebugModule('osc')}
-                  />
-                  <span>OSC Debug</span>
-                  <div className={styles.settingDescription}>Shows OSC message traffic for TouchOSC and other OSC interfaces</div>
-                </label>
-                <label className={styles.debugToggle} title="Enable Art-Net protocol debugging for troubleshooting DMX communication">
-                  <input
-                    type="checkbox"
-                    checked={debugModules.artnet}
-                    onChange={() => toggleDebugModule('artnet')}
-                  />
-                  <span>ArtNet Debug</span>
-                  <div className={styles.settingDescription}>Shows Art-Net/DMX network traffic for troubleshooting fixtures</div>
-                </label>
-                <label className={styles.debugToggle} title="Show or hide the floating debug button in the interface">
-                  <input
-                    type="checkbox"
-                    checked={debugModules.button}
-                    onChange={() => toggleDebugModule('button')}
-                  />
-                  <span>Show Debug Button</span>
-                  <div className={styles.settingDescription}>Toggles visibility of the quick access debug button in UI</div>
-                </label>
-              </div>
             </div>
           </div>
         </div>

@@ -33,11 +33,10 @@
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
   --accent-color: #ed8936; /* Light orange accent for overall harmony */
-  
-  // Fonts
+    // Fonts
   --font-heading: 'Playfair Display', serif;
-  --font-body: 'Source Sans Pro', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --font-body: 'Source Sans Pro', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  --font-mono: 'Space Mono', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', monospace;
   
   // UI Elements
   --border-radius: 8px;
@@ -96,7 +95,7 @@ body.artsnob {
 
 // Standard theme overrides
 body.standard {
-  --font-heading: 'Source Sans Pro', sans-serif;
+  --font-heading: 'Source Sans Pro', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   
   h1, h2, h3, h4, h5 {
     font-weight: 600;
@@ -105,8 +104,8 @@ body.standard {
 
 // Minimal theme overrides
 body.minimal {
-  --font-heading: 'Source Sans Pro', sans-serif;
-  --font-body: 'Source Sans Pro', sans-serif;
+  --font-heading: 'Source Sans Pro', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  --font-body: 'Source Sans Pro', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   
   --border-radius: 4px;
   --card-shadow: none;
@@ -140,6 +139,10 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  // Ensure emojis render properly
+  font-feature-settings: 'liga', 'clig', 'calt';
+  text-rendering: optimizeLegibility;
 }
 
 a {
