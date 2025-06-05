@@ -349,9 +349,10 @@ interface State {
   updateGroup: (groupId: string, groupData: Partial<Group>) => void;  
   addGroupToCanvas: (group: Group, position: { x: number; y: number }) => void;
   updateGroupPosition: (groupId: string, position: { x: number; y: number }) => void;
+  saveGroupLastStates: (groupId: string) => void; // Moved up
   setGroupMasterValue: (groupId: string, value: number) => void;
   setGroupMute: (groupId: string, isMuted: boolean) => void;
-  setGroupSolo: (groupId: string, isSolo: boolean) => void;  saveGroupLastStates: (groupId: string) => void;
+  setGroupSolo: (groupId: string, isSolo: boolean) => void;
   
   // Group MIDI actions
   startGroupMidiLearn: (groupId: string) => void;
@@ -1196,6 +1197,156 @@ export const useStore = create<State>()(
           set({ autoSceneIsFlashing: false });
         }, 200);
       },
+
+      // Enhanced Group State Actions Implementations
+      updateGroup: (groupId, groupData) => {
+        set(state => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, ...groupData } : g
+          )
+        }));
+        // TODO: Consider persisting to backend if group structure (name, fixtureIndices, etc.) changes.
+        // For ignoreSceneChanges, it's probably fine as transient state or saved with scenes.
+      },
+      addGroupToCanvas: (group, position) => {
+        // This is a placeholder. Actual implementation might be more complex
+        // or handled by UI components that manage canvas state.
+        const updatedGroupWithPos = position ? { ...group, position } : group;
+        set(state => {
+          const existingGroup = state.groups.find(g => g.id === group.id);
+          if (existingGroup) {
+            return {
+              groups: state.groups.map(g => g.id === group.id ? { ...g, ...updatedGroupWithPos } : g)
+            };
+          } else {
+            return { groups: [...state.groups, updatedGroupWithPos] };
+          }
+        });
+        get().addNotification({ message: `Group '${group.name}' position updated for canvas.`, type: 'info' });
+      },
+      updateGroupPosition: (groupId, position) => {
+        set(state => ({
+          groups: state.groups.map(g => g.id === groupId ? { ...g, position } : g)
+        }));
+      },
+      saveGroupLastStates: (groupId) => {
+        set(state => {
+          const groupIndex = state.groups.findIndex(g => g.id === groupId);
+          if (groupIndex === -1) return state; // Group not found
+
+          const groups = [...state.groups];
+          const group = { ...groups[groupIndex] };
+
+          group.lastStates = [...state.dmxChannels];
+          groups[groupIndex] = group;
+
+          return { ...state, groups };
+        });
+      },
+      setGroupMasterValue: (groupId, value) => {
+        const { groups, fixtures, dmxChannels, setMultipleDmxChannels } = get();
+        const groupIndex = groups.findIndex(g => g.id === groupId);
+        if (groupIndex === -1) return;
+
+        const updatedGroups = groups.map(g => g.id === groupId ? { ...g, masterValue: value } : g);
+        set({ groups: updatedGroups });
+
+        const group = updatedGroups[groupIndex];
+        const batchUpdates: DmxChannelBatchUpdate = {};
+
+        const baseDmxValues = (group.lastStates && group.lastStates.length === 512) ? group.lastStates : dmxChannels;
+
+        group.fixtureIndices.forEach(fixtureIdx => {
+          const fixture = fixtures[fixtureIdx];
+          if (!fixture) return;
+
+          fixture.channels.forEach((channel, channelIdx) => {
+            if (channel.type.toLowerCase().includes('intensity') || channel.type.toLowerCase().includes('dimmer')) {
+              const dmxAddress = fixture.startAddress + channelIdx - 1;
+              if (dmxAddress >= 0 && dmxAddress < 512) {
+                const baseValue = baseDmxValues[dmxAddress];
+                const scaledValue = Math.round(baseValue * (value / 255));
+                batchUpdates[dmxAddress] = Math.max(0, Math.min(255, scaledValue));
+              }
+            }
+          });
+        });
+
+        if (Object.keys(batchUpdates).length > 0) {
+          setMultipleDmxChannels(batchUpdates);
+        }
+      },
+      setGroupMute: (groupId, isMuted) => {
+        const { saveGroupLastStates, setGroupMasterValue, groups } = get();
+        const group = groups.find(g => g.id === groupId);
+        if (!group) return;
+
+        // Update mute state in the store first
+        const updatedGroups = groups.map(g => g.id === groupId ? { ...g, isMuted } : g);
+        set({ groups: updatedGroups });
+
+        const updatedGroup = updatedGroups.find(g => g.id === groupId)!;
+
+        if (isMuted) {
+          saveGroupLastStates(groupId);
+          setGroupMasterValue(groupId, 0);
+        } else {
+          setGroupMasterValue(groupId, updatedGroup.masterValue);
+
+          set(state => {
+            const groupIndex = state.groups.findIndex(g => g.id === groupId);
+            if (groupIndex === -1) return state;
+            const newGroupsScoped = [...state.groups];
+            newGroupsScoped[groupIndex] = { ...newGroupsScoped[groupIndex], lastStates: [] };
+            return { ...state, groups: newGroupsScoped };
+          });
+        }
+      },
+      setGroupSolo: (groupId, isSolo) => {
+        // TODO: Implement full solo logic. This is complex as it affects other groups.
+        // When a group is soloed, other non-soloed groups should be effectively muted.
+        // Their DMX values for intensity channels should go to 0, respecting their lastStates if they were muted.
+        // When a group is un-soloed, or all solo groups are un-soloed, the DMX state needs to be
+        // recalculated based on remaining soloed groups or all groups' individual master/mute states.
+        // This will likely require a "recalculate all DMX" function that considers all group controls.
+
+        set(state => ({
+          groups: state.groups.map(g => {
+            if (g.id === groupId) {
+              return { ...g, isSolo };
+            }
+            // This is a placeholder. Proper logic would involve checking if *any* group is solo,
+            // and if so, non-soloed groups should be effectively muted.
+            // If no groups are solo, all revert to their normal master/mute states.
+            return g;
+          })
+        }));
+
+        // Placeholder: Call a function to re-evaluate DMX for all groups based on solo, mute, master.
+        // get().applyAllGroupControls();
+        get().addNotification({ message: `Solo for group ${groupId} ${isSolo ? 'enabled' : 'disabled'}. Full logic pending.`, type: 'info'});
+      },
+      // Implementations for Group MIDI actions will go here later
+      startGroupMidiLearn: (groupId) => {
+        set({ midiLearnTarget: { type: 'group', groupId: groupId } });
+        get().addNotification({ message: `MIDI Learn started for Group: ${groupId}`, type: 'info' });
+      },
+      cancelGroupMidiLearn: () => {
+        if (get().midiLearnTarget?.type === 'group') {
+          set({ midiLearnTarget: null });
+          get().addNotification({ message: 'Group MIDI Learn cancelled', type: 'info' });
+        }
+      },
+      setGroupMidiMapping: (groupId, mapping) => {
+        set(state => ({
+          groups: state.groups.map(g => g.id === groupId ? { ...g, midiMapping: mapping } : g),
+          midiLearnTarget: null,
+        }));
+        get().addNotification({ message: `MIDI mapped for Group: ${groupId}`, type: 'success' });
+      },
+      handleMidiForGroups: (message) => {
+        // Placeholder for MIDI handling logic for groups
+      }
     })
   )
 );

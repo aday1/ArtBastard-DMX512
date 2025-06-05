@@ -13,7 +13,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
   isCollapsed = false,
   onCollapsedChange,
 }) => {
-  const [selectedFixture, setSelectedFixture] = useState<string | null>(null);
+  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [showFixtureSelect, setShowFixtureSelect] = useState(false);
   
   // Color and movement state
@@ -71,40 +71,42 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     return { rgbChannels, movementChannels };
   };
 
-  const currentChannels = selectedFixture ? getFixtureChannels(selectedFixture) : { rgbChannels: {}, movementChannels: {} };
-  const { rgbChannels, movementChannels } = currentChannels;
-
   // Auto-select first fixture with RGB channels if none selected
   useEffect(() => {
-    if (!selectedFixture && fixtures.length > 0) {
+    if (selectedFixtures.length === 0 && fixtures.length > 0) {
       const rgbFixture = fixtures.find(f => 
         f.channels.some(c => c.type === 'red') &&
         f.channels.some(c => c.type === 'green') &&
         f.channels.some(c => c.type === 'blue')
       );
       if (rgbFixture) {
-        setSelectedFixture(rgbFixture.id);
+        setSelectedFixtures([rgbFixture.id]);
       }
     }
-  }, [fixtures, selectedFixture]);
+  }, [fixtures, selectedFixtures.length]);
 
-  // Initialize color and movement from DMX values
+  // Initialize color and movement from DMX values for the first selected fixture
   useEffect(() => {
-    if (rgbChannels.redChannel !== undefined && rgbChannels.greenChannel !== undefined && rgbChannels.blueChannel !== undefined) {
-      setColor({
-        r: getDmxChannelValue(rgbChannels.redChannel),
-        g: getDmxChannelValue(rgbChannels.greenChannel),
-        b: getDmxChannelValue(rgbChannels.blueChannel)
-      });
+    if (selectedFixtures.length > 0) {
+      const firstFixtureId = selectedFixtures[0];
+      const { rgbChannels: firstRgbChannels, movementChannels: firstMovementChannels } = getFixtureChannels(firstFixtureId);
+
+      if (firstRgbChannels.redChannel !== undefined && firstRgbChannels.greenChannel !== undefined && firstRgbChannels.blueChannel !== undefined) {
+        setColor({
+          r: getDmxChannelValue(firstRgbChannels.redChannel),
+          g: getDmxChannelValue(firstRgbChannels.greenChannel),
+          b: getDmxChannelValue(firstRgbChannels.blueChannel)
+        });
+      }
+
+      if (firstMovementChannels.panChannel !== undefined && firstMovementChannels.tiltChannel !== undefined) {
+        setMovement({
+          pan: getDmxChannelValue(firstMovementChannels.panChannel),
+          tilt: getDmxChannelValue(firstMovementChannels.tiltChannel)
+        });
+      }
     }
-    
-    if (movementChannels.panChannel !== undefined && movementChannels.tiltChannel !== undefined) {
-      setMovement({
-        pan: getDmxChannelValue(movementChannels.panChannel),
-        tilt: getDmxChannelValue(movementChannels.tiltChannel)
-      });
-    }
-  }, [rgbChannels, movementChannels, getDmxChannelValue]);
+  }, [selectedFixtures, getDmxChannelValue, fixtures]); // Added fixtures to dependency array
 
   // Draw mini color picker
   useEffect(() => {
@@ -216,10 +218,13 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     
     setColor(newColor);
     
-    // Update DMX channels
-    if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, newColor.r);
-    if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, newColor.g);
-    if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, newColor.b);
+    // Update DMX channels for all selected fixtures
+    selectedFixtures.forEach(fixtureId => {
+      const { rgbChannels } = getFixtureChannels(fixtureId);
+      if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, newColor.r);
+      if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, newColor.g);
+      if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, newColor.b);
+    });
   };
 
   // Handle movement canvas click
@@ -238,17 +243,34 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     
     setMovement(newMovement);
     
-    // Update DMX channels
-    if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, newMovement.pan);
-    if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
+    // Update DMX channels for all selected fixtures
+    selectedFixtures.forEach(fixtureId => {
+      const { movementChannels } = getFixtureChannels(fixtureId);
+      if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, newMovement.pan);
+      if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
+    });
   };
 
-  const selectedFixtureName = selectedFixture ? fixtures.find(f => f.id === selectedFixture)?.name || 'Unknown' : 'None';
-  const hasRgbChannels = rgbChannels.redChannel !== undefined && rgbChannels.greenChannel !== undefined && rgbChannels.blueChannel !== undefined;
-  const hasMovementChannels = movementChannels.panChannel !== undefined && movementChannels.tiltChannel !== undefined;
+  const getSelectedFixtureName = () => {
+    if (selectedFixtures.length === 0) return 'None';
+    if (selectedFixtures.length === 1) {
+      const fixture = fixtures.find(f => f.id === selectedFixtures[0]);
+      return fixture?.name || 'Unknown';
+    }
+    return `${selectedFixtures.length} Fixtures Selected`;
+  };
+  const selectedFixtureName = getSelectedFixtureName();
+
+  const { rgbChannels: firstSelectedRgbChannels, movementChannels: firstSelectedMovementChannels } =
+    selectedFixtures.length > 0 ? getFixtureChannels(selectedFixtures[0]) : { rgbChannels: {}, movementChannels: {} };
+
+  const hasRgbChannels = firstSelectedRgbChannels.redChannel !== undefined && firstSelectedRgbChannels.greenChannel !== undefined && firstSelectedRgbChannels.blueChannel !== undefined;
+  const hasMovementChannels = firstSelectedMovementChannels.panChannel !== undefined && firstSelectedMovementChannels.tiltChannel !== undefined;
 
   return (
     <DockableComponent
+      id="chromatic-energy-manipulator-mini"
+      component="chromatic-energy-manipulator"
       title="Chromatic Energy Manipulator"
       icon="palette"
       defaultPosition={{ x: 20, y: 300 }}
@@ -280,20 +302,26 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
               ).map(fixture => (
                 <button
                   key={fixture.id}
-                  className={`${styles.fixtureOption} ${selectedFixture === fixture.id ? styles.selected : ''}`}
+                  className={`${styles.fixtureOption} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
                   onClick={() => {
-                    setSelectedFixture(fixture.id);
-                    setShowFixtureSelect(false);
+                    setSelectedFixtures(prevSelected =>
+                      prevSelected.includes(fixture.id)
+                        ? prevSelected.filter(id => id !== fixture.id)
+                        : [...prevSelected, fixture.id]
+                    );
+                    // Keep dropdown open for multi-select
+                    // setShowFixtureSelect(false);
                   }}
                 >
                   {fixture.name}
+                  {selectedFixtures.includes(fixture.id) && <LucideIcon name="check" className={styles.checkIcon} />}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {selectedFixture && (
+        {selectedFixtures.length > 0 && (
           <div className={styles.controlsSection}>
             {/* Color Control */}
             {hasRgbChannels && (
