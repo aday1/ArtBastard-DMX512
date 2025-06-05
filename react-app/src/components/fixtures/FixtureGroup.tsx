@@ -118,6 +118,10 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
     updateGroup(group.id, { ignoreSceneChanges: !group.ignoreSceneChanges });
   };
 
+  const handleIgnoreMasterFaderToggle = () => {
+    updateGroup(group.id, { ignoreMasterFader: !group.ignoreMasterFader });
+  };
+
   const getMidiStatusText = () => {
     const mapping = group.midiMapping;
     if (!mapping) return 'MIDI Learn';
@@ -217,6 +221,14 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
           >
             <i className="fas fa-shield-alt" />
             Ignore Scenes
+          </button>
+          <button
+            className={`${styles.ignoreButton} ${group.ignoreMasterFader ? styles.active : ''}`}
+            onClick={handleIgnoreMasterFaderToggle}
+            title={group.ignoreMasterFader ? "Respect Master Fader" : "Ignore Master Fader"}
+          >
+            <i className="fas fa-sliders-h" />
+            Ignore Master
           </button>
         </div>
       </div>

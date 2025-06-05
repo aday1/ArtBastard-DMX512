@@ -23,9 +23,36 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
   const [valueBeforeFadeout, setValueBeforeFadeout] = useState<number>(0);
   const [isFading, setIsFading] = useState<boolean>(false);
 
-  const { dmxChannels, setDmxChannelValue, setMultipleDmxChannels } = useStore(); // Added setMultipleDmxChannels
+  const { dmxChannels, setMultipleDmxChannels, groups, fixtures } = useStore(state => ({
+    dmxChannels: state.dmxChannels,
+    setMultipleDmxChannels: state.setMultipleDmxChannels,
+    groups: state.groups,
+    fixtures: state.fixtures,
+  }));
   const { socket } = useSocket();
   const { startLearn, cancelLearn } = useMidiLearn();
+
+  const isChannelIgnored = useCallback((channelIndex: number): boolean => {
+    if (!fixtures || !groups) return false;
+
+    for (const fixture of fixtures) {
+      const startAddress = fixture.startAddress - 1; // 0-indexed
+      const endAddress = startAddress + fixture.channels.length - 1;
+
+      if (channelIndex >= startAddress && channelIndex <= endAddress) {
+        // Channel is part of this fixture
+        for (const group of groups) {
+          if (group.fixtureIndices.some(fi => fixtures[fi]?.id === fixture.id)) {
+            // This fixture is in this group
+            if (group.ignoreMasterFader === true) {
+              return true; // Ignored by this group
+            }
+          }
+        }
+      }
+    }
+    return false; // Not found in any group that ignores master fader
+  }, [fixtures, groups]);
   const handleValueChange = useCallback((newValue: number) => {
     const previousValue = value;
     setValue(newValue);
@@ -33,41 +60,88 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
 
     const dmxUpdates: Record<number, number> = {};
 
-    if (newValue === 0 && previousValue > 0) {
+    if (newValue === 0 && previousValue > 0) { // Fading to black
       const currentValuesToSaveNormalized: { [key: number]: number } = {};
       Object.keys(dmxChannels).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
+        if (isChannelIgnored(channelNum)) {
+          // If ignored, keep its current value, don't save for restore, don't add to dmxUpdates to set to 0
+          dmxUpdates[channelNum] = dmxChannels[channelNum]; // Ensure it retains current value if it was part of previous calculations
+          return;
+        }
         const currentDmxValue = dmxChannels[channelNum];
 
         if (currentDmxValue > 0) {
           let normalizedValue = currentDmxValue;
-          if (previousValue > 0 && previousValue < 255) {
+          // Normalize based on previous master fader value to correctly restore proportions later
+          if (previousValue > 0 && previousValue < 255) { // Avoid division by zero or no change
             normalizedValue = (currentDmxValue / previousValue) * 255;
           }
           currentValuesToSaveNormalized[channelNum] = Math.min(255, Math.max(0, Math.round(normalizedValue)));
-          dmxUpdates[channelNum] = 0; // Add to batch for setting to 0
-        } else if (dmxChannels[channelNum] !== 0) {
-          dmxUpdates[channelNum] = 0; // Ensure it's set to 0 if it wasn't already
+          dmxUpdates[channelNum] = 0;
+        } else { // if currentDmxValue is already 0
+          dmxUpdates[channelNum] = 0;
         }
       });
       setPreviousChannelValues(currentValuesToSaveNormalized);
-    } else if (newValue > 0 && previousValue === 0) {
+    } else if (newValue > 0 && previousValue === 0) { // Fading up from black
       Object.keys(previousChannelValues).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
+        if (isChannelIgnored(channelNum)) {
+          // If channel was ignored when fading to black, it should not be part of previousChannelValues for restoration.
+          // However, if it is for some reason, or if we want to be safe:
+          dmxUpdates[channelNum] = dmxChannels[channelNum]; // Keep its current value
+          return;
+        }
         const normalizedOriginalValue = previousChannelValues[channelNum];
         const proportionalValue = Math.round((normalizedOriginalValue * newValue) / 255);
         dmxUpdates[channelNum] = proportionalValue;
       });
-    } else if (newValue > 0 && previousValue > 0) {
-      if (previousValue !== 0) {
+      // For channels that were not in previousChannelValues (e.g. they were already 0 or ignored)
+      // ensure they are not accidentally turned on if they were ignored.
+      // This block might be redundant if isChannelIgnored correctly populates dmxUpdates above.
+      for (let i = 0; i < 512; i++) {
+        if (isChannelIgnored(i) && dmxUpdates[i] === undefined) {
+          dmxUpdates[i] = dmxChannels[i];
+        } else if (dmxUpdates[i] === undefined && dmxChannels[i] === 0) {
+          // If a channel wasn't in previousChannelValues (was 0) and not ignored, it should remain 0
+          // unless explicitly handled by other logic (which is not the case here for master fader up from black).
+          dmxUpdates[i] = 0;
+        }
+      }
+
+    } else if (newValue > 0 && previousValue > 0) { // Adjusting level (not from/to black)
+      if (previousValue !== 0) { // Should always be true here, but good check
         const adjustmentFactor = newValue / previousValue;
         Object.keys(dmxChannels).forEach(key => {
           const num = parseInt(key);
-          const adjustedValue = Math.round(dmxChannels[num] * adjustmentFactor);
-          dmxUpdates[num] = Math.min(255, Math.max(0, adjustedValue));
+          if (isChannelIgnored(num)) {
+            dmxUpdates[num] = dmxChannels[num]; // Keep current value
+            return;
+          }
+          // For non-ignored channels, if it was 0, it stays 0 unless master was also 0 and now it's > 0 (handled by fade up from black)
+          // If it was >0, scale it.
+          const currentVal = dmxChannels[num];
+          if (currentVal > 0) {
+            const adjustedValue = Math.round(currentVal * adjustmentFactor);
+            dmxUpdates[num] = Math.min(255, Math.max(0, adjustedValue));
+          } else {
+            dmxUpdates[num] = 0; // Stays 0 if it was 0
+          }
         });
       }
+    } else if (newValue === 0 && previousValue === 0) { // Already black, do nothing to DMX
+        // No DMX changes needed, but ensure ignored channels are still themselves
+        Object.keys(dmxChannels).forEach(key => {
+            const num = parseInt(key);
+            if (isChannelIgnored(num)) {
+                dmxUpdates[num] = dmxChannels[num];
+            } else {
+                dmxUpdates[num] = 0; // Ensure non-ignored stay 0
+            }
+        });
     }
+
 
     if (Object.keys(dmxUpdates).length > 0) {
       setMultipleDmxChannels(dmxUpdates);
@@ -118,25 +192,31 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
 
   const toggleFullOn = () => {
     const dmxUpdates: Record<number, number> = {};
-    if (isFullOn) {
+    if (isFullOn) { // Turning OFF (was ON)
       setIsFullOn(false);
       Object.keys(fullOnSavedValues).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
+        if (isChannelIgnored(channelNum)) {
+          dmxUpdates[channelNum] = dmxChannels[channelNum]; // Keep live value
+          return;
+        }
         dmxUpdates[channelNum] = fullOnSavedValues[channelNum];
       });
-      // setValue(255); // Master fader value should reflect the actual light state or user intention.
-                       // If restoring, it was likely already at 255 or user will adjust.
-                       // Let's keep it at 255 as per original logic for now, but this could be re-evaluated.
-    } else {
+      // setValue(255); // Keep master fader UI at full as per original comment
+    } else { // Turning ON
       setIsFullOn(true);
       const currentValues: { [key: number]: number } = {};
       Object.keys(dmxChannels).forEach(channelKey => {
         const channelNum = parseInt(channelKey);
-        currentValues[channelNum] = dmxChannels[channelNum];
+        currentValues[channelNum] = dmxChannels[channelNum]; // Save current state for restore
+        if (isChannelIgnored(channelNum)) {
+          dmxUpdates[channelNum] = dmxChannels[channelNum]; // Keep live value
+          return;
+        }
         dmxUpdates[channelNum] = 255;
       });
       setFullOnSavedValues(currentValues);
-      // setValue(255); // Set master to full - this is a UI concern, separate from DMX values
+      // setValue(255); // Set master fader UI to full
     }
 
     if (Object.keys(dmxUpdates).length > 0) {
