@@ -30,6 +30,9 @@ export interface Group {
   oscAddress?: string;
   ignoreSceneChanges?: boolean; // Whether this group ignores scene changes
   ignoreMasterFader?: boolean;
+  panOffset?: number;
+  tiltOffset?: number;
+  zoomValue?: number;
 }
 
 export interface Scene {
@@ -354,6 +357,9 @@ interface State {
   setGroupMasterValue: (groupId: string, value: number) => void;
   setGroupMute: (groupId: string, isMuted: boolean) => void;
   setGroupSolo: (groupId: string, isSolo: boolean) => void;
+  setGroupPanOffset: (groupId: string, panOffset: number) => void;
+  setGroupTiltOffset: (groupId: string, tiltOffset: number) => void;
+  setGroupZoomValue: (groupId: string, zoomValue: number) => void;
   
   // Group MIDI actions
   startGroupMidiLearn: (groupId: string) => void;
@@ -483,6 +489,140 @@ export const useStore = create<State>()(
         };
       })(),
       
+      _recalculateDmxOutput: () => {
+        const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
+        const newDmxValuesArray = [...dmxChannels]; // Base DMX state for this calculation run
+        const newDmxValuesBatch: DmxChannelBatchUpdate = {};
+
+        const activeSoloGroups = groups.filter(g => g.isSolo);
+
+        fixtures.forEach((fixture, fixtureIdx) => {
+          const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtureIdx));
+
+          let isFixtureSoloActive = true;
+          if (activeSoloGroups.length > 0) {
+            isFixtureSoloActive = fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
+          }
+
+          fixture.channels.forEach((channel, channelIdx) => {
+            const dmxAddress = fixture.startAddress + channelIdx - 1; // 0-indexed
+            if (dmxAddress < 0 || dmxAddress >= 512) return;
+
+            let baseValueForGroupEffects = newDmxValuesArray[dmxAddress];
+            let currentChannelValue = baseValueForGroupEffects; // Initialize with base
+
+            if (fixtureGroups.length > 0) {
+              const firstGroup = fixtureGroups[0]; // Prioritize the first group for P/T/Z, Master, Mute logic
+
+              // Determine base value for intensity effects if lastStates is available
+              const channelTypeUpper = channel.type.toUpperCase();
+              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
+                if (firstGroup.masterValue > 0 && firstGroup.lastStates && firstGroup.lastStates.length === 512) {
+                  baseValueForGroupEffects = firstGroup.lastStates[dmxAddress];
+                }
+                // If masterValue is 0, or lastStates isn't valid, baseValueForGroupEffects remains newDmxValuesArray[dmxAddress]
+                // which will correctly become 0 if muted or master is 0.
+                currentChannelValue = baseValueForGroupEffects; // Re-initialize for intensity channel based on lastStates logic
+              }
+
+              // Apply Group P/T/Z (operates on currentChannelValue, which is from newDmxValuesArray unless it's an intensity channel using lastStates)
+              // For PAN/TILT/ZOOM, they typically operate on whatever the current DMX value is (e.g. from a scene or manual override).
+              // If P/T/Z channels are also intensity, the baseValueForGroupEffects logic for intensity above would apply.
+              // However, typically P/T/Z are separate or combined with intensity where master/mute applies to intensity part.
+              // Let's assume P/T/Z apply to the initial `newDmxValuesArray[dmxAddress]` value.
+              let ptzModifiedValue = newDmxValuesArray[dmxAddress]; // Use initial DMX for P/T/Z base
+
+              if (firstGroup.panOffset !== undefined && channel.type.toUpperCase() === 'PAN') {
+                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.panOffset));
+              }
+              if (firstGroup.tiltOffset !== undefined && channel.type.toUpperCase() === 'TILT') {
+                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.tiltOffset));
+              }
+              if (firstGroup.zoomValue !== undefined && channel.type.toUpperCase() === 'ZOOM') {
+                ptzModifiedValue = Math.max(0, Math.min(255, firstGroup.zoomValue)); // Zoom is absolute
+              }
+
+              // If the channel is NOT intensity/dimmer, P/T/Z applies directly.
+              // If it IS intensity/dimmer, P/T/Z effect is on the non-intensity aspect (which we assume is separate here).
+              // The `currentChannelValue` for intensity is based on `baseValueForGroupEffects`.
+              // This logic assumes P/T/Z are not the *same* channels as master/mute sensitive intensity.
+              // If they are (e.g. a moving head's dimmer channel), this logic needs refinement.
+              // For now, if it's PAN/TILT/ZOOM, we take that value. If it's DIMMER/INTENSITY, we proceed with its own base.
+              if (channelTypeUpper === 'PAN' || channelTypeUpper === 'TILT' || channelTypeUpper === 'ZOOM') {
+                currentChannelValue = ptzModifiedValue;
+              }
+
+
+              // Apply Group Master/Mute for intensity/dimmer channels
+              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
+                if (firstGroup.isMuted) {
+                  currentChannelValue = 0;
+                } else {
+                  // Master value scales the chosen base (either from lastStates or current DMX)
+                  currentChannelValue = Math.round(baseValueForGroupEffects * (firstGroup.masterValue / 255));
+                }
+              }
+            }
+
+            // Apply Solo Logic for intensity/dimmer channels
+            const channelTypeUpper = channel.type.toUpperCase(); // Re-check for safety, though already have it
+            if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
+              if (!isFixtureSoloActive) {
+                currentChannelValue = 0;
+              }
+            }
+
+            const finalValue = Math.max(0, Math.min(255, Math.round(currentChannelValue)));
+            if (newDmxValuesArray[dmxAddress] !== finalValue || !(dmxAddress in newDmxValuesBatch)) {
+              // Update batch if value changed OR if it wasn't set by a prior fixture but needs to be included
+              newDmxValuesBatch[dmxAddress] = finalValue;
+            }
+            // We don't write to newDmxValuesArray here because each fixture's calculation should start from the original dmxChannels snapshot
+            // or its group's lastStates, not be influenced by other groups' calculations in the same pass, to avoid order dependency issues.
+            // The batch update will apply all final values at the end.
+          });
+        });
+
+        // Create a full batch if any calculation path could have missed setting a value
+        // For safety, ensure all 512 channels are in the batch if any processing happened.
+        // A more optimized way would be to only send changed values, but _recalculateDmxOutput implies a full refresh.
+        // The current logic for newDmxValuesBatch only includes changed values.
+        // Let's ensure that if we started with dmxChannels, and applied group logic, the result is what we send.
+        // The `setMultipleDmxChannels` expects a DmxChannelBatchUpdate (Record<number, number>).
+        // We need to convert the `newDmxValuesArray` (which has been implicitly modified if we were writing to it)
+        // or build up the `newDmxValuesBatch` correctly.
+
+        // Correct approach: newDmxValuesArray is the "scratchpad" that gets modified to final values.
+        // Then compare newDmxValuesArray to original dmxChannels to build the minimal batch.
+        const finalBatch: DmxChannelBatchUpdate = {};
+        let hasChanges = false;
+        for (let i = 0; i < 512; i++) {
+          // The loop above calculates final values and puts them into newDmxValuesBatch if they changed from original newDmxValuesArray[i]
+          // However, the newDmxValuesArray itself was NOT updated inside the loop.
+          // This means the `baseValueForGroupEffects` was always from the original dmxChannels or lastStates.
+          // This is correct to avoid inter-group calculation order dependencies.
+          // The `newDmxValuesBatch` should correctly contain all intended changes.
+        }
+        // The current newDmxValuesBatch logic seems correct: it only adds if finalValue is different from the original state of newDmxValuesArray[dmxAddress]
+
+        if (Object.keys(newDmxValuesBatch).length > 0) {
+          // Before setting, update the local dmxChannels state completely with the results of this calculation pass
+          // This ensures that `get().dmxChannels` is the new calculated state *before* `setMultipleDmxChannels` (which might be async for backend)
+          const fullyCalculatedDmxState = [...get().dmxChannels];
+          for (const addr in newDmxValuesBatch) {
+            fullyCalculatedDmxState[parseInt(addr)] = newDmxValuesBatch[addr];
+          }
+          set({ dmxChannels: fullyCalculatedDmxState });
+
+          // Now send the batch to backend
+          axios.post('/api/dmx/batch', newDmxValuesBatch)
+            .catch(error => {
+              console.error('Failed to update DMX channels in batch from _recalculateDmxOutput:', error);
+              get().addNotification({ message: 'Failed to apply group DMX calculations', type: 'error', priority: 'high' });
+            });
+        }
+      },
+
       // Actions
       fetchInitialState: async () => {
         try {
@@ -1245,87 +1385,76 @@ export const useStore = create<State>()(
         });
       },
       setGroupMasterValue: (groupId, value) => {
-        const { groups, fixtures, dmxChannels, setMultipleDmxChannels } = get();
-        const groupIndex = groups.findIndex(g => g.id === groupId);
-        if (groupIndex === -1) return;
+        const { groups, saveGroupLastStates, _recalculateDmxOutput } = get();
+        const groupExists = groups.some(g => g.id === groupId);
+        if (!groupExists) return;
 
-        const updatedGroups = groups.map(g => g.id === groupId ? { ...g, masterValue: value } : g);
-        set({ groups: updatedGroups });
-
-        const group = updatedGroups[groupIndex];
-        const batchUpdates: DmxChannelBatchUpdate = {};
-
-        const baseDmxValues = (group.lastStates && group.lastStates.length === 512) ? group.lastStates : dmxChannels;
-
-        group.fixtureIndices.forEach(fixtureIdx => {
-          const fixture = fixtures[fixtureIdx];
-          if (!fixture) return;
-
-          fixture.channels.forEach((channel, channelIdx) => {
-            if (channel.type.toLowerCase().includes('intensity') || channel.type.toLowerCase().includes('dimmer')) {
-              const dmxAddress = fixture.startAddress + channelIdx - 1;
-              if (dmxAddress >= 0 && dmxAddress < 512) {
-                const baseValue = baseDmxValues[dmxAddress];
-                const scaledValue = Math.round(baseValue * (value / 255));
-                batchUpdates[dmxAddress] = Math.max(0, Math.min(255, scaledValue));
-              }
+        let groupHadLastStates = false;
+        const updatedGroups = groups.map(g => {
+          if (g.id === groupId) {
+            if (g.lastStates && g.lastStates.length > 0) {
+              groupHadLastStates = true;
             }
-          });
+            let newLastStates = g.lastStates;
+            if (value > 0 && groupHadLastStates) {
+              newLastStates = []; // Clear lastStates as it's now live
+            }
+            return { ...g, masterValue: value, lastStates: newLastStates };
+          }
+          return g;
         });
 
-        if (Object.keys(batchUpdates).length > 0) {
-          setMultipleDmxChannels(batchUpdates);
-        }
-      },
-      setGroupMute: (groupId, isMuted) => {
-        const { saveGroupLastStates, setGroupMasterValue, groups } = get();
-        const group = groups.find(g => g.id === groupId);
-        if (!group) return;
-
-        // Update mute state in the store first
-        const updatedGroups = groups.map(g => g.id === groupId ? { ...g, isMuted } : g);
         set({ groups: updatedGroups });
 
-        const updatedGroup = updatedGroups.find(g => g.id === groupId)!;
-
-        if (isMuted) {
-          saveGroupLastStates(groupId);
-          setGroupMasterValue(groupId, 0);
-        } else {
-          setGroupMasterValue(groupId, updatedGroup.masterValue);
-
-          set(state => {
-            const groupIndex = state.groups.findIndex(g => g.id === groupId);
-            if (groupIndex === -1) return state;
-            const newGroupsScoped = [...state.groups];
-            newGroupsScoped[groupIndex] = { ...newGroupsScoped[groupIndex], lastStates: [] };
-            return { ...state, groups: newGroupsScoped };
-          });
+        if (value === 0) {
+          saveGroupLastStates(groupId); // Save state *after* masterValue is set to 0 internally
         }
+
+        _recalculateDmxOutput();
+      },
+      setGroupMute: (groupId, isMuted) => {
+        // The UI (`FixtureGroup.tsx`) handles calling `saveGroupLastStates(groupId)`
+        // and then `setGroupMasterValue(groupId, 0)` when muting.
+        // When unmuting, UI calls `setGroupMasterValue(groupId, oldMasterValue)`.
+        // So, this action primarily updates the `isMuted` flag and triggers recalculation.
+        set(state => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, isMuted } : g
+          )
+        }));
+        get()._recalculateDmxOutput();
       },
       setGroupSolo: (groupId, isSolo) => {
-        // TODO: Implement full solo logic. This is complex as it affects other groups.
-        // When a group is soloed, other non-soloed groups should be effectively muted.
-        // Their DMX values for intensity channels should go to 0, respecting their lastStates if they were muted.
-        // When a group is un-soloed, or all solo groups are un-soloed, the DMX state needs to be
-        // recalculated based on remaining soloed groups or all groups' individual master/mute states.
-        // This will likely require a "recalculate all DMX" function that considers all group controls.
-
         set(state => ({
-          groups: state.groups.map(g => {
-            if (g.id === groupId) {
-              return { ...g, isSolo };
-            }
-            // This is a placeholder. Proper logic would involve checking if *any* group is solo,
-            // and if so, non-soloed groups should be effectively muted.
-            // If no groups are solo, all revert to their normal master/mute states.
-            return g;
-          })
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, isSolo } : g
+          )
         }));
-
-        // Placeholder: Call a function to re-evaluate DMX for all groups based on solo, mute, master.
-        // get().applyAllGroupControls();
-        get().addNotification({ message: `Solo for group ${groupId} ${isSolo ? 'enabled' : 'disabled'}. Full logic pending.`, type: 'info'});
+        get()._recalculateDmxOutput();
+      },
+      setGroupPanOffset: (groupId, panOffset) => {
+        set(state => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, panOffset } : g
+          )
+        }));
+        get()._recalculateDmxOutput();
+      },
+      setGroupTiltOffset: (groupId, tiltOffset) => {
+        set(state => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, tiltOffset } : g
+          )
+        }));
+        get()._recalculateDmxOutput();
+      },
+      setGroupZoomValue: (groupId, zoomValue) => {
+        set(state => ({
+          groups: state.groups.map(g =>
+            g.id === groupId ? { ...g, zoomValue } : g
+          )
+        }));
+        get()._recalculateDmxOutput();
       },
       // Implementations for Group MIDI actions will go here later
       startGroupMidiLearn: (groupId) => {

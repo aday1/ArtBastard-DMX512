@@ -18,7 +18,10 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
     setGroupSolo,
     startMidiLearn,
     cancelMidiLearn,
-    midiLearnTarget 
+    midiLearnTarget,
+    setGroupPanOffset,
+    setGroupTiltOffset,
+    setGroupZoomValue
   } = useStore(state => ({
     updateGroup: state.updateGroup,
     saveGroupLastStates: state.saveGroupLastStates,
@@ -27,7 +30,10 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
     setGroupSolo: state.setGroupSolo,
     startMidiLearn: state.startMidiLearn,
     cancelMidiLearn: state.cancelMidiLearn,
-    midiLearnTarget: state.midiLearnTarget
+    midiLearnTarget: state.midiLearnTarget,
+    setGroupPanOffset: state.setGroupPanOffset,
+    setGroupTiltOffset: state.setGroupTiltOffset,
+    setGroupZoomValue: state.setGroupZoomValue,
   }));
 
   // Clean up any active fade on unmount
@@ -99,10 +105,8 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
   };
 
   const handleSoloToggle = () => {
-    if (!group.isSolo) {
-      // Save states before soloing
-      saveGroupLastStates(group.id);
-    }
+    // saveGroupLastStates(group.id) was removed as per plan.
+    // Soloing is a filter, not a state to be saved/restored like mute.
     setGroupSolo(group.id, !group.isSolo);
   };
   const handleMidiLearnClick = () => {
@@ -207,7 +211,7 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
             Mute
           </button>
           <button
-            className={`${styles.soloButton} ${group.isSolo ? styles.active : ''}`}
+            className={`${styles.soloButton} ${group.isSolo && !group.isMuted ? styles.active : ''}`}
             onClick={handleSoloToggle}
             title={group.isSolo ? "Un-solo" : "Solo"}
           >
@@ -230,6 +234,45 @@ export const FixtureGroup: React.FC<FixtureGroupProps> = ({ group, onEdit }) => 
             <i className="fas fa-sliders-h" />
             Ignore Master
           </button>
+        </div>
+
+        <div className={styles.ptzControls}>
+          <div className={styles.ptzSliderControl}>
+            <label htmlFor={`panOffset-${group.id}`}>Pan Offset: {group.panOffset || 0}</label>
+            <input
+              type="range"
+              id={`panOffset-${group.id}`}
+              min="-127"
+              max="127"
+              value={group.panOffset || 0}
+              onChange={(e) => setGroupPanOffset(group.id, parseInt(e.target.value))}
+              className={styles.slider}
+            />
+          </div>
+          <div className={styles.ptzSliderControl}>
+            <label htmlFor={`tiltOffset-${group.id}`}>Tilt Offset: {group.tiltOffset || 0}</label>
+            <input
+              type="range"
+              id={`tiltOffset-${group.id}`}
+              min="-127"
+              max="127"
+              value={group.tiltOffset || 0}
+              onChange={(e) => setGroupTiltOffset(group.id, parseInt(e.target.value))}
+              className={styles.slider}
+            />
+          </div>
+          <div className={styles.ptzSliderControl}>
+            <label htmlFor={`zoom-${group.id}`}>Zoom: {group.zoomValue || 0}</label>
+            <input
+              type="range"
+              id={`zoom-${group.id}`}
+              min="0"
+              max="255"
+              value={group.zoomValue || 0}
+              onChange={(e) => setGroupZoomValue(group.id, parseInt(e.target.value))}
+              className={styles.slider}
+            />
+          </div>
         </div>
       </div>
     </div>
