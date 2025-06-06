@@ -3,6 +3,7 @@ import { useStore, Fixture, MasterSlider } from '../../store'
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 import { useSocket } from '../../context/SocketContext'
+import { useChromaticEnergyManipulatorSettings } from '../../context/ChromaticEnergyManipulatorContext'
 import { MidiLearnButton } from '../midi/MidiLearnButton'
 
 import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version'; // Added getBuildInfo
@@ -14,6 +15,17 @@ interface TouchOscExportOptionsUI {
   includeFixtureControls: boolean
   includeMasterSliders: boolean
   includeAllDmxChannels: boolean
+}
+
+interface ChromaticEnergyManipulatorSettings {
+  enableKeyboardShortcuts: boolean
+  autoSelectFirstFixture: boolean
+  showQuickActions: boolean
+  defaultColorPresets: string[]
+  enableErrorMessages: boolean
+  autoUpdateRate: number
+  enableAnimations: boolean
+  compactMode: boolean
 }
 
 interface AppSettings {
@@ -44,14 +56,18 @@ interface AppSettings {
     midiMonitor: boolean;
     oscMonitor: boolean;
   };
+  chromaticEnergyManipulator: ChromaticEnergyManipulatorSettings;
 }
 
 export const Settings: React.FC = () => {
   const { theme, setTheme, darkMode, toggleDarkMode } = useTheme()
   const { socket, connected } = useSocket()
-
+  const { settings: chromaticSettings, updateSettings: updateChromaticSettings } = useChromaticEnergyManipulatorSettings()
   const {
     artNetConfig,
+    fixtures,
+    masterSliders,
+    midiMappings,
     navVisibility = {
       main: true,
       midiOsc: true,
@@ -69,6 +85,9 @@ export const Settings: React.FC = () => {
     addNotification
   } = useStore(state => ({
     artNetConfig: state.artNetConfig,
+    fixtures: state.fixtures,
+    masterSliders: state.masterSliders,
+    midiMappings: state.midiMappings,
     navVisibility: state.navVisibility,
     debugTools: state.debugTools,
     addNotification: state.addNotification
@@ -87,10 +106,8 @@ export const Settings: React.FC = () => {
   const [importInProgress, setImportInProgress] = useState(false);  const [touchOscExportInProgress, setTouchOscExportInProgress] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [logError, setLogError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
-  const [localNavVisibility, setLocalNavVisibility] = useState(navVisibility);
-  const [localDebugTools, setLocalDebugTools] = useState(debugTools);
+  const [autoRefresh, setAutoRefresh] = useState(false);  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [localNavVisibility, setLocalNavVisibility] = useState(navVisibility);  const [localDebugTools, setLocalDebugTools] = useState(debugTools);
 
   // Effect for log fetching
   useEffect(() => {
@@ -215,13 +232,12 @@ export const Settings: React.FC = () => {
         })
         
         // Reset local state
-        setWebPort(3000);
-        setDebugModules({
+        setWebPort(3000);        setDebugModules({
           midi: false,
           osc: false,
           artnet: false,
           button: true
-        })
+        });
         setLocalNavVisibility({
           main: true,
           midiOsc: true,
@@ -230,12 +246,20 @@ export const Settings: React.FC = () => {
           audio: true,
           touchosc: true,
           misc: true
-        })
-        setLocalDebugTools({
+        });        setLocalDebugTools({
           debugButton: true,
           midiMonitor: true,
           oscMonitor: true
-        })
+        });        updateChromaticSettings({
+          enableKeyboardShortcuts: true,
+          autoSelectFirstFixture: true,
+          showQuickActions: false,
+          defaultColorPresets: ['Red', 'Green', 'Blue', 'White', 'Yellow', 'Cyan', 'Magenta', 'Off'],
+          enableErrorMessages: true,
+          autoUpdateRate: 50,
+          enableAnimations: true,
+          compactMode: false
+        });
 
         // Show success message
         addNotification({
@@ -257,7 +281,6 @@ export const Settings: React.FC = () => {
       }
     }
   }
-
   // Export settings handler
   const handleExportSettings = () => {
     try {
@@ -271,7 +294,8 @@ export const Settings: React.FC = () => {
         fixtures,
         masterSliders,
         navVisibility: localNavVisibility,
-        debugTools: localDebugTools
+        debugTools: localDebugTools,
+        chromaticEnergyManipulator: chromaticSettings
       }
 
       const settingsJson = JSON.stringify(settings, null, 2)
@@ -305,9 +329,7 @@ export const Settings: React.FC = () => {
       if (!file) return
 
       const text = await file.text()
-      const settings: AppSettings = JSON.parse(text)
-
-      // Update store with imported settings
+      const settings: AppSettings = JSON.parse(text)      // Update store with imported settings
       useStoreUtils.setState({
         artNetConfig: settings.artNetConfig,
         fixtures: settings.fixtures,
@@ -323,7 +345,10 @@ export const Settings: React.FC = () => {
       setWebPort(settings.webPort)
       setDebugModules(settings.debugModules)
       setLocalNavVisibility(settings.navVisibility)
-      setLocalDebugTools(settings.debugTools)
+      setLocalDebugTools(settings.debugTools);
+      if (settings.chromaticEnergyManipulator) {
+        updateChromaticSettings(settings.chromaticEnergyManipulator);
+      }
 
       addNotification({
         message: 'Settings imported successfully',
@@ -512,6 +537,166 @@ export const Settings: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>        </div>
+
+        {/* ChromaticEnergyManipulator Settings Card */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h3>ChromaticEnergyManipulator Settings</h3>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.toggleGrid}>
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-keyboard-shortcuts"
+                    checked={chromaticSettings.enableKeyboardShortcuts}                    onChange={(e) => updateChromaticSettings({
+                      enableKeyboardShortcuts: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-keyboard-shortcuts" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.enableKeyboardShortcuts ? 'fa-keyboard' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Keyboard Shortcuts</span>
+                </div>
+              </div>
+
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-auto-select"
+                    checked={chromaticSettings.autoSelectFirstFixture}                    onChange={(e) => updateChromaticSettings({
+                      autoSelectFirstFixture: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-auto-select" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.autoSelectFirstFixture ? 'fa-mouse-pointer' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Auto-select First Fixture</span>
+                </div>
+              </div>
+
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-quick-actions"
+                    checked={chromaticSettings.showQuickActions}                    onChange={(e) => updateChromaticSettings({
+                      showQuickActions: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-quick-actions" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.showQuickActions ? 'fa-bolt' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Show Quick Actions</span>
+                </div>
+              </div>
+
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-error-messages"
+                    checked={chromaticSettings.enableErrorMessages}                    onChange={(e) => updateChromaticSettings({
+                      enableErrorMessages: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-error-messages" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.enableErrorMessages ? 'fa-exclamation-triangle' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Show Error Messages</span>
+                </div>
+              </div>
+
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-animations"
+                    checked={chromaticSettings.enableAnimations}                    onChange={(e) => updateChromaticSettings({
+                      enableAnimations: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-animations" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.enableAnimations ? 'fa-magic' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Enable Animations</span>
+                </div>
+              </div>
+
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="chromatic-compact-mode"
+                    checked={chromaticSettings.compactMode}                    onChange={(e) => updateChromaticSettings({
+                      compactMode: e.target.checked
+                    })}
+                  />
+                  <label htmlFor="chromatic-compact-mode" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${chromaticSettings.compactMode ? 'fa-compress' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Compact Mode</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="chromatic-update-rate">Auto Update Rate (ms)</label>
+              <input
+                type="number"
+                id="chromatic-update-rate"
+                value={chromaticSettings.autoUpdateRate}                onChange={(e) => updateChromaticSettings({
+                  autoUpdateRate: Math.max(10, Math.min(1000, Number(e.target.value)))
+                })}
+                min={10}
+                max={1000}
+                step={10}
+              />
+              <small>Lower values = faster updates, higher CPU usage (10-1000ms)</small>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Default Color Presets</label>
+              <div className={styles.colorPresetGrid}>
+                {['Red', 'Green', 'Blue', 'White', 'Yellow', 'Cyan', 'Magenta', 'Orange', 'Purple', 'Warm White', 'Cool White', 'Off'].map(color => (
+                  <div key={color} className={styles.colorPresetItem}>
+                    <input
+                      type="checkbox"
+                      id={`preset-${color}`}
+                      checked={chromaticSettings.defaultColorPresets.includes(color)}                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateChromaticSettings({
+                            defaultColorPresets: [...chromaticSettings.defaultColorPresets, color]
+                          });
+                        } else {
+                          updateChromaticSettings({
+                            defaultColorPresets: chromaticSettings.defaultColorPresets.filter(c => c !== color)
+                          });
+                        }
+                      }}
+                    />
+                    <label htmlFor={`preset-${color}`} className={styles.colorPresetLabel}>
+                      {color}
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -7,6 +7,74 @@
   min-width: 280px;
   max-width: 320px;
   font-size: 13px;
+  font-family: var(--system-sans);
+  position: relative;
+
+  // Error and Loading States
+  .errorMessage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    color: #dc3545;
+    font-size: 11px;
+    animation: slideIn 0.3s ease-out;
+
+    .closeError {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: rgba(220, 53, 69, 0.2);
+        border-radius: 2px;
+      }
+    }
+  }
+
+  .loadingIndicator {
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: rgba(13, 202, 240, 0.1);
+    border: 1px solid #0dcaf0;
+    border-radius: 4px;
+    color: #0dcaf0;
+    font-size: 11px;
+    text-align: center;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
 
   .header {
     display: flex;
@@ -175,27 +243,64 @@
       border: 1px solid var(--border-color);
       border-radius: 4px;
       margin: 4px 0;
-    }
+    }    .colorPresets {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 4px 0;
 
-    .colorPresets {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 4px;
+      .presetHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-secondary);
 
-      .presetButton {
-        width: 24px;
-        height: 24px;
-        border-radius: 3px;
-        cursor: pointer;
-        transition: transform 0.1s ease;
+        .togglePresets {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-size: 10px;
+          padding: 2px 4px;
+          border-radius: 2px;
+          transition: background-color 0.2s ease;
 
-        &:hover {
-          transform: scale(1.1);
+          &:hover {
+            background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+          }
         }
+      }
 
-        &:active {
-          transform: scale(0.95);
+      .presetsGrid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 3px;
+
+        .presetButton {
+          width: 28px;
+          height: 28px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.1s ease;
+          border: 1px solid transparent;
+
+          &:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          }
+
+          &:active {
+            transform: scale(0.95);
+          }
         }
+      }
+
+      .presetActions {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
       }
     }
   }

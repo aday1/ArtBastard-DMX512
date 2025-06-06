@@ -5,7 +5,7 @@ import { useDocking, DockPosition } from '@/context/DockingContext';
 interface DockableComponentProps {
   id: string;
   title: string;
-  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock';
+  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock' | 'chromatic-energy-manipulator';
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;

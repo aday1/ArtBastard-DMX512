@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { LucideIcon } from '../ui/LucideIcon';
 import styles from './ThemeToggleButton.module.scss';
 
 export const ThemeToggleButton: React.FC = () => {
@@ -23,14 +24,14 @@ export const ThemeToggleButton: React.FC = () => {
         onClick={toggleDarkMode}
         title="Toggle Light/Dark Mode"
       >
-        <i className={`fas ${darkMode ? 'fa-moon' : 'fa-sun'}`}></i>
+        <LucideIcon name={darkMode ? 'Moon' : 'Sun'} />
       </button>
       <button
         className={styles.iconButton}
         onClick={handleResetUI}
         title="Reset UI Elements"
       >
-        <i className="fas fa-sync-alt"></i>
+        <LucideIcon name="RefreshCw" />
       </button>
     </div>
   );

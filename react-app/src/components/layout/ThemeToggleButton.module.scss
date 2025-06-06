@@ -9,7 +9,6 @@
   background-color: var(--color-card-bg);
   border-radius: var(--border-radius, 8px); // Use global border-radius or a default
   box-shadow: var(--card-shadow);
-  // Removed fixed width and height, cursor, direct align/justify for single item
 }
 
 .iconButton {
@@ -24,14 +23,16 @@
   cursor: pointer;
   padding: 8px;       // Padding inside each button for the icon
   color: var(--color-text); // Icon color
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 
-  i {
-    font-size: 18px; // Slightly smaller icon to fit new button size
+  svg {
+    width: 20px;
+    height: 20px;
   }
 
   &:hover {
     background-color: var(--color-card-border); // Hover effect on individual buttons
+    transform: scale(1.1);
   }
 
   &:focus {

@@ -4,13 +4,102 @@
   border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  .container {
+  font-family: var(--system-sans);
+    .container {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 8px;
     font-size: 12px;
+    position: relative;
+  }
+
+  // Error and Loading States
+  .errorMessage {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid #dc3545;
+    border-radius: 4px;
+    color: #dc3545;
+    font-size: 11px;
+    animation: slideIn 0.3s ease-out;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .closeError {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 2px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background: rgba(220, 53, 69, 0.2);
+      }
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+    }
+  }
+
+  .loadingIndicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(13, 202, 240, 0.1);
+    border: 1px solid #0dcaf0;
+    border-radius: 4px;
+    color: #0dcaf0;
+    font-size: 11px;
+    animation: pulse 1.5s ease-in-out infinite;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
   }
 
   .fixtureSection {
@@ -44,9 +133,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    }
-
-    .fixtureDropdown {
+    }    .fixtureDropdown {
       position: absolute;
       top: 100%;
       left: 0;
@@ -59,6 +146,147 @@
       overflow-y: auto;
       z-index: 1000;
 
+      // Bulk Controls
+      .bulkControls {
+        display: flex;
+        gap: 4px;
+        padding: 8px;
+        border-bottom: 1px solid var(--border-color);
+        
+        .bulkButton {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 4px 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 3px;
+          color: var(--text-primary);
+          cursor: pointer;
+          font-size: 10px;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background: var(--accent-color);
+            color: white;
+          }
+
+          svg {
+            width: 12px;
+            height: 12px;
+          }
+        }
+      }
+
+      // Flag Management Panel
+      .flagPanel {
+        padding: 8px;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+
+        .flagCreation {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 8px;
+
+          .flagInput {
+            padding: 4px 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 10px;
+
+            &::placeholder {
+              color: var(--text-secondary);
+            }
+          }
+
+          .colorInput {
+            width: 40px;
+            height: 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: transparent;
+            cursor: pointer;
+          }
+
+          .createFlagButton {
+            padding: 4px 8px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: opacity 0.2s ease;
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+
+            &:not(:disabled):hover {
+              opacity: 0.9;
+            }
+          }
+        }
+
+        .flagSelection,
+        .categorySelection {
+          margin-bottom: 8px;
+
+          h4 {
+            margin: 0 0 4px 0;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+          }
+
+          .flagButton,
+          .categoryButton {
+            display: inline-block;
+            margin: 2px 4px 2px 0;
+            padding: 2px 6px;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+
+            &:hover {
+              opacity: 0.8;
+            }
+          }
+
+          .categoryButton {
+            background: var(--text-secondary);
+          }
+        }
+
+        .clearFlagsButton {
+          width: 100%;
+          padding: 4px 8px;
+          background: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 10px;
+          transition: opacity 0.2s ease;
+
+          &:hover {
+            opacity: 0.9;
+          }
+        }
+      }
+
       .fixtureOption {
         display: block;
         width: 100%;
@@ -70,6 +298,50 @@
         font-size: 11px;
         text-align: left;
         transition: background 0.2s ease;
+        position: relative;
+
+        .fixtureInfo {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+
+          .fixtureName {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .flagIndicators {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+
+            .flagIndicator {
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+
+            .moreFlags {
+              margin-left: 2px;
+              font-size: 8px;
+              color: var(--text-secondary);
+            }
+          }
+        }
+
+        .checkIcon {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 12px;
+          height: 12px;
+          color: white;
+        }
 
         &:hover {
           background: var(--bg-secondary);
@@ -78,6 +350,10 @@
         &.selected {
           background: var(--accent-color);
           color: white;
+
+          .fixtureInfo .flagIndicators .moreFlags {
+            color: rgba(255, 255, 255, 0.7);
+          }
         }
 
         &:first-child {
@@ -90,11 +366,113 @@
       }
     }
   }
-
   .controlsSection {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  // Quick Actions
+  .quickActions {
+    .quickActionButton {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      background: var(--bg-tertiary, #3a3a3a);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--accent-color);
+        color: white;
+      }
+
+      svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .quickActionsPanel {
+      margin-top: 6px;
+      padding: 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+
+    .colorPresets {
+      margin-bottom: 8px;
+      
+      .presetGrid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        margin-bottom: 6px;
+
+        .presetButton {
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.1s ease;
+          border: 2px solid transparent;
+
+          &:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          }
+
+          &:active {
+            transform: scale(0.95);
+          }
+        }
+      }
+
+      .colorQuickActions {
+        display: flex;
+        gap: 4px;
+      }
+    }
+
+    .movementQuickActions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .actionButton {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--accent-color);
+        color: white;
+      }
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+    }
   }
 
   .colorControl,

@@ -46,14 +46,14 @@
     "typescript": "~4.9.5",
     "vite": "^4.5.14",
     "vitest": "^3.2.1"
-  },
-  "scripts": {
+  },  "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm --omit=optional run build:vite",
+    "build:vite": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "postinstall": "npm run copy-fonts",
+    "postinstall": "npm --omit=optional run copy-fonts",
     "copy-fonts": "copyfiles -u 1 node_modules/@fortawesome/fontawesome-free/css/* public/fontawesome/css/ && copyfiles -u 1 node_modules/@fortawesome/fontawesome-free/webfonts/* public/fontawesome/webfonts/"
   },
   "eslintConfig": {

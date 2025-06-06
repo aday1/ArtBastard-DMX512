@@ -16,6 +16,9 @@ process.env.ROLLUP_NO_NATIVE = 'true'
 // Suppress Sass deprecation warnings
 process.env.SASS_SILENCE_DEPRECATIONS = 'legacy-js-api'
 
+// Suppress NPM warnings
+process.env.NPM_CONFIG_OPTIONAL = 'false'
+
 export default defineConfig({
   plugins: [
     react({
@@ -85,13 +88,18 @@ export default defineConfig({
           if (warning.code === 'THIS_IS_UNDEFINED' || 
               warning.code === 'MODULE_LEVEL_DIRECTIVE' ||
               warning.message.includes('Use of eval') ||
-              warning.message.includes('@rollup/rollup-')) {
+              warning.message.includes('@rollup/rollup-') ||
+              warning.message.includes('referenced in') ||
+              warning.message.includes("didn't resolve at build time")) {
             return;
           }
           warn(warning);
         }
       } : {})
-    }
+    },
+    // Suppress warnings about unresolved public assets
+    assetsInlineLimit: 0, // Don't inline any assets
+    copyPublicDir: true, // Ensure public directory is copied
   },
   server: {
     port: 3001,
@@ -159,16 +167,7 @@ export default defineConfig({
               console.error(`[VITE PROXY ERROR] ${req.url}:`, err);
             }
           });
-        }
-      }
+        }      }
     }
-  },
-  // Vitest configuration
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts', // Path to your setup file
-    // You can add more Vitest options here as needed
-    // css: true, // if you want to process CSS in tests (experimental)
   }
 });

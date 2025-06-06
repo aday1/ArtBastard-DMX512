@@ -38,7 +38,6 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
   const [dmxTestChannel, setDmxTestChannel] = useState('1');
   const [dmxTestValue, setDmxTestValue] = useState('255');
   const [touchOscGenerating, setTouchOscGenerating] = useState(false);
-
   const { 
     midiMessages, 
     midiMappings, 
@@ -59,12 +58,12 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     debugTools: state.debugTools
   }));
 
+  const { socket, connected } = useSocket();
+
   // Don't render if debugButton is disabled in debugTools
   if (!debugTools.debugButton) {
     return null;
   }
-
-  const { socket, connected } = useSocket();
 
   useEffect(() => {
     const updateSystemInfo = () => {

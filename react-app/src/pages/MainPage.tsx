@@ -10,6 +10,7 @@ import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
 import { SceneQuickLaunch } from '../components/scenes/SceneQuickLaunch'
 import { AutoSceneControlMini } from '../components/scenes/AutoSceneControlMini'
+// Use the fixtures mini version for the main page
 import ChromaticEnergyManipulatorMini from '../components/fixtures/ChromaticEnergyManipulatorMini'
 import { OscDebug } from '../components/osc/OscDebug'
 import { TouchOSCExporter } from '../components/osc/TouchOSCExporter'

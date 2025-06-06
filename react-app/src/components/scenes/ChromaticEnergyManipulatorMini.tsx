@@ -6,6 +6,9 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
   const [selectedFixture, setSelectedFixture] = useState<string | null>(null);
   const [showColorControls, setShowColorControls] = useState(true);
   const [showMovementControls, setShowMovementControls] = useState(true);
+  const [showColorPresets, setShowColorPresets] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   
   const { fixtures, theme, getDmxChannelValue, setDmxChannelValue } = useStore((state) => ({
     fixtures: state.fixtures,
@@ -56,22 +59,15 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
     return { rgbChannels, movementChannels };
   };
 
-  // Check if a fixture has RGB or Pan/Tilt channels
-  const hasColorOrMovementControls = (fixture: Fixture) => {
-    const hasRGB = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
-    const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
-    return hasRGB || hasMovement;
-  };
+  // Show all fixtures regardless of channel types
+  const compatibleFixtures = fixtures;
   
-  // Filter fixtures that have RGB or movement controls
-  const compatibleFixtures = fixtures.filter(hasColorOrMovementControls);
-  
-  // Auto-select the first fixture if none selected and compatible fixtures exist
+  // Auto-select the first fixture if none selected and fixtures exist
   useEffect(() => {
-    if (!selectedFixture && compatibleFixtures.length > 0) {
-      setSelectedFixture(compatibleFixtures[0].id);
+    if (!selectedFixture && fixtures.length > 0) {
+      setSelectedFixture(fixtures[0].id);
     }
-  }, [selectedFixture, compatibleFixtures]);
+  }, [selectedFixture, fixtures]);
   
   // Get the channels for the currently selected fixture
   const { rgbChannels, movementChannels } = selectedFixture ? 
@@ -90,31 +86,44 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
   };
 
   const currentValues = getCurrentValues();
-
   // Handle color value changes
   const handleColorChange = (channel: 'red' | 'green' | 'blue', value: number) => {
-    const channelMap = {
-      red: rgbChannels.redChannel,
-      green: rgbChannels.greenChannel,
-      blue: rgbChannels.blueChannel
-    };
-    
-    const channelNumber = channelMap[channel];
-    if (channelNumber !== undefined) {
-      setDmxChannelValue(channelNumber, value);
+    try {
+      setConnectionError(null);
+      const channelMap = {
+        red: rgbChannels.redChannel,
+        green: rgbChannels.greenChannel,
+        blue: rgbChannels.blueChannel
+      };
+      
+      const channelNumber = channelMap[channel];
+      if (channelNumber !== undefined && channelNumber >= 0) {
+        const clampedValue = Math.max(0, Math.min(255, value));
+        setDmxChannelValue(channelNumber, clampedValue);
+      }
+    } catch (error) {
+      setConnectionError(`Failed to update ${channel} channel`);
+      console.error(`Color change error for ${channel}:`, error);
     }
   };
 
   // Handle movement value changes
   const handleMovementChange = (axis: 'pan' | 'tilt', value: number) => {
-    const channelMap = {
-      pan: movementChannels.panChannel,
-      tilt: movementChannels.tiltChannel
-    };
-    
-    const channelNumber = channelMap[axis];
-    if (channelNumber !== undefined) {
-      setDmxChannelValue(channelNumber, value);
+    try {
+      setConnectionError(null);
+      const channelMap = {
+        pan: movementChannels.panChannel,
+        tilt: movementChannels.tiltChannel
+      };
+      
+      const channelNumber = channelMap[axis];
+      if (channelNumber !== undefined && channelNumber >= 0) {
+        const clampedValue = Math.max(0, Math.min(255, value));
+        setDmxChannelValue(channelNumber, clampedValue);
+      }
+    } catch (error) {
+      setConnectionError(`Failed to update ${axis} axis`);
+      console.error(`Movement change error for ${axis}:`, error);
     }
   };
 
@@ -129,17 +138,45 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
     { name: 'Magenta', r: 255, g: 0, b: 255 },
     { name: 'Off', r: 0, g: 0, b: 0 }
   ];
-
   const applyColorPreset = (preset: { r: number; g: number; b: number }) => {
-    handleColorChange('red', preset.r);
-    handleColorChange('green', preset.g);
-    handleColorChange('blue', preset.b);
+    try {
+      setIsUpdating(true);
+      setConnectionError(null);
+      
+      handleColorChange('red', preset.r);
+      handleColorChange('green', preset.g);
+      handleColorChange('blue', preset.b);
+    } catch (error) {
+      setConnectionError('Failed to apply color preset');
+      console.error('Color preset error:', error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Movement presets
   const centerMovement = () => {
-    handleMovementChange('pan', 127);
-    handleMovementChange('tilt', 127);
+    try {
+      setIsUpdating(true);
+      setConnectionError(null);
+      
+      handleMovementChange('pan', 127);
+      handleMovementChange('tilt', 127);
+    } catch (error) {
+      setConnectionError('Failed to center movement');
+      console.error('Movement center error:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const randomizeColor = () => {
+    const randomColor = {
+      r: Math.floor(Math.random() * 256),
+      g: Math.floor(Math.random() * 256),
+      b: Math.floor(Math.random() * 256)
+    };
+    applyColorPreset(randomColor);
   };
 
   const hasRGBChannels = Object.keys(rgbChannels).length > 0;
@@ -157,9 +194,28 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
         return 'Color & Movement';
     }
   };
-
   return (
     <div className={styles.chromaticEnergyMini}>
+      {/* Error Display */}
+      {connectionError && (
+        <div className={styles.errorMessage}>
+          <span>⚠️ {connectionError}</span>
+          <button 
+            onClick={() => setConnectionError(null)}
+            className={styles.closeError}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Loading Indicator */}
+      {isUpdating && (
+        <div className={styles.loadingIndicator}>
+          <span>⟳ Updating...</span>
+        </div>
+      )}
+
       <div className={styles.header}>
         <h4 className={styles.title}>{getThemeTitle()}</h4>
         
@@ -170,7 +226,7 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
             className={styles.fixtureSelect}
           >
             <option value="">-- Select fixture --</option>
-            {compatibleFixtures.map((fixture) => (
+              {fixtures.map((fixture) => (
               <option key={fixture.id} value={fixture.id}>
                 {fixture.name}
               </option>
@@ -252,22 +308,44 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
                     style={{
                       backgroundColor: `rgb(${currentValues.red}, ${currentValues.green}, ${currentValues.blue})`
                     }}
-                  />
-
-                  {/* Color Presets */}
+                  />                  {/* Color Presets */}
                   <div className={styles.colorPresets}>
-                    {colorPresets.map((preset, index) => (
+                    <div className={styles.presetHeader}>
+                      <span>Quick Colors</span>
                       <button
-                        key={index}
-                        className={styles.presetButton}
-                        style={{
-                          backgroundColor: `rgb(${preset.r}, ${preset.g}, ${preset.b})`,
-                          border: `1px solid ${preset.r + preset.g + preset.b < 100 ? '#666' : '#333'}`
-                        }}
-                        onClick={() => applyColorPreset(preset)}
-                        title={preset.name}
-                      />
-                    ))}
+                        className={styles.togglePresets}
+                        onClick={() => setShowColorPresets(!showColorPresets)}
+                      >
+                        {showColorPresets ? '▼' : '▶'}
+                      </button>
+                    </div>
+                    
+                    {showColorPresets && (
+                      <div className={styles.presetsGrid}>
+                        {colorPresets.map((preset, index) => (
+                          <button
+                            key={index}
+                            className={styles.presetButton}
+                            style={{
+                              backgroundColor: `rgb(${preset.r}, ${preset.g}, ${preset.b})`,
+                              border: `1px solid ${preset.r + preset.g + preset.b < 100 ? '#666' : '#333'}`
+                            }}
+                            onClick={() => applyColorPreset(preset)}
+                            title={preset.name}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className={styles.presetActions}>
+                      <button 
+                        className={styles.actionButton}
+                        onClick={randomizeColor}
+                        title="Random Color"
+                      >
+                        🎲 Random
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -322,15 +400,24 @@ export const ChromaticEnergyManipulatorMini: React.FC = () => {
                         <span className={styles.value}>{currentValues.tilt}</span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Movement Presets */}
+                  </div>                  {/* Movement Presets */}
                   <div className={styles.movementPresets}>
                     <button 
                       className={styles.actionButton}
                       onClick={centerMovement}
+                      title="Center Position"
                     >
-                      Center
+                      🎯 Center
+                    </button>
+                    <button 
+                      className={styles.actionButton}
+                      onClick={() => {
+                        handleMovementChange('pan', 0);
+                        handleMovementChange('tilt', 0);
+                      }}
+                      title="Home Position"
+                    >
+                      🏠 Home
                     </button>
                   </div>
                 </div>

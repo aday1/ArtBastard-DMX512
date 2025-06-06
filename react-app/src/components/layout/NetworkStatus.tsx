@@ -198,60 +198,24 @@ export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compa
             <span className={styles.value}>
               {health?.memoryUsage ? formatMemory(health.memoryUsage.heapUsed) : 'Unknown'}
             </span>
-          </div>
-        </div>
+          </div>        </div>
       </div>
     </div>
-  )
+  );
+
   if (compact) {
-    // Calculate uptime in a readable format
-    const formatUptime = (seconds?: number): string => {
-      if (!seconds) return 'Unknown';
-      const days = Math.floor(seconds / (24 * 3600));
-      const hours = Math.floor((seconds % (24 * 3600)) / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      
-      let result = '';
-      if (days > 0) result += `${days}d `;
-      if (hours > 0 || days > 0) result += `${hours}h `;
-      result += `${minutes}m`;
-      
-      return result;
-    };
-    
-    // Calculate total MIDI devices (server + browser)
-    const totalMidiDevices = (health?.midiDevicesConnected || 0) + (activeBrowserInputs?.size || 0);
-    const artNetDetails = getArtNetDisplayDetails(health?.artnetStatus);
+    // Super compact - just an icon that shows overall status
+    const overallStatus = health?.status === 'ok' && connected ? 'ok' : 'degraded';
+    const statusIcon = overallStatus === 'ok' ? 'fa-wifi' : 'fa-exclamation-triangle';
     
     return (
-      <div className={styles.compactView}>
-        <span 
-          className={`${styles.compactItem} ${styles.statusIndicator}`}
-          title={`Server Status: ${health?.serverStatus || 'Unknown'}\nUptime: ${formatUptime(health?.uptime)}\nLast Update: ${lastUpdate?.toLocaleTimeString() || 'Unknown'}`}
-        >
-          <i className={`fas fa-server ${health?.serverStatus === 'ok' ? styles.statusOk : styles.statusDegraded}`}></i> 
-          {health?.serverStatus === 'ok' ? 'Online' : 'Degraded'}
-        </span>
-        <span 
-          className={`${styles.compactItem} ${styles.connectionIndicator}`}
-          title={`Socket Status: ${connected ? 'Connected' : 'Disconnected'}\nConnections: ${health?.socketConnections || 0}`}
-        >
-          <i className={`fas fa-plug ${connected ? styles.statusOk : styles.statusDegraded}`}></i> 
-          {connected ? 'Connected' : 'Disconnected'}
-        </span>
-        <span 
-          className={`${styles.compactItem} ${styles.midiIndicator} ${midiActivity ? styles.midiActive : ''}`}
-          title={`MIDI Devices - Browser: ${activeBrowserInputs?.size || 0}, Server: ${health?.midiDevicesConnected || 0}`}
-        >
-          <i className="fas fa-music"></i> {totalMidiDevices} MIDI
-        </span>
-        <span 
-          className={`${styles.compactItem} ${styles.artnetIndicator}`}
-          title={`ArtNet Status: ${artNetDetails.fullText}`}
-        >
-          <i className={`fas fa-network-wired ${styles[artNetDetails.styleKey]}`}></i> {artNetDetails.shortText}
-        </span>
-      </div>
+      <button 
+        className={`${styles.compactIcon} ${styles[overallStatus]}`}
+        title={`Network Status: ${overallStatus.toUpperCase()}\nServer: ${health?.serverStatus || 'Unknown'}\nSocket: ${connected ? 'Connected' : 'Disconnected'}\nMIDI: ${(health?.midiDevicesConnected || 0) + (activeBrowserInputs?.size || 0)} devices\nClick for details`}
+        onClick={() => setShowModal(true)}
+      >
+        <i className={`fas ${statusIcon}`}></i>
+      </button>
     )
   }
 

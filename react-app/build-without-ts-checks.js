@@ -67,13 +67,36 @@ try {
 </html>`
     );
   }
-
   // First try running without type checking since that's often the issue
   console.log('Running Vite build without TypeScript checks...');
-  execSync('npx vite build --emptyOutDir false', { 
-    stdio: 'inherit',
-    env: { ...process.env, VITE_SKIP_TS_CHECK: 'true' }
+    // Set environment variables to suppress warnings
+  const buildEnv = { 
+    ...process.env, 
+    SKIP_TYPECHECKING: 'true',
+    NPM_CONFIG_OPTIONAL: 'false',
+    npm_config_optional: 'false',
+    NPM_CONFIG_FUND: 'false',
+    NPM_CONFIG_AUDIT: 'false'
+  };
+  
+  // Execute vite build with warning suppression
+  const child = execSync('npx vite build --emptyOutDir false 2>&1', { 
+    stdio: 'pipe',
+    env: buildEnv
   });
+  
+  // Filter out npm warnings from output
+  const output = child.toString();
+  const filteredOutput = output
+    .split('\n')
+    .filter(line => !line.includes('npm warn config optional'))
+    .filter(line => !line.includes('npm warn config'))
+    .filter(line => !line.includes('Default value does install optional deps'))
+    .join('\n');
+  
+  if (filteredOutput.trim()) {
+    console.log(filteredOutput);
+  }
   
   console.log('✨ React build completed successfully!');
 } catch (error) {

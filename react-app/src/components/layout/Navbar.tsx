@@ -5,13 +5,14 @@ import { NetworkStatus } from './NetworkStatus'
 import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
-import { LucideIcon } from '../ui/LucideIcon' // Using our adapter for lucide-react icons
+import { LucideIcon } from '../ui/LucideIcon'
 
 type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'audio' | 'touchosc' | 'misc'
 
+// Updated navigation items with Lucide icon names
 const navItems: Array<{
   id: ViewType
-  icon: string
+  icon: string // Lucide icon name
   title: {
     artsnob: string
     standard: string
@@ -20,113 +21,110 @@ const navItems: Array<{
 }> = [
   {
     id: 'main',
-    icon: 'fa-lightbulb',
+    icon: 'Layout',
     title: {
-      artsnob: 'Luminous Canvas',
-      standard: 'Main Control',
+      artsnob: 'Main Interface',
+      standard: 'Dashboard',
       minimal: 'Main'
     }
   },
   {
     id: 'midiOsc',
-    icon: 'fa-sliders-h',
+    icon: 'Sliders',
     title: {
-      artsnob: 'MIDI/OSC Atelier',
-      standard: 'MIDI/OSC Setup',
+      artsnob: 'Control Setup',
+      standard: 'MIDI & OSC',
       minimal: 'I/O'
     }
   },
   {
     id: 'fixture',
-    icon: 'fa-object-group',
+    icon: 'LampDesk',
     title: {
-      artsnob: 'Fixture Composition',
-      standard: 'Fixture Setup',
+      artsnob: 'Fixtures',
+      standard: 'Fixtures',
       minimal: 'Fix'
-    }  },  {
+    }
+  },
+  {
     id: 'scenes',
-    icon: 'fa-theater-masks',
+    icon: 'Store',
     title: {
-      artsnob: 'Scene Gallery',
+      artsnob: 'Scene Library',
       standard: 'Scenes',
       minimal: 'Scn'
     }
   },
   {
     id: 'audio',
-    icon: 'fa-music',
+    icon: 'WaveformCircle',
     title: {
-      artsnob: 'Audio Spectrum',
-      standard: 'Audio FFT',
+      artsnob: 'Audio Analysis',
+      standard: 'Audio',
       minimal: 'FFT'
     }
   },
   {
     id: 'touchosc',
-    icon: 'fa-mobile-alt',
+    icon: 'Smartphone',
     title: {
-      artsnob: 'TouchOSC Designer',
+      artsnob: 'Remote Control',
       standard: 'TouchOSC',
       minimal: 'OSC'
     }
   },
   {
     id: 'misc',
-    icon: 'fa-cog',
+    icon: 'Settings',
     title: {
-      artsnob: 'Avant-Garde Settings',
+      artsnob: 'Configuration',
       standard: 'Settings',
       minimal: 'Cfg'
     }
   }
 ]
 
-export const Navbar: React.FC = () => {  const { theme } = useTheme()
+export const Navbar: React.FC = () => {
+  const { theme } = useTheme()
   const [activeView, setActiveView] = useState<ViewType>('main')
   const [isCollapsed, setIsCollapsed] = useState(false)
-  
   const navVisibility = useStore((state) => state.navVisibility)
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view)
-    window.dispatchEvent(new CustomEvent('changeView', {
-      detail: { view }
-    }))
+    window.dispatchEvent(new CustomEvent('changeView', { detail: { view } }))
   }
+
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed)
   }
-  
-  // The parent div now controls the overall block, its margin, and stickiness.
-  // The toggle button is outside the element that gets display:none.
+
   return (
-    <div className={styles.navbarContainer}>      <button 
-        className={styles.collapseToggle}
+    <div className={styles.navbarContainer}>
+      <button
         onClick={toggleCollapse}
-        title={isCollapsed ? "Expand navigation" : "Collapse navigation"}      >        {isCollapsed ? (
-          <LucideIcon name="Menu" size={24} strokeWidth={1.5} />
-        ) : (
-          <LucideIcon name="X" size={24} strokeWidth={1.5} />
-        )} {/* Using LucideIcon adapter */}
+        className={styles.collapseToggle}
+        title={isCollapsed ? 'Expand Navigation' : 'Collapse Navigation'}
+      >
+        <LucideIcon name={isCollapsed ? 'PanelRightOpen' : 'PanelLeftClose'} />
       </button>
-      <nav className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
-        <Sparkles />
-        {/* Removed the old internal toggle button from here */}
-        <div className={styles.navButtons}>          {navItems
-            .filter(item => navVisibility[item.id])
-            .map((item) => (
-              <button
-                key={item.id}
-                className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
-                onClick={() => handleViewChange(item.id)}
-                title={item.title.standard}
-              >
-                <i className={`fas ${item.icon}`}></i>
-                <span>{item.title[theme]}</span>
-              </button>
-            ))}
+
+      <div className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
+        <div className={styles.navButtons}>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleViewChange(item.id)}
+              className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
+              title={item.title[theme as keyof typeof item.title]}
+            >
+              <LucideIcon name={item.icon} />
+              <span>{item.title[theme as keyof typeof item.title]}</span>
+            </button>
+          ))}
         </div>
-      </nav>
+        <NetworkStatus compact={true} />
+      </div>
     </div>
   )
 }

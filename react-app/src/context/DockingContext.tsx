@@ -11,7 +11,7 @@ export interface DockedComponent {
   position: DockPosition;
   zIndex: number;
   isCollapsed: boolean;
-  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock';
+  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock' | 'chromatic-energy-manipulator';
 }
 
 export interface DockingState {

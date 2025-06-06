@@ -2,14 +2,12 @@ import React from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { StatusBar } from './StatusBar'
 import { Navbar } from './Navbar'
-import { ToastContainer } from './ToastContainer' // Import ToastContainer
+import { ToastContainer } from './ToastContainer'
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
 import DebugMenu from '../debug/DebugMenu'
-// MidiMonitor is likely not needed here if it's a floating component managed elsewhere
-// import MidiMonitor from '../midi/MidiMonitor'
 import styles from './Layout.module.scss'
-import { Sparkles } from './Sparkles'; // Import Sparkles
+import { Sparkles } from './Sparkles'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -18,19 +16,12 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, darkMode, toggleDarkMode } = useTheme()
 
-  return (
-    <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`}>
-      <Sparkles /> {/* Add Sparkles component here for global background */}
+  return (    <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`} 
+         style={{ fontFeatureSettings: "'liga' 1, 'calt' 1, 'tnum' 1, 'case' 1" }}>
+      <Sparkles />
       <Navbar />
-      {/* Render ToastContainer without props as it fetches its own state */}
       <ToastContainer /> 
       <div className={styles.contentWrapper}>
-        {/* Network status is now in navbar, so this panel is removed */}
-        
-        {/* <div className={styles.themeToggle} onClick={toggleDarkMode} title="Toggle Light/Dark Mode">
-          <i className={`fas ${darkMode ? 'fa-moon' : 'fa-sun'}`}></i>
-        </div> */}
-        
         <div className={styles.mainContent}>
           <h1 className={styles.title}>
             ArtBastard DMX512FTW: 
@@ -42,13 +33,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {theme === 'artsnob' && (
             <FancyQuotes intervalSeconds={30} animate={true} />
           )}
-            <main className={styles.contentArea}>
+          <main className={styles.contentArea}>
             {children}
-          </main>          {/* Add Debug Menu for troubleshooting */}
+          </main>
           <DebugMenu position="top-right" />
         </div>
       </div>
-      
       <StatusBar />
     </div>
   )

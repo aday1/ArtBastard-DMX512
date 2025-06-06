@@ -14,6 +14,17 @@ export interface Fixture {
   name: string
   startAddress: number
   channels: { name: string; type: string }[]
+  // Flagging system for organizing fixtures
+  flags?: FixtureFlag[]
+  isFlagged?: boolean
+}
+
+export interface FixtureFlag {
+  id: string
+  name: string
+  color: string
+  priority?: number // Higher numbers = higher priority
+  category?: string // Optional grouping
 }
 
 export interface Group {
@@ -354,12 +365,23 @@ interface State {
   setGroupMasterValue: (groupId: string, value: number) => void;
   setGroupMute: (groupId: string, isMuted: boolean) => void;
   setGroupSolo: (groupId: string, isSolo: boolean) => void;
-  
-  // Group MIDI actions
+    // Group MIDI actions
   startGroupMidiLearn: (groupId: string) => void;
   cancelGroupMidiLearn: () => void;
   setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) => void;
   handleMidiForGroups: (message: any) => void;
+
+  // Fixture Flagging Actions
+  addFixtureFlag: (fixtureId: string, flag: FixtureFlag) => void;
+  removeFixtureFlag: (fixtureId: string, flagId: string) => void;
+  toggleFixtureFlag: (fixtureId: string, flagId: string) => void;
+  updateFixtureFlag: (fixtureId: string, flagId: string, updates: Partial<FixtureFlag>) => void;
+  clearFixtureFlags: (fixtureId: string) => void;
+  getFixturesByFlag: (flagId: string) => Fixture[];
+  getFixturesByFlagCategory: (category: string) => Fixture[];
+  createQuickFlag: (name: string, color: string, category?: string) => FixtureFlag;
+  bulkAddFlag: (fixtureIds: string[], flag: FixtureFlag) => void;
+  bulkRemoveFlag: (fixtureIds: string[], flagId: string) => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -516,8 +538,7 @@ export const useStore = create<State>()(
             // No explicit success notification here, to avoid clutter on normal startup
             return 
           }
-          throw new Error('Invalid response from server')
-        } catch (error: any) {
+          throw new Error('Invalid response from server')        } catch (error: any) {
           console.error('Failed to fetch initial state:', error)
           get().addNotification({ 
             message:
@@ -529,18 +550,38 @@ export const useStore = create<State>()(
             persistent: true
           })
           
-          set({
-            dmxChannels: new Array(512).fill(0),
-            oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-            channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-            fixtures: [],
-            groups: [],
-            midiMappings: {},
-            scenes: [],
-            fixtureLayout: [], 
-            masterSliders: [], 
-            transitionDuration: 1000, 
-          })        }
+          // Only set default values if we don't have existing data
+          // This prevents clearing fixtures during navigation when server is unavailable
+          const currentState = get()
+          const hasExistingFixtures = currentState.fixtures && currentState.fixtures.length > 0
+          
+          if (!hasExistingFixtures) {
+            set({
+              dmxChannels: new Array(512).fill(0),
+              oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+              channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+              fixtures: [],
+              groups: [],
+              midiMappings: {},
+              scenes: [],
+              fixtureLayout: [], 
+              masterSliders: [], 
+              transitionDuration: 1000, 
+            })
+          } else {
+            // If we have existing fixtures, only set essential defaults for missing data
+            set({
+              dmxChannels: currentState.dmxChannels || new Array(512).fill(0),
+              oscAssignments: currentState.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+              channelNames: currentState.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+              // Keep existing fixtures, groups, etc.
+              midiMappings: currentState.midiMappings || {},
+              scenes: currentState.scenes || [],
+              masterSliders: currentState.masterSliders || [], 
+              transitionDuration: currentState.transitionDuration || 1000, 
+            })
+          }
+        }
       },
       
       getDmxChannelValue: (channel) => {
@@ -1344,9 +1385,178 @@ export const useStore = create<State>()(
           midiLearnTarget: null,
         }));
         get().addNotification({ message: `MIDI mapped for Group: ${groupId}`, type: 'success' });
-      },
-      handleMidiForGroups: (message) => {
+      },      handleMidiForGroups: (message) => {
         // Placeholder for MIDI handling logic for groups
+      },
+
+      // Fixture Flagging Actions
+      addFixtureFlag: (fixtureId, flag) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => {
+            if (f.id === fixtureId) {
+              const existingFlags = f.flags || [];
+              const flagExists = existingFlags.some(existingFlag => existingFlag.id === flag.id);
+              
+              if (!flagExists) {
+                return { 
+                  ...f, 
+                  flags: [...existingFlags, flag],
+                  isFlagged: true 
+                };
+              }
+            }
+            return f;
+          })
+        }));
+        
+        get().addNotification({ 
+          message: `Flag "${flag.name}" added to fixture`, 
+          type: 'success' 
+        });
+      },
+
+      removeFixtureFlag: (fixtureId, flagId) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => {
+            if (f.id === fixtureId) {
+              const updatedFlags = (f.flags || []).filter(flag => flag.id !== flagId);
+              return { 
+                ...f, 
+                flags: updatedFlags,
+                isFlagged: updatedFlags.length > 0 
+              };
+            }
+            return f;
+          })
+        }));
+        
+        get().addNotification({ 
+          message: `Flag removed from fixture`, 
+          type: 'success' 
+        });
+      },
+
+      toggleFixtureFlag: (fixtureId, flagId) => {
+        const fixture = get().fixtures.find(f => f.id === fixtureId);
+        if (!fixture) return;
+        
+        const hasFlag = (fixture.flags || []).some(flag => flag.id === flagId);
+        
+        if (hasFlag) {
+          get().removeFixtureFlag(fixtureId, flagId);
+        } else {
+          // Need to find the flag definition - this could be enhanced with a global flag registry
+          get().addNotification({ 
+            message: `Cannot toggle flag: Flag definition not found`, 
+            type: 'warning' 
+          });
+        }
+      },
+
+      updateFixtureFlag: (fixtureId, flagId, updates) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => {
+            if (f.id === fixtureId) {
+              return {
+                ...f,
+                flags: (f.flags || []).map(flag => 
+                  flag.id === flagId ? { ...flag, ...updates } : flag
+                )
+              };
+            }
+            return f;
+          })
+        }));
+        
+        get().addNotification({ 
+          message: `Flag updated`, 
+          type: 'success' 
+        });
+      },
+
+      clearFixtureFlags: (fixtureId) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => 
+            f.id === fixtureId 
+              ? { ...f, flags: [], isFlagged: false }
+              : f
+          )
+        }));
+        
+        get().addNotification({ 
+          message: `All flags cleared from fixture`, 
+          type: 'success' 
+        });
+      },
+
+      getFixturesByFlag: (flagId) => {
+        return get().fixtures.filter(f => 
+          (f.flags || []).some(flag => flag.id === flagId)
+        );
+      },
+
+      getFixturesByFlagCategory: (category) => {
+        return get().fixtures.filter(f => 
+          (f.flags || []).some(flag => flag.category === category)
+        );
+      },
+
+      createQuickFlag: (name, color, category) => {
+        const flag: FixtureFlag = {
+          id: `flag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name,
+          color,
+          category,
+          priority: 1
+        };
+        
+        return flag;
+      },
+
+      bulkAddFlag: (fixtureIds, flag) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => {
+            if (fixtureIds.includes(f.id)) {
+              const existingFlags = f.flags || [];
+              const flagExists = existingFlags.some(existingFlag => existingFlag.id === flag.id);
+              
+              if (!flagExists) {
+                return { 
+                  ...f, 
+                  flags: [...existingFlags, flag],
+                  isFlagged: true 
+                };
+              }
+            }
+            return f;
+          })
+        }));
+        
+        get().addNotification({ 
+          message: `Flag "${flag.name}" added to ${fixtureIds.length} fixtures`, 
+          type: 'success' 
+        });
+      },
+
+      bulkRemoveFlag: (fixtureIds, flagId) => {
+        set(state => ({
+          fixtures: state.fixtures.map(f => {
+            if (fixtureIds.includes(f.id)) {
+              const updatedFlags = (f.flags || []).filter(flag => flag.id !== flagId);
+              return { 
+                ...f, 
+                flags: updatedFlags,
+                isFlagged: updatedFlags.length > 0 
+              };
+            }
+            return f;
+          })
+        }));
+        
+        get().addNotification({ 
+          message: `Flag removed from ${fixtureIds.length} fixtures`, 
+          type: 'success' 
+        });
       }
     })
   )
