@@ -67,13 +67,39 @@
     rgba(102, 51, 153, 0.2)
   );
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-
   h3 {
     margin: 0;
     color: #00ffff;
     font-size: 14px;
     font-weight: 700;
     text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  }
+}
+
+.headerControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.minimizeButton {
+  background: rgba(255, 255, 0, 0.2);
+  color: #ffff00;
+  border: 1px solid rgba(255, 255, 0, 0.3);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(255, 255, 0, 0.4);
+    transform: scale(1.1);
   }
 }
 

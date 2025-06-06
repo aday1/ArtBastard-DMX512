@@ -10,20 +10,21 @@ interface ChromaticEnergyManipulatorMiniProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export default ChromaticEnergyManipulatorMini;
-
 const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
-}) => {
-  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
-  const [showFixtureSelect, setShowFixtureSelect] = useState(false);  const [showFlagPanel, setShowFlagPanel] = useState(false);
+}) => {  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
+  const [showFixtureSelect, setShowFixtureSelect] = useState(false);
+  const [showFlagPanel, setShowFlagPanel] = useState(false);
   const [newFlagName, setNewFlagName] = useState('');
-  const [newFlagColor, setNewFlagColor] = useState('#ff6b6b');  const [newFlagCategory, setNewFlagCategory] = useState('');
+  const [newFlagColor, setNewFlagColor] = useState('#ff6b6b');
+  const [newFlagCategory, setNewFlagCategory] = useState('');
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [lastColorPreset, setLastColorPreset] = useState<{ r: number; g: number; b: number } | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
   
   // Color and movement state
   const [color, setColor] = useState<{ r: number; g: number; b: number }>({ r: 255, g: 255, b: 255 });
@@ -207,6 +208,58 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     const flaggedFixtures = getFixturesByFlagCategory(category);
     setSelectedFixtures(flaggedFixtures.map(f => f.id));
   };
+
+  // Enhanced selection functions
+  const selectAll = () => {
+    setSelectedFixtures(filteredFixtures.map(f => f.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedFixtures([]);
+  };
+
+  const invertSelection = () => {
+    const allIds = filteredFixtures.map(f => f.id);
+    const newSelection = allIds.filter(id => !selectedFixtures.includes(id));
+    setSelectedFixtures(newSelection);
+  };
+
+  const selectByType = (fixtureType: 'rgb' | 'movement' | 'dimmer') => {
+    const typeFixtures = filteredFixtures.filter(fixture => {
+      switch (fixtureType) {
+        case 'rgb':
+          return fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
+        case 'movement':
+          return fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
+        case 'dimmer':
+          return fixture.channels.some(ch => ch.type === 'dimmer');
+        default:
+          return false;
+      }
+    });
+    setSelectedFixtures(typeFixtures.map(f => f.id));
+  };
+
+  const selectSimilar = () => {
+    if (selectedFixtures.length === 0) return;
+    
+    const referenceFixture = fixtures.find(f => f.id === selectedFixtures[0]);
+    if (!referenceFixture) return;
+    
+    const similarFixtures = filteredFixtures.filter(fixture => {
+      // Consider fixtures similar if they have the same channel types
+      const refChannelTypes = referenceFixture.channels.map(ch => ch.type).sort();
+      const fixtureChannelTypes = fixture.channels.map(ch => ch.type).sort();
+      return JSON.stringify(refChannelTypes) === JSON.stringify(fixtureChannelTypes);
+    });
+    
+    setSelectedFixtures(similarFixtures.map(f => f.id));
+  };
+
+  // Filter fixtures based on search term
+  const filteredFixtures = fixtures.filter(fixture =>
+    fixture.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getAllUniqueFlags = (): FixtureFlag[] => {
     const flagMap = new Map<string, FixtureFlag>();
@@ -448,15 +501,14 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
       if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
     });
   };
-
   // Helper functions
   const selectedFixtureName = () => {
-  if (selectedFixtures.length === 0) return settings.enableErrorMessages ? 'None' : '';
+    if (selectedFixtures.length === 0) return settings.enableErrorMessages ? 'No fixtures selected' : 'Select fixtures';
     if (selectedFixtures.length === 1) {
       const fixture = fixtures.find(f => f.id === selectedFixtures[0]);
       return fixture?.name || 'Unknown';
     }
-    return `${selectedFixtures.length} Fixtures Selected`;
+    return `${selectedFixtures.length} fixtures selected`;
   };
 
   const { rgbChannels: firstSelectedRgbChannels, movementChannels: firstSelectedMovementChannels } = 
@@ -499,28 +551,89 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
         )}
 
         {/* Fixture Selection */}
-        <div className={styles.fixtureSection}>
-          <button 
+        <div className={styles.fixtureSection}>          <button 
             className={styles.fixtureSelector}
             onClick={() => setShowFixtureSelect(!showFixtureSelect)}
             title={`Selected: ${selectedFixtureName()}`}
           >
             <LucideIcon name="Target" />
             <span className={styles.fixtureName}>{selectedFixtureName()}</span>
-            <LucideIcon name={showFixtureSelect ? "ChevronUp" : "ChevronDown"} />
+            <div className={styles.selectorRight}>
+              {selectedFixtures.length > 0 && (
+                <span className={styles.selectionBadge}>{selectedFixtures.length}</span>
+              )}
+              <LucideIcon name={showFixtureSelect ? "ChevronUp" : "ChevronDown"} />
+            </div>
           </button>
-          
-          {showFixtureSelect && (
+            {showFixtureSelect && (
             <div className={styles.fixtureDropdown}>
+              {/* Search Bar */}
+              <div className={styles.searchSection}>
+                <div className={styles.searchContainer}>
+                  <LucideIcon name="Search" />
+                  <input
+                    type="text"
+                    placeholder="Search fixtures..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={styles.searchInput}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className={styles.clearSearch}
+                    >
+                      <LucideIcon name="X" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Selection Summary */}
+              {selectedFixtures.length > 0 && (
+                <div className={styles.selectionSummary}>
+                  <div className={styles.summaryText}>
+                    <span>{selectedFixtures.length} of {filteredFixtures.length} selected</span>
+                  </div>
+                  <div className={styles.summaryActions}>
+                    <button
+                      onClick={deselectAll}
+                      className={styles.summaryButton}
+                      title="Clear selection"
+                    >
+                      <LucideIcon name="X" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Bulk Selection Controls */}
               <div className={styles.bulkControls}>
                 <button
                   className={styles.bulkButton}
-                  onClick={selectAllFlagged}
-                  title="Select all flagged fixtures"
+                  onClick={selectAll}
+                  title="Select all visible fixtures"
                 >
-                  <LucideIcon name="Flag" />
-                  <span>Flagged</span>
+                  <LucideIcon name="CheckSquare" />
+                  <span>All</span>
+                </button>
+                
+                <button
+                  className={styles.bulkButton}
+                  onClick={invertSelection}
+                  title="Invert selection"
+                >
+                  <LucideIcon name="RotateCcw" />
+                  <span>Invert</span>
+                </button>
+                
+                <button
+                  className={styles.bulkButton}
+                  onClick={() => setShowAdvancedSelection(!showAdvancedSelection)}
+                  title="Advanced selection"
+                >
+                  <LucideIcon name="Filter" />
+                  <span>Smart</span>
                 </button>
                 
                 <button
@@ -532,6 +645,55 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                   <span>Flags</span>
                 </button>
               </div>
+
+              {/* Advanced Selection Panel */}
+              {showAdvancedSelection && (
+                <div className={styles.advancedSelection}>
+                  <div className={styles.selectionByType}>
+                    <h4>Select by Type:</h4>
+                    <div className={styles.typeButtons}>
+                      <button
+                        onClick={() => selectByType('rgb')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Palette" />
+                        RGB
+                      </button>
+                      <button
+                        onClick={() => selectByType('movement')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Move" />
+                        Movement
+                      </button>
+                      <button
+                        onClick={() => selectByType('dimmer')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Sun" />
+                        Dimmer
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles.smartSelection}>
+                    <button
+                      onClick={selectSimilar}
+                      disabled={selectedFixtures.length === 0}
+                      className={styles.smartButton}
+                    >
+                      <LucideIcon name="Copy" />
+                      Select Similar
+                    </button>
+                    <button
+                      onClick={selectAllFlagged}
+                      className={styles.smartButton}
+                    >
+                      <LucideIcon name="Flag" />
+                      All Flagged
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Flag Management Panel */}
               {showFlagPanel && (
@@ -609,42 +771,70 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                     </button>
                   )}
                 </div>
-              )}
-
-              {/* Fixture List: show all fixtures */}
-              {fixtures.map(fixture => (
-                <button
-                  key={fixture.id}
-                  className={`${styles.fixtureOption} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
-                  onClick={() => {
-                    setSelectedFixtures(prevSelected =>
-                      prevSelected.includes(fixture.id)
-                        ? prevSelected.filter(id => id !== fixture.id)
-                        : [...prevSelected, fixture.id]
-                    );
-                  }}
-                >
-                  <div className={styles.fixtureInfo}>
-                    <span className={styles.fixtureName}>{fixture.name}</span>
-                    {fixture.flags && fixture.flags.length > 0 && (
-                      <div className={styles.flagIndicators}>
-                        {fixture.flags.slice(0, 3).map(flag => (
-                          <div
-                            key={flag.id}
-                            className={styles.flagIndicator}
-                            style={{ backgroundColor: flag.color }}
-                            title={flag.name}
-                          />
-                        ))}
-                        {fixture.flags.length > 3 && (
-                          <span className={styles.moreFlags}>+{fixture.flags.length - 3}</span>
-                        )}
-                      </div>
-                    )}
+              )}              {/* Fixture List with checkboxes */}
+              <div className={styles.fixtureList}>
+                {filteredFixtures.length === 0 ? (
+                  <div className={styles.noResults}>
+                    <LucideIcon name="Search" />
+                    <span>No fixtures found</span>
                   </div>
-                  {selectedFixtures.includes(fixture.id) && <LucideIcon name="Check" className={styles.checkIcon} />}
-                </button>
-              ))}
+                ) : (
+                  filteredFixtures.map(fixture => {
+                    const isSelected = selectedFixtures.includes(fixture.id);
+                    const hasRgb = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
+                    const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
+                    const hasDimmer = fixture.channels.some(ch => ch.type === 'dimmer');
+                    
+                    return (
+                      <div
+                        key={fixture.id}
+                        className={`${styles.fixtureOption} ${isSelected ? styles.selected : ''}`}
+                        onClick={() => {
+                          setSelectedFixtures(prevSelected =>
+                            prevSelected.includes(fixture.id)
+                              ? prevSelected.filter(id => id !== fixture.id)
+                              : [...prevSelected, fixture.id]
+                          );
+                        }}
+                      >
+                        <div className={styles.fixtureCheckbox}>
+                          <div className={`${styles.checkbox} ${isSelected ? styles.checked : ''}`}>
+                            {isSelected && <LucideIcon name="Check" />}
+                          </div>
+                        </div>
+                        
+                        <div className={styles.fixtureInfo}>
+                          <div className={styles.fixtureName}>{fixture.name}</div>
+                          <div className={styles.fixtureDetails}>
+                            <div className={styles.fixtureCapabilities}>
+                              {hasRgb && <span className={styles.capability} title="RGB Color"><LucideIcon name="Palette" /></span>}
+                              {hasMovement && <span className={styles.capability} title="Pan/Tilt"><LucideIcon name="Move" /></span>}
+                              {hasDimmer && <span className={styles.capability} title="Dimmer"><LucideIcon name="Sun" /></span>}
+                            </div>
+                            <div className={styles.fixtureAddress}>Ch {fixture.startAddress}</div>
+                          </div>
+                          
+                          {fixture.flags && fixture.flags.length > 0 && (
+                            <div className={styles.flagIndicators}>
+                              {fixture.flags.slice(0, 3).map(flag => (
+                                <div
+                                  key={flag.id}
+                                  className={styles.flagIndicator}
+                                  style={{ backgroundColor: flag.color }}
+                                  title={flag.name}
+                                />
+                              ))}
+                              {fixture.flags.length > 3 && (
+                                <span className={styles.moreFlags}>+{fixture.flags.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
         </div>        {selectedFixtures.length > 0 && (

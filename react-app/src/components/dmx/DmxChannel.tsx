@@ -34,9 +34,9 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     setOscAssignment: state.setOscAssignment,
     oscActivity: state.oscActivity,
   }));
-
   const [showDetails, setShowDetails] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isDetached, setIsDetached] = useState(false);
   const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
   const [detachedSize, setDetachedSize] = useState({ width: 400, height: 600 });
@@ -199,6 +199,22 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
       }, 50);
     }
   };
+  const toggleExpanded = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    // Auto-show details when expanding
+    if (newExpandedState) {
+      setShowDetails(true);
+    }
+    
+    // Scroll into view when expanding
+    if (newExpandedState && channelRef.current) {
+      setTimeout(() => {
+        channelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
+  };
 
   const toggleDetached = () => {
     setIsDetached(!isDetached);
@@ -219,10 +235,9 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     };
   }, [isFullscreen]);
 
-  return (
-    <div
+  return (    <div
       ref={channelRef}
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isFullscreen ? styles.fullscreen : ''}`}
+      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${isFullscreen ? styles.fullscreen : ''}`}
       onClick={() => !isFullscreen && !isDetached && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
@@ -406,8 +421,21 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             <div className={styles.valuePercent}>
               {Math.round((value / 255) * 100)}%
             </div>
-          </div>
-            <div className={styles.detailButtons}>
+          </div>            <div className={styles.detailButtons}>
+            {!isFullscreen && (
+              <button 
+                className={styles.expandButton} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpanded();
+                }}
+                title={isExpanded ? "Minimize Channel" : "Maximize Channel"}
+              >
+                <i className={`fas fa-${isExpanded ? 'compress-arrows-alt' : 'expand-arrows-alt'}`}></i>
+                <span>{isExpanded ? "Minimize" : "Maximize"}</span>
+              </button>
+            )}
+            
             {allowFullscreen && (
               <button 
                 className={styles.fullscreenButton} 

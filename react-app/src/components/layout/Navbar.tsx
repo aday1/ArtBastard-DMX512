@@ -6,6 +6,7 @@ import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
+import * as Icons from 'lucide-react'
 
 type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'audio' | 'touchosc' | 'misc'
 
@@ -118,7 +119,7 @@ export const Navbar: React.FC = () => {
               className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
               title={item.title[theme as keyof typeof item.title]}
             >
-              <LucideIcon name={item.icon} />
+              <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
             </button>
           ))}

@@ -5,7 +5,7 @@ import { Navbar } from './Navbar'
 import { ToastContainer } from './ToastContainer'
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
-import DebugMenu from '../debug/DebugMenu'
+import { DebugMenu } from '../debug/DebugMenu'
 import styles from './Layout.module.scss'
 import { Sparkles } from './Sparkles'
 

@@ -37,6 +37,7 @@
     "socket.io": "^4.8.0"
   },
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.41.1",
     "@types/express": "^5.0.0",
     "@types/node": "^18.0.0",
     "copyfiles": "^2.4.1",

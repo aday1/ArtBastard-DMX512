@@ -142,6 +142,46 @@ apiRouter.post('/logs/clear', (req, res) => {
   }
 });
 
+// Helper functions for fixtures data
+const loadFixturesData = () => {
+  try {
+    const fixturesPath = path.join(DATA_DIR, 'fixtures.json');
+    if (!fs.existsSync(fixturesPath)) {
+      // Create empty fixtures file if it doesn't exist
+      const emptyFixtures = {
+        fixtures: [],
+        groups: [],
+        fixtureLayout: [],
+        masterSliders: []
+      };
+      fs.writeFileSync(fixturesPath, JSON.stringify(emptyFixtures, null, 2));
+      return emptyFixtures;
+    }
+    const fixturesData = fs.readFileSync(fixturesPath, 'utf-8');
+    return JSON.parse(fixturesData);
+  } catch (error) {
+    log('Error loading fixtures data', 'ERROR', { error });
+    return {
+      fixtures: [],
+      groups: [],
+      fixtureLayout: [],
+      masterSliders: []
+    };
+  }
+};
+
+const saveFixturesData = (data: any) => {
+  try {
+    const fixturesPath = path.join(DATA_DIR, 'fixtures.json');
+    fs.writeFileSync(fixturesPath, JSON.stringify(data, null, 2));
+    log('Fixtures data saved successfully', 'INFO');
+    return true;
+  } catch (error) {
+    log('Error saving fixtures data', 'ERROR', { error });
+    return false;
+  }
+};
+
 // Get initial state
 apiRouter.get('/state', (req, res) => {
   try {
@@ -150,6 +190,9 @@ apiRouter.get('/state', (req, res) => {
     
     const scenesData = fs.readFileSync(path.join(DATA_DIR, 'scenes.json'), 'utf-8');
     const scenes = JSON.parse(scenesData);
+    
+    // Read fixtures data from file
+    const fixturesData = loadFixturesData();
     
     // Return all state, using actual values from server where available
     res.json({
@@ -160,8 +203,10 @@ apiRouter.get('/state', (req, res) => {
       dmxChannels: getDmxChannels(), // Use getter for actual DMX channel state
       oscAssignments: config.oscAssignments, // Use loaded OSC assignments
       channelNames: getChannelNames(), // Use getter for actual channel names
-      fixtures: [], // Placeholder - implement fixture loading if needed
-      groups: []    // Placeholder - implement group loading if needed
+      fixtures: fixturesData.fixtures,
+      groups: fixturesData.groups,
+      fixtureLayout: fixturesData.fixtureLayout,
+      masterSliders: fixturesData.masterSliders
     });
   } catch (error) {
     log('Error getting initial state', 'ERROR', { error });
@@ -393,16 +438,117 @@ apiRouter.post('/config/artnet', (req, res) => {
   }
 });
 
+// Fixtures endpoints
+apiRouter.post('/fixtures', (req, res) => {
+  try {
+    const { fixtures } = req.body;
+    
+    // Load current fixtures data
+    const fixturesData = loadFixturesData();
+    fixturesData.fixtures = fixtures;
+    
+    // Save updated fixtures data
+    const success = saveFixturesData(fixturesData);
+    
+    if (success) {
+      // Notify all clients of the fixtures update
+      global.io.emit('fixturesUpdate', fixtures);
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to save fixtures data' });
+    }
+  } catch (error) {
+    log('Error saving fixtures', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to save fixtures: ${error}` });
+  }
+});
+
+apiRouter.post('/groups', (req, res) => {
+  try {
+    const { groups } = req.body;
+    
+    // Load current fixtures data
+    const fixturesData = loadFixturesData();
+    fixturesData.groups = groups;
+    
+    // Save updated fixtures data
+    const success = saveFixturesData(fixturesData);
+    
+    if (success) {
+      // Notify all clients of the groups update
+      global.io.emit('groupsUpdate', groups);
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to save groups data' });
+    }
+  } catch (error) {
+    log('Error saving groups', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to save groups: ${error}` });
+  }
+});
+
+apiRouter.post('/fixture-layout', (req, res) => {
+  try {
+    const { fixtureLayout } = req.body;
+    
+    // Load current fixtures data
+    const fixturesData = loadFixturesData();
+    fixturesData.fixtureLayout = fixtureLayout;
+    
+    // Save updated fixtures data
+    const success = saveFixturesData(fixturesData);
+    
+    if (success) {
+      // Notify all clients of the fixture layout update
+      global.io.emit('fixtureLayoutUpdate', fixtureLayout);
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to save fixture layout data' });
+    }
+  } catch (error) {
+    log('Error saving fixture layout', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to save fixture layout: ${error}` });
+  }
+});
+
+apiRouter.post('/master-sliders', (req, res) => {
+  try {
+    const { masterSliders } = req.body;
+    
+    // Load current fixtures data
+    const fixturesData = loadFixturesData();
+    fixturesData.masterSliders = masterSliders;
+    
+    // Save updated fixtures data
+    const success = saveFixturesData(fixturesData);
+    
+    if (success) {
+      // Notify all clients of the master sliders update
+      global.io.emit('masterSlidersUpdate', masterSliders);
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to save master sliders data' });
+    }
+  } catch (error) {
+    log('Error saving master sliders', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to save master sliders: ${error}` });
+  }
+});
+
 // Export all settings
 apiRouter.post('/export', (req, res) => {
   try {
     const config = loadConfig();
     const scenes = loadScenes();
+    const fixturesData = loadFixturesData();
     
     const allSettings = {
       config,
       scenes,
-      // Add any other settings you want to export
+      fixtures: fixturesData.fixtures,
+      groups: fixturesData.groups,
+      fixtureLayout: fixturesData.fixtureLayout,
+      masterSliders: fixturesData.masterSliders
     };
     
     fs.writeFileSync(EXPORT_FILE, JSON.stringify(allSettings, null, 2));
@@ -435,6 +581,24 @@ const importHandler: RequestHandler = (req: Request, res: Response) => {
     
     if (allSettings.scenes) {
       saveScenes(allSettings.scenes);
+    }
+    
+    // Import fixtures data if present
+    if (allSettings.fixtures || allSettings.groups || allSettings.fixtureLayout || allSettings.masterSliders) {
+      const currentFixturesData = loadFixturesData();
+      const updatedFixturesData = {
+        fixtures: allSettings.fixtures || currentFixturesData.fixtures,
+        groups: allSettings.groups || currentFixturesData.groups,
+        fixtureLayout: allSettings.fixtureLayout || currentFixturesData.fixtureLayout,
+        masterSliders: allSettings.masterSliders || currentFixturesData.masterSliders
+      };
+      saveFixturesData(updatedFixturesData);
+      
+      // Notify clients of fixtures data updates
+      global.io.emit('fixturesUpdate', updatedFixturesData.fixtures);
+      global.io.emit('groupsUpdate', updatedFixturesData.groups);
+      global.io.emit('fixtureLayoutUpdate', updatedFixturesData.fixtureLayout);
+      global.io.emit('masterSlidersUpdate', updatedFixturesData.masterSliders);
     }
     
     // Notify clients
@@ -471,15 +635,18 @@ function setupSocketHandlers(io: Server) {
   
   io.on('connection', (socket) => {
     // Handle settings export
-    socket.on('exportSettings', () => {
-      try {
+    socket.on('exportSettings', () => {      try {
         const config = loadConfig();
         const scenes = loadScenes();
+        const fixturesData = loadFixturesData();
         
         const allSettings = {
           config,
           scenes,
-          // Add any other settings you want to export
+          fixtures: fixturesData.fixtures,
+          groups: fixturesData.groups,
+          fixtureLayout: fixturesData.fixtureLayout,
+          masterSliders: fixturesData.masterSliders
         };
         
         fs.writeFileSync(EXPORT_FILE, JSON.stringify(allSettings, null, 2));
@@ -490,8 +657,7 @@ function setupSocketHandlers(io: Server) {
         socket.emit('exportError', error instanceof Error ? error.message : String(error));
       }
     });
-    
-    // Handle settings import
+      // Handle settings import
     socket.on('importSettings', () => {
       try {
         if (!fs.existsSync(EXPORT_FILE)) {
@@ -512,6 +678,24 @@ function setupSocketHandlers(io: Server) {
         
         if (allSettings.scenes) {
           saveScenes(allSettings.scenes);
+        }
+        
+        // Import fixtures data if present
+        if (allSettings.fixtures || allSettings.groups || allSettings.fixtureLayout || allSettings.masterSliders) {
+          const currentFixturesData = loadFixturesData();
+          const updatedFixturesData = {
+            fixtures: allSettings.fixtures || currentFixturesData.fixtures,
+            groups: allSettings.groups || currentFixturesData.groups,
+            fixtureLayout: allSettings.fixtureLayout || currentFixturesData.fixtureLayout,
+            masterSliders: allSettings.masterSliders || currentFixturesData.masterSliders
+          };
+          saveFixturesData(updatedFixturesData);
+          
+          // Notify clients of fixtures data updates
+          io.emit('fixturesUpdate', updatedFixturesData.fixtures);
+          io.emit('groupsUpdate', updatedFixturesData.groups);
+          io.emit('fixtureLayoutUpdate', updatedFixturesData.fixtureLayout);
+          io.emit('masterSlidersUpdate', updatedFixturesData.masterSliders);
         }
         
         // Notify clients

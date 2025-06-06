@@ -22,8 +22,7 @@
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
   }
-  
-  &.expanded {
+    &.expanded {
     transform: scale(1.1);
     z-index: 10;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -32,6 +31,57 @@
     margin-right: -10px;
     margin-bottom: 15px;
     position: relative;
+  }
+  
+  &.maximized {
+    transform: scale(1.5);
+    z-index: 15;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    width: calc(100% + 60px);
+    margin-left: -30px;
+    margin-right: -30px;
+    margin-top: 15px;
+    margin-bottom: 25px;
+    position: relative;
+    
+    .slider {
+      margin-top: 20px;
+      margin-bottom: 15px;
+      
+      input[type="range"] {
+        height: 25px;
+        border-radius: 12px;
+        
+        &::-webkit-slider-thumb {
+          width: 30px;
+          height: 30px;
+        }
+        
+        &::-moz-range-thumb {
+          width: 30px;
+          height: 30px;
+        }
+      }
+    }
+    
+    .value {
+      font-size: 1.8rem;
+      padding: 15px 12px;
+      border-radius: 8px;
+    }
+    
+    .header {
+      padding: 12px;
+      
+      .name {
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+      
+      .address {
+        font-size: 1rem;
+      }
+    }
   }
   &.fullscreen {
     position: fixed;
@@ -609,6 +659,7 @@
   margin-top: 1rem;
 }
 
+.expandButton,
 .fullscreenButton,
 .detachButton {
   background-color: var(--color-primary);
@@ -630,10 +681,17 @@
   &:hover {
     background-color: var(--color-primary-dark);
   }
-  
-  &:disabled {
+    &:disabled {
     background-color: var(--color-disabled);
     cursor: not-allowed;
+  }
+}
+
+.expandButton {
+  background-color: var(--color-accent, #44a08d);
+  
+  &:hover {
+    background-color: var(--color-accent-dark, #357a63);
   }
 }
 

@@ -14,170 +14,79 @@ import OscMonitor from './components/osc/OscMonitor'
 import DebugInfo from './components/DebugInfo'
 import { ThemeToggleButton } from './components/layout/ThemeToggleButton'; // Import ThemeToggleButton
 import './utils/midiTestUtils'
+import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
-  console.log('[App] Component initializing...');
-  
   // All hooks must be at the top level, outside of try-catch blocks
   const fetchInitialState = useStore((state) => state.fetchInitialState)
-  const isTransitioning = useStore((state) => state.isTransitioning);
-  const currentTransitionFrame = useStore((state) => state.currentTransitionFrame);
-  const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId);
-  
-  console.log('[App] Store hooks initialized');
+  // const isTransitioning = useStore((state) => state.isTransitioning); // Moved to useSceneTransitionAnimation
+  // const currentTransitionFrame = useStore((state) => state.currentTransitionFrame); // Moved to useSceneTransitionAnimation
+  // const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId); // Moved to useSceneTransitionAnimation
   
   const { browserInputs, connectBrowserInput, refreshDevices, isSupported } = useBrowserMidi();
-  console.log('[App] MIDI hook initialized, isSupported:', isSupported);
+
+  // Initialize Scene Transition Animation Hook
+  useSceneTransitionAnimation();
 
   // Auto-connect to MIDI devices
   useEffect(() => {
-    if (isSupported && browserInputs.length > 0) {
-      console.log('[App] Found MIDI inputs:', browserInputs.length);
-      // Automatically connect to all available MIDI devices
-      browserInputs.forEach(input => {
-        console.log(`[App] Auto-connecting to MIDI device: ${input.name} (ID: ${input.id})`);
-        connectBrowserInput(input.id);
-      });
-      
-      // Trigger refreshDevices periodically to check for new MIDI devices
+    if (isSupported) {
+      // Attempt to connect to any initially found devices
+      if (browserInputs.length > 0) {
+        browserInputs.forEach(input => {
+          // Assuming connectBrowserInput handles cases where a device might already be connected
+          // or an attempt is in progress.
+          connectBrowserInput(input.id);
+        });
+      } else {
+        console.log('[App] MIDI supported, but no inputs found initially. Will check periodically.');
+      }
+
+      // Periodically refresh devices to detect new connections
       const intervalId = setInterval(() => {
-        console.log('[App] Refreshing MIDI device connections...');
         refreshDevices();
       }, 10000); // Every 10 seconds
-      
-      return () => clearInterval(intervalId);
-    } else if (isSupported) {
-      console.log('[App] MIDI supported but no inputs found. Will retry in 5s...');
-      // If no inputs found but MIDI is supported, try refreshing after a delay
-      const timeoutId = setTimeout(() => {
-        console.log('[App] Refreshing MIDI devices...');
-        refreshDevices();
-      }, 5000);
-      return () => clearTimeout(timeoutId);
+
+      // Cleanup function
+      return () => {
+        clearInterval(intervalId);
+      };
     } else {
       console.log('[App] WebMIDI API not supported by this browser.');
     }
-  }, [browserInputs, connectBrowserInput, refreshDevices, isSupported]);
+  }, [connectBrowserInput, refreshDevices, isSupported, browserInputs]);
 
   useEffect(() => {
-    // Initialize global store reference
-    if (typeof window !== 'undefined' && !window.useStore) {
-      window.useStore = useStore;
-      console.log('Global store reference initialized in App component');
-    }
-    
     // Fetch initial state
     fetchInitialState()
   }, [fetchInitialState])
-  // Scene Transition Animation Loop
-  useEffect(() => {
-    let frameId: number | null = null;
-    let isMounted = true;
+  // Scene Transition Animation is handled by useSceneTransitionAnimation hook
 
-    const tick = () => {
-      // Check if component is still mounted before proceeding
-      if (!isMounted) {
-        return;
-      }
-
-      const currentState = useStore.getState(); 
-
-      if (!currentState.isTransitioning || !currentState.transitionStartTime || !currentState.fromDmxValues || !currentState.toDmxValues) {
-        if (currentState.currentTransitionFrame) {
-          cancelAnimationFrame(currentState.currentTransitionFrame);
-          // Only update state if component is still mounted
-          if (isMounted) {
-            currentState.setCurrentTransitionFrameId(null);
-          }
-        }
-        return;
-      }
-
-      const now = Date.now();
-      const elapsed = now - currentState.transitionStartTime;
-      const progress = Math.min(elapsed / currentState.transitionDuration, 1);
-
-      const newDmxValues = new Array(512).fill(0);
-      for (let i = 0; i < 512; i++) {
-        const fromVal = currentState.fromDmxValues[i] || 0;
-        const toVal = currentState.toDmxValues[i] || 0;
-        newDmxValues[i] = Math.round(fromVal + (toVal - fromVal) * progress);
-      }
-      
-      // Only update state if component is still mounted
-      if (isMounted) {
-        currentState.setDmxChannelsForTransition(newDmxValues);
-
-        if (progress >= 1) {
-          currentState.clearTransitionState(); 
-        } else {
-          frameId = requestAnimationFrame(tick);
-          currentState.setCurrentTransitionFrameId(frameId);
-        }
-      }
-    };
-
-    if (isTransitioning) {
-      if (currentTransitionFrame) {
-        cancelAnimationFrame(currentTransitionFrame);
-      }
-      frameId = requestAnimationFrame(tick);
-      if (isMounted) {
-        setCurrentTransitionFrameId(frameId);
-      }
-    } else {
-      if (currentTransitionFrame) {
-        cancelAnimationFrame(currentTransitionFrame);
-        if (isMounted) {
-          setCurrentTransitionFrameId(null);
-        }
-      }
-    }
-
-    return () => {
-      isMounted = false;
-      const latestFrameIdInStore = useStore.getState().currentTransitionFrame;
-      if (latestFrameIdInStore) {
-        cancelAnimationFrame(latestFrameIdInStore);
-      }
-      if (frameId) {
-        cancelAnimationFrame(frameId);
-      }
-    };
-  }, [isTransitioning, setCurrentTransitionFrameId]);
-  console.log('[App] About to render JSX...');
-  try {    return (
-      <ThemeProvider>
-        <ChromaticEnergyManipulatorProvider>
-          <SocketProvider>
-            <DockingProvider>
-              {/* Debug and background processors */}
-              <div style={{ display: 'none' }}>
-                <MidiDmxProcessor />
-                <MidiDebugHelper />
-                <MidiDmxDebug />
-              </div>
-              {/* Main UI should live inside SocketProvider */}
-              <ThemeToggleButton />
-              <DebugInfo position="top-right" />
+  return (
+    <ThemeProvider>
+      <ChromaticEnergyManipulatorProvider>
+        <SocketProvider>
+          <DockingProvider>
+            {/* Debug and background processors */}
+            <div style={{ display: 'none' }}>
+              <MidiDmxProcessor />
+              <MidiDebugHelper />
+              <MidiDmxDebug />
+            </div>
+            {/* Main UI should live inside SocketProvider */}
+            <ThemeToggleButton />
+            <DebugInfo position="top-right" />
+            <ErrorBoundary>
               <Layout>
                 <MainPage />
               </Layout>
-            </DockingProvider>
-          </SocketProvider>
-        </ChromaticEnergyManipulatorProvider>
-      </ThemeProvider>
-    );
-  } catch (error) {
-    console.error('[App] Error during render:', error);
-    return (
-      <div style={{ padding: '20px', color: 'red' }}>
-        <h1>App Render Error</h1>
-        <pre>{error instanceof Error ? error.message : String(error)}</pre>
-        <pre>{error instanceof Error ? error.stack : ''}</pre>
-      </div>
-    );
-  }
+            </ErrorBoundary>
+          </DockingProvider>
+        </SocketProvider>
+      </ChromaticEnergyManipulatorProvider>
+    </ThemeProvider>
+  );
 }
 
 export default App

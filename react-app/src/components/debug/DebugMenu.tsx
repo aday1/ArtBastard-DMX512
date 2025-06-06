@@ -31,6 +31,7 @@ interface OscTestMessage {
 
 export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState<'system' | 'midi' | 'osc' | 'dmx' | 'touchosc'>('system');
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({} as SystemInfo);
   const [oscTestAddress, setOscTestAddress] = useState('/dmx/channel/1');
@@ -59,11 +60,6 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
   }));
 
   const { socket, connected } = useSocket();
-
-  // Don't render if debugButton is disabled in debugTools
-  if (!debugTools.debugButton) {
-    return null;
-  }
 
   useEffect(() => {
     const updateSystemInfo = () => {
@@ -328,13 +324,17 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     'bottom-left': { bottom: '10px', left: '10px' },
     'bottom-right': { bottom: '10px', right: '10px' }
   };
-
   const formatBytes = (bytes: number) => {
     if (!bytes) return 'N/A';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
+
+  // Don't render if debugButton is disabled in debugTools
+  if (!debugTools.debugButton) {
+    return null;
+  }
 
   return (
     <>
@@ -364,38 +364,48 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
             right: position.includes('right') ? '10px' : 'auto',
             zIndex: 9999,
           }}
-        >
-          <div className={styles.header}>
+        >          <div className={styles.header}>
             <h3>🚀 ArtBastard Debug Menu</h3>
-            <button 
-              onClick={() => setIsVisible(false)}
-              className={styles.closeButton}
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className={styles.tabNav}>
-            {[
-              { id: 'system', label: '🖥️ System', icon: '🖥️' },
-              { id: 'midi', label: '🎹 MIDI', icon: '🎹' },
-              { id: 'osc', label: '📡 OSC', icon: '📡' },
-              { id: 'dmx', label: '💡 DMX', icon: '💡' },
-              { id: 'touchosc', label: '📱 TouchOSC', icon: '📱' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
+            <div className={styles.headerControls}>
+              <button 
+                onClick={() => setIsMinimized(!isMinimized)}
+                className={styles.minimizeButton}
+                title={isMinimized ? "Maximize" : "Minimize"}
               >
-                {tab.icon} {tab.label}
+                {isMinimized ? '🔼' : '🔽'}
               </button>
-            ))}
-          </div>
+              <button 
+                onClick={() => setIsVisible(false)}
+                className={styles.closeButton}
+              >
+                ✕
+              </button>
+            </div>          </div>
 
-          {/* Tab Content */}
-          <div className={styles.tabContent}>
+          {/* Tab Navigation - only show when not minimized */}
+          {!isMinimized && (
+            <div className={styles.tabNav}>
+              {[
+                { id: 'system', label: '🖥️ System', icon: '🖥️' },
+                { id: 'midi', label: '🎹 MIDI', icon: '🎹' },
+                { id: 'osc', label: '📡 OSC', icon: '📡' },
+                { id: 'dmx', label: '💡 DMX', icon: '💡' },
+                { id: 'touchosc', label: '📱 TouchOSC', icon: '📱' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
+                >
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Tab Content - only show when not minimized */}
+          {!isMinimized && (
+            <div className={styles.tabContent}>
             {/* System Tab */}
             {activeTab === 'system' && (
               <div className={styles.systemTab}>
@@ -646,11 +656,11 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                       const fixture = allFixtures.find(f => f.id === pf.fixtureId);
                       return fixture?.channels.some(ch => ch.type === 'pan' || ch.type === 'tilt');
                     }).length}</div>
-                  </div>
-                </div>
+                  </div>                </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </>
