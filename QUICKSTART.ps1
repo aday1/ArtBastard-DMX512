@@ -50,9 +50,9 @@ if ($LASTEXITCODE -ne 0) { Write-Error "💔 Oh dear, the backend orchestra is o
 
 # Verification step for @julusian/midi
 $JulusianInstrumentsPath = Join-Path $ProjectRootPath "node_modules/@julusian/midi/lib/instruments.js"
-if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
-    Write-Warning "⚠️ The @julusian/midi instruments file seems to be missing. Attempting to reinstall easymidi..."
-    npm install easymidi --save    if ($LASTEXITCODE -ne 0) { Write-Error "💔 Reinstalling easymidi also failed. The show cannot go on!"; Exit 1 }
+if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {    Write-Warning "⚠️ The @julusian/midi instruments file seems to be missing. Attempting to reinstall easymidi..."
+    npm install easymidi --save
+    if ($LASTEXITCODE -ne 0) { Write-Error "💔 Reinstalling easymidi also failed. The show cannot go on!"; Exit 1 }
     if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
         Write-Error "🛑 Critical: easymidi reinstall did not fix the missing @julusian/midi/lib/instruments.js."
         Write-Error "Please try manually deleting node_modules and package-lock.json in the project root, then run 'npm install' again."

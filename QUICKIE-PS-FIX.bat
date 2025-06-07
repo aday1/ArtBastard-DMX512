@@ -5,166 +5,157 @@
 
 setlocal enabledelayedexpansion
 
-:: Colors
-set "RED=[31m"
-set "GREEN=[32m"
-set "YELLOW=[33m"
-set "BLUE=[34m"
-set "CYAN=[36m"
-set "WHITE=[37m"
-set "MAGENTA=[35m"
-set "RESET=[0m"
-
+:: Simple text without ANSI colors to avoid garbled output
 cls
 echo.
-echo %CYAN%    ╔══════════════════════════════════════════════════════════╗%RESET%
-echo %CYAN%    ║                                                          ║%RESET%
-echo %CYAN%    ║           🎭 QUICKIE - ARTBASTARD LAUNCHER 🎭           ║%RESET%
-echo %CYAN%    ║                                                          ║%RESET%
-echo %CYAN%    ║         Fast Cleanup + Quickstart (No PowerShell)       ║%RESET%
-echo %CYAN%    ║                                                          ║%RESET%
-echo %CYAN%    ╚══════════════════════════════════════════════════════════╝%RESET%
+echo    ╔══════════════════════════════════════════════════════════╗
+echo    ║                                                          ║
+echo    ║           🎭 QUICKIE - ARTBASTARD LAUNCHER 🎭           ║
+echo    ║                                                          ║
+echo    ║         Fast Cleanup + Quickstart (No PowerShell)       ║
+echo    ║                                                          ║
+echo    ╚══════════════════════════════════════════════════════════╝
 echo.
 
 :: Check if we're in the right directory
 if not exist "package.json" (
-    echo %RED%❌ ERROR: package.json not found!%RESET%
-    echo %RED%   Make sure you're in the ArtBastard-DMX512 directory%RESET%
+    echo ❌ ERROR: package.json not found!
+    echo    Make sure you're in the ArtBastard-DMX512 directory
     echo.
     pause
     exit /b 1
 )
 
 if not exist "react-app" (
-    echo %RED%❌ ERROR: react-app directory not found!%RESET%
-    echo %RED%   Make sure you're in the ArtBastard-DMX512 directory%RESET%
+    echo ❌ ERROR: react-app directory not found!
+    echo    Make sure you're in the ArtBastard-DMX512 directory
     echo.
     pause
     exit /b 1
 )
 
-echo %GREEN%🧹 ACT I: CLEANUP - Sweeping Away Past Performances%RESET%
-echo %CYAN%Removing builds, logs, caches, and node modules...%RESET%
+echo 🧹 ACT I: CLEANUP - Sweeping Away Past Performances
+echo Removing builds, logs, caches, and node modules...
 echo.
 
 :: Kill Node processes
-echo %YELLOW%🔫 Terminating any running Node.js processes...%RESET%
+echo 🔫 Terminating any running Node.js processes...
 taskkill /f /im node.exe >nul 2>&1
 taskkill /f /im npm.exe >nul 2>&1
 timeout /t 2 >nul
 
 :: Clean backend
-echo %CYAN%🧽 Cleaning backend...%RESET%
+echo 🧽 Cleaning backend...
 if exist "dist" (
     rmdir /s /q "dist" 2>nul
-    echo %GREEN%  ✅ Removed backend dist%RESET%
+    echo   ✅ Removed backend dist
 )
 if exist "node_modules" (
-    echo %YELLOW%  🗑️ Removing backend node_modules (this may take a moment)...%RESET%
+    echo   🗑️ Removing backend node_modules (this may take a moment)...
     rmdir /s /q "node_modules" 2>nul
-    echo %GREEN%  ✅ Removed backend node_modules%RESET%
+    echo   ✅ Removed backend node_modules
 )
 
 :: Clean frontend
-echo %CYAN%🧽 Cleaning frontend...%RESET%
+echo 🧽 Cleaning frontend...
 if exist "react-app\dist" (
     rmdir /s /q "react-app\dist" 2>nul
-    echo %GREEN%  ✅ Removed frontend dist%RESET%
+    echo   ✅ Removed frontend dist
 )
 if exist "react-app\node_modules" (
-    echo %YELLOW%  🗑️ Removing frontend node_modules (this may take a moment)...%RESET%
+    echo   🗑️ Removing frontend node_modules (this may take a moment)...
     rmdir /s /q "react-app\node_modules" 2>nul
-    echo %GREEN%  ✅ Removed frontend node_modules%RESET%
+    echo   ✅ Removed frontend node_modules
 )
 
 :: Clean logs
 if exist "logs" (
     del /q "logs\*.*" 2>nul
-    echo %GREEN%  ✅ Cleaned logs%RESET%
+    echo   ✅ Cleaned logs
 )
 
 :: Clean package-lock files
 if exist "package-lock.json" (
     del "package-lock.json" 2>nul
-    echo %GREEN%  ✅ Removed backend package-lock.json%RESET%
+    echo   ✅ Removed backend package-lock.json
 )
 if exist "react-app\package-lock.json" (
     del "react-app\package-lock.json" 2>nul
-    echo %GREEN%  ✅ Removed frontend package-lock.json%RESET%
+    echo   ✅ Removed frontend package-lock.json
 )
 
 echo.
-echo %GREEN%✨ Cleanup complete! Stage is clean and ready!%RESET%
+echo ✨ Cleanup complete! Stage is clean and ready!
 echo.
 
-echo %GREEN%🚀 ACT II: QUICKSTART - Preparing the Performance%RESET%
-echo %CYAN%Installing dependencies and building the project...%RESET%
+echo 🚀 ACT II: QUICKSTART - Preparing the Performance
+echo Installing dependencies and building the project...
 echo.
 
 :: Install backend dependencies
-echo %CYAN%📦 Installing backend dependencies...%RESET%
+echo 📦 Installing backend dependencies...
 call npm install
 if errorlevel 1 (
-    echo %RED%❌ Backend npm install failed!%RESET%
-    echo %YELLOW%💡 Try running: npm cache clean --force%RESET%
+    echo ❌ Backend npm install failed!
+    echo 💡 Try running: npm cache clean --force
     pause
     exit /b 1
 )
-echo %GREEN%  ✅ Backend dependencies installed%RESET%
+echo   ✅ Backend dependencies installed
 
 :: Build backend
-echo %CYAN%🔨 Building backend...%RESET%
+echo 🔨 Building backend...
 call npm run build
 if errorlevel 1 (
-    echo %RED%❌ Backend build failed!%RESET%
+    echo ❌ Backend build failed!
     pause
     exit /b 1
 )
-echo %GREEN%  ✅ Backend built successfully%RESET%
+echo   ✅ Backend built successfully
 
 :: Install frontend dependencies
-echo %CYAN%📦 Installing frontend dependencies...%RESET%
+echo 📦 Installing frontend dependencies...
 cd react-app
 call npm install
 if errorlevel 1 (
-    echo %RED%❌ Frontend npm install failed!%RESET%
+    echo ❌ Frontend npm install failed!
     cd ..
     pause
     exit /b 1
 )
-echo %GREEN%  ✅ Frontend dependencies installed%RESET%
+echo   ✅ Frontend dependencies installed
 cd ..
 
 echo.
-echo %GREEN%🎉 ACT III: READY TO LAUNCH!%RESET%
+echo 🎉 ACT III: READY TO LAUNCH!
 echo.
 
 :: Start backend
-echo %CYAN%🎭 Starting backend server...%RESET%
+echo 🎭 Starting backend server...
 start "ArtBastard Backend" cmd /k "node dist/main.js"
 timeout /t 3 >nul
 
-echo %GREEN%✅ Backend server starting in separate window%RESET%
-echo %CYAN%   Backend typically runs on: http://localhost:3000%RESET%
+echo ✅ Backend server starting in separate window
+echo    Backend typically runs on: http://localhost:3000
 echo.
 
-echo %YELLOW%🎭 ACT IV: FRONTEND LAUNCH (Manual Step Required)%RESET%
-echo %WHITE%To start the frontend, open a NEW command prompt/PowerShell and run:%RESET%
+echo 🎭 ACT IV: FRONTEND LAUNCH (Manual Step Required)
+echo To start the frontend, open a NEW command prompt/PowerShell and run:
 echo.
-echo %WHITE%  cd "%CD%\react-app"%RESET%
-echo %WHITE%  npm run dev%RESET%
+echo   cd "%CD%\react-app"
+echo   npm run dev
 echo.
-echo %CYAN%Frontend will typically be available at: http://localhost:3001%RESET%
-echo.
-
-echo %MAGENTA%🌟 Performance is ready! Break a leg! 🌟%RESET%
-echo %CYAN%For full restart: run QUICKIE.bat again%RESET%
-echo %YELLOW%To stop everything: close the backend window or run Ctrl+C%RESET%
-echo.
-echo %WHITE%💡 Alternative: You can now also run the PowerShell scripts:%RESET%
-echo %CYAN%   powershell -NoProfile -File .\CLEANUP.ps1%RESET%
-echo %CYAN%   powershell -NoProfile -File .\QUICKSTART.ps1%RESET%
+echo Frontend will typically be available at: http://localhost:3001
 echo.
 
-echo %WHITE%Press any key to exit...%RESET%
+echo 🌟 Performance is ready! Break a leg! 🌟
+echo For full restart: run QUICKIE-PS-FIX.bat again
+echo To stop everything: close the backend window or run Ctrl+C
+echo.
+echo 💡 Alternative: You can now also run the PowerShell scripts:
+echo    powershell -NoProfile -File .\CLEANUP.ps1
+echo    powershell -NoProfile -File .\QUICKSTART.ps1
+echo.
+
+echo Press any key to exit...
 pause >nul
