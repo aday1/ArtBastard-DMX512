@@ -17,11 +17,16 @@
   min-width: 500px; /* Increased from 400px to 500px to ensure adequate slider space */
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
   
+  /* Ensure component stays within viewport bounds */
+  max-width: calc(100vw - 40px); /* Prevent overflow beyond viewport */
+  min-width: min(500px, calc(100vw - 40px)); /* Responsive min-width */
+  
   &.minimized {
     padding: 0.4rem; /* Reduced from 0.5rem */
     height: auto;
-    width: 70%; /* Even smaller when minimized */
-    max-width: 600px; /* Smaller max width when minimized */
+    width: min(70%, calc(100vw - 40px)); /* Ensure doesn't exceed viewport */
+    max-width: min(600px, calc(100vw - 40px)); /* Smaller max width when minimized */
+    min-width: min(400px, calc(100vw - 40px)); /* Ensure buttons fit */
 
     .header h3 {
       font-size: 0.9rem; /* Reduced from 1rem */
@@ -34,11 +39,15 @@
     .headerActions {
       gap: 0.4rem;
       width: 100%;
+      justify-content: center; /* Center buttons for better appearance */
+      flex-wrap: wrap; /* Allow wrapping if needed on very small screens */
       
       .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
         min-width: 40px;
+        max-width: none; /* Allow buttons to grow if space permits */
         padding: 0.4rem;
         font-size: 0;
+        flex-shrink: 0; /* Prevent buttons from shrinking too much */
         
         i {
           margin: 0;
@@ -86,7 +95,6 @@
       }
     }
   }
-
   .headerActions {
     display: flex;
     gap: 0.75rem; /* Reduced from 1.5rem for more compact layout */
@@ -95,6 +103,11 @@
     justify-content: center; /* Center the buttons in the available space */
     width: 100%; /* Full width for better button distribution */
     margin-bottom: 1rem;
+    
+    /* Ensure buttons stay within container bounds */
+    box-sizing: border-box;
+    overflow: visible; /* Ensure buttons are always visible */
+    min-height: 44px; /* Minimum height to prevent cramping */
 
     // Button styles for all action buttons - Made more compact and colorful
     .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
@@ -434,19 +447,34 @@
       font-size: 0.9rem;
     }
   }
-
   @media (max-width: 768px) {
-    width: 100%; /* Full width on mobile */
+    width: calc(100vw - 20px) !important; /* Full width on mobile with small margin */
+    max-width: calc(100vw - 20px) !important;
+    min-width: auto !important; /* Remove min-width constraint on mobile */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
     border-radius: 15px 15px 0 0;
     
     &.minimized {
+      width: calc(100vw - 20px) !important;
+      max-width: calc(100vw - 20px) !important;
+      min-width: auto !important;
+      
       .headerActions {
         gap: 0.3rem;
+        padding: 0 0.2rem; /* Add small horizontal padding */
         
         .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
           min-width: 35px;
-          padding: 0.3rem;
+          padding: 0.3rem 0.2rem;
           height: 32px;
+          flex: 1; /* Distribute space evenly */
+          max-width: calc(25% - 0.3rem); /* Ensure 4 buttons fit */
+          
+          /* Hide text on very small screens, keep icons */
+          span {
+            display: none;
+          }
         }
       }
     }
@@ -460,7 +488,8 @@
     .headerActions {
       width: 100%;
       justify-content: space-between;
-      gap: 0.5rem;
+      gap: 0.3rem;
+      padding: 0 0.2rem; /* Add small horizontal padding */
       
       .fullOnButton,
       .blackoutButton,
@@ -468,14 +497,52 @@
       .fadeBackupButton {
         flex: 1;
         min-width: auto;
-        padding: 0.5rem;
+        max-width: calc(25% - 0.3rem); /* Ensure 4 buttons fit */
+        padding: 0.5rem 0.2rem;
         font-size: 0.8rem;
+        
+        /* Adjust text for mobile */
+        span {
+          font-size: 0.7rem;
+        }
       }
     }
 
     .faderContainer {
       .controls {
         width: 100%;
+      }
+    }
+  }
+
+  /* Extra small screens */
+  @media (max-width: 480px) {
+    &.minimized {
+      .headerActions {
+        .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+          min-width: 30px;
+          padding: 0.25rem;
+          height: 30px;
+          font-size: 0;
+          
+          i {
+            font-size: 0.8rem;
+          }
+        }
+      }
+    }
+    
+    .headerActions {
+      .fullOnButton,
+      .blackoutButton,
+      .slowFadeoutButton,
+      .fadeBackupButton {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.1rem;
+        
+        span {
+          display: none; /* Hide text on extra small screens */
+        }
       }
     }
   }

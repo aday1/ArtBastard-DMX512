@@ -56,16 +56,16 @@ export const DockableComponent = ({ id, title, component, children, className = 
         const componentElement = componentRef.current;
         if (!componentElement) {
             return {
-                left: -200,
-                top: -100,
-                right: window.innerWidth - 50,
-                bottom: window.innerHeight - 50,
+                left: -150,
+                top: -50,
+                right: window.innerWidth - 100,
+                bottom: window.innerHeight - 100, // Keep more visible
             };
         }
         const componentWidth = componentElement.offsetWidth;
         const componentHeight = componentElement.offsetHeight;
-        const minVisibleWidth = Math.min(100, componentWidth * 0.3);
-        const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+        const minVisibleWidth = Math.min(150, componentWidth * 0.5); // Increased minimum visible area
+        const minVisibleHeight = Math.min(80, componentHeight * 0.5); // Increased minimum visible area
         return {
             left: -componentWidth + minVisibleWidth,
             top: -componentHeight + minVisibleHeight,
@@ -111,14 +111,14 @@ export const DockableComponent = ({ id, title, component, children, className = 
         const componentWidth = componentElement?.offsetWidth || 300;
         const componentHeight = componentElement?.offsetHeight || 200;
         // Minimum visible area (prevent complete off-screen positioning)
-        const minVisibleWidth = Math.min(100, componentWidth * 0.3);
-        const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+        const minVisibleWidth = Math.min(150, componentWidth * 0.5); // Increased minimum visible area
+        const minVisibleHeight = Math.min(80, componentHeight * 0.5); // Increased minimum visible area
         // Calculate constrained position to keep component mostly in viewport
-        const constrainedX = Math.max(-componentWidth + minVisibleWidth, // Allow partial off-screen but keep some visible
-        Math.min(x, window.innerWidth - minVisibleWidth // Ensure some part remains visible on right
+        const constrainedX = Math.max(-componentWidth + minVisibleWidth, // Allow partial off-screen but keep significant portion visible
+        Math.min(x, window.innerWidth - minVisibleWidth // Ensure significant part remains visible on right
         ));
-        const constrainedY = Math.max(-componentHeight + minVisibleHeight, // Allow partial off-screen but keep some visible
-        Math.min(y, window.innerHeight - minVisibleHeight // Ensure some part remains visible on bottom
+        const constrainedY = Math.max(-componentHeight + minVisibleHeight, // Allow partial off-screen but keep significant portion visible
+        Math.min(y, window.innerHeight - minVisibleHeight // Ensure significant part remains visible on bottom
         ));
         return { x: constrainedX, y: constrainedY };
     };
@@ -138,7 +138,7 @@ export const DockableComponent = ({ id, title, component, children, className = 
             case 'top-center':
                 return { top: 20, left: '50%', transform: 'translateX(-50%)' };
             case 'bottom-center':
-                return { bottom: 20, left: '50%', transform: 'translateX(-50%)' };
+                return { bottom: 20, left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 40px)' };
             case 'left-center':
                 return { left: 20, top: '50%', transform: 'translateY(-50%)' };
             case 'right-center':
@@ -194,6 +194,7 @@ export const DockableComponent = ({ id, title, component, children, className = 
         width: localMinimized ? 'auto' : width,
         height: localMinimized ? 'auto' : height,
         zIndex: dockedComponent.zIndex,
+        maxWidth: 'calc(100vw - 20px)',
         ...getPositionStyle(),
         ...style,
     };
@@ -212,5 +213,16 @@ export const DockableComponent = ({ id, title, component, children, className = 
                                             cursor: 'pointer',
                                             padding: '4px',
                                             fontSize: '12px',
-                                        }, title: localMinimized ? 'Expand' : 'Minimize', children: _jsx("i", { className: localMinimized ? 'fas fa-chevron-down' : 'fas fa-chevron-up' }) }))] }), !localMinimized && (_jsx("div", { style: { pointerEvents: 'auto' }, children: children }))] }), "      "] })] }));
+                                        }, title: localMinimized ? 'Expand' : 'Minimize', children: _jsx("i", { className: localMinimized ? 'fas fa-chevron-down' : 'fas fa-chevron-up' }) }))] }), !localMinimized && (_jsx("div", { style: {
+                                    pointerEvents: 'auto',
+                                    overflow: 'visible',
+                                    width: '100%',
+                                    boxSizing: 'border-box'
+                                }, children: children })), localMinimized && (_jsx("div", { style: {
+                                    pointerEvents: 'auto',
+                                    overflow: 'visible',
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    padding: '4px' // Small padding to prevent edge clipping
+                                }, children: children }))] }), "      "] })] }));
 };

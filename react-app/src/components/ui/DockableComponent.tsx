@@ -111,17 +111,17 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     const componentElement = componentRef.current;
     if (!componentElement) {
       return {
-        left: -200, // Allow some off-screen dragging
-        top: -100,
-        right: window.innerWidth - 50, // Keep at least 50px visible
-        bottom: window.innerHeight - 50,
+        left: -150, // Reduced off-screen allowance
+        top: -50,   // Reduced off-screen allowance
+        right: window.innerWidth - 100, // Keep more visible
+        bottom: window.innerHeight - 100, // Keep more visible
       };
     }
 
     const componentWidth = componentElement.offsetWidth;
     const componentHeight = componentElement.offsetHeight;
-    const minVisibleWidth = Math.min(100, componentWidth * 0.3);
-    const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+    const minVisibleWidth = Math.min(150, componentWidth * 0.5); // Increased minimum visible area
+    const minVisibleHeight = Math.min(80, componentHeight * 0.5); // Increased minimum visible area
 
     return {
       left: -componentWidth + minVisibleWidth,
@@ -165,31 +165,30 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
       
       updateComponentPosition(id, { zone: 'floating', offset: newOffset });
     }
-  };
-  const getFloatingOffset = (x: number, y: number) => {
+  };  const getFloatingOffset = (x: number, y: number) => {
     // Get component dimensions for better constraint calculation
     const componentElement = componentRef.current;
     const componentWidth = componentElement?.offsetWidth || 300;
     const componentHeight = componentElement?.offsetHeight || 200;
     
     // Minimum visible area (prevent complete off-screen positioning)
-    const minVisibleWidth = Math.min(100, componentWidth * 0.3);
-    const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+    const minVisibleWidth = Math.min(150, componentWidth * 0.5); // Increased minimum visible area
+    const minVisibleHeight = Math.min(80, componentHeight * 0.5); // Increased minimum visible area
     
     // Calculate constrained position to keep component mostly in viewport
     const constrainedX = Math.max(
-      -componentWidth + minVisibleWidth, // Allow partial off-screen but keep some visible
+      -componentWidth + minVisibleWidth, // Allow partial off-screen but keep significant portion visible
       Math.min(
         x,
-        window.innerWidth - minVisibleWidth // Ensure some part remains visible on right
+        window.innerWidth - minVisibleWidth // Ensure significant part remains visible on right
       )
     );
     
     const constrainedY = Math.max(
-      -componentHeight + minVisibleHeight, // Allow partial off-screen but keep some visible
+      -componentHeight + minVisibleHeight, // Allow partial off-screen but keep significant portion visible
       Math.min(
         y,
-        window.innerHeight - minVisibleHeight // Ensure some part remains visible on bottom
+        window.innerHeight - minVisibleHeight // Ensure significant part remains visible on bottom
       )
     );
     
@@ -211,9 +210,8 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
       case 'bottom-right':
         return { bottom: 20, right: 20 };
       case 'top-center':
-        return { top: 20, left: '50%', transform: 'translateX(-50%)' };
-      case 'bottom-center':
-        return { bottom: 20, left: '50%', transform: 'translateX(-50%)' };
+        return { top: 20, left: '50%', transform: 'translateX(-50%)' };      case 'bottom-center':
+        return { bottom: 20, left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 40px)' };
       case 'left-center':
         return { left: 20, top: '50%', transform: 'translateY(-50%)' };
       case 'right-center':
@@ -275,12 +273,12 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
   if (!dockedComponent) {
     return null; // Component not registered yet
   }
-
   const motionStyle = {
     position: 'fixed' as const,
     width: localMinimized ? 'auto' : width,
     height: localMinimized ? 'auto' : height,
     zIndex: dockedComponent.zIndex,
+    maxWidth: 'calc(100vw - 20px)', // Prevent overflow beyond viewport
     ...getPositionStyle(),
     ...style,
   };
@@ -338,12 +336,29 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
             </button>
           )}
         </div>
-        
-        {/* Content - only show when not minimized */}
+          {/* Content - only show when not minimized */}
         {!localMinimized && (
-          <div style={{ pointerEvents: 'auto' }}>
+          <div style={{ 
+            pointerEvents: 'auto',
+            overflow: 'visible', // Ensure content is not clipped
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
             {children}
           </div>        )}
+        
+        {/* Minimized content - show essential parts when minimized */}
+        {localMinimized && (
+          <div style={{ 
+            pointerEvents: 'auto',
+            overflow: 'visible', // Ensure buttons are not clipped
+            width: '100%',
+            boxSizing: 'border-box',
+            padding: '4px' // Small padding to prevent edge clipping
+          }}>
+            {children}
+          </div>
+        )}
       </div>      </motion.div>
     </>
   );

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Fader Button Layout Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .test-container {
+            border: 2px solid #4ecdc4;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .master-fader-test {
+            background: #2d3748;
+            padding: 0.75rem;
+            border-radius: 15px 15px 0 0;
+            border: 1px solid #4ecdc4;
+            position: relative;
+            margin: 20px auto;
+            max-width: calc(100vw - 40px);
+            min-width: min(400px, calc(100vw - 40px));
+        }
+        
+        .master-fader-test.minimized {
+            padding: 0.4rem;
+            width: min(70%, calc(100vw - 40px));
+            max-width: min(600px, calc(100vw - 40px));
+            min-width: min(400px, calc(100vw - 40px));
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: visible;
+            min-height: 44px;
+        }
+        
+        .master-fader-test.minimized .header-actions {
+            gap: 0.4rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .action-button {
+            padding: 0.5rem 0.8rem;
+            color: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            min-width: 100px;
+            height: 36px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #ffa502, #ff6348);
+            flex-shrink: 0;
+        }
+        
+        .master-fader-test.minimized .action-button {
+            min-width: 40px;
+            max-width: none;
+            padding: 0.4rem;
+            font-size: 0;
+            flex-shrink: 0;
+        }
+        
+        .action-button i {
+            margin: 0;
+        }
+        
+        .action-button.blackout {
+            background: linear-gradient(135deg, #ff4757, #ff3742);
+        }
+        
+        .action-button.fade-out {
+            background: linear-gradient(135deg, #4e54c8, #8f94fb);
+        }
+        
+        .action-button.fade-in {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+        
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            .master-fader-test {
+                width: calc(100vw - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                min-width: auto !important;
+            }
+            
+            .master-fader-test.minimized {
+                width: calc(100vw - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                min-width: auto !important;
+            }
+            
+            .master-fader-test.minimized .header-actions {
+                gap: 0.3rem;
+                padding: 0 0.2rem;
+            }
+            
+            .master-fader-test.minimized .action-button {
+                min-width: 35px;
+                padding: 0.3rem 0.2rem;
+                height: 32px;
+                flex: 1;
+                max-width: calc(25% - 0.3rem);
+            }
+            
+            .header-actions {
+                gap: 0.3rem;
+                padding: 0 0.2rem;
+            }
+            
+            .action-button {
+                flex: 1;
+                min-width: auto;
+                max-width: calc(25% - 0.3rem);
+                padding: 0.5rem 0.2rem;
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .master-fader-test.minimized .action-button {
+                min-width: 30px;
+                padding: 0.25rem;
+                height: 30px;
+                font-size: 0;
+            }
+            
+            .action-button {
+                font-size: 0.7rem;
+                padding: 0.4rem 0.1rem;
+            }
+            
+            .action-button .button-text {
+                display: none;
+            }
+        }
+        
+        .resize-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #2d3748;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #4ecdc4;
+        }
+        
+        .resize-controls button {
+            margin: 5px;
+            padding: 8px 12px;
+            background: #4ecdc4;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Master Fader Button Layout Test</h1>
+    <p>This test simulates the Master Fader component at different screen sizes and states.</p>
+    
+    <div class="resize-controls">
+        <div>Test Controls:</div>
+        <button onclick="toggleMinimized()">Toggle Minimized</button>
+        <button onclick="setWidth(1200)">Desktop (1200px)</button>
+        <button onclick="setWidth(768)">Tablet (768px)</button>
+        <button onclick="setWidth(480)">Mobile (480px)</button>
+        <button onclick="setWidth(320)">Small Mobile (320px)</button>
+    </div>
+    
+    <div class="test-container">
+        <h3>Normal State</h3>
+        <div class="master-fader-test" id="fader-normal">
+            <div class="header-actions">
+                <button class="action-button full-on">
+                    <i class="fas fa-lightbulb">💡</i>
+                    <span class="button-text">FULL ON</span>
+                </button>
+                <button class="action-button blackout">
+                    <i class="fas fa-power-off">⚡</i>
+                    <span class="button-text">Blackout</span>
+                </button>
+                <button class="action-button fade-out">
+                    <i class="fas fa-arrow-down">↓</i>
+                    <span class="button-text">Fade Out</span>
+                </button>
+                <button class="action-button fade-in">
+                    <i class="fas fa-arrow-up">↑</i>
+                    <span class="button-text">Fade In</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h3>Minimized State</h3>
+        <div class="master-fader-test minimized" id="fader-minimized">
+            <div class="header-actions">
+                <button class="action-button full-on">
+                    <i class="fas fa-lightbulb">💡</i>
+                    <span class="button-text">FULL ON</span>
+                </button>
+                <button class="action-button blackout">
+                    <i class="fas fa-power-off">⚡</i>
+                    <span class="button-text">Blackout</span>
+                </button>
+                <button class="action-button fade-out">
+                    <i class="fas fa-arrow-down">↓</i>
+                    <span class="button-text">Fade Out</span>
+                </button>
+                <button class="action-button fade-in">
+                    <i class="fas fa-arrow-up">↑</i>
+                    <span class="button-text">Fade In</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleMinimized() {
+            const normal = document.getElementById('fader-normal');
+            const minimized = document.getElementById('fader-minimized');
+            
+            normal.classList.toggle('minimized');
+            minimized.classList.toggle('minimized');
+        }
+        
+        function setWidth(width) {
+            // Simulate different screen sizes by setting viewport width
+            document.body.style.width = width + 'px';
+            document.body.style.margin = '0 auto';
+            document.body.style.border = '2px solid red';
+            
+            // Update info
+            document.querySelector('h1').textContent = `Master Fader Button Layout Test (${width}px width)`;
+        }
+        
+        // Show current viewport width
+        function updateViewportInfo() {
+            const width = window.innerWidth;
+            document.title = `Master Fader Test - ${width}px`;
+        }
+        
+        window.addEventListener('resize', updateViewportInfo);
+        updateViewportInfo();
+    </script>
+</body>
+</html>

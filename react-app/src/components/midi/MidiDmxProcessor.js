@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useStore } from '../../store';
 import { useMidiScaling } from '../../hooks/useMidiScaling';
 /**
@@ -19,6 +19,12 @@ export const MidiDmxProcessor = () => {
     const [lastProcessedMessageSignature, setLastProcessedMessageSignature] = useState(null);
     // Keep track of custom range mappings for each channel
     const [channelRangeMappings, setChannelRangeMappings] = useState({});
+    // Memoize store functions to avoid recreating them
+    const stableFunctions = useMemo(() => ({
+        setDmxChannel,
+        updateMasterSliderValue,
+        scaleValue,
+    }), [setDmxChannel, updateMasterSliderValue, scaleValue]);
     // Log when MIDI mappings change, helpful for debugging
     useEffect(() => {
         console.log('[MidiDmxProcessor] MIDI mappings updated in store:', midiMappings);
@@ -68,7 +74,7 @@ export const MidiDmxProcessor = () => {
                     }
                     if (match) {
                         console.log(`[MidiDmxProcessor] Master Slider "${slider.name}" matched MIDI. New value: ${newValueForMaster}`);
-                        updateMasterSliderValue(slider.id, Math.max(0, Math.min(255, newValueForMaster)));
+                        stableFunctions.updateMasterSliderValue(slider.id, Math.max(0, Math.min(255, newValueForMaster)));
                         messageHandledByMasterSlider = true;
                         break; // Assuming one MIDI message controls at most one master slider
                     }
@@ -90,10 +96,10 @@ export const MidiDmxProcessor = () => {
                     // ... (rest of the existing DMX channel processing logic: scaling, setDmxChannel, event dispatch) ...
                     const currentRangeMapping = channelRangeMappings[dmxChannel] || {};
                     const scalingOptions = { /* ... */}; // As before
-                    const dmxValue = scaleValue(latestMessage.value, scalingOptions);
+                    const dmxValue = stableFunctions.scaleValue(latestMessage.value, scalingOptions);
                     const roundedDmxValue = typeof dmxValue === 'number' ? Math.round(dmxValue) : 0;
                     const boundedValue = Math.max(0, Math.min(255, roundedDmxValue));
-                    setDmxChannel(dmxChannel, boundedValue);
+                    stableFunctions.setDmxChannel(dmxChannel, boundedValue);
                     // ... (event dispatch as before) ...
                 }
             });
@@ -107,11 +113,11 @@ export const MidiDmxProcessor = () => {
             // For now, we just log that it wasn't handled by a master slider.
             console.log(`[MidiDmxProcessor] Note message not handled by master slider, and direct DMX note mapping not shown in original logic snippet for this part.`);
         }
-    }, [midiMessages, midiMappings, setDmxChannel, scaleValue, channelRangeMappings, masterSliders, updateMasterSliderValue]);
+    }, [midiMessages, midiMappings, masterSliders, channelRangeMappings, stableFunctions]); // Use stable functions
     /**
      * Set a custom range mapping for a specific DMX channel
      */
-    const setChannelRangeMapping = (dmxChannel, mapping) => {
+    const setChannelRangeMapping = useCallback((dmxChannel, mapping) => {
         setChannelRangeMappings(prev => ({
             ...prev,
             [dmxChannel]: {
@@ -119,13 +125,13 @@ export const MidiDmxProcessor = () => {
                 ...mapping
             }
         }));
-    };
+    }, []);
     /**
      * Get all custom range mappings
      */
-    const getChannelRangeMappings = () => {
+    const getChannelRangeMappings = useCallback(() => {
         return channelRangeMappings;
-    };
+    }, [channelRangeMappings]);
     // Expose setChannelRangeMapping and getChannelRangeMappings to window for testing/external use
     useEffect(() => {
         if (typeof window !== 'undefined') {
