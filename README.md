@@ -383,6 +383,44 @@ npm start
 - **Accelerometer Integration**: Optional motion-based fixture control through device movement
 - **Position Feedback Visualization**: Real-time status display of current fixture positions
 
+## 🔧 **Development & Git Management**
+
+### 🚀 **Quick Start Scripts**
+- **`QUICKSTART.ps1` / `QUICKSTART.sh`**: Automated project setup and dependency installation
+- **`RESTART.ps1` / `RESTART.sh`**: Service restart and environment refresh
+- **`CLEANUP.ps1` / `CLEANUP.sh`**: Project cleanup and cache clearing
+
+### 🔄 **Git Management Tools**
+Interactive menu-driven scripts for seamless version control:
+
+- **`git-manager.ps1`** (Windows PowerShell) / **`git-manager.sh`** (Unix/Linux/macOS)
+- **Safe stashing**: Automatically preserve local changes before pulling latest code
+- **Interactive operations**: Menu-driven interface for common git workflows
+- **Smart conflict handling**: Intelligent management of package lock files and dependencies
+
+#### 🎯 **Quick Git Operations**
+```powershell
+# Windows
+.\git-manager.ps1
+
+# Unix/Linux/macOS  
+./git-manager.sh
+```
+
+**Menu Options:**
+- **Stash & Pull Latest** - Safely update with remote changes
+- **Create Commit** - Stage all changes and commit with message
+- **Push Changes** - Upload commits to remote repository
+- **View Git Log** - Review recent commit history
+- **Check Status** - Inspect current working directory state
+
+### 📋 **Package Management**
+- **`.gitignore` Configuration**: Automatically excludes `package-lock.json` files to prevent version conflicts
+- **Dependency Synchronization**: Smart handling of frontend/backend package variations
+- **Cross-platform Compatibility**: Scripts work seamlessly across Windows, macOS, and Linux
+
+*For detailed documentation: see `GIT-MANAGEMENT.md` and `GIT-QUICK-REFERENCE.md`*
+
 ## 🔮 **Future Visions**
 
 ### 💫 **Planned Expansions**

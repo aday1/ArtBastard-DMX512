@@ -1,6 +1,10 @@
 node_modules
 build
 
+# Package lock files
+package-lock.json
+react-app/package-lock.json
+
 # Log files and directories
 logs/
 logs_backup/
