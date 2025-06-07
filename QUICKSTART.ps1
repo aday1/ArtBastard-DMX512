@@ -95,7 +95,7 @@ Write-Host "‼️ ATTENTION, STAGE MANAGER (That's You!) ‼️" -ForegroundCol
 Write-Host "The spotlight now turns to you for the frontend!" -ForegroundColor Yellow
 Write-Host "Please, with dramatic flair, open a NEW PowerShell terminal/tab, and command:" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Set-Location '$($ProjectRootPath)\\react-app'" -ForegroundColor White
+Write-Host "  Set-Location '$($ProjectRootPath)\react-app'" -ForegroundColor White
 Write-Host "  npm run dev" -ForegroundColor White
 Write-Host ""
 Write-Host "And behold! The frontend UI shall illuminate your screen, typically at http://localhost:3001 (dev server) but if it is not, then it is likely the port shown in the console after running the command." -ForegroundColor Yellow
