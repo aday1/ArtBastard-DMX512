@@ -13,6 +13,11 @@ import MidiDmxDebug from './components/midi/MidiDmxDebug'
 import OscMonitor from './components/osc/OscMonitor'
 import DebugInfo from './components/DebugInfo'
 import { ThemeToggleButton } from './components/layout/ThemeToggleButton'; // Import ThemeToggleButton
+import { GridOverlay } from './components/ui/GridOverlay';
+import { GridControls } from './components/ui/GridControls';
+import { DragDebugOverlay } from './components/ui/DragDebugOverlay';
+import { GridKeyboardControls } from './components/ui/GridKeyboardControls';
+import { HelpOverlay } from './components/ui/HelpOverlay';
 import './utils/midiTestUtils'
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -73,8 +78,11 @@ function App() {
               <MidiDmxProcessor />
               <MidiDebugHelper />
               <MidiDmxDebug />
-            </div>
-            {/* Main UI should live inside SocketProvider */}
+            </div>            {/* Main UI should live inside SocketProvider */}
+            <GridOverlay />
+            <GridControls />            <GridKeyboardControls />
+            <DragDebugOverlay />
+            <HelpOverlay />
             <ThemeToggleButton />
             <DebugInfo position="top-right" />
             <ErrorBoundary>

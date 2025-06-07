@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useStore, PlacedFixture, Group } from '../../store' // Import PlacedFixture and Group
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { FixtureCanvas2D } from './FixtureCanvas2D'; // Added
 import { CanvasImageUpload } from './CanvasImageUpload'; // Added
 import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
+import { LucideIcon } from '../ui/LucideIcon'; // Added for icons
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -79,19 +80,33 @@ const fixtureTemplates: Array<{
 ];
 
 export const FixtureSetup: React.FC = () => {
-  const { theme } = useTheme()
+  const { theme } = useTheme();
   const { 
     fixtures, 
     fixtureLayout, 
     setFixtureLayout, 
     canvasBackgroundImage, 
-    setCanvasBackgroundImage 
+    setCanvasBackgroundImage,
+    addFixtureFlag,
+    removeFixtureFlag,
+    bulkAddFlag,
+    bulkRemoveFlag,
+    createQuickFlag,
+    getFixturesByFlag,
+    getFixturesByFlagCategory
   } = useStore(state => ({
     fixtures: state.fixtures,
     fixtureLayout: state.fixtureLayout,
     setFixtureLayout: state.setFixtureLayout,
     canvasBackgroundImage: state.canvasBackgroundImage,
     setCanvasBackgroundImage: state.setCanvasBackgroundImage,
+    addFixtureFlag: state.addFixtureFlag,
+    removeFixtureFlag: state.removeFixtureFlag,
+    bulkAddFlag: state.bulkAddFlag,
+    bulkRemoveFlag: state.bulkRemoveFlag,
+    createQuickFlag: state.createQuickFlag,
+    getFixturesByFlag: state.getFixturesByFlag,
+    getFixturesByFlagCategory: state.getFixturesByFlagCategory
   }));
   const groups = useStore(state => state.groups)
     const [showCreateFixture, setShowCreateFixture] = useState(false)
@@ -102,8 +117,7 @@ export const FixtureSetup: React.FC = () => {
     name: '',    startAddress: 1,
     channels: [{ name: 'Intensity', type: 'dimmer' }]
   });
-  
-  const [groupForm, setGroupForm] = useState<Partial<Group>>({
+    const [groupForm, setGroupForm] = useState<Partial<Group>>({
     name: '',
     fixtureIndices: [],
     lastStates: new Array(512).fill(0),
@@ -111,6 +125,218 @@ export const FixtureSetup: React.FC = () => {
     isSolo: false,
     masterValue: 255
   })
+  // Multi-select functionality state
+  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
+  const [showFlagPanel, setShowFlagPanel] = useState(false);
+  const [newFlagName, setNewFlagName] = useState('');
+  const [newFlagColor, setNewFlagColor] = useState('#ff6b6b');
+  const [newFlagCategory, setNewFlagCategory] = useState('');
+
+  // Filter fixtures based on search term
+  const filteredFixtures = fixtures.filter(fixture =>
+    fixture.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Keyboard shortcuts for multi-select operations
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when not typing in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ctrl/Cmd + A: Select All
+      if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+        event.preventDefault();
+        selectAll();
+        return;
+      }
+
+      // Ctrl/Cmd + D: Deselect All
+      if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+        event.preventDefault();
+        deselectAll();
+        return;
+      }
+
+      // Ctrl/Cmd + I: Invert Selection
+      if ((event.ctrlKey || event.metaKey) && event.key === 'i') {
+        event.preventDefault();
+        invertSelection();
+        return;
+      }
+
+      // Escape: Clear search and close panels
+      if (event.key === 'Escape') {
+        setSearchTerm('');
+        setShowAdvancedSelection(false);
+        setShowFlagPanel(false);
+        return;
+      }
+
+      // Ctrl/Cmd + F: Focus search
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }      // Delete: Delete selected fixtures
+      if (event.key === 'Delete' && selectedFixtures.length > 0) {
+        event.preventDefault();
+        if (window.confirm(`Delete ${selectedFixtures.length} selected fixture(s)?`)) {
+          selectedFixtures.forEach(fixtureId => {
+            deleteFixture(fixtureId);
+          });
+          setSelectedFixtures([]);
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFixtures, filteredFixtures]);
+
+  // Multi-select functionality functions
+  const selectAll = () => {
+    setSelectedFixtures(filteredFixtures.map(f => f.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedFixtures([]);
+  };
+
+  const invertSelection = () => {
+    const allIds = filteredFixtures.map(f => f.id);
+    const newSelection = allIds.filter(id => !selectedFixtures.includes(id));
+    setSelectedFixtures(newSelection);
+  };
+
+  const selectByType = (fixtureType: 'rgb' | 'movement' | 'dimmer') => {
+    const typeFixtures = filteredFixtures.filter(fixture => {
+      switch (fixtureType) {
+        case 'rgb':
+          return fixture.channels.some(ch => ch.type === 'red') &&
+                 fixture.channels.some(ch => ch.type === 'green') &&
+                 fixture.channels.some(ch => ch.type === 'blue');
+        case 'movement':
+          return fixture.channels.some(ch => ch.type === 'pan') ||
+                 fixture.channels.some(ch => ch.type === 'tilt');
+        case 'dimmer':
+          return fixture.channels.some(ch => ch.type === 'dimmer');
+        default:
+          return false;
+      }
+    });
+    setSelectedFixtures(typeFixtures.map(f => f.id));
+  };
+
+  const selectSimilar = () => {
+    if (selectedFixtures.length === 0) return;
+    
+    const referenceFixture = fixtures.find(f => f.id === selectedFixtures[0]);
+    if (!referenceFixture) return;
+    
+    const referenceChannelTypes = referenceFixture.channels.map(ch => ch.type).sort();
+    const similarFixtures = filteredFixtures.filter(fixture => {
+      const channelTypes = fixture.channels.map(ch => ch.type).sort();
+      return JSON.stringify(channelTypes) === JSON.stringify(referenceChannelTypes);
+    });
+    
+    setSelectedFixtures(similarFixtures.map(f => f.id));
+  };
+
+  const selectByFlag = (flagId: string) => {
+    const flaggedFixtures = getFixturesByFlag(flagId);
+    setSelectedFixtures(flaggedFixtures.map(f => f.id));
+  };
+
+  const selectByFlagCategory = (category: string) => {
+    const flaggedFixtures = getFixturesByFlagCategory(category);
+    setSelectedFixtures(flaggedFixtures.map(f => f.id));
+  };
+
+  const selectAllFlagged = () => {
+    const flaggedFixtures = filteredFixtures.filter(f => f.isFlagged);
+    setSelectedFixtures(flaggedFixtures.map(f => f.id));
+  };
+
+  // Flag management functions
+  const createAndApplyFlag = () => {
+    if (!newFlagName.trim() || selectedFixtures.length === 0) return;
+    
+    const flag = createQuickFlag(newFlagName.trim(), newFlagColor, newFlagCategory.trim() || undefined);
+    bulkAddFlag(selectedFixtures, flag);
+    
+    // Reset form
+    setNewFlagName('');
+    setNewFlagColor('#ff6b6b');
+    setNewFlagCategory('');
+    setShowFlagPanel(false);
+  };
+
+  const getAllUniqueFlags = () => {
+    const flagMap = new Map();
+    fixtures.forEach(fixture => {
+      if (fixture.flags) {
+        fixture.flags.forEach(flag => {
+          flagMap.set(flag.id, flag);
+        });
+      }
+    });
+    return Array.from(flagMap.values()).sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
+  };
+
+  // Get all unique categories
+  const getAllUniqueCategories = () => {
+    const categories = new Set<string>();
+    fixtures.forEach(fixture => {
+      if (fixture.flags) {
+        fixture.flags.forEach(flag => {
+          if (flag.category) {
+            categories.add(flag.category);
+          }
+        });
+      }
+    });
+    return Array.from(categories).sort();
+  };
+
+  // Remove all flags from selected fixtures
+  const removeSelectedFixtureFlags = () => {
+    selectedFixtures.forEach(fixtureId => {
+      const fixture = fixtures.find(f => f.id === fixtureId);
+      if (fixture && fixture.flags) {
+        fixture.flags.forEach(flag => {
+          removeFixtureFlag(fixtureId, flag.id);
+        });
+      }
+  });
+  };
+
+  // Helper functions for form management
+  const selectedFixtureName = () => {
+    if (selectedFixtures.length === 0) return 'No fixtures selected';
+    if (selectedFixtures.length === 1) {
+      const fixture = fixtures.find(f => f.id === selectedFixtures[0]);
+      return fixture?.name || 'Unknown';
+    }
+    return `${selectedFixtures.length} fixtures selected`;
+  };
+
+  const toggleFixtureSelection = (fixtureId: string) => {
+    setSelectedFixtures(prevSelected =>
+      prevSelected.includes(fixtureId)
+        ? prevSelected.filter(id => id !== fixtureId)
+        : [...prevSelected, fixtureId]
+    );
+  };
+
   const calculateNextStartAddress = () => {
     if (fixtures.length === 0) return 1;
     // Ensure addresses are numbers and positive before using Math.max
@@ -123,6 +349,7 @@ export const FixtureSetup: React.FC = () => {
     const endAddress = startAddress + channelCount - 1;
     
     for (const fixture of fixtures) {
+      // Skip the fixture we're editing
       if (excludeFixtureId && fixture.id === excludeFixtureId) continue;
       
       const fixtureEnd = fixture.startAddress + fixture.channels.length - 1;
@@ -163,7 +390,8 @@ export const FixtureSetup: React.FC = () => {
       channels: prev.channels.filter((_, i) => i !== index)
     }))
   }
-    // Save fixture to store
+
+  // Save fixture to store
   const saveFixture = () => {
     if (editingFixtureId) {
       // Update existing fixture
@@ -173,6 +401,7 @@ export const FixtureSetup: React.FC = () => {
       createFixture()
     }
   }
+
   // Create new fixture
   const createFixture = () => {
     // Validate DMX address conflict
@@ -285,6 +514,7 @@ export const FixtureSetup: React.FC = () => {
     setShowCreateFixture(false)
     setEditingFixtureId(null)
   }
+
   // Toggle fixture selection for group
   const toggleFixtureForGroup = (index: number) => {
     setGroupForm(prev => {
@@ -352,10 +582,10 @@ export const FixtureSetup: React.FC = () => {
     setGroupForm({
       name: group.name,
       fixtureIndices: [...group.fixtureIndices],
-      lastStates: [...group.lastStates],
-      isMuted: group.isMuted,
-      isSolo: group.isSolo,
-      masterValue: group.masterValue
+      lastStates: new Array(512).fill(0),
+      isMuted: false,
+      isSolo: false,
+      masterValue: 255
     });
     setEditingGroupId(group.id);
     setShowCreateGroup(true);
@@ -365,28 +595,15 @@ export const FixtureSetup: React.FC = () => {
   const updateGroup = () => {
     if (!editingGroupId) return;
 
-    const updatedGroup: Group = {
+    const updatedGroup = {
       id: editingGroupId,
       name: groupForm.name!,
       fixtureIndices: [...groupForm.fixtureIndices!],
-      lastStates: [...groupForm.lastStates!],
-      isMuted: groupForm.isMuted!,
-      isSolo: groupForm.isSolo!,
-      masterValue: groupForm.masterValue!
-    };
-
-    useStoreUtils.setState(state => ({
-      groups: state.groups.map(g => g.id === editingGroupId ? updatedGroup : g)
-    }));
-
-    setGroupForm({
-      name: '',
-      fixtureIndices: [],
       lastStates: new Array(512).fill(0),
       isMuted: false,
       isSolo: false,
       masterValue: 255
-    });
+    };
     setShowCreateGroup(false);
     setEditingGroupId(null);
 
@@ -422,8 +639,7 @@ export const FixtureSetup: React.FC = () => {
       </div>
       
       <div className={styles.setupGrid}>
-        {/* Fixture Management Section */}
-        <div className={styles.card}>
+        {/* Fixture Management Section */}        <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>
               {theme === 'artsnob' && 'Existing Fixtures: The Gallery of Light Instruments'}
@@ -437,43 +653,304 @@ export const FixtureSetup: React.FC = () => {
                 <i className="fas fa-lightbulb"></i>
                 <p>No fixtures have been created yet</p>
               </div>
-            ) : (              <div className={styles.fixtureList}>
-                {fixtures.map((fixture, index) => (
-                  <div key={fixture.id || index} className={styles.fixtureItem}>
-                    <div className={styles.fixtureHeader}>
-                      <h4>{fixture.name}</h4>
-                      <div className={styles.fixtureActions}>
-                        <span className={styles.fixtureDmx}>
-                          DMX: {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
-                        </span>
+            ) : (
+              <>
+                {/* Search Bar */}
+                <div className={styles.searchSection}>
+                  <div className={styles.searchContainer}>
+                    <LucideIcon name="Search" />
+                    <input
+                      type="text"
+                      placeholder="Search fixtures..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={styles.searchInput}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className={styles.clearSearch}
+                      >
+                        <LucideIcon name="X" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selection Summary */}
+                {selectedFixtures.length > 0 && (
+                  <div className={styles.selectionSummary}>
+                    <div className={styles.summaryText}>
+                      <span>{selectedFixtures.length} of {filteredFixtures.length} selected</span>
+                    </div>
+                    <div className={styles.summaryActions}>
+                      <button
+                        onClick={deselectAll}
+                        className={styles.summaryButton}
+                        title="Clear selection"
+                      >
+                        <LucideIcon name="X" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bulk Selection Controls */}
+                <div className={styles.bulkControls}>
+                  <button
+                    className={styles.bulkButton}
+                    onClick={selectAll}
+                    title="Select all visible fixtures"
+                  >
+                    <LucideIcon name="CheckSquare" />
+                    <span>All</span>
+                  </button>
+                  
+                  <button
+                    className={styles.bulkButton}
+                    onClick={invertSelection}
+                    title="Invert selection"
+                  >
+                    <LucideIcon name="RotateCcw" />
+                    <span>Invert</span>
+                  </button>
+                  
+                  <button
+                    className={styles.bulkButton}
+                    onClick={() => setShowAdvancedSelection(!showAdvancedSelection)}
+                    title="Advanced selection"
+                  >
+                    <LucideIcon name="Filter" />
+                    <span>Smart</span>
+                  </button>
+                  
+                  <button
+                    className={styles.bulkButton}
+                    onClick={() => setShowFlagPanel(!showFlagPanel)}
+                    title="Flag management"
+                  >
+                    <LucideIcon name="Tag" />
+                    <span>Flags</span>
+                  </button>
+                </div>
+
+                {/* Advanced Selection Panel */}
+                {showAdvancedSelection && (
+                  <div className={styles.advancedSelection}>
+                    <div className={styles.selectionByType}>
+                      <h4>Select by Type:</h4>
+                      <div className={styles.typeButtons}>
                         <button
-                          className={styles.editButton}
-                          onClick={() => startEditFixture(fixture)}
-                          title="Edit fixture"
+                          onClick={() => selectByType('rgb')}
+                          className={styles.typeButton}
                         >
-                          <i className="fas fa-edit"></i>
+                          <LucideIcon name="Palette" />
+                          RGB
                         </button>
                         <button
-                          className={styles.deleteButton}
-                          onClick={() => deleteFixture(fixture.id)}
-                          title="Delete fixture"
+                          onClick={() => selectByType('movement')}
+                          className={styles.typeButton}
                         >
-                          <i className="fas fa-trash"></i>
+                          <LucideIcon name="Move" />
+                          Movement
+                        </button>
+                        <button
+                          onClick={() => selectByType('dimmer')}
+                          className={styles.typeButton}
+                        >
+                          <LucideIcon name="Sun" />
+                          Dimmer
                         </button>
                       </div>
                     </div>
-                    <div className={styles.fixtureChannels}>
-                      {fixture.channels.map((channel, chIndex) => (
-                        <div key={chIndex} className={styles.channelTag}>
-                          <span className={`${styles.channelType} ${styles[channel.type]}`}>
-                            {channel.name}
-                          </span>
-                        </div>
-                      ))}
+                    <div className={styles.smartSelection}>
+                      <button
+                        onClick={selectSimilar}
+                        disabled={selectedFixtures.length === 0}
+                        className={styles.smartButton}
+                      >
+                        <LucideIcon name="Copy" />
+                        Select Similar
+                      </button>
+                      <button
+                        onClick={selectAllFlagged}
+                        className={styles.smartButton}
+                      >
+                        <LucideIcon name="Flag" />
+                        All Flagged
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Flag Management Panel */}
+                {showFlagPanel && (
+                  <div className={styles.flagPanel}>
+                    <div className={styles.flagCreation}>
+                      <input
+                        type="text"
+                        placeholder="Flag name"
+                        value={newFlagName}
+                        onChange={(e) => setNewFlagName(e.target.value)}
+                        className={styles.flagInput}
+                      />
+                      <input
+                        type="color"
+                        value={newFlagColor}
+                        onChange={(e) => setNewFlagColor(e.target.value)}
+                        className={styles.colorInput}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Category (optional)"
+                        value={newFlagCategory}
+                        onChange={(e) => setNewFlagCategory(e.target.value)}
+                        className={styles.flagInput}
+                      />
+                      <button
+                        onClick={createAndApplyFlag}
+                        disabled={!newFlagName.trim() || selectedFixtures.length === 0}
+                        className={styles.createFlagButton}
+                      >
+                        Create & Apply
+                      </button>
+                    </div>
+
+                    {/* Quick Selection by Flag */}
+                    {getAllUniqueFlags().length > 0 && (
+                      <div className={styles.flagSelection}>
+                        <h4>Select by Flag:</h4>
+                        {getAllUniqueFlags().map((flag: any) => (
+                          <button
+                            key={flag.id}
+                            onClick={() => selectByFlag(flag.id)}
+                            className={styles.flagButton}
+                            style={{ backgroundColor: flag.color }}
+                          >
+                            {flag.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quick Selection by Category */}
+                    {getAllUniqueCategories().length > 0 && (
+                      <div className={styles.categorySelection}>
+                        <h4>Select by Category:</h4>
+                        {getAllUniqueCategories().map(category => (
+                          <button
+                            key={category}
+                            onClick={() => selectByFlagCategory(category)}
+                            className={styles.categoryButton}
+                          >
+                            {category}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Clear Flags */}
+                    {selectedFixtures.length > 0 && (
+                      <button
+                        onClick={removeSelectedFixtureFlags}
+                        className={styles.clearFlagsButton}
+                      >
+                        Clear Flags from Selected
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Enhanced Fixture List with checkboxes */}
+                <div className={styles.fixtureList}>
+                  {filteredFixtures.length === 0 ? (
+                    <div className={styles.noResults}>
+                      <LucideIcon name="Search" />
+                      <span>No fixtures found</span>
+                    </div>
+                  ) : (
+                    filteredFixtures.map((fixture, index) => {
+                      const isSelected = selectedFixtures.includes(fixture.id);
+                      const hasRgb = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
+                      const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
+                      const hasDimmer = fixture.channels.some(ch => ch.type === 'dimmer');
+                      
+                      return (
+                        <div
+                          key={fixture.id || index}
+                          className={`${styles.fixtureItem} ${isSelected ? styles.selected : ''}`}
+                          onClick={() => toggleFixtureSelection(fixture.id)}
+                        >
+                          <div className={styles.fixtureCheckbox}>
+                            <div className={`${styles.checkbox} ${isSelected ? styles.checked : ''}`}>
+                              {isSelected && <LucideIcon name="Check" />}
+                            </div>
+                          </div>
+                          <div className={styles.fixtureContent}>
+                            <div className={styles.fixtureHeader}>
+                              <h4>{fixture.name}</h4>
+                              <div className={styles.fixtureActions}>
+                                <span className={styles.fixtureDmx}>
+                                  DMX: {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
+                                </span>
+                                <div className={styles.fixtureTypes}>
+                                  {hasRgb && <span className={styles.typeIndicator} title="RGB">🎨</span>}
+                                  {hasMovement && <span className={styles.typeIndicator} title="Movement">↔️</span>}
+                                  {hasDimmer && <span className={styles.typeIndicator} title="Dimmer">💡</span>}
+                                </div>
+                                <button
+                                  className={styles.editButton}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startEditFixture(fixture);
+                                  }}
+                                  title="Edit fixture"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
+                                <button
+                                  className={styles.deleteButton}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteFixture(fixture.id);
+                                  }}
+                                  title="Delete fixture"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+                            <div className={styles.fixtureChannels}>
+                              {fixture.channels.map((channel, chIndex) => (
+                                <div key={chIndex} className={styles.channelTag}>
+                                  <span className={`${styles.channelType} ${styles[channel.type]}`}>
+                                    {channel.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Display flags if any */}
+                            {fixture.flags && fixture.flags.length > 0 && (
+                              <div className={styles.fixtureFlags}>
+                                {fixture.flags.map((flag: any) => (
+                                  <span
+                                    key={flag.id}
+                                    className={styles.flagTag}
+                                    style={{ backgroundColor: flag.color }}
+                                    title={flag.category ? `${flag.name} (${flag.category})` : flag.name}
+                                  >
+                                    {flag.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </>
             )}
               {showCreateFixture ? (
               <div className={styles.fixtureForm}>

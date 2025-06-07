@@ -494,3 +494,484 @@
   font-style: italic;
   padding: 1rem;
 }
+
+/* Multi-select functionality styles */
+
+.searchSection {
+  margin-bottom: 1rem;
+}
+
+.searchContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-secondary, #2c2c34);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius, 8px);
+  padding: 0.5rem;
+  gap: 0.5rem;
+
+  svg {
+    color: var(--text-meta);
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.searchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+
+  &::placeholder {
+    color: var(--text-meta);
+  }
+}
+
+.clearSearch {
+  background: none;
+  border: none;
+  color: var(--text-meta);
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.selectionSummary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-primary);
+}
+
+.summaryActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.summaryButton {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: rgba(var(--color-primary-rgb), 0.2);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.bulkControls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.bulkButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all var(--transition-speed) ease;
+
+  &:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--color-primary);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.advancedSelection {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+
+  h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+}
+
+.selectionByType {
+  margin-bottom: 1rem;
+
+  .typeButtons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .typeButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all var(--transition-speed) ease;
+
+    &:hover {
+      background-color: var(--color-primary);
+      color: white;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.smartSelection {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  .smartButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all var(--transition-speed) ease;
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-primary);
+      color: white;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.flagPanel {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+
+  h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+}
+
+.flagCreation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  .flagInput {
+    padding: 0.5rem;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+
+    &::placeholder {
+      color: var(--text-meta);
+    }
+  }
+
+  .colorInput {
+    width: 50px;
+    height: 35px;
+    padding: 0;
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+  }
+
+  .createFlagButton {
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all var(--transition-speed) ease;
+
+    &:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.flagSelection,
+.categorySelection {
+  margin-bottom: 1rem;
+
+  h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+}
+
+.flagButton {
+  display: inline-block;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  padding: 0.25rem 0.5rem;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all var(--transition-speed) ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.categoryButton {
+  display: inline-block;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all var(--transition-speed) ease;
+
+  &:hover {
+    background-color: var(--color-primary);
+    color: white;
+  }
+}
+
+.clearFlagsButton {
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border: 1px solid #dc3545;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all var(--transition-speed) ease;
+
+  &:hover {
+    background-color: #dc3545;
+    color: white;
+  }
+}
+
+.noResults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-meta);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Enhanced fixture list styles */
+.fixtureList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fixtureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-secondary, #2c2c34);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background-color: var(--bg-tertiary);
+  }
+
+  &.selected {
+    border-color: var(--color-primary);
+    background-color: rgba(var(--color-primary-rgb), 0.1);
+  }
+}
+
+.fixtureCheckbox {
+  margin-top: 0.1rem;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-card-border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-speed) ease;
+
+  &.checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.fixtureContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.fixtureHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+
+  h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.fixtureActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fixtureTypes {
+  display: flex;
+  gap: 0.25rem;
+  margin-right: 0.5rem;
+}
+
+.typeIndicator {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.fixtureChannels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.fixtureFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.flagTag {
+  display: inline-block;
+  padding: 0.2rem 0.4rem;
+  color: white;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.advancedSelection,
+.flagPanel {
+  animation: fadeIn 0.3s ease;
+}

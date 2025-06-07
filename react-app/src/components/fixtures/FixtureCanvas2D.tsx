@@ -22,6 +22,11 @@ const PLACED_CONTROL_VALUE_BAR_COLOR = 'rgba(78, 205, 196, 0.8)';
 const PLACED_CONTROL_INTERACTION_PADDING = 3;
 const MIDI_OSC_DISPLAY_TEXT_COLOR = '#333';
 
+// Grid and animation constants
+const GRID_SIZE = 50;
+const SNAP_THRESHOLD = 25; // Distance threshold for snapping
+const DRAG_ANIMATION_DURATION = 200; // Animation duration in ms
+
 
 interface PlacedFixture extends StorePlacedFixture {}
 
@@ -44,8 +49,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const [draggingMasterSlider, setDraggingMasterSlider] = useState<MasterSlider | null>(null);
   const [adjustingMasterSliderValue, setAdjustingMasterSliderValue] = useState<MasterSlider | null>(null);
   const [draggingPlacedControlInfo, setDraggingPlacedControlInfo] = 
-    useState<{ fixtureId: string; controlId: string; control: PlacedControl } | null>(null);
-  const [adjustingPlacedControlValueInfo, setAdjustingPlacedControlValueInfo] = 
+    useState<{ fixtureId: string; controlId: string; control: PlacedControl } | null>(null);  const [adjustingPlacedControlValueInfo, setAdjustingPlacedControlValueInfo] = 
     useState<{ fixtureId: string; controlId: string; control: PlacedControl; originalDmxAddress: number } | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const [selectedMasterSliderForConfig, setSelectedMasterSliderForConfig] = useState<MasterSlider | null>(null);
@@ -59,6 +63,11 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const [targetChannelName, setTargetChannelName] = useState<string>("");
   const [targetMinRange, setTargetMinRange] = useState<number>(0);
   const [targetMaxRange, setTargetMaxRange] = useState<number>(255);
+    // Animation and dragging state
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
+  const [snapPreview, setSnapPreview] = useState<{ x: number; y: number } | null>(null);
+  const [gridSnappingEnabled, setGridSnappingEnabled] = useState<boolean>(true);
   const { 
     masterSliders, addMasterSlider, updateMasterSlider,
     updateMasterSliderValue, removeMasterSlider, setDmxChannel,
@@ -81,6 +90,64 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   }));
 
   useEffect(() => { setPlacedFixtures(placedFixturesData); }, [placedFixturesData]);
+  
+  // Grid snapping utilities
+  const snapToGrid = (value: number, gridSize: number = GRID_SIZE): number => {
+    return Math.round(value / gridSize) * gridSize;
+  };
+
+  const snapPositionToGrid = (x: number, y: number): { x: number; y: number } => {
+    return {
+      x: snapToGrid(x),
+      y: snapToGrid(y)
+    };
+  };
+  const getSnappedPosition = (
+    currentX: number, 
+    currentY: number, 
+    bounds?: { minX: number; maxX: number; minY: number; maxY: number }
+  ): { x: number; y: number } => {
+    let finalX = currentX;
+    let finalY = currentY;
+    
+    // Apply grid snapping if enabled
+    if (gridSnappingEnabled) {
+      finalX = snapToGrid(currentX);
+      finalY = snapToGrid(currentY);
+    }
+
+    // Apply bounds if provided
+    if (bounds) {
+      finalX = Math.max(bounds.minX, Math.min(bounds.maxX, finalX));
+      finalY = Math.max(bounds.minY, Math.min(bounds.maxY, finalY));
+    }
+
+    return { x: finalX, y: finalY };
+  };
+
+  const shouldSnapToGrid = (currentX: number, currentY: number): boolean => {
+    if (!gridSnappingEnabled) return false;
+    
+    const nearestGridX = snapToGrid(currentX);
+    const nearestGridY = snapToGrid(currentY);
+    
+    const distanceX = Math.abs(currentX - nearestGridX);
+    const distanceY = Math.abs(currentY - nearestGridY);
+    
+    return distanceX <= SNAP_THRESHOLD || distanceY <= SNAP_THRESHOLD;
+  };
+
+  const animateToPosition = (
+    element: PlacedFixture | MasterSlider,
+    newPosition: { x: number; y: number },
+    onComplete?: () => void
+  ) => {
+    // For now, we'll use immediate updates with CSS transitions
+    // In a more advanced implementation, we could use requestAnimationFrame
+    if (onComplete) {
+      setTimeout(onComplete, DRAG_ANIMATION_DURATION);
+    }
+  };
   
   useEffect(() => {
     if (selectedMasterSliderForConfig) {
@@ -290,16 +357,68 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           MASTER_SLIDER_HEIGHT + 4
         );
       }
-    });
-
-    // Draw selection indicators
+    });    // Draw selection indicators
     if (selectedFixtureToAdd) {
       ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
       ctx.font = '14px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(`Click to place: ${selectedFixtureToAdd.name}`, 10, 30);
     }
-  }, [
+
+    // Draw snap preview during dragging
+    if (snapPreview && isDragging) {
+      ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      
+      // Draw snap indicator circle
+      ctx.beginPath();
+      ctx.arc(snapPreview.x, snapPreview.y, 8, 0, 2 * Math.PI);
+      ctx.stroke();
+      
+      // Draw crosshairs for snap point
+      ctx.beginPath();
+      ctx.moveTo(snapPreview.x - 15, snapPreview.y);
+      ctx.lineTo(snapPreview.x + 15, snapPreview.y);
+      ctx.moveTo(snapPreview.x, snapPreview.y - 15);
+      ctx.lineTo(snapPreview.x, snapPreview.y + 15);
+      ctx.stroke();
+      
+      ctx.setLineDash([]); // Reset line dash
+    }
+
+    // Draw drag ghost for better visual feedback
+    if (dragGhost && isDragging) {
+      ctx.globalAlpha = 0.5;
+      
+      if (dragGhost.type === 'fixture') {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(dragGhost.x, dragGhost.y, DEFAULT_FIXTURE_RADIUS, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      } else if (dragGhost.type === 'slider') {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.fillRect(
+          dragGhost.x - MASTER_SLIDER_WIDTH / 2,
+          dragGhost.y - MASTER_SLIDER_HEIGHT / 2,
+          MASTER_SLIDER_WIDTH,
+          MASTER_SLIDER_HEIGHT
+        );
+        ctx.strokeRect(
+          dragGhost.x - MASTER_SLIDER_WIDTH / 2,
+          dragGhost.y - MASTER_SLIDER_HEIGHT / 2,
+          MASTER_SLIDER_WIDTH,
+          MASTER_SLIDER_HEIGHT
+        );
+      }
+      
+      ctx.globalAlpha = 1.0; // Reset alpha
+    }  }, [
     canvasSize, 
     placedFixtures, 
     masterSliders, 
@@ -307,7 +426,10 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     canvasBackgroundImage, 
     midiMappings, 
     midiLearnTarget,
-    fixtures
+    fixtures,
+    isDragging,
+    dragGhost,
+    snapPreview
   ]);
 
   useEffect(() => {
@@ -343,11 +465,24 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       x: (event.clientX - rect.left) * scaleX,
       y: (event.clientY - rect.top) * scaleY
     };
-  };
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  };  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!selectedFixtureToAdd) return;
 
     const mousePos = getMousePos(event);
+    
+    // Snap new fixture placement to grid
+    const snappedPos = snapPositionToGrid(mousePos.x, mousePos.y);
+    
+    // Ensure the snapped position is within canvas bounds
+    const bounds = {
+      minX: DEFAULT_FIXTURE_RADIUS,
+      maxX: canvasSize.width - DEFAULT_FIXTURE_RADIUS,
+      minY: DEFAULT_FIXTURE_RADIUS,
+      maxY: canvasSize.height - DEFAULT_FIXTURE_RADIUS
+    };
+    
+    const finalPos = getSnappedPosition(snappedPos.x, snappedPos.y, bounds);
+    
     const newFixtureId = `placed-${Date.now()}-${Math.random()}`;
 
     const generatedControls: PlacedControl[] = [];
@@ -371,8 +506,8 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       fixtureId: selectedFixtureToAdd.name,
       fixtureStoreId: selectedFixtureToAdd.name,
       name: selectedFixtureToAdd.name,
-      x: mousePos.x,
-      y: mousePos.y,
+      x: finalPos.x,
+      y: finalPos.y,
       color: FIXTURE_COLORS[placedFixtures.length % FIXTURE_COLORS.length],
       radius: DEFAULT_FIXTURE_RADIUS,
       startAddress: selectedFixtureToAdd.startAddress,
@@ -383,7 +518,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     setPlacedFixtures(updatedFixtures);
     onUpdatePlacedFixtures(updatedFixtures);
     setSelectedFixtureToAdd(null);
-  };  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  };const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (event.button !== 0) return; // Only handle left mouse button
     
     const mousePos = getMousePos(event);
@@ -417,9 +552,9 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           updateMasterSliderValue(slider.id, newValue);
           return;
         }
-        
-        // Start dragging the slider
+          // Start dragging the slider
         setDraggingMasterSlider(slider);
+        setIsDragging(true);
         setDragOffset({ 
           x: mousePos.x - slider.position.x, 
           y: mousePos.y - slider.position.y 
@@ -482,9 +617,9 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
                 return;
               }
             }
-            
-            // Start dragging the control
+              // Start dragging the control
             setDraggingPlacedControlInfo({ fixtureId: placedFixture.id, controlId: control.id, control });
+            setIsDragging(true);
             setDragOffset({ 
               x: mousePos.x - controlX, 
               y: mousePos.y - controlY 
@@ -501,10 +636,10 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         Math.pow(mousePos.x - placedFixture.x, 2) + 
         Math.pow(mousePos.y - placedFixture.y, 2)
       );
-      
-      if (distance <= placedFixture.radius + 5) { // Add some padding for easier clicking
+        if (distance <= placedFixture.radius + 5) { // Add some padding for easier clicking
         // Start dragging the fixture
         setDraggingPlacedFixture(placedFixture);
+        setIsDragging(true);
         setDragOffset({ 
           x: mousePos.x - placedFixture.x, 
           y: mousePos.y - placedFixture.y 
@@ -513,7 +648,6 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       }
     }
   };
-
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const mousePos = getMousePos(event);
     
@@ -522,12 +656,30 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       const newX = mousePos.x - dragOffset.x;
       const newY = mousePos.y - dragOffset.y;
       
-      // Keep within canvas bounds
-      const clampedX = Math.max(MASTER_SLIDER_WIDTH / 2, Math.min(canvasSize.width - MASTER_SLIDER_WIDTH / 2, newX));
-      const clampedY = Math.max(MASTER_SLIDER_HEIGHT / 2, Math.min(canvasSize.height - MASTER_SLIDER_HEIGHT / 2, newY));
+      // Get bounds for master slider
+      const bounds = {
+        minX: MASTER_SLIDER_WIDTH / 2,
+        maxX: canvasSize.width - MASTER_SLIDER_WIDTH / 2,
+        minY: MASTER_SLIDER_HEIGHT / 2,
+        maxY: canvasSize.height - MASTER_SLIDER_HEIGHT / 2
+      };
       
+      // Get snapped position
+      const snappedPos = getSnappedPosition(newX, newY, bounds);
+      
+      // Update snap preview if close to grid
+      if (shouldSnapToGrid(newX, newY)) {
+        setSnapPreview(snappedPos);
+      } else {
+        setSnapPreview(null);
+      }
+      
+      // Update drag ghost
+      setDragGhost({ x: newX, y: newY, type: 'slider' });
+      
+      // Use snapped position for actual update
       updateMasterSlider(draggingMasterSlider.id, {
-        position: { x: clampedX, y: clampedY }
+        position: { x: snappedPos.x, y: snappedPos.y }
       });
       return;
     }
@@ -550,13 +702,31 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       const newX = mousePos.x - dragOffset.x;
       const newY = mousePos.y - dragOffset.y;
       
-      // Keep within canvas bounds
-      const clampedX = Math.max(draggingPlacedFixture.radius, Math.min(canvasSize.width - draggingPlacedFixture.radius, newX));
-      const clampedY = Math.max(draggingPlacedFixture.radius, Math.min(canvasSize.height - draggingPlacedFixture.radius, newY));
+      // Get bounds for placed fixture
+      const bounds = {
+        minX: draggingPlacedFixture.radius,
+        maxX: canvasSize.width - draggingPlacedFixture.radius,
+        minY: draggingPlacedFixture.radius,
+        maxY: canvasSize.height - draggingPlacedFixture.radius
+      };
       
+      // Get snapped position
+      const snappedPos = getSnappedPosition(newX, newY, bounds);
+      
+      // Update snap preview if close to grid
+      if (shouldSnapToGrid(newX, newY)) {
+        setSnapPreview(snappedPos);
+      } else {
+        setSnapPreview(null);
+      }
+      
+      // Update drag ghost
+      setDragGhost({ x: newX, y: newY, type: 'fixture' });
+      
+      // Use snapped position for actual update
       const updatedFixtures = placedFixtures.map(pf => 
         pf.id === draggingPlacedFixture.id 
-          ? { ...pf, x: clampedX, y: clampedY }
+          ? { ...pf, x: snappedPos.x, y: snappedPos.y }
           : pf
       );
       setPlacedFixtures(updatedFixtures);
@@ -571,13 +741,18 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         const newOffsetX = (mousePos.x - dragOffset.x) - parentFixture.x;
         const newOffsetY = (mousePos.y - dragOffset.y) - parentFixture.y;
         
+        // Apply grid snapping to control offsets (smaller grid for finer control)
+        const controlGridSize = GRID_SIZE / 2; // 25px grid for controls
+        const snappedOffsetX = snapToGrid(newOffsetX, controlGridSize);
+        const snappedOffsetY = snapToGrid(newOffsetY, controlGridSize);
+        
         const updatedFixtures = placedFixtures.map(pf => 
           pf.id === draggingPlacedControlInfo.fixtureId 
             ? {
                 ...pf,
                 controls: pf.controls?.map(c => 
                   c.id === draggingPlacedControlInfo.controlId 
-                    ? { ...c, xOffset: newOffsetX, yOffset: newOffsetY }
+                    ? { ...c, xOffset: snappedOffsetX, yOffset: snappedOffsetY }
                     : c
                 ) || []
               }
@@ -622,14 +797,18 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       }
       return;
     }
-  };
-  const handleMouseUp = () => {
+  };  const handleMouseUp = () => {
     setDraggingMasterSlider(null);
     setAdjustingMasterSliderValue(null);
     setDraggingPlacedFixture(null);
     setDraggingPlacedControlInfo(null);
     setAdjustingPlacedControlValueInfo(null);
     setDragOffset(null);
+    
+    // Clear animation states
+    setIsDragging(false);
+    setDragGhost(null);
+    setSnapPreview(null);
   };
 
   const handleMouseLeave = () => { 
@@ -873,8 +1052,15 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
             ))
           )}
         </div>
-        
-        <div className={styles.masterControls}>
+          <div className={styles.masterControls}>
+          <button
+            className={`${styles.gridSnapToggle} ${gridSnappingEnabled ? styles.active : ''}`}
+            onClick={() => setGridSnappingEnabled(!gridSnappingEnabled)}
+            title={`Grid snapping: ${gridSnappingEnabled ? 'ON' : 'OFF'}`}
+          >
+            🧲 Grid Snap
+          </button>
+          
           <button
             className={styles.addMasterButton}
             onClick={() => {
@@ -894,7 +1080,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       </div>
         <div className={styles.canvasWrapper}>        <canvas 
           ref={canvasRef} 
-          className={styles.fixtureCanvas}
+          className={`${styles.fixtureCanvas} ${isDragging ? styles.dragging : ''} ${snapPreview ? styles.snapping : ''}`}
           onClick={handleCanvasClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}

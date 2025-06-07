@@ -49,6 +49,111 @@
   // Ensure it doesn't exceed container width if canvasSize is very large
   max-width: 100%; 
   height: auto; // Maintain aspect ratio if max-width kicks in
+  transition: all 0.2s ease;
+  
+  &.dragging {
+    cursor: grabbing;
+    user-select: none;
+  }
+  
+  &.snapping {
+    cursor: crosshair;
+  }
+}
+
+/* Enhanced dragging and animation styles */
+@keyframes dragPulse {
+  0% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+  50% { 
+    transform: scale(1.05); 
+    opacity: 0.8; 
+  }
+  100% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes snapIndicator {
+  0% { 
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% { 
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes placementPreview {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes gridHighlight {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.dragElement {
+  animation: dragPulse 1s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.snapPreview {
+  animation: snapIndicator 0.3s ease-in-out;
+}
+
+.placementPreview {
+  animation: placementPreview 1.5s ease-in-out infinite;
+}
+
+.gridHighlight {
+  animation: gridHighlight 1s ease-in-out infinite;
+}
+
+/* Visual feedback for dragging states */
+.isDragging {
+  .fixtureCanvas {
+    background-color: rgba(240, 240, 240, 0.9);
+    box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1);
+  }
+}
+
+.isSnapping {
+  .fixtureCanvas {
+    background-color: rgba(255, 165, 0, 0.05);
+    box-shadow: inset 0 0 10px rgba(255, 165, 0, 0.2);
+  }
+}
+
+/* Smooth transitions for elements */
+.smoothTransition {
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.snapTransition {
+  transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .masterControls {
@@ -70,6 +175,53 @@
     border-color: var(--accent-color-secondary-dark, #6a3ddf);
     color: var(--accent-color-secondary-dark, #6a3ddf);
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+}
+
+.gridSnapToggle {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color-strong, #ccc);
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+  border-radius: var(--border-radius-md, 6px);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  justify-content: center;
+
+  &:hover {
+    border-color: var(--accent-color, #4ecdc4);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  &.active {
+    background-color: var(--accent-color, #4ecdc4);
+    border-color: var(--accent-color-dark, #3aa89b);
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(var(--accent-rgb, 78, 205, 196), 0.3);
+
+    &:hover {
+      background-color: var(--accent-color-dark, #3aa89b);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(var(--accent-rgb, 78, 205, 196), 0.4);
+    }
+  }
+
+  // Add icon styling if icons are used
+  svg, i {
+    font-size: 1rem;
+    transition: transform 0.2s ease;
+  }
+
+  &.active svg,
+  &.active i {
+    transform: scale(1.1);
   }
 }
 

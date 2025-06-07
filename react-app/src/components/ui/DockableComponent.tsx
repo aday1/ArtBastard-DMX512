@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, ReactNode, useState } from 'react';
 import { motion, useDragControls, PanInfo } from 'framer-motion';
 import { useDocking, DockPosition } from '@/context/DockingContext';
+import { SnapIndicator } from './SnapIndicator';
 
 interface DockableComponentProps {
   id: string;
   title: string;
-  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock' | 'chromatic-energy-manipulator';
+  component: 'midi-monitor' | 'osc-monitor' | 'midi-clock' | 'chromatic-energy-manipulator' | 'master-fader' | 'dmx-channel-grid';
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -38,12 +39,12 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
   isMinimized = false,
   onMinimizedChange,
   showMinimizeButton = true,
-}) => {
-  const dragControls = useDragControls();
+}) => {  const dragControls = useDragControls();
   const componentRef = useRef<HTMLDivElement>(null);
   const [localMinimized, setLocalMinimized] = useState(isMinimized);
-  
-  const {
+  const [currentDragPosition, setCurrentDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showSnapIndicator, setShowSnapIndicator] = useState(false);
+    const {
     registerComponent,
     unregisterComponent,
     updateComponentPosition,
@@ -53,6 +54,8 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     getDockZoneForPosition,
     bringToFront,
     state,
+    snapPositionToGrid,
+    shouldSnapToGrid,
   } = useDocking();
 
   // Get component from docking state
@@ -104,16 +107,44 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
   // Update minimized state when it changes externally
   useEffect(() => {
     setLocalMinimized(isMinimized);
-  }, [isMinimized]);
+  }, [isMinimized]);  const getDragConstraints = () => {
+    const componentElement = componentRef.current;
+    if (!componentElement) {
+      return {
+        left: -200, // Allow some off-screen dragging
+        top: -100,
+        right: window.innerWidth - 50, // Keep at least 50px visible
+        bottom: window.innerHeight - 50,
+      };
+    }
+
+    const componentWidth = componentElement.offsetWidth;
+    const componentHeight = componentElement.offsetHeight;
+    const minVisibleWidth = Math.min(100, componentWidth * 0.3);
+    const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+
+    return {
+      left: -componentWidth + minVisibleWidth,
+      top: -componentHeight + minVisibleHeight,
+      right: window.innerWidth - minVisibleWidth,
+      bottom: window.innerHeight - minVisibleHeight,
+    };
+  };
 
   const handleDragStart = (e: MouseEvent | TouchEvent | PointerEvent) => {
     e.preventDefault();
     bringToFront(id);
     startDrag(id);
+    setShowSnapIndicator(true);
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    // Update current drag position for snap indicator
+    setCurrentDragPosition({ x: info.point.x, y: info.point.y });
+  };  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     endDrag();
+    setShowSnapIndicator(false);
+    setCurrentDragPosition(null);
     
     // Determine if we should dock or stay floating
     const zone = getDockZoneForPosition(info.point.x, info.point.y);
@@ -122,32 +153,43 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
       // Dock to zone
       updateComponentPosition(id, { zone });
     } else {
-      // Stay floating, update offset with proper viewport constraints
-      const newOffset = getFloatingOffset(info.point.x, info.point.y);
+      // Stay floating, update offset with proper viewport constraints and grid snapping
+      let newOffset = getFloatingOffset(info.point.x, info.point.y);
+      
+      // Apply grid snapping if enabled and close enough to grid
+      if (shouldSnapToGrid(newOffset.x, newOffset.y)) {
+        newOffset = snapPositionToGrid(newOffset.x, newOffset.y);
+        // Re-apply bounds checking after snapping
+        newOffset = getFloatingOffset(newOffset.x, newOffset.y);
+      }
+      
       updateComponentPosition(id, { zone: 'floating', offset: newOffset });
     }
   };
-
   const getFloatingOffset = (x: number, y: number) => {
     // Get component dimensions for better constraint calculation
     const componentElement = componentRef.current;
     const componentWidth = componentElement?.offsetWidth || 300;
     const componentHeight = componentElement?.offsetHeight || 200;
     
-    // Calculate constrained position to keep component in viewport
+    // Minimum visible area (prevent complete off-screen positioning)
+    const minVisibleWidth = Math.min(100, componentWidth * 0.3);
+    const minVisibleHeight = Math.min(50, componentHeight * 0.3);
+    
+    // Calculate constrained position to keep component mostly in viewport
     const constrainedX = Math.max(
-      0, // Minimum left position
+      -componentWidth + minVisibleWidth, // Allow partial off-screen but keep some visible
       Math.min(
         x,
-        window.innerWidth - componentWidth // Maximum right position
+        window.innerWidth - minVisibleWidth // Ensure some part remains visible on right
       )
     );
     
     const constrainedY = Math.max(
-      0, // Minimum top position
+      -componentHeight + minVisibleHeight, // Allow partial off-screen but keep some visible
       Math.min(
         y,
-        window.innerHeight - componentHeight // Maximum bottom position
+        window.innerHeight - minVisibleHeight // Ensure some part remains visible on bottom
       )
     );
     
@@ -210,6 +252,26 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     }
   };
 
+  // Handle window resize to keep components within bounds
+  useEffect(() => {
+    const handleResize = () => {
+      if (dockedComponent && dockedComponent.position.zone === 'floating' && dockedComponent.position.offset) {
+        const newOffset = getFloatingOffset(
+          dockedComponent.position.offset.x,
+          dockedComponent.position.offset.y
+        );
+        
+        // Only update if position actually changed
+        if (newOffset.x !== dockedComponent.position.offset.x || newOffset.y !== dockedComponent.position.offset.y) {
+          updateComponentPosition(id, { zone: 'floating', offset: newOffset });
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [dockedComponent, id, updateComponentPosition]);
+
   if (!dockedComponent) {
     return null; // Component not registered yet
   }
@@ -222,24 +284,27 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     ...getPositionStyle(),
     ...style,
   };
-
   return (
-    <motion.div
+    <>
+      {/* Snap indicator for visual feedback during dragging */}
+      {currentDragPosition && (
+        <SnapIndicator
+          x={currentDragPosition.x}
+          y={currentDragPosition.y}
+          visible={showSnapIndicator}
+        />
+      )}
+      
+      <motion.div
       ref={componentRef}
       className={`${className} ${localMinimized ? 'minimized' : ''}`}
-      style={motionStyle}
-      drag={isDraggable}
+      style={motionStyle}      drag={isDraggable}
       dragControls={dragControls}
       dragListener={false}
       onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      onDrag={handleDrag}      onDragEnd={handleDragEnd}
       whileDrag={{ cursor: 'grabbing' }}
-      dragConstraints={{
-        left: 0,
-        top: 0,
-        right: window.innerWidth - 50,
-        bottom: window.innerHeight - 50,
-      }}
+      dragConstraints={getDragConstraints()}
     >
       <div style={{ cursor: isDraggable ? 'grab' : 'default' }}>
         {/* Header with title and minimize button */}
@@ -278,8 +343,8 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
         {!localMinimized && (
           <div style={{ pointerEvents: 'auto' }}>
             {children}
-          </div>
-        )}
+          </div>        )}
       </div>      </motion.div>
-    );
+    </>
+  );
   };

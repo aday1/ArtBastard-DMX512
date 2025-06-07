@@ -2,20 +2,29 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
+import { DockableComponent } from '../ui/DockableComponent';
 import styles from './MasterFader.module.scss';
 import { Sparkles } from '../layout/Sparkles'; // Import Sparkles
 
 interface MasterFaderProps {
   onValueChange?: (value: number) => void;
+  isMinimized?: boolean;
+  onMinimizedChange?: (minimized: boolean) => void;
+  isDockable?: boolean;
 }
 
-export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
+export const MasterFader: React.FC<MasterFaderProps> = ({ 
+  onValueChange, 
+  isMinimized: externalIsMinimized = false,
+  onMinimizedChange,
+  isDockable = true
+}) => {
   const [value, setValue] = useState(0);
   const [oscAddress, setOscAddress] = useState('/master');
   const [midiCC, setMidiCC] = useState<number | null>(null);
   const [midiChannel, setMidiChannel] = useState(1);
   const [isLearning, setIsLearning] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false); // State for minimized
+  const [isMinimized, setIsMinimized] = useState(externalIsMinimized); // State for minimized
   const [isFullOn, setIsFullOn] = useState(false); // State for FULL ON mode
   const [previousChannelValues, setPreviousChannelValues] = useState<{ [key: number]: number }>({});
   const [fullOnSavedValues, setFullOnSavedValues] = useState<{ [key: number]: number }>({});
@@ -236,10 +245,18 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
         setValue(255);
     }
   };
-
   const toggleMinimize = () => { // Function to toggle minimize state
-    setIsMinimized(!isMinimized);
+    const newMinimized = !isMinimized;
+    setIsMinimized(newMinimized);
+    if (onMinimizedChange) {
+      onMinimizedChange(newMinimized);
+    }
   };
+
+  // Sync external minimize state
+  useEffect(() => {
+    setIsMinimized(externalIsMinimized);
+  }, [externalIsMinimized]);
 
   // useEffect for interval cleanup
   useEffect(() => {
@@ -309,53 +326,46 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
     }, intervalTime);
     setFadeIntervalId(newIntervalId);
   };
-
-  return (
-    <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
+  // Render the core content
+  const masterFaderContent = (
+    <div className={`${styles.masterFaderContent} ${isMinimized ? styles.minimized : ''}`}>
       <Sparkles /> {/* Add Sparkles component here */}
-      <div className={`${styles.header}`}>
-        <h3>Master Fader</h3>
-        <div className={styles.windowControls}>
-          <button onClick={toggleMinimize} className={styles.minimizeButton}>
-            {isMinimized ? <i className="fas fa-chevron-up"></i> : <i className="fas fa-chevron-down"></i>}
-          </button>
-        </div>
-        <div className={styles.headerActions}>
-          <button 
-            className={`${styles.fullOnButton} ${isFullOn ? styles.active : ''}`}
-            onClick={toggleFullOn}
-            title="Toggle Full On (All channels to 255)"
-          >
-            <i className="fas fa-lightbulb"></i>
-            FULL ON
-          </button>
-          <button 
-            className={styles.blackoutButton}
-            onClick={blackoutAll}
-            title="Blackout All Channels"
-          >
-            <i className="fas fa-power-off"></i>
-            Blackout
-          </button>
-          <button
-            className={styles.slowFadeoutButton}
-            onClick={handleSlowFadeout}
-            disabled={isFading || value === 0}
-            title="Slowly fade out to 0"
-          >
-            <i className="fas fa-arrow-down"></i>
-            Slow Fadeout
-          </button>
-          <button
-            className={styles.fadeBackupButton}
-            onClick={handleFadeBackup}
-            disabled={isFading || value === (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255)}
-            title="Fade back up to previous or full"
-          >
-            <i className="fas fa-arrow-up"></i>
-            Fade Back up
-          </button>
-        </div>
+        {/* Essential Action buttons - Always visible */}
+      <div className={styles.headerActions}>
+        <button 
+          className={`${styles.fullOnButton} ${isFullOn ? styles.active : ''}`}
+          onClick={toggleFullOn}
+          title="Toggle Full On (All channels to 255)"
+        >
+          <i className="fas fa-lightbulb"></i>
+          {!isMinimized && "FULL ON"}
+        </button>
+        <button 
+          className={`${styles.blackoutButton} ${value === 0 ? styles.active : ''}`}
+          onClick={blackoutAll}
+          title="Blackout All Channels"
+        >
+          <i className="fas fa-power-off"></i>
+          {!isMinimized && "Blackout"}
+        </button>
+        <button
+          className={`${styles.slowFadeoutButton} ${isFading && value > 0 ? styles.active : ''}`}
+          onClick={handleSlowFadeout}
+          disabled={isFading || value === 0}
+          title="Slowly fade out to 0"
+        >
+          <i className="fas fa-arrow-down"></i>
+          {!isMinimized && "Fade Out"}
+        </button>
+        <button
+          className={`${styles.fadeBackupButton} ${isFading && value < (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255) ? styles.active : ''}`}
+          onClick={handleFadeBackup}
+          disabled={isFading || value === (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255)}
+          title="Fade back up to previous or full"
+        >
+          <i className="fas fa-arrow-up"></i>
+          {!isMinimized && "Fade In"}
+        </button>
       </div>
 
       {!isMinimized && (
@@ -368,7 +378,6 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
               value={value}
               onChange={handleSliderChange}
               onInput={handleSliderInput}
-              // Removed onMouseDown and onPointerDown to test if they were interfering
               className={styles.verticalSlider}
             />
             <div className={styles.valueDisplay}>
@@ -436,6 +445,40 @@ export const MasterFader: React.FC<MasterFaderProps> = ({ onValueChange }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  if (isDockable) {
+    return (
+      <DockableComponent
+        id="master-fader"
+        title="Master Fader"
+        component="master-fader"
+        defaultPosition={{ zone: 'bottom-center' }}
+        defaultZIndex={1100}
+        isMinimized={isMinimized}
+        onMinimizedChange={toggleMinimize}
+        width="320px"
+        height={isMinimized ? "auto" : "400px"}
+        className={styles.masterFader}
+      >
+        {masterFaderContent}
+      </DockableComponent>
+    );
+  }
+
+  // Non-dockable fallback
+  return (
+    <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
+      <div className={`${styles.header}`}>
+        <h3>Master Fader</h3>
+        <div className={styles.windowControls}>
+          <button onClick={toggleMinimize} className={styles.minimizeButton}>
+            {isMinimized ? <i className="fas fa-chevron-up"></i> : <i className="fas fa-chevron-down"></i>}
+          </button>
+        </div>
+      </div>
+      {masterFaderContent}
     </div>
   );
 };

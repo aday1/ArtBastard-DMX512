@@ -5,6 +5,7 @@ import type { SocketContextType } from '../context/SocketContext'
 import { useStore } from '../store'
 import { DmxControlPanel } from '../components/dmx/DmxControlPanel'
 import { MasterFader } from '../components/dmx/MasterFader'
+import { DMXChannelGrid } from '../components/dmx/DMXChannelGrid'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
@@ -27,6 +28,7 @@ const MainPage: React.FC = () => {
   const { theme } = useTheme()
   const socketContext = useSocket() as SocketContextType
   const connected = socketContext.connected
+  
   const {
     addNotification,
     saveScene 
@@ -34,8 +36,10 @@ const MainPage: React.FC = () => {
     addNotification: state.addNotification,
     saveScene: state.saveScene
   }))
+  
   const [currentView, setCurrentView] = useState<ViewType>('main')
   const [isAutoSceneMinimized, setIsAutoSceneMinimized] = useState(false)
+  const [showDMXChannelGrid, setShowDMXChannelGrid] = useState(false)
 
   const handleQuickSave = () => {
     const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-')
@@ -81,8 +85,7 @@ const MainPage: React.FC = () => {
         )}
         <div className={styles.viewContainer}>
           {currentView === 'main' && (
-            <>
-              <div className={styles.mainControls}>
+            <>              <div className={styles.mainControls}>
                 <button
                   className={styles.quickSaveButton}
                   onClick={handleQuickSave}
@@ -91,13 +94,26 @@ const MainPage: React.FC = () => {
                   <i className="fas fa-bolt"></i>
                   {theme === 'artsnob' ? 'Quick Capture' : 'Quick Save'}
                 </button>
+                <button
+                  className={styles.dmxChannelGridButton}
+                  onClick={() => setShowDMXChannelGrid(!showDMXChannelGrid)}
+                  title="Open DMX Channel Grid"
+                >
+                  <i className="fas fa-th"></i>
+                  DMX Grid
+                </button>
               </div>
               <MasterFader />
               <DmxControlPanel />              <MidiMonitor />
               <OscMonitor />
-              <SceneQuickLaunch />
-              <AutoSceneControlMini />
+              <SceneQuickLaunch />              <AutoSceneControlMini />
               <ChromaticEnergyManipulatorMini />
+              {showDMXChannelGrid && (
+                <DMXChannelGrid
+                  onChannelSelect={(channel) => console.log('Selected channel:', channel)}
+                  isDockable={true}
+                />
+              )}
             </>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}

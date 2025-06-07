@@ -1,29 +1,49 @@
 .masterFader {
-  background: var(--color-card-bg); /* Changed background */
-  padding: 1rem;
-  border-radius: 15px 15px 0 0; /* Rounded corners only at the top */
-  border: 1px solid var(--color-card-border); /* Changed border to use theme variable */
-  border-bottom: none; /* No border at the bottom since it's docked */
+  background: var(--color-card-bg);
+  padding: 0.75rem; /* Reduced from 1rem */
+  border-radius: 15px 15px 0 0;
+  border: 1px solid var(--color-card-border);
+  border-bottom: none;
   box-shadow: 0 -4px 16px rgba(78, 205, 196, 0.2);
   
   /* Fixed at the bottom of the screen */
   position: fixed;
   bottom: 0;
   left: 50%;
-  transform: translateX(-50%); /* Center horizontally */
+  transform: translateX(-50%);
   z-index: 1020;
-  width: 90%; /* Wider to accommodate buttons */
-  max-width: 900px; /* Limit maximum width */
+  width: 85%; /* Reduced from 95% to 85% for more compact size */
+  max-width: 800px; /* Reduced from 1200px to 800px */
+  min-width: 400px; /* Reduced from 600px to 400px */
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
+  
   &.minimized {
-    padding: 0.5rem;
+    padding: 0.4rem; /* Reduced from 0.5rem */
     height: auto;
+    width: 70%; /* Even smaller when minimized */
+    max-width: 600px; /* Smaller max width when minimized */
 
     .header h3 {
-      font-size: 1rem;
+      font-size: 0.9rem; /* Reduced from 1rem */
     }
+    
+    .faderContainer {
+      display: none; /* Hide fader when minimized */
+    }
+
     .headerActions {
-      display: none;
+      gap: 0.4rem;
+      width: 100%;
+      
+      .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+        min-width: 40px;
+        padding: 0.4rem;
+        font-size: 0;
+        
+        i {
+          margin: 0;
+        }
+      }
     }
   }
 
@@ -65,99 +85,156 @@
         }
       }
     }
-
-    .headerActions {
-      display: flex;
-      gap: 1rem; /* Increase gap between buttons */
-      align-items: center;
-      flex-wrap: wrap; /* Allow buttons to wrap if needed */
-      justify-content: center; /* Center the buttons in the available space */
-      width: 70%; /* Wider area for the buttons */
-
-      // Button styles for all action buttons
-      .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
-        padding: 0.6rem 1rem;
-        color: #f0f0f0;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-        min-width: 120px; /* Ensure buttons have consistent minimum width */
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        &:active {
-          transform: translateY(0);
-        }
-        &:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
-        }
-      }
-
-      // Specific button styles
-      .fullOnButton {
-        background: linear-gradient(135deg, #ffa502, #ff6348);
-        &:hover {
-          box-shadow: 0 8px 25px rgba(255, 165, 2, 0.4);
-        }
-        &.active {
-          background: linear-gradient(135deg, #2ed573, #1abc9c);
-          box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
-        }
-      }
-
-      .blackoutButton {
-        background: linear-gradient(135deg, #ff4757, #ff3742);
-        &:hover {
-          box-shadow: 0 8px 25px rgba(255, 71, 87, 0.4);
-        }
-      }
-
-      .slowFadeoutButton {
-        background: linear-gradient(135deg, #4e54c8, #8f94fb);
-        &:hover:not(:disabled) {
-          box-shadow: 0 8px 25px rgba(78, 84, 200, 0.4);
-        }
-      }
-      
-      .fadeBackupButton {
-        background: linear-gradient(135deg, #11998e, #38ef7d);
-        &:hover:not(:disabled) {
-          box-shadow: 0 8px 25px rgba(17, 153, 142, 0.4);
-        }
-      }
-    }
   }
 
+  .headerActions {
+    display: flex;
+    gap: 0.75rem; /* Reduced from 1.5rem for more compact layout */
+    align-items: center;
+    flex-wrap: wrap; /* Allow buttons to wrap if needed */
+    justify-content: center; /* Center the buttons in the available space */
+    width: 100%; /* Full width for better button distribution */
+    margin-bottom: 1rem;
+
+    // Button styles for all action buttons - Made more compact and colorful
+    .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+      padding: 0.5rem 0.8rem; /* Reduced from 0.8rem 1.2rem */
+      color: #f0f0f0;
+      border: none;
+      border-radius: 6px; /* Reduced from 8px */
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem; /* Reduced from 0.5rem */
+      font-size: 0.85rem; /* Reduced from 1rem */
+      min-width: 100px; /* Reduced from 140px */
+      height: 36px; /* Reduced from 48px */
+      position: relative;
+      overflow: hidden;
+      
+      // Add shimmer effect for better visual feedback
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+      }
+      
+      &:hover::before {
+        left: 100%;
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      }
+      &:active {
+        transform: translateY(0);
+      }
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+    }
+
+    // Specific button styles with better colors and active states
+    .fullOnButton {
+      background: linear-gradient(135deg, #ffa502, #ff6348);
+      &:hover:not(:disabled) {
+        box-shadow: 0 8px 25px rgba(255, 165, 2, 0.4);
+      }
+      &.active {
+        background: linear-gradient(135deg, #2ed573, #1abc9c);
+        box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
+        animation: glow 2s ease-in-out infinite alternate;
+      }
+    }
+
+    .blackoutButton {
+      background: linear-gradient(135deg, #ff4757, #ff3742);
+      &:hover:not(:disabled) {
+        box-shadow: 0 8px 25px rgba(255, 71, 87, 0.4);
+      }
+      &.active {
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        box-shadow: 0 4px 15px rgba(30, 60, 114, 0.4);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+    }
+
+    .slowFadeoutButton {
+      background: linear-gradient(135deg, #4e54c8, #8f94fb);
+      &:hover:not(:disabled) {
+        box-shadow: 0 8px 25px rgba(78, 84, 200, 0.4);
+      }
+      &.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        animation: fadeGlow 2.5s ease-in-out infinite;
+      }
+    }
+
+    .fadeBackupButton {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      &:hover:not(:disabled) {
+        box-shadow: 0 8px 25px rgba(17, 153, 142, 0.4);
+      }
+      &.active {
+        background: linear-gradient(135deg, #56ab2f, #a8e6cf);
+        box-shadow: 0 4px 15px rgba(86, 171, 47, 0.4);
+        animation: riseGlow 2s ease-in-out infinite alternate;
+      }
+    }
+
+    // Animation keyframes for active states
+    @keyframes glow {
+      from { box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4); }
+      to { box-shadow: 0 6px 20px rgba(46, 213, 115, 0.8); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes fadeGlow {
+      0% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+      50% { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8); }
+      100% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+    }
+
+    @keyframes riseGlow {
+      from { box-shadow: 0 4px 15px rgba(86, 171, 47, 0.4); }
+      to { box-shadow: 0 6px 20px rgba(86, 171, 47, 0.8); }
+    }
+  }
+  
   .faderContainer {
     display: flex;
-    gap: 1.5rem;
+    gap: 2rem; /* Increased from 1.5rem for better spacing */
     align-items: flex-start;
 
     .sliderWrapper {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem;
+      flex-direction: row; // Horizontal layout for better UX
+      align-items: center; 
+      gap: 1.5rem; // Increased gap for horizontal layout
       background: var(--bg-secondary);
       border-radius: 12px;
-      padding: 1rem;
+      padding: 1.5rem; /* Increased padding for better proportions */
       border: 2px solid var(--accent-color);
       position: relative;
       z-index: 10;
-      flex-direction: row; // Changed from column to row
-      align-items: center; // Keep items vertically centered
-      gap: 1rem; // Adjusted gap for horizontal layout
+      flex: 1; /* Allow the slider wrapper to expand */
+      min-height: 60px; /* Added minimum height for consistency */
       
       // Allow pointer events on the wrapper
       pointer-events: auto;
@@ -216,129 +293,131 @@
     }
 
     .valueDisplay {
-        background: var(--bg-primary);
-        color: var(--accent-color);
-        padding: 0.5rem 0.75rem; // Adjusted padding
+      background: var(--bg-primary);
+      color: var(--accent-color);
+      padding: 0.5rem 0.75rem; // Adjusted padding
+      border-radius: 6px; // Adjusted border-radius
+      font-weight: bold;
+      font-size: 1rem; // Adjusted font-size
+      border: 2px solid var(--accent-color);
+      min-width: 50px; // Adjusted min-width
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(78, 205, 196, 0.2);
+    }
+  }
+
+  .controls {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; // Adjusted gap
+
+    .oscConfig {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      label {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .addressInput {
+        padding: 0.6rem; // Adjusted padding
+        border: 2px solid var(--border-color);
         border-radius: 6px; // Adjusted border-radius
-        font-weight: bold;
-        font-size: 1rem; // Adjusted font-size
-        border: 2px solid var(--accent-color);
-        min-width: 50px; // Adjusted min-width
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(78, 205, 196, 0.2);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: 'Courier New', monospace;
+        transition: border-color 0.2s ease;
+
+        &:focus {
+          outline: none;
+          border-color: var(--accent-color);
+          box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+        }
       }
     }
 
-    .controls {
-      flex: 1;
+    .midiConfig {
       display: flex;
       flex-direction: column;
-      gap: 1rem; // Adjusted gap
+      gap: 0.5rem; // Adjusted gap
 
-      .oscConfig {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-
-        label {
-          color: var(--text-primary);
+      .midiStatus {
+        .midiAssigned {
+          color: var(--accent-color);
           font-weight: 600;
+          padding: 0.4rem; // Adjusted padding
+          background: rgba(78, 205, 196, 0.1);
+          border-radius: 4px; // Adjusted border-radius
+          display: inline-block;
         }
 
-        .addressInput {
-          padding: 0.6rem; // Adjusted padding
-          border: 2px solid var(--border-color);
-          border-radius: 6px; // Adjusted border-radius
-          background: var(--bg-primary);
-          color: var(--text-primary);
-          font-family: 'Courier New', monospace;
-          transition: border-color 0.2s ease;
-
-          &:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
-          }
+        .midiUnassigned {
+          color: var(--text-secondary);
+          font-style: italic;
         }
       }
 
-      .midiConfig {
+      .midiActions {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem; // Adjusted gap
+        gap: 0.5rem;
+        align-items: center;
 
-        .midiStatus {
-          .midiAssigned {
-            color: var(--accent-color);
-            font-weight: 600;
-            padding: 0.4rem; // Adjusted padding
-            background: rgba(78, 205, 196, 0.1);
-            border-radius: 4px; // Adjusted border-radius
-            display: inline-block;
-          }
-
-          .midiUnassigned {
-            color: var(--text-secondary);
-            font-style: italic;
-          }
-        }
-
-        .midiActions {
+        .learnButton {
+          padding: 0.6rem 1.2rem; // Adjusted padding
+          background: var(--accent-color);
+          color: #f0f0f0;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: all 0.3s ease;
           display: flex;
-          gap: 0.5rem;
           align-items: center;
+          gap: 0.5rem;
 
-          .learnButton {
-            padding: 0.6rem 1.2rem; // Adjusted padding
-            background: var(--accent-color);
-            color: #f0f0f0;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-
-            &:hover:not(.learning) {
-              background: var(--accent-hover);
-              transform: translateY(-2px);
-            }
-
-            &.learning {
-              background: #ffa502;
-              animation: pulse 1.5s infinite;
-            }
-
-            @keyframes pulse {
-              0%, 100% { opacity: 1; }
-              50% { opacity: 0.7; }
-            }
+          &:hover:not(.learning) {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
           }
 
-          .clearButton {
-            padding: 0.4rem; // Adjusted padding
-            background: #ff4757;
-            color: #f0f0f0;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;            &:hover {
-              background: #ff3742;
-              transform: scale(1.1);
-            }
+          &.learning {
+            background: #ffa502;
+            animation: learnPulse 1.5s infinite;
+          }
+
+          @keyframes learnPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
           }
         }
 
-      .channelInfo {
-        padding: 0.6rem; // Adjusted padding
-        background: var(--bg-primary);
-        border-radius: 6px; // Adjusted border-radius
-        border-left: 4px solid var(--accent-color);
-        color: var(--text-secondary);
-        font-size: 0.9rem;
+        .clearButton {
+          padding: 0.4rem; // Adjusted padding
+          background: #ff4757;
+          color: #f0f0f0;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            background: #ff3742;
+            transform: scale(1.1);
+          }
+        }
       }
+    }
+
+    .channelInfo {
+      padding: 0.6rem; // Adjusted padding
+      background: var(--bg-primary);
+      border-radius: 6px; // Adjusted border-radius
+      border-left: 4px solid var(--accent-color);
+      color: var(--text-secondary);
+      font-size: 0.9rem;
     }
   }
 
@@ -346,59 +425,43 @@
     width: 100%; /* Full width on mobile */
     border-radius: 15px 15px 0 0;
     
-    .header {
-      flex-direction: column;
-      gap: 0.5rem;
-      align-items: stretch;
-
+    &.minimized {
       .headerActions {
-        width: 100%;
-        justify-content: space-between;
-        gap: 0.5rem;
+        gap: 0.3rem;
         
-        .fullOnButton,
-        .blackoutButton,
-        .slowFadeoutButton,
-        .fadeBackupButton {
-          flex: 1;
-          min-width: auto;
-          padding: 0.5rem;
-          font-size: 0.8rem;
+        .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+          min-width: 35px;
+          padding: 0.3rem;
+          height: 32px;
         }
       }
     }
 
-    .faderContainer {
-      // flex-direction: column; // Keep as row or adjust as needed
-      // align-items: center;
-      // gap: 1.5rem;
+    .header {
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: stretch;
+    }
 
-      // No longer need to override .verticalSlider here for horizontal appearance
-      // as it's now horizontal by default.
-      // Specific mobile adjustments for size can be added if needed.
-      /* Example for mobile specific thumb or track size if desired:
-      .sliderWrapper .verticalSlider {
-        height: 30px; // Thicker track for touch
-        &::-webkit-slider-thumb {
-          width: 35px;
-          height: 35px;
-          margin-top: -2.5px; // Adjust if track height changes
-        }
-        &::-moz-range-thumb {
-          width: 35px;
-          height: 35px;
-        }
+    .headerActions {
+      width: 100%;
+      justify-content: space-between;
+      gap: 0.5rem;
+      
+      .fullOnButton,
+      .blackoutButton,
+      .slowFadeoutButton,
+      .fadeBackupButton {
+        flex: 1;
+        min-width: auto;
+        padding: 0.5rem;
+        font-size: 0.8rem;
       }
-      */
+    }
 
+    .faderContainer {
       .controls {
         width: 100%;
-
-        .quickActions {
-          .quickButton {
-            min-width: auto;
-          }
-        }
       }
     }
   }
