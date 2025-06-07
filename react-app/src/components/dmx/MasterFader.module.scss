@@ -12,9 +12,9 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 1020;
-  width: 85%; /* Reduced from 95% to 85% for more compact size */
-  max-width: 800px; /* Reduced from 1200px to 800px */
-  min-width: 400px; /* Reduced from 600px to 400px */
+  width: 90%; /* Increased from 85% to 90% for more slider space */
+  max-width: 1000px; /* Increased from 800px to 1000px for better slider interaction */
+  min-width: 500px; /* Increased from 400px to 500px to ensure adequate slider space */
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
   
   &.minimized {
@@ -216,8 +216,7 @@
       to { box-shadow: 0 6px 20px rgba(86, 171, 47, 0.8); }
     }
   }
-  
-  .faderContainer {
+    .faderContainer {
     display: flex;
     gap: 2rem; /* Increased from 1.5rem for better spacing */
     align-items: flex-start;
@@ -234,75 +233,90 @@
       position: relative;
       z-index: 10;
       flex: 1; /* Allow the slider wrapper to expand */
-      min-height: 60px; /* Added minimum height for consistency */
+      min-height: 80px; /* Increased minimum height for better touch targets */
+      min-width: 400px; /* Added minimum width to ensure adequate slider space */
       
       // Allow pointer events on the wrapper
       pointer-events: auto;
-    }
-
-    // Renamed from .verticalSlider conceptually, but keeping class name for now as per task
+    }    // Renamed from .verticalSlider conceptually, but keeping class name for now as per task
     .verticalSlider {
       -webkit-appearance: none; /* Remove default WebKit appearance */
       appearance: none; /* Remove default platform appearance */
       width: 100%; /* Slider takes full width of its parent */
-      height: 20px; /* Height of the slider track */
-      background: var(--color-slider-track);
-      border-radius: 10px; /* Rounded track edges */
+      min-width: 300px; /* Ensure minimum clickable width for better UX */
+      height: 24px; /* Increased height of the slider track for better touch targets */
+      background: linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) var(--slider-progress, 0%), var(--color-slider-track) var(--slider-progress, 0%), var(--color-slider-track) 100%);
+      border-radius: 12px; /* Increased border radius to match new height */
       outline: none;
       cursor: pointer;
       transition: all 0.2s ease; // Keep existing transitions
       position: relative; // Keep for z-index context if needed
       z-index: 1000; // Keep for potential stacking issues
+      border: 1px solid rgba(78, 205, 196, 0.3); /* Add subtle border for better definition */
       
       pointer-events: auto !important;
       touch-action: none; // Keep for touch devices
       
       &:hover, &:active, &:focus {
         z-index: 1001; // Keep for potential stacking issues
+        transform: scaleY(1.1); /* Slight vertical scale on hover for feedback */
+        box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3); /* Add glow on hover */
       }
 
       &::-webkit-slider-thumb {
         -webkit-appearance: none; /* Required for custom thumb styling */
         appearance: none;
-        width: 30px;   /* Width of the thumb */
-        height: 30px;  /* Height of the thumb */
-        background: var(--color-slider-thumb);
+        width: 36px;   /* Increased width of the thumb for better interaction */
+        height: 36px;  /* Increased height of the thumb for better interaction */
+        background: linear-gradient(135deg, var(--color-slider-thumb), rgba(78, 205, 196, 0.8));
         border: 3px solid var(--accent-color);
         border-radius: 50%; /* Circular thumb */
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(78, 205, 196, 0.2);
         transition: all 0.2s ease;
-        margin-top: -5px; /* Adjust thumb position to be centered on the track. (track_height - thumb_height)/2 = (20-30)/2 = -5px */
+        margin-top: -6px; /* Adjust thumb position to be centered on the track. (track_height - thumb_height)/2 = (24-36)/2 = -6px */
       }
 
       &::-webkit-slider-thumb:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4);
+        transform: scale(1.15); /* Increased hover scale for better feedback */
+        box-shadow: 0 6px 20px rgba(78, 205, 196, 0.4), 0 0 0 3px rgba(78, 205, 196, 0.3);
+      }
+
+      &::-webkit-slider-thumb:active {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(78, 205, 196, 0.6), 0 0 0 4px rgba(78, 205, 196, 0.4);
       }
 
       &::-moz-range-thumb {
-        width: 30px;   /* Width of the thumb */
-        height: 30px;  /* Height of the thumb */
-        background: var(--color-slider-thumb);
+        width: 36px;   /* Increased width of the thumb for better interaction */
+        height: 36px;  /* Increased height of the thumb for better interaction */
+        background: linear-gradient(135deg, var(--color-slider-thumb), rgba(78, 205, 196, 0.8));
         border: 3px solid var(--accent-color);
         border-radius: 50%; /* Circular thumb */
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(78, 205, 196, 0.2);
         /* No margin-top needed for Firefox if track height is managed by box-sizing or similar */
       }
-    }
 
-    .valueDisplay {
+      /* For Firefox range track styling */
+      &::-moz-range-track {
+        height: 24px;
+        background: linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) var(--slider-progress, 0%), var(--color-slider-track) var(--slider-progress, 0%), var(--color-slider-track) 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(78, 205, 196, 0.3);
+      }
+    }.valueDisplay {
       background: var(--bg-primary);
       color: var(--accent-color);
-      padding: 0.5rem 0.75rem; // Adjusted padding
-      border-radius: 6px; // Adjusted border-radius
+      padding: 0.75rem 1rem; // Increased padding for better visibility
+      border-radius: 8px; // Increased border-radius for better appearance
       font-weight: bold;
-      font-size: 1rem; // Adjusted font-size
+      font-size: 1.2rem; // Increased font-size for better readability
       border: 2px solid var(--accent-color);
-      min-width: 50px; // Adjusted min-width
+      min-width: 80px; // Increased min-width for consistency
       text-align: center;
       box-shadow: 0 2px 8px rgba(78, 205, 196, 0.2);
+      white-space: nowrap; /* Prevent text wrapping */
     }
   }
 
