@@ -66,6 +66,10 @@ interface ArtNetConfig {
 interface OscConfig {
     host: string;
     port: number;
+    // OSC sending configuration
+    sendEnabled: boolean;
+    sendHost: string;
+    sendPort: number;
 }
 
 // Variable declarations
@@ -82,10 +86,18 @@ let currentMidiLearnChannel: number | null = null;
 let currentMidiLearnScene: string | null = null;
 let midiLearnTimeout: NodeJS.Timeout | null = null;
 
+// OSC variables
+let oscReceivePort: any = null;
+let oscSendPort: any = null;
+
 // OSC Configuration
 let oscConfig: OscConfig = {
     host: '127.0.0.1',
-    port: 57121
+    port: 57121,
+    // OSC sending configuration
+    sendEnabled: true,
+    sendHost: '127.0.0.1',
+    sendPort: 57120
 };
 
 // Constants and configurations
@@ -322,7 +334,13 @@ function initOsc(io: Server) {
         log('OSC Configuration:', 'OSC');
         log('  - Listen Address: 0.0.0.0 (all interfaces)', 'OSC');
         log(`  - Listen Port: ${oscConfig.port} (UDP)`, 'OSC');
+        log(`  - Send Enabled: ${oscConfig.sendEnabled}`, 'OSC');
+        if (oscConfig.sendEnabled) {
+            log(`  - Send Host: ${oscConfig.sendHost}`, 'OSC');
+            log(`  - Send Port: ${oscConfig.sendPort}`, 'OSC');
+        }
         
+        // Create OSC receive port
         const oscPort = new osc.UDPPort({
             localAddress: "0.0.0.0",
             localPort: oscConfig.port,
@@ -330,15 +348,15 @@ function initOsc(io: Server) {
         });        
         
         oscPort.on("ready", () => {
-            log("OSC Port is ready", 'OSC');
+            log("OSC Receive Port is ready", 'OSC');
             log(`OSC: Receiving on port ${oscConfig.port} (UDP)`, 'OSC');
-            log('OSC: Receive-only mode active', 'OSC');
             io.emit('oscStatus', { status: 'connected', receivePort: oscConfig.port });
-            sender = oscPort;
+            oscReceivePort = oscPort;
+            sender = oscPort; // Keep backward compatibility
         });
 
         oscPort.on("error", (error: Error) => {
-            log('OSC error', 'ERROR', { message: error.message });
+            log('OSC Receive error', 'ERROR', { message: error.message });
             io.emit('oscStatus', { status: 'error', message: error.message });
         });
 
@@ -385,7 +403,41 @@ function initOsc(io: Server) {
         });
 
         oscPort.open();
-        log("Opening OSC port...", 'OSC');
+        log("Opening OSC Receive port...", 'OSC');
+
+        // Create OSC send port if sending is enabled
+        if (oscConfig.sendEnabled) {
+            const oscSendPortInstance = new osc.UDPPort({
+                localAddress: "0.0.0.0",
+                localPort: 0, // Use any available port for sending
+                remoteAddress: oscConfig.sendHost,
+                remotePort: oscConfig.sendPort,
+                metadata: false
+            });
+
+            oscSendPortInstance.on("ready", () => {
+                log("OSC Send Port is ready", 'OSC');
+                log(`OSC: Sending to ${oscConfig.sendHost}:${oscConfig.sendPort} (UDP)`, 'OSC');
+                oscSendPort = oscSendPortInstance;
+                io.emit('oscSendStatus', { 
+                    status: 'connected', 
+                    sendHost: oscConfig.sendHost, 
+                    sendPort: oscConfig.sendPort 
+                });
+            });
+
+            oscSendPortInstance.on("error", (error: Error) => {
+                log('OSC Send error', 'ERROR', { message: error.message });
+                io.emit('oscSendStatus', { status: 'error', message: error.message });
+            });
+
+            oscSendPortInstance.open();
+            log("Opening OSC Send port...", 'OSC');
+        } else {
+            log('OSC sending is disabled', 'OSC');
+            oscSendPort = null;
+        }
+
     } catch (error) {
         log('Error initializing OSC', 'ERROR', { error });
         io.emit('oscStatus', { 
@@ -714,6 +766,8 @@ function updateScene(io: Server, originalName: string, updates: Partial<Scene>) 
 function updateDmxChannel(channel: number, value: number) {
     const previousValue = dmxChannels[channel];
     dmxChannels[channel] = value;
+    
+    // Send to ArtNet
     if (artnetSender) {
         artnetSender.setChannel(channel, value);
         artnetSender.transmit();
@@ -723,6 +777,43 @@ function updateDmxChannel(channel: number, value: number) {
         }
     } else {
         log('ArtNet sender not initialized', 'WARN');
+    }
+    
+    // Send OSC update if sending is enabled
+    if (oscConfig.sendEnabled && oscSendPort && oscAssignments[channel]) {
+        const oscAddress = oscAssignments[channel];
+        const normalizedValue = value / 255.0; // Convert DMX 0-255 to OSC 0.0-1.0
+        sendOscMessage(oscAddress, [{ type: 'f', value: normalizedValue }]);
+    }
+}
+
+// OSC message sending function
+function sendOscMessage(address: string, args: any[]) {
+    if (!oscConfig.sendEnabled || !oscSendPort) {
+        log('OSC sending is disabled or send port not available', 'OSC');
+        return;
+    }
+    
+    try {
+        const message = {
+            address: address,
+            args: args
+        };
+        
+        oscSendPort.send(message);
+        
+        log('OSC message sent', 'OSC', { address, args });
+        
+        // Emit to clients for debugging/monitoring
+        if (global.io) {
+            global.io.emit('oscOutgoing', {
+                address: address,
+                args: args,
+                timestamp: Date.now()
+            });
+        }
+    } catch (error) {
+        log('Error sending OSC message', 'ERROR', { error, address, args });
     }
 }
 
@@ -1000,11 +1091,20 @@ function updateOscConfig(io: Server, config: Partial<OscConfig>) {
     oscConfig = { ...oscConfig, ...config };
     log('OSC config updated', 'OSC', { oscConfig });
     
-    // Close existing OSC port if it exists
-    if (sender && typeof sender.close === 'function') {
-        sender.close();
-        log('Closed existing OSC port', 'OSC');
+    // Close existing OSC ports if they exist
+    if (oscReceivePort && typeof oscReceivePort.close === 'function') {
+        oscReceivePort.close();
+        log('Closed existing OSC receive port', 'OSC');
     }
+    if (oscSendPort && typeof oscSendPort.close === 'function') {
+        oscSendPort.close();
+        log('Closed existing OSC send port', 'OSC');
+    }
+    
+    // Clear the references
+    oscReceivePort = null;
+    oscSendPort = null;
+    sender = null; // Clear backward compatibility reference
     
     // Reinitialize OSC with new config
     initOsc(io);
@@ -1047,8 +1147,8 @@ export {
     updateScene,
     loadScenes,
     saveScenes,
-    pingArtNetDevice,
-    clearMidiMappings,
+    pingArtNetDevice,    clearMidiMappings,
     updateArtNetConfig,
-    updateOscConfig
+    updateOscConfig,
+    sendOscMessage
 };

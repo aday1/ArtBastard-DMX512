@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface ScalingOptions {
   // Input range (MIDI values typically 0-127)
@@ -26,11 +26,10 @@ export const useMidiScaling = () => {
     outputMax: 255,
     curve: 1, // Linear by default
   });
-  
-  /**
+    /**
    * Scale a value from input range to output range with optional curve
    */
-  const scaleValue = (value: number, customOptions?: Partial<ScalingOptions>) => {
+  const scaleValue = useCallback((value: number, customOptions?: Partial<ScalingOptions>) => {
     // Use provided options or defaults
     const opts = { ...options, ...customOptions };
     const { inputMin, inputMax, outputMin, outputMax, curve = 1 } = opts;
@@ -48,27 +47,13 @@ export const useMidiScaling = () => {
     
     // Scale to output range and round to integer for DMX
     return Math.round(outputMin + curvedValue * (outputMax - outputMin));
-  };
-  
+  }, [options]);
+
   /**
    * Set global scaling options
    */
-  const setScalingOptions = (newOptions: Partial<ScalingOptions>) => {
+  const setScalingOptions = useCallback((newOptions: Partial<ScalingOptions>) => {
     setOptions(prev => ({ ...prev, ...newOptions }));
-  };
-  
-  return { scaleValue, setScalingOptions, options };
-  
-  /**
-   * Update scaling options
-   */
-  const updateOptions = (newOptions: Partial<ScalingOptions>) => {
-    setOptions(prev => ({ ...prev, ...newOptions }));
-  };
-  
-  return {
-    scaleValue,
-    updateOptions,
-    options
-  };
+  }, []);
+    return { scaleValue, setScalingOptions, options };
 };

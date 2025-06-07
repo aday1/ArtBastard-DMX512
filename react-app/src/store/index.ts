@@ -65,6 +65,9 @@ export interface ArtNetConfig {
 export interface OscConfig {
   host: string
   port: number
+  sendEnabled: boolean
+  sendHost: string
+  sendPort: number
 }
 
 export interface OscActivity {

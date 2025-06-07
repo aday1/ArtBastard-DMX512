@@ -21,7 +21,16 @@ export const MidiOscSetup: React.FC = () => {
     const [midiInterfaces, setMidiInterfaces] = useState<string[]>([])
   const [activeInterfaces, setActiveInterfaces] = useState<string[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [oscConfig, setOscConfig] = useState({ host: '127.0.0.1', port: 8000 })
+  const [oscConfig, setOscConfig] = useState({ 
+    host: '127.0.0.1', 
+    port: 57121,
+    sendEnabled: true,
+    sendHost: '127.0.0.1',
+    sendPort: 57120
+  })
+  // Add OSC status state
+  const [oscReceiveStatus, setOscReceiveStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
+  const [oscSendStatus, setOscSendStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
   
   const midiMessages = useStore(state => state.midiMessages)
   const clearAllMidiMappings = useStore(state => state.clearAllMidiMappings)
@@ -42,12 +51,37 @@ export const MidiOscSetup: React.FC = () => {
         setActiveInterfaces(active)
       }
       
+      // Listen for OSC status updates
+      const handleOscStatus = (status: { status: string, receivePort?: number, message?: string }) => {
+        if (status.status === 'connected') {
+          setOscReceiveStatus('connected')
+        } else if (status.status === 'error') {
+          setOscReceiveStatus('error')
+        } else {
+          setOscReceiveStatus('disconnected')
+        }
+      }
+      
+      const handleOscSendStatus = (status: { status: string, sendHost?: string, sendPort?: number, message?: string }) => {
+        if (status.status === 'connected') {
+          setOscSendStatus('connected')
+        } else if (status.status === 'error') {
+          setOscSendStatus('error')
+        } else {
+          setOscSendStatus('disconnected')
+        }
+      }
+      
       socket.on('midiInterfaces', handleMidiInterfaces)
       socket.on('midiInputsActive', handleActiveInterfaces)
+      socket.on('oscStatus', handleOscStatus)
+      socket.on('oscSendStatus', handleOscSendStatus)
       
       return () => {
         socket.off('midiInterfaces', handleMidiInterfaces)
         socket.off('midiInputsActive', handleActiveInterfaces)
+        socket.off('oscStatus', handleOscStatus)
+        socket.off('oscSendStatus', handleOscSendStatus)
       }
     }
   }, [socket, connected])
@@ -312,15 +346,16 @@ export const MidiOscSetup: React.FC = () => {
               {theme === 'standard' && 'OSC Configuration'}
               {theme === 'minimal' && 'OSC'}
             </h3>
-          </div>
-          <div className={styles.cardBody}>
+          </div>          <div className={styles.cardBody}>
             <p className={styles.cardDescription}>
-              OSC (Open Sound Control) enables network communication between devices and applications. 
-              Configure the host and port where ArtBastard will receive OSC messages.
+              OSC (Open Sound Control) enables bidirectional network communication between devices and applications. 
+              Configure both receiving and sending settings for TouchOSC integration.
             </p>
+            
+            <h4>OSC Receiving (Incoming Messages)</h4>
             <div className={styles.formGroup}>
               <label htmlFor="oscHost" title="IP address where OSC messages will be received. Use 127.0.0.1 for local connections or your network IP for remote devices">
-                Host Address:
+                Receive Host Address:
               </label>
               <input
                 type="text"
@@ -333,17 +368,104 @@ export const MidiOscSetup: React.FC = () => {
             </div>
             
             <div className={styles.formGroup}>
-              <label htmlFor="oscPort" title="Network port number for OSC messages. Common values: 8000, 9000, 53000 (TouchOSC), 57121 (SuperCollider)">
-                Port:
+              <label htmlFor="oscPort" title="Network port number for receiving OSC messages. Common values: 57121 (default), 8000, 9000">
+                Receive Port:
               </label>
               <input
                 type="number"
                 id="oscPort"
                 value={oscConfig.port}
                 onChange={(e) => setOscConfig({ ...oscConfig, port: parseInt(e.target.value) })}
-                placeholder="8000"
-                title="Network port for OSC communication. Common ports: 8000, 9000, 53000 (TouchOSC)"
+                placeholder="57121"
+                title="Network port for receiving OSC messages. Default: 57121"
               />
+            </div>
+            
+            <h4>OSC Sending (Outgoing Messages)</h4>
+            <div className={styles.formGroup}>
+              <label htmlFor="oscSendEnabled" title="Enable sending OSC messages to TouchOSC interfaces for bidirectional communication">
+                <input
+                  type="checkbox"
+                  id="oscSendEnabled"
+                  checked={oscConfig.sendEnabled}
+                  onChange={(e) => setOscConfig({ ...oscConfig, sendEnabled: e.target.checked })}
+                />
+                Enable OSC Sending
+              </label>
+            </div>
+            
+            {oscConfig.sendEnabled && (
+              <>
+                <div className={styles.formGroup}>
+                  <label htmlFor="oscSendHost" title="IP address where OSC messages will be sent. Use 127.0.0.1 for local TouchOSC or the device IP for remote TouchOSC">
+                    Send Host Address:
+                  </label>
+                  <input
+                    type="text"
+                    id="oscSendHost"
+                    value={oscConfig.sendHost}
+                    onChange={(e) => setOscConfig({ ...oscConfig, sendHost: e.target.value })}
+                    placeholder="127.0.0.1"
+                    title="Enter the IP address where OSC messages will be sent (TouchOSC device)"
+                  />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label htmlFor="oscSendPort" title="Network port number for sending OSC messages. TouchOSC typically uses 57120">
+                    Send Port:
+                  </label>
+                  <input
+                    type="number"
+                    id="oscSendPort"
+                    value={oscConfig.sendPort}
+                    onChange={(e) => setOscConfig({ ...oscConfig, sendPort: parseInt(e.target.value) })}
+                    placeholder="57120"
+                    title="Network port for sending OSC messages. TouchOSC default: 57120"
+                  />
+                </div>
+              </>
+            )}
+            
+            {/* OSC Status Indicators */}
+            <div className={styles.oscStatus}>
+              <div className={styles.oscStatusItem}>
+                <span className={styles.oscStatusLabel}>Receive Status:</span>
+                <span className={`${styles.oscStatusValue} ${styles[oscReceiveStatus]}`}>
+                  {oscReceiveStatus.charAt(0).toUpperCase() + oscReceiveStatus.slice(1)}
+                </span>
+              </div>
+              
+              <div className={styles.oscStatusItem}>
+                <span className={styles.oscStatusLabel}>Send Status:</span>
+                <span className={`${styles.oscStatusValue} ${styles[oscSendStatus]}`}>
+                  {oscSendStatus.charAt(0).toUpperCase() + oscSendStatus.slice(1)}
+                </span>
+              </div>
+            </div>
+            
+            {/* OSC Connection Status */}
+            <div className={styles.oscStatusSection}>
+              <h4>OSC Connection Status</h4>
+              <div className={styles.statusGrid}>
+                <div className={styles.statusItem}>
+                  <span className={styles.statusLabel}>Receive Port:</span>
+                  <span className={`${styles.statusIndicator} ${styles[oscReceiveStatus]}`}>
+                    {oscReceiveStatus === 'connected' && <><i className="fas fa-check-circle"></i> Connected</>}
+                    {oscReceiveStatus === 'disconnected' && <><i className="fas fa-times-circle"></i> Disconnected</>}
+                    {oscReceiveStatus === 'error' && <><i className="fas fa-exclamation-triangle"></i> Error</>}
+                  </span>
+                </div>
+                {oscConfig.sendEnabled && (
+                  <div className={styles.statusItem}>
+                    <span className={styles.statusLabel}>Send Port:</span>
+                    <span className={`${styles.statusIndicator} ${styles[oscSendStatus]}`}>
+                      {oscSendStatus === 'connected' && <><i className="fas fa-check-circle"></i> Connected</>}
+                      {oscSendStatus === 'disconnected' && <><i className="fas fa-times-circle"></i> Disconnected</>}
+                      {oscSendStatus === 'error' && <><i className="fas fa-exclamation-triangle"></i> Error</>}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             
             <button 

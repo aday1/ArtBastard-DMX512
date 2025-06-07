@@ -754,11 +754,7 @@ function setupSocketHandlers(io: Server) {
   });
 }
 
-// OSC message handler (to be implemented in index.ts)
-function sendOscMessage(address: string, args: any[]) {
-  // Implementation will depend on your OSC setup
-  log('Sending OSC message', 'OSC', { address, args });
-  // Actual implementation should send message to OSC sender
-}
+// Import sendOscMessage from index.ts
+import { sendOscMessage } from './index';
 
 export { apiRouter, setupSocketHandlers };
