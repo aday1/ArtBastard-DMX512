@@ -52,13 +52,13 @@ if ($LASTEXITCODE -ne 0) { Write-Error "💔 Oh dear, the backend orchestra is o
 $JulusianInstrumentsPath = Join-Path $ProjectRootPath "node_modules/@julusian/midi/lib/instruments.js"
 if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
     Write-Warning "⚠️ The @julusian/midi instruments file seems to be missing. Attempting to reinstall easymidi..."
-    npm install easymidi --save
-    if ($LASTEXITCODE -ne 0) { Write-Error "💔 Reinstalling easymidi also failed. The show cannot go on!"; Exit 1 }
+    npm install easymidi --save    if ($LASTEXITCODE -ne 0) { Write-Error "💔 Reinstalling easymidi also failed. The show cannot go on!"; Exit 1 }
     if (-not (Test-Path $JulusianInstrumentsPath -PathType Leaf)) {
         Write-Error "🛑 Critical: easymidi reinstall did not fix the missing @julusian/midi/lib/instruments.js."
         Write-Error "Please try manually deleting node_modules and package-lock.json in the project root, then run 'npm install' again."
         Write-Error "If the issue persists, try 'npm cache clean --force' followed by 'npm install'."
-        Exit 1    }
+        Exit 1
+    }
     Write-Host "✅ Reinstalling easymidi seems to have helped!" -ForegroundColor Green
 }
 
@@ -98,7 +98,7 @@ Write-Host ""
 Write-Host "  Set-Location '$($ProjectRootPath)\\react-app'" -ForegroundColor White
 Write-Host "  npm run dev" -ForegroundColor White
 Write-Host ""
-Write-Host "And behold! The frontend UI shall illuminate your screen, typically at http://localhost:3001 (dev server) but if it's not, then it's likely the port shown in the console after running the command." -ForegroundColor Yellow
+Write-Host "And behold! The frontend UI shall illuminate your screen, typically at http://localhost:3001 (dev server) but if it is not, then it is likely the port shown in the console after running the command." -ForegroundColor Yellow
 Write-Host "--------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Follow your cue in Act IV to bring the frontend to life!"
