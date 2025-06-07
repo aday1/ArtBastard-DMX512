@@ -89,8 +89,105 @@
           margin-bottom: 0;
         }
       }
+    }  }
+  
+  // New stable docked layout system
+  .mainLayout {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    padding-bottom: 120px; // Space for bottom docked element
+  }
+
+  .fixedQuickCapture {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    padding: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  .centralContent {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    padding-left: 300px; // Space for left dock
+    padding-right: 300px; // Space for right dock
+  }
+  .dockedElements {
+    position: relative;
+    pointer-events: none; // Allow clicks to pass through to content
+
+    .leftMiddleDock,
+    .rightMiddleDock,
+    .bottomCenterDock,
+    .bottomLeftDock {
+      pointer-events: auto; // Re-enable clicks on the docked elements
     }
   }
+
+  .leftMiddleDock {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 900;
+    max-width: 250px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 12px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+  }
+
+  .rightMiddleDock {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 900;
+    max-width: 250px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 12px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+  }
+  .bottomCenterDock {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 12px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    min-width: 300px;
+  }
+
+  .bottomLeftDock {
+    position: fixed;
+    bottom: 50%;
+    left: 20px;
+    transform: translateY(50%);
+    z-index: 900;
+    max-width: 250px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 12px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+  }
+
   .mainControls {
     display: flex;
     align-items: center;
@@ -98,65 +195,37 @@
     gap: 1rem; /* Added gap between buttons */
     padding: 0.5rem;
     margin-bottom: 1rem;
-  }
-  .quickSaveButton {
+  }  .quickSaveButton {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.25rem;
     border: none;
-    border-radius: 4px;
-    background-color: #4a90e2;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-    &:hover {
-      background-color: #357abd;
-    }
-
-    &:active {
-      background-color: #2b62a3;
-      transform: translateY(1px);
-    }
-
-    i {
-      font-size: 1.1em;
-    }
-  }
-
-  .dmxChannelGridButton {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    border: none;
-    border-radius: 4px;
-    background-color: #4ecdc4;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #4a90e2, #357abd);
     color: white;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+    font-size: 0.9rem;
 
     &:hover {
-      background-color: #45b7aa;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(135deg, #357abd, #2b62a3);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
     }
 
     &:active {
-      background-color: #3da399;
-      transform: translateY(1px);
+      background: linear-gradient(135deg, #2b62a3, #1e4a7a);
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
     }
 
     i {
       font-size: 1.1em;
-    }
-  }
-
+      animation: pulse 2s infinite;
+    }  }
   @media (max-width: 768px) {
     padding: 0.5rem;
 
@@ -179,6 +248,54 @@
           font-size: 1.4rem;
         }
       }
+    }
+
+    // Mobile responsive adjustments for docked layout
+    .fixedQuickCapture {
+      position: relative;
+      top: auto;
+      right: auto;
+      margin-bottom: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .centralContent {
+      padding: 1rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .sceneControls {
+      padding: 0 1rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .leftMiddleDock,
+    .rightMiddleDock {
+      position: relative;
+      left: auto;
+      right: auto;
+      top: auto;
+      transform: none;
+      max-width: 100%;
+      margin-bottom: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .bottomCenterDock {
+      position: relative;
+      bottom: auto;
+      left: auto;
+      transform: none;
+      min-width: auto;
+      width: 100%;
+      margin-top: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .mainLayout {
+      padding-bottom: 20px;
     }
   }
 }

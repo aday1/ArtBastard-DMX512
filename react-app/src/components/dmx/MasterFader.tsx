@@ -446,8 +446,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
         </div>
       )}
     </div>
-  );
-  if (isDockable) {
+  );  if (isDockable) {
     return (
       <DockableComponent
         id="master-fader"
@@ -460,6 +459,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
         width={isMinimized ? "min(600px, calc(100vw - 40px))" : "min(800px, calc(100vw - 40px))"}
         height={isMinimized ? "auto" : "400px"}
         className={styles.masterFader}
+        isDraggable={false}
       >
         {masterFaderContent}
       </DockableComponent>

@@ -5,7 +5,6 @@ import type { SocketContextType } from '../context/SocketContext'
 import { useStore } from '../store'
 import { DmxControlPanel } from '../components/dmx/DmxControlPanel'
 import { MasterFader } from '../components/dmx/MasterFader'
-import { DMXChannelGrid } from '../components/dmx/DMXChannelGrid'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
 import { MidiMonitor } from '../components/midi/MidiMonitor'
 import { OscMonitor } from '../components/osc/OscMonitor'
@@ -36,10 +35,8 @@ const MainPage: React.FC = () => {
     addNotification: state.addNotification,
     saveScene: state.saveScene
   }))
-  
-  const [currentView, setCurrentView] = useState<ViewType>('main')
+    const [currentView, setCurrentView] = useState<ViewType>('main')
   const [isAutoSceneMinimized, setIsAutoSceneMinimized] = useState(false)
-  const [showDMXChannelGrid, setShowDMXChannelGrid] = useState(false)
 
   const handleQuickSave = () => {
     const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-')
@@ -83,9 +80,10 @@ const MainPage: React.FC = () => {
             Connection lost - attempting to reconnect...
           </div>
         )}
-        <div className={styles.viewContainer}>
-          {currentView === 'main' && (
-            <>              <div className={styles.mainControls}>
+        <div className={styles.viewContainer}>          {currentView === 'main' && (
+            <div className={styles.mainLayout}>
+              {/* Fixed Quick Capture Button - Always Visible and Follows Scroll */}
+              <div className={styles.fixedQuickCapture}>
                 <button
                   className={styles.quickSaveButton}
                   onClick={handleQuickSave}
@@ -94,27 +92,34 @@ const MainPage: React.FC = () => {
                   <i className="fas fa-bolt"></i>
                   {theme === 'artsnob' ? 'Quick Capture' : 'Quick Save'}
                 </button>
-                <button
-                  className={styles.dmxChannelGridButton}
-                  onClick={() => setShowDMXChannelGrid(!showDMXChannelGrid)}
-                  title="Open DMX Channel Grid"
-                >
-                  <i className="fas fa-th"></i>
-                  DMX Grid
-                </button>
               </div>
-              <MasterFader />
-              <DmxControlPanel />              <MidiMonitor />
-              <OscMonitor />
-              <SceneQuickLaunch />              <AutoSceneControlMini />
-              <ChromaticEnergyManipulatorMini />
-              {showDMXChannelGrid && (
-                <DMXChannelGrid
-                  onChannelSelect={(channel) => console.log('Selected channel:', channel)}
-                  isDockable={true}
-                />
-              )}
-            </>
+
+              {/* Central Content Area */}
+              <div className={styles.centralContent}>
+                <DmxControlPanel />
+                <MidiMonitor />
+                <OscMonitor />
+              </div>              {/* Fixed Docked Elements */}
+              <div className={styles.dockedElements}>
+                {/* Left Middle - Chromatic Energy Manipulator Mini */}
+                <div className={styles.leftMiddleDock}>
+                  <ChromaticEnergyManipulatorMini isDockable={false} />
+                </div>                {/* Right Middle - Scene Quick Launch */}
+                <div className={styles.rightMiddleDock}>
+                  <SceneQuickLaunch isDockable={false} />
+                </div>
+
+                {/* Bottom Left Middle - Scene Auto */}
+                <div className={styles.bottomLeftDock}>
+                  <AutoSceneControlMini isDockable={false} />
+                </div>
+
+                {/* Bottom Center - Master Fader */}
+                <div className={styles.bottomCenterDock}>
+                  <MasterFader isDockable={false} />
+                </div>
+              </div>
+            </div>
           )}
           {currentView === 'midiOsc' && <MidiOscSetup />}
           {currentView === 'fixture' && <FixtureSetup />}

@@ -7,11 +7,13 @@ import styles from './SceneQuickLaunch.module.scss';
 interface SceneQuickLaunchProps {
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  isDockable?: boolean;
 }
 
 export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
   isCollapsed = false,
   onCollapsedChange,
+  isDockable = true,
 }) => {
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   
@@ -93,25 +95,14 @@ export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
           </button>
         ))}
       </div>
-    );
-  };
+    );  };
 
-  return (
-    <DockableComponent
-      id="scene-quick-launch"
-      title="Scene Quick Launch"
-      component="midi-clock"
-      defaultPosition={{ zone: 'top-right' }}
-      isCollapsed={isCollapsed}
-      onCollapsedChange={onCollapsedChange}
-      width="280px"
-      height="auto"
-      className={styles.container}
-      isDraggable={true}
-    >
+  const content = (
+    <>
       <div className={styles.header}>
         <h3 className={styles.title}>Quick Launch</h3>
-        <div className={styles.headerControls}>          <button 
+        <div className={styles.headerControls}>
+          <button 
             className={styles.quickCaptureButton}
             onClick={handleQuickCapture}
             title="Quick capture current DMX state 📸"
@@ -143,6 +134,31 @@ export const SceneQuickLaunch: React.FC<SceneQuickLaunchProps> = ({
           {renderContent()}
         </div>
       )}
+    </>
+  );
+
+  if (!isDockable) {
+    return (
+      <div className={styles.container}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <DockableComponent
+      id="scene-quick-launch"
+      title="Scene Quick Launch"
+      component="midi-clock"
+      defaultPosition={{ zone: 'top-right' }}
+      isCollapsed={isCollapsed}
+      onCollapsedChange={onCollapsedChange}
+      width="280px"
+      height="auto"
+      className={styles.container}
+      isDraggable={true}
+    >
+      {content}
     </DockableComponent>
   );
 };

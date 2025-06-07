@@ -108,20 +108,32 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
   useEffect(() => {
     setLocalMinimized(isMinimized);
   }, [isMinimized]);  const getDragConstraints = () => {
+    // If not draggable, return null constraints to prevent any dragging
+    if (!isDraggable) {
+      return {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+      };
+    }
+
     const componentElement = componentRef.current;
     if (!componentElement) {
       return {
-        left: -150, // Reduced off-screen allowance
-        top: -50,   // Reduced off-screen allowance
-        right: window.innerWidth - 100, // Keep more visible
-        bottom: window.innerHeight - 100, // Keep more visible
+        left: 0,
+        top: 0,
+        right: window.innerWidth - 200,
+        bottom: window.innerHeight - 100,
       };
     }
 
     const componentWidth = componentElement.offsetWidth;
     const componentHeight = componentElement.offsetHeight;
-    const minVisibleWidth = Math.min(150, componentWidth * 0.5); // Increased minimum visible area
-    const minVisibleHeight = Math.min(80, componentHeight * 0.5); // Increased minimum visible area
+    
+    // Ensure at least 100px of the component remains visible
+    const minVisibleWidth = Math.max(100, Math.min(200, componentWidth * 0.6));
+    const minVisibleHeight = Math.max(50, Math.min(100, componentHeight * 0.6));
 
     return {
       left: -componentWidth + minVisibleWidth,
@@ -137,35 +149,60 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
     startDrag(id);
     setShowSnapIndicator(true);
   };
-
   const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    // Update current drag position for snap indicator
-    setCurrentDragPosition({ x: info.point.x, y: info.point.y });
+    // Get current component position and add the delta
+    const rect = componentRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    // Calculate the actual position of the component center
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    // Update current drag position for snap indicator (use center for better UX)
+    setCurrentDragPosition({ x: centerX, y: centerY });
+    
+    // Show snap indicator when close to snap points
+    const shouldShow = shouldSnapToGrid(centerX, centerY) || getDockZoneForPosition(centerX, centerY) !== null;
+    setShowSnapIndicator(shouldShow);
   };  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     endDrag();
     setShowSnapIndicator(false);
     setCurrentDragPosition(null);
     
+    // Get final component position
+    const rect = componentRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    // Use component center for more intuitive docking
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
     // Determine if we should dock or stay floating
-    const zone = getDockZoneForPosition(info.point.x, info.point.y);
+    const zone = getDockZoneForPosition(centerX, centerY);
     
     if (zone) {
       // Dock to zone
       updateComponentPosition(id, { zone });
     } else {
-      // Stay floating, update offset with proper viewport constraints and grid snapping
-      let newOffset = getFloatingOffset(info.point.x, info.point.y);
+      // Stay floating, calculate offset from top-left of component
+      let newOffset = { x: rect.left, y: rect.top };
       
       // Apply grid snapping if enabled and close enough to grid
-      if (shouldSnapToGrid(newOffset.x, newOffset.y)) {
-        newOffset = snapPositionToGrid(newOffset.x, newOffset.y);
-        // Re-apply bounds checking after snapping
-        newOffset = getFloatingOffset(newOffset.x, newOffset.y);
+      if (shouldSnapToGrid(centerX, centerY)) {
+        const snapped = snapPositionToGrid(centerX, centerY);
+        // Convert snapped center position back to top-left offset
+        newOffset = {
+          x: snapped.x - rect.width / 2,
+          y: snapped.y - rect.height / 2
+        };
       }
+      
+      // Apply viewport constraints to final position
+      newOffset = getFloatingOffset(newOffset.x, newOffset.y);
       
       updateComponentPosition(id, { zone: 'floating', offset: newOffset });
     }
-  };  const getFloatingOffset = (x: number, y: number) => {
+  };const getFloatingOffset = (x: number, y: number) => {
     // Get component dimensions for better constraint calculation
     const componentElement = componentRef.current;
     const componentWidth = componentElement?.offsetWidth || 300;
@@ -272,14 +309,19 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
 
   if (!dockedComponent) {
     return null; // Component not registered yet
-  }
-  const motionStyle = {
-    position: 'fixed' as const,
+  }  const motionStyle = {
     width: localMinimized ? 'auto' : width,
     height: localMinimized ? 'auto' : height,
     zIndex: dockedComponent.zIndex,
     maxWidth: 'calc(100vw - 20px)', // Prevent overflow beyond viewport
-    ...getPositionStyle(),
+    // For non-draggable components, use relative positioning to let CSS handle layout
+    // For draggable components, use fixed positioning with calculated positions
+    ...(isDraggable ? {
+      position: 'fixed' as const,
+      ...getPositionStyle(),
+    } : {
+      position: 'relative' as const,
+    }),
     ...style,
   };
   return (
@@ -291,18 +333,19 @@ export const DockableComponent: React.FC<DockableComponentProps> = ({
           y={currentDragPosition.y}
           visible={showSnapIndicator}
         />
-      )}
-      
-      <motion.div
+      )}        <motion.div
       ref={componentRef}
       className={`${className} ${localMinimized ? 'minimized' : ''}`}
-      style={motionStyle}      drag={isDraggable}
-      dragControls={dragControls}
-      dragListener={false}
-      onDragStart={handleDragStart}
-      onDrag={handleDrag}      onDragEnd={handleDragEnd}
-      whileDrag={{ cursor: 'grabbing' }}
-      dragConstraints={getDragConstraints()}
+      style={motionStyle}
+      drag={isDraggable}
+      dragControls={isDraggable ? dragControls : undefined}
+      dragListener={isDraggable}
+      onDragStart={isDraggable ? handleDragStart : undefined}
+      onDrag={isDraggable ? handleDrag : undefined}
+      onDragEnd={isDraggable ? handleDragEnd : undefined}
+      whileDrag={isDraggable ? { cursor: 'grabbing' } : undefined}
+      dragConstraints={isDraggable ? getDragConstraints() : undefined}
+      initial={false}
     >
       <div style={{ cursor: isDraggable ? 'grab' : 'default' }}>
         {/* Header with title and minimize button */}

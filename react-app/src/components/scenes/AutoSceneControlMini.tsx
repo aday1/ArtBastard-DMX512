@@ -7,12 +7,14 @@ import styles from './AutoSceneControlMini.module.scss';
 interface AutoSceneControlMiniProps {
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  isDockable?: boolean;
 }
 
 export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
-}) => {  // Local state for scene management
+  isDockable = true,
+}) => {// Local state for scene management
   const [showSceneManagement, setShowSceneManagement] = useState(false);
   const [newSceneName, setNewSceneName] = useState('');
   const [showDirectionControls, setShowDirectionControls] = useState(false);
@@ -386,19 +388,9 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
         </div>
       </div>
     );
-  };
-  return (
-    <DockableComponent
-      id="auto-scene-control-mini"
-      title="Scene Auto"
-      component="midi-clock" // Reusing existing component type
-      defaultPosition={{ zone: 'top-left' }}
-      defaultZIndex={1025}
-      isCollapsed={isCollapsed}
-      onCollapsedChange={onCollapsedChange}
-      className={`${styles.container} ${autoSceneIsFlashing ? styles.flashing : ''}`}
-      isDraggable={true}
-    >      <div className={styles.header}>
+  };  const content = (
+    <>
+      <div className={styles.header}>
         <span className={styles.title}>Scene Auto</span>
         <div className={styles.status}>
           {autoSceneEnabled && (
@@ -413,6 +405,30 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
         </div>
       </div>
       {renderContent()}
+    </>
+  );
+
+  if (!isDockable) {
+    return (
+      <div className={`${styles.container} ${autoSceneIsFlashing ? styles.flashing : ''}`}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <DockableComponent
+      id="auto-scene-control-mini"
+      title="Scene Auto"
+      component="midi-clock" // Reusing existing component type
+      defaultPosition={{ zone: 'top-left' }}
+      defaultZIndex={1025}
+      isCollapsed={isCollapsed}
+      onCollapsedChange={onCollapsedChange}
+      className={`${styles.container} ${autoSceneIsFlashing ? styles.flashing : ''}`}
+      isDraggable={false}
+    >
+      {content}
     </DockableComponent>
   );
 };

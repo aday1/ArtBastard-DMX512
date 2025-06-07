@@ -157,22 +157,21 @@ export const DockingProvider: React.FC<DockingProviderProps> = ({ children }) =>
       showDockZones: show,
     }));
   }, []);
-
   const getDockZoneForPosition = useCallback((x: number, y: number): DockPosition['zone'] | null => {
     const viewport = {
       width: window.innerWidth,
       height: window.innerHeight,
     };
 
-    const threshold = 100; // Distance from edge to trigger dock zone
+    const threshold = 150; // Increased from 100 to 150 for easier docking
 
-    // Corner zones (priority)
+    // Corner zones (priority) - larger areas for easier targeting
     if (x < threshold && y < threshold) return 'top-left';
     if (x > viewport.width - threshold && y < threshold) return 'top-right';
     if (x < threshold && y > viewport.height - threshold) return 'bottom-left';
     if (x > viewport.width - threshold && y > viewport.height - threshold) return 'bottom-right';
 
-    // Edge zones
+    // Edge zones - larger snap areas
     if (y < threshold) return 'top-center';
     if (y > viewport.height - threshold) return 'bottom-center';
     if (x < threshold) return 'left-center';

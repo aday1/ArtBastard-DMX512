@@ -12,6 +12,7 @@ interface DmxChannelProps {
 
 interface ExtendedMidiRangeMapping extends MidiRangeMapping {
   curve?: number;
+  inverted?: boolean;
 }
 
 export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true }) => {
@@ -45,13 +46,13 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<HTMLDivElement>(null);
 
-  const [showMidiRangeControls, setShowMidiRangeControls] = useState(false);
-  const [midiRangeMapping, setMidiRangeMapping] = useState<ExtendedMidiRangeMapping>({
+  const [showMidiRangeControls, setShowMidiRangeControls] = useState(false);  const [midiRangeMapping, setMidiRangeMapping] = useState<ExtendedMidiRangeMapping>({
     inputMin: 0,
     inputMax: 127,
     outputMin: 0,
     outputMax: 255,
-    curve: 1
+    curve: 1,
+    inverted: false
   });
 
   useEffect(() => {
@@ -83,22 +84,24 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
       window.midiDmxProcessor.setChannelRangeMapping(index, midiRangeMapping);
     }
   };
-
-  const handleMidiRangeChange = (field: keyof ExtendedMidiRangeMapping, value: number) => {
+  const handleMidiRangeChange = (field: keyof ExtendedMidiRangeMapping, value: number | boolean) => {
     setMidiRangeMapping(prev => {
       const newMapping = { ...prev, [field]: value };
       
-      if (field === 'inputMin' && value > prev.inputMax!) {
-        newMapping.inputMin = prev.inputMax;
-      }
-      if (field === 'inputMax' && value < prev.inputMin!) {
-        newMapping.inputMax = prev.inputMin;
-      }
-      if (field === 'outputMin' && value > prev.outputMax!) {
-        newMapping.outputMin = prev.outputMax;
-      }
-      if (field === 'outputMax' && value < prev.outputMin!) {
-        newMapping.outputMax = prev.outputMin;
+      // Only apply validation for numeric fields
+      if (typeof value === 'number') {
+        if (field === 'inputMin' && value > prev.inputMax!) {
+          newMapping.inputMin = prev.inputMax;
+        }
+        if (field === 'inputMax' && value < prev.inputMin!) {
+          newMapping.inputMax = prev.inputMin;
+        }
+        if (field === 'outputMin' && value > prev.outputMax!) {
+          newMapping.outputMin = prev.outputMax;
+        }
+        if (field === 'outputMax' && value < prev.outputMin!) {
+          newMapping.outputMax = prev.outputMin;
+        }
       }
       
       return newMapping;
@@ -349,67 +352,145 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             >
               {showMidiRangeControls ? 'Hide MIDI Range Controls' : 'Show MIDI Range Controls'}
             </button>
-            
-            {showMidiRangeControls && (
+              {showMidiRangeControls && (
               <div className={styles.midiRangeForm}>
-                <div className={styles.midiRangeRow}>
-                  <div className={styles.midiRangeColumn}>
-                    <label>MIDI Input Min:</label>
+                <div className={styles.midiInvertRow}>
+                  <label className={styles.midiInvertLabel}>
                     <input 
-                      type="number" 
-                      min="0" 
-                      max="127" 
-                      value={midiRangeMapping.inputMin}
-                      onChange={(e) => handleMidiRangeChange('inputMin', parseInt(e.target.value))}
+                      type="checkbox" 
+                      checked={midiRangeMapping.inverted || false}
+                      onChange={(e) => handleMidiRangeChange('inverted', e.target.checked)}
+                      className={styles.midiInvertCheckbox}
                     />
+                    <span>Invert MIDI Input</span>
+                  </label>
+                </div>
+                
+                <div className={styles.midiRangeSection}>
+                  <h4 className={styles.midiSectionTitle}>MIDI Input Range (0-127)</h4>
+                  <div className={styles.midiRangeRow}>
+                    <div className={styles.midiRangeColumn}>
+                      <label>Min:</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="127" 
+                        value={midiRangeMapping.inputMin}
+                        onChange={(e) => handleMidiRangeChange('inputMin', parseInt(e.target.value))}
+                      />
+                    </div>
+                    <div className={styles.midiRangeColumn}>
+                      <label>Max:</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="127" 
+                        value={midiRangeMapping.inputMax}
+                        onChange={(e) => handleMidiRangeChange('inputMax', parseInt(e.target.value))}
+                      />
+                    </div>
                   </div>
-                  <div className={styles.midiRangeColumn}>
-                    <label>MIDI Input Max:</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      max="127" 
-                      value={midiRangeMapping.inputMax}
-                      onChange={(e) => handleMidiRangeChange('inputMax', parseInt(e.target.value))}
-                    />
+                  <div className={styles.midiRangeSliderRow}>
+                    <div className={styles.midiDualSlider}>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="127" 
+                        value={midiRangeMapping.inputMin}
+                        onChange={(e) => handleMidiRangeChange('inputMin', parseInt(e.target.value))}
+                        className={styles.midiRangeSliderMin}
+                      />
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="127" 
+                        value={midiRangeMapping.inputMax}
+                        onChange={(e) => handleMidiRangeChange('inputMax', parseInt(e.target.value))}
+                        className={styles.midiRangeSliderMax}
+                      />
+                      <div className={styles.sliderLabels}>
+                        <span>{midiRangeMapping.inputMin}</span>
+                        <span>{midiRangeMapping.inputMax}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className={styles.midiRangeRow}>
-                  <div className={styles.midiRangeColumn}>
-                    <label>DMX Output Min:</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      max="255" 
-                      value={midiRangeMapping.outputMin}
-                      onChange={(e) => handleMidiRangeChange('outputMin', parseInt(e.target.value))}
-                    />
+                
+                <div className={styles.midiRangeSection}>
+                  <h4 className={styles.midiSectionTitle}>DMX Output Range (0-255)</h4>
+                  <div className={styles.midiRangeRow}>
+                    <div className={styles.midiRangeColumn}>
+                      <label>Min:</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="255" 
+                        value={midiRangeMapping.outputMin}
+                        onChange={(e) => handleMidiRangeChange('outputMin', parseInt(e.target.value))}
+                      />
+                    </div>
+                    <div className={styles.midiRangeColumn}>
+                      <label>Max:</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="255" 
+                        value={midiRangeMapping.outputMax}
+                        onChange={(e) => handleMidiRangeChange('outputMax', parseInt(e.target.value))}
+                      />
+                    </div>
                   </div>
-                  <div className={styles.midiRangeColumn}>
-                    <label>DMX Output Max:</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      max="255" 
-                      value={midiRangeMapping.outputMax}
-                      onChange={(e) => handleMidiRangeChange('outputMax', parseInt(e.target.value))}
-                    />
+                  <div className={styles.midiRangeSliderRow}>
+                    <div className={styles.midiDualSlider}>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="255" 
+                        value={midiRangeMapping.outputMin}
+                        onChange={(e) => handleMidiRangeChange('outputMin', parseInt(e.target.value))}
+                        className={styles.midiRangeSliderMin}
+                      />
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="255" 
+                        value={midiRangeMapping.outputMax}
+                        onChange={(e) => handleMidiRangeChange('outputMax', parseInt(e.target.value))}
+                        className={styles.midiRangeSliderMax}
+                      />
+                      <div className={styles.sliderLabels}>
+                        <span>{midiRangeMapping.outputMin}</span>
+                        <span>{midiRangeMapping.outputMax}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className={styles.midiRangeRow}>
-                  <div className={styles.midiRangeColumn}>
-                    <label>Response Curve:</label>
-                    <input 
-                      type="range" 
-                      min="0.1" 
-                      max="3" 
-                      step="0.1" 
-                      value={midiRangeMapping.curve}
-                      onChange={(e) => handleMidiRangeChange('curve', parseFloat(e.target.value))}
-                    />
-                    <span>{midiRangeMapping.curve?.toFixed(1)}</span>
+                
+                <div className={styles.midiRangeSection}>
+                  <h4 className={styles.midiSectionTitle}>Response Curve</h4>
+                  <div className={styles.midiRangeRow}>
+                    <div className={styles.midiRangeColumn}>
+                      <label>Curve:</label>
+                      <input 
+                        type="range" 
+                        min="0.1" 
+                        max="3" 
+                        step="0.1" 
+                        value={midiRangeMapping.curve}
+                        onChange={(e) => handleMidiRangeChange('curve', parseFloat(e.target.value))}
+                        className={styles.midiCurveSlider}
+                      />
+                      <span className={styles.curveValue}>{midiRangeMapping.curve?.toFixed(1)}</span>
+                    </div>
                   </div>
                 </div>
+                
+                <button 
+                  className={styles.applyMidiRangeButton}
+                  onClick={applyMidiRangeSettings}
+                >
+                  Apply MIDI Settings
+                </button>
               </div>
             )}
           </div>

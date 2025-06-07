@@ -1,18 +1,12 @@
 .masterFader {
   background: var(--color-card-bg);
   padding: 0.75rem; /* Reduced from 1rem */
-  border-radius: 15px 15px 0 0;
+  border-radius: 15px;
   border: 1px solid var(--color-card-border);
-  border-bottom: none;
   box-shadow: 0 -4px 16px rgba(78, 205, 196, 0.2);
   
-  /* Fixed at the bottom of the screen */
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1020;
-  width: 90%; /* Increased from 85% to 90% for more slider space */
+  /* Default styles - positioning will be handled by parent container */
+  width: 100%;
   max-width: 1000px; /* Increased from 800px to 1000px for better slider interaction */
   min-width: 500px; /* Increased from 400px to 500px to ensure adequate slider space */
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
@@ -20,11 +14,10 @@
   /* Ensure component stays within viewport bounds */
   max-width: calc(100vw - 40px); /* Prevent overflow beyond viewport */
   min-width: min(500px, calc(100vw - 40px)); /* Responsive min-width */
-  
-  &.minimized {
+    &.minimized {
     padding: 0.4rem; /* Reduced from 0.5rem */
     height: auto;
-    width: min(70%, calc(100vw - 40px)); /* Ensure doesn't exceed viewport */
+    width: 100%; /* Use full width of parent container */
     max-width: min(600px, calc(100vw - 40px)); /* Smaller max width when minimized */
     min-width: min(400px, calc(100vw - 40px)); /* Ensure buttons fit */
 

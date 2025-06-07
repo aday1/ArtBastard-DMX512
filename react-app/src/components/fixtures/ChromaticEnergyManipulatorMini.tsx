@@ -8,12 +8,14 @@ import styles from './ChromaticEnergyManipulatorMini.module.scss';
 interface ChromaticEnergyManipulatorMiniProps {
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  isDockable?: boolean;
 }
 
 const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
-}) => {  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
+  isDockable = true,
+}) => {const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [showFixtureSelect, setShowFixtureSelect] = useState(false);
   const [showFlagPanel, setShowFlagPanel] = useState(false);
   const [newFlagName, setNewFlagName] = useState('');
@@ -516,6 +518,55 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
 
   const hasRgbChannels = firstSelectedRgbChannels.redChannel !== undefined && firstSelectedRgbChannels.greenChannel !== undefined && firstSelectedRgbChannels.blueChannel !== undefined;
   const hasMovementChannels = firstSelectedMovementChannels.panChannel !== undefined && firstSelectedMovementChannels.tiltChannel !== undefined;
+  if (!isDockable) {
+    return (
+      <div className={styles.chromaticEnergyManipulatorMini}>
+        <div className={styles.container}>
+          {/* Error Display */}
+          {connectionError && (
+            <div className={styles.errorMessage}>
+              <LucideIcon name="AlertTriangle" />
+              <span>{connectionError}</span>
+              <button 
+                onClick={() => setConnectionError(null)}
+                className={styles.closeError}
+              >
+                <LucideIcon name="X" />
+              </button>
+            </div>
+          )}
+
+          {/* Loading Indicator */}
+          {isUpdating && (
+            <div className={styles.loadingIndicator}>
+              <LucideIcon name="Loader" />
+              <span>Updating...</span>
+            </div>
+          )}
+
+          {/* Simplified content for non-dockable version */}
+          <div className={styles.fixtureSection}>
+            <button 
+              className={styles.fixtureSelector}
+              onClick={() => setShowFixtureSelect(!showFixtureSelect)}
+              title={`Selected: ${selectedFixtureName()}`}
+            >
+              <LucideIcon name="Target" />
+              <span className={styles.fixtureName}>{selectedFixtureName()}</span>
+              <div className={styles.selectorRight}>
+                {selectedFixtures.length > 0 && (
+                  <span className={styles.selectionBadge}>{selectedFixtures.length}</span>
+                )}
+                <LucideIcon name={showFixtureSelect ? "ChevronUp" : "ChevronDown"} />
+              </div>
+            </button>
+          </div>
+          {/* Note: Simplified version for docked layout */}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DockableComponent
       id="chromatic-energy-manipulator-mini"
