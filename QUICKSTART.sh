@@ -109,7 +109,27 @@ echo ""
 echo -e "${C_WHITE}  cd \"$SCRIPT_DIR/react-app\"${C_RESET}"
 echo -e "${C_WHITE}  npm run dev${C_RESET}"
 echo ""
-echo -e "${C_YELLOW}And lo! The frontend UI will burst forth in glory, typically at http://localhost:3001${C_RESET}"
+
+# Get the actual IP address for LAN access
+if command -v ip >/dev/null 2>&1; then
+    # Linux/WSL method
+    LOCAL_IP=$(ip route get 1.1.1.1 | grep -oP 'src \K\S+' 2>/dev/null || echo "")
+elif command -v ifconfig >/dev/null 2>&1; then
+    # macOS/Unix method
+    LOCAL_IP=$(ifconfig | grep -E "inet.*broadcast" | grep -v 127.0.0.1 | awk '{print $2}' | head -1 | sed 's/addr://')
+else
+    LOCAL_IP=""
+fi
+
+echo -e "${C_CYAN}🌐 Frontend Access URLs:${C_RESET}"
+echo -e "${C_WHITE}  Local:    http://localhost:3001${C_RESET}"
+if [ -n "$LOCAL_IP" ] && [ "$LOCAL_IP" != "127.0.0.1" ]; then
+    echo -e "${C_GREEN}  Network:  http://$LOCAL_IP:3001${C_RESET}"
+    echo -e "${C_YELLOW}  👥 Share the Network URL with other devices on your LAN!${C_RESET}"
+else
+    echo -e "${C_YELLOW}  Network:  http://[YOUR_LOCAL_IP]:3001${C_RESET}"
+    echo -e "${C_YELLOW}  💡 Replace [YOUR_LOCAL_IP] with your actual IP address for LAN access${C_RESET}"
+fi
 echo -e "${C_YELLOW}--------------------------------------------------------------------${C_RESET}"
 echo ""
 echo -e "${C_MAGENTA}🎉 Magnifique! The ArtBastard DMX Quickstart is a GO! 🎉${C_RESET}"

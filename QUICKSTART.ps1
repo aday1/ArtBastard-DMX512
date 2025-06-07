@@ -98,7 +98,26 @@ Write-Host ""
 Write-Host "  Set-Location '$($ProjectRootPath)\react-app'" -ForegroundColor White
 Write-Host "  npm run dev" -ForegroundColor White
 Write-Host ""
-Write-Host "And behold! The frontend UI shall illuminate your screen, typically at http://localhost:3001 (dev server) but if it is not, then it is likely the port shown in the console after running the command." -ForegroundColor Yellow
+
+# Get the actual IP address for LAN access
+try {
+    $LocalIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*" | Where-Object {$_.IPAddress -like "192.168.*" -or $_.IPAddress -like "10.*" -or $_.IPAddress -like "172.*"} | Select-Object -First 1).IPAddress
+    if (-not $LocalIP) {
+        $LocalIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -ne "127.0.0.1" -and $_.IPAddress -ne "169.254.*"} | Select-Object -First 1).IPAddress
+    }
+} catch {
+    $LocalIP = "YOUR_LOCAL_IP"
+}
+
+Write-Host "🌐 Frontend Access URLs:" -ForegroundColor Cyan
+Write-Host "  Local:    http://localhost:3001" -ForegroundColor White
+if ($LocalIP -and $LocalIP -ne "YOUR_LOCAL_IP") {
+    Write-Host "  Network:  http://$LocalIP`:3001" -ForegroundColor Green
+    Write-Host "  👥 Share the Network URL with other devices on your LAN!" -ForegroundColor Yellow
+} else {
+    Write-Host "  Network:  http://[YOUR_LOCAL_IP]:3001" -ForegroundColor Yellow
+    Write-Host "  💡 Replace [YOUR_LOCAL_IP] with your actual IP address for LAN access" -ForegroundColor Yellow
+}
 Write-Host "--------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Follow your cue in Act IV to bring the frontend to life!"
