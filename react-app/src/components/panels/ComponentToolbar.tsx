@@ -42,9 +42,10 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) =
 export const ComponentToolbar: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('dmx');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { saveLayout, loadLayout, getSavedLayouts, resetLayout } = usePanels();
+  const { saveLayout, loadLayout, getSavedLayouts, deleteLayout, resetLayout, loadBlankLayout } = usePanels();
   const [layoutName, setLayoutName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const categories = getAllCategories();
   const savedLayouts = getSavedLayouts();
@@ -106,9 +107,17 @@ export const ComponentToolbar: React.FC = () => {
       setShowSaveDialog(false);
     }
   };
-
   const handleLoadLayout = (name: string) => {
     loadLayout(name);
+  };
+
+  const handleDeleteLayout = (name: string) => {
+    deleteLayout(name);
+    setDeleteConfirm(null);
+  };
+
+  const handleLoadBlankLayout = () => {
+    loadBlankLayout();
   };
 
   return (
@@ -169,23 +178,64 @@ export const ComponentToolbar: React.FC = () => {
                   Save
                 </button>
               </div>
+            )}            {(savedLayouts.length > 0 || true) && (
+              <div className={styles.savedLayouts}>
+                <label>Available Layouts:</label>
+                <div className={styles.layoutList}>
+                  {/* Blank Layout - always first */}
+                  <div className={styles.layoutItem}>
+                    <button
+                      onClick={handleLoadBlankLayout}
+                      className={`${styles.layoutButton} ${styles.blankLayoutButton}`}
+                      title="Load blank layout"
+                    >
+                      <i className="fas fa-file"></i>
+                      Blank Layout
+                    </button>
+                  </div>
+                  
+                  {/* Saved Layouts */}
+                  {savedLayouts.map(name => (
+                    <div key={name} className={styles.layoutItem}>
+                      <button
+                        onClick={() => handleLoadLayout(name)}
+                        className={styles.layoutButton}
+                        title={`Load ${name} layout`}
+                      >
+                        <i className="fas fa-folder-open"></i>
+                        {name}
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(name)}
+                        className={styles.deleteButton}
+                        title={`Delete ${name} layout`}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>                  ))}
+                </div>
+              </div>
             )}
 
-            {savedLayouts.length > 0 && (
-              <div className={styles.savedLayouts}>
-                <label>Saved Layouts:</label>
-                <div className={styles.layoutList}>
-                  {savedLayouts.map(name => (
+            {/* Delete Confirmation Dialog */}
+            {deleteConfirm && (
+              <div className={styles.deleteConfirmDialog}>
+                <div className={styles.confirmContent}>
+                  <p>Delete layout "{deleteConfirm}"?</p>
+                  <div className={styles.confirmButtons}>
                     <button
-                      key={name}
-                      onClick={() => handleLoadLayout(name)}
-                      className={styles.layoutButton}
-                      title={`Load ${name} layout`}
+                      onClick={() => handleDeleteLayout(deleteConfirm)}
+                      className={styles.confirmDeleteButton}
                     >
-                      <i className="fas fa-folder-open"></i>
-                      {name}
+                      Delete
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className={styles.cancelButton}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

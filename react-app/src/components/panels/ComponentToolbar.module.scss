@@ -9,7 +9,7 @@
   border-radius: 8px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 11000;
   transition: all 0.3s ease;
   overflow: hidden;
 
@@ -171,12 +171,16 @@
         font-size: 0.85rem;
         color: rgba(255, 255, 255, 0.7);
         margin-bottom: 0.5rem;
-      }
-
-      .layoutList {
+      }      .layoutList {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
+
+        .layoutItem {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
 
         .layoutButton {
           display: flex;
@@ -191,6 +195,7 @@
           font-size: 0.8rem;
           text-align: left;
           transition: all 0.2s ease;
+          flex: 1;
 
           &:hover {
             background: rgba(78, 205, 196, 0.1);
@@ -201,6 +206,106 @@
           i {
             font-size: 0.7em;
             color: rgba(78, 205, 196, 0.6);
+          }
+
+          &.blankLayoutButton {
+            background: rgba(0, 100, 0, 0.2);
+            border-color: rgba(0, 255, 0, 0.3);
+            
+            &:hover {
+              background: rgba(0, 255, 0, 0.1);
+              border-color: rgba(0, 255, 0, 0.5);
+            }
+
+            i {
+              color: rgba(0, 255, 0, 0.6);
+            }
+          }
+        }
+
+        .deleteButton {
+          padding: 0.4rem;
+          background: rgba(255, 0, 0, 0.1);
+          border: 1px solid rgba(255, 0, 0, 0.3);
+          border-radius: 4px;
+          color: rgba(255, 100, 100, 0.8);
+          cursor: pointer;
+          font-size: 0.7rem;
+          transition: all 0.2s ease;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &:hover {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: rgba(255, 0, 0, 0.5);
+            color: #ff6b6b;
+          }
+        }
+      }      .deleteConfirmDialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 12000;
+
+        .confirmContent {
+          background: rgba(0, 0, 0, 0.95);
+          border: 1px solid rgba(78, 205, 196, 0.3);
+          border-radius: 8px;
+          padding: 1.5rem;
+          max-width: 300px;
+          text-align: center;
+
+          p {
+            margin: 0 0 1rem 0;
+            color: white;
+            font-size: 0.9rem;
+          }
+
+          .confirmButtons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+
+            .confirmDeleteButton {
+              padding: 0.5rem 1rem;
+              background: rgba(255, 0, 0, 0.2);
+              border: 1px solid rgba(255, 0, 0, 0.4);
+              border-radius: 4px;
+              color: #ff6b6b;
+              cursor: pointer;
+              font-size: 0.85rem;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: rgba(255, 0, 0, 0.3);
+                border-color: rgba(255, 0, 0, 0.6);
+              }
+            }
+
+            .cancelButton {
+              padding: 0.5rem 1rem;
+              background: rgba(78, 205, 196, 0.1);
+              border: 1px solid rgba(78, 205, 196, 0.3);
+              border-radius: 4px;
+              color: #4ecdc4;
+              cursor: pointer;
+              font-size: 0.85rem;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: rgba(78, 205, 196, 0.2);
+                border-color: rgba(78, 205, 196, 0.5);
+              }
+            }
           }
         }
       }

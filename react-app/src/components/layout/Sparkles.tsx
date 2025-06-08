@@ -9,9 +9,9 @@ interface Sparkle {
   key: number; // Used to force re-render and re-trigger animation
 }
 
-const MAX_SPARKLES = 30; // Limit the number of sparkles on screen
-const SPARKLE_LIFESPAN = 1000; // ms, should match animation duration
-const DMX_CHANGE_COOLDOWN = 100; // ms, cooldown for adding sparkles on DMX change
+const MAX_SPARKLES = 50; // Increased limit for more sparkles on screen
+const SPARKLE_LIFESPAN = 1500; // ms, updated to match animation duration
+const DMX_CHANGE_COOLDOWN = 50; // ms, reduced cooldown for more responsive sparkles
 
 export const Sparkles: React.FC = () => {
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
@@ -37,6 +37,24 @@ export const Sparkles: React.FC = () => {
     });
   }, []);
 
+  // Manual test feature - add sparkle every 2 seconds for testing
+  useEffect(() => {
+    const testInterval = setInterval(() => {
+      addSparkle();
+      console.log('Test sparkle added for visual verification');
+    }, 2000);
+
+    // Clean up after 30 seconds
+    const cleanupTimeout = setTimeout(() => {
+      clearInterval(testInterval);
+      console.log('Sparkle test mode disabled');
+    }, 30000);
+
+    return () => {
+      clearInterval(testInterval);
+      clearTimeout(cleanupTimeout);
+    };
+  }, [addSparkle]);
   useEffect(() => {
     // Effect to add sparkle on DMX channel change
     const dmxChanged = prevDmxChannelsRef.current.some((val, i) => val !== dmxChannels[i]);
@@ -45,6 +63,7 @@ export const Sparkles: React.FC = () => {
       const now = Date.now();
       if (now - lastDmxActivityTimeRef.current > DMX_CHANGE_COOLDOWN) {
         addSparkle();
+        console.log('DMX activity detected - sparkle triggered!');
         lastDmxActivityTimeRef.current = now;
       }
     }

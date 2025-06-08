@@ -1,7 +1,5 @@
 import React from 'react'
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
-import { DMXChannelGrid } from '../components/dmx/DMXChannelGrid'
-import { DmxWebglVisualizer } from '../components/dmx/DmxWebglVisualizer'
 import styles from './Pages.module.scss'
 
 const FixturePage: React.FC = () => {
@@ -15,18 +13,6 @@ const FixturePage: React.FC = () => {
       <div className={styles.pageContent}>
         <div className={styles.setupSection}>
           <FixtureSetup />
-        </div>
-        
-        <div className={styles.visualizationSection}>
-          <div className={styles.visualPanel}>
-            <h3>DMX Channel Grid</h3>
-            <DMXChannelGrid />
-          </div>
-          
-          <div className={styles.visualPanel}>
-            <h3>3D Visualizer</h3>
-            <DmxWebglVisualizer />
-          </div>
         </div>
       </div>
     </div>

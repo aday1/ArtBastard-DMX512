@@ -36,7 +36,9 @@ interface PanelContextType {
   saveLayout: (name: string) => void;
   loadLayout: (name: string) => void;
   getSavedLayouts: () => string[];
+  deleteLayout: (name: string) => void;
   resetLayout: () => void;
+  loadBlankLayout: () => void;
 }
 
 const PanelContext = createContext<PanelContextType | undefined>(undefined);
@@ -96,11 +98,21 @@ const getDefaultLayout = (): PanelLayout => ({
         props: { touchOptimized: true }
       }
     ]
-  },
-  splitterPositions: {
+  },  splitterPositions: {
     horizontal: 50, // 50% split between top panels
-    vertical: 70,   // 70% for top, 30% for bottom
-  },
+    vertical: 70   // 70% top, 30% bottom
+  }
+});
+
+const getBlankLayout = (): PanelLayout => ({
+  'top-left': { components: [] },
+  'top-right': { components: [] },
+  'bottom': { components: [] },
+  'external': { components: [] },
+  splitterPositions: {
+    horizontal: 50,
+    vertical: 70
+  }
 });
 
 export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
@@ -217,16 +229,23 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
       setLayout(safeLayout);
     }
   }, []);
-
   const getSavedLayouts = useCallback((): string[] => {
     const savedLayouts = JSON.parse(localStorage.getItem('artbastard-saved-layouts') || '{}');
     return Object.keys(savedLayouts);
   }, []);
 
+  const deleteLayout = useCallback((name: string) => {
+    const savedLayouts = JSON.parse(localStorage.getItem('artbastard-saved-layouts') || '{}');
+    delete savedLayouts[name];
+    localStorage.setItem('artbastard-saved-layouts', JSON.stringify(savedLayouts));
+  }, []);
   const resetLayout = useCallback(() => {
     setLayout(getDefaultLayout());
   }, []);
 
+  const loadBlankLayout = useCallback(() => {
+    setLayout(getBlankLayout());
+  }, []);
   const contextValue: PanelContextType = {
     layout,
     addComponentToPanel,
@@ -237,7 +256,9 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     saveLayout,
     loadLayout,
     getSavedLayouts,
+    deleteLayout,
     resetLayout,
+    loadBlankLayout,
   };
 
   return (

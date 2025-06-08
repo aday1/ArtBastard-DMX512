@@ -39,7 +39,11 @@ const fixtureTemplates: Array<{
   templateName: string;
   defaultNamePrefix: string;
   channels: FixtureChannel[];
-}> = [
+}> = [  {
+    templateName: 'Blank Template',
+    defaultNamePrefix: 'Custom Fixture',
+    channels: [{ name: 'Channel 1', type: 'other' }],
+  },
   {
     templateName: 'Simple Par Can (RGB + Dimmer)',
     defaultNamePrefix: 'RGBD Par',
