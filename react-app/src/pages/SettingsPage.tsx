@@ -1,5 +1,8 @@
 import React from 'react'
 import styles from './Pages.module.scss'
+import NetworkSettingsPanel from '../components/settings/NetworkSettingsPanel';
+import PerformanceSettingsPanel from '../components/settings/PerformanceSettingsPanel';
+import ImportExportPanel from '../components/settings/ImportExportPanel';
 
 const SettingsPage: React.FC = () => {
   return (
@@ -23,7 +26,7 @@ const SettingsPage: React.FC = () => {
             <h3>Network Settings</h3>
             <div className={styles.settingsGroup}>
               <p>DMX network and communication settings</p>
-              {/* Network controls will be integrated here */}
+              <NetworkSettingsPanel />
             </div>
           </div>
           
@@ -31,17 +34,13 @@ const SettingsPage: React.FC = () => {
             <h3>Performance Settings</h3>
             <div className={styles.settingsGroup}>
               <p>Performance optimization and debugging options</p>
-              {/* Performance controls will be integrated here */}
+              <PerformanceSettingsPanel />
             </div>
           </div>
           
           <div className={styles.settingsPanel}>
-            <h3>Import/Export</h3>
-            <div className={styles.settingsGroup}>
-              <p>Backup and restore configuration data</p>
-              <button className={styles.actionButton}>Export Configuration</button>
-              <button className={styles.actionButton}>Import Configuration</button>
-            </div>
+            {/*<h3>Import/Export</h3> // Title is now in the panel itself */}
+            <ImportExportPanel />
           </div>
         </div>
       </div>

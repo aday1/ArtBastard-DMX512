@@ -1,3 +1,9 @@
+/* Define navbar width variables here too, or import from a global sheet if available */
+:root {
+  --navbar-expanded-width: 220px; /* Ensure consistency if not globally defined */
+  --navbar-collapsed-width: 56px; /* Ensure consistency */
+}
+
 .layout {
   min-height: 100vh;
   display: flex;
@@ -13,6 +19,13 @@
     padding: 1rem;
     position: relative;
     overflow: visible;
+    margin-right: var(--navbar-expanded-width); /* Default margin for expanded navbar */
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Styling for when navbar is collapsed - applied via body class */
+    :global(body.navbar-is-collapsed) & {
+      margin-right: var(--navbar-collapsed-width);
+    }
 
     .statusPanel {
       width: 300px;

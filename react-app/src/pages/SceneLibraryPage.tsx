@@ -1,6 +1,5 @@
 import React from 'react'
 import { SceneGallery } from '../components/scenes/SceneGallery'
-import { SceneQuickLaunch } from '../components/scenes/SceneQuickLaunch'
 import { AutoSceneControlMini } from '../components/scenes/AutoSceneControlMini'
 import styles from './Pages.module.scss'
 
@@ -14,11 +13,6 @@ const SceneLibraryPage: React.FC = () => {
       
       <div className={styles.pageContent}>
         <div className={styles.controlSection}>
-          <div className={styles.quickLaunchPanel}>
-            <h3>Quick Launch</h3>
-            <SceneQuickLaunch />
-          </div>
-          
           <div className={styles.autoControlPanel}>
             <h3>Auto Scene Control</h3>
             <AutoSceneControlMini />
