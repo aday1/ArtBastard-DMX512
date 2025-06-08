@@ -14,7 +14,7 @@ import PageRouter from '../router/PageRouter'
 import styles from './Layout.module.scss'
 
 interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {

@@ -109,9 +109,21 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     const saved = localStorage.getItem('artbastard-panel-layout');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsedLayout = JSON.parse(saved);
+        // Ensure all required panel IDs exist with proper structure
+        const defaultLayout = getDefaultLayout();
+        const safeLayout = {
+          ...defaultLayout,
+          ...parsedLayout,
+          'top-left': { components: [], ...defaultLayout['top-left'], ...parsedLayout['top-left'] },
+          'top-right': { components: [], ...defaultLayout['top-right'], ...parsedLayout['top-right'] },
+          'bottom': { components: [], ...defaultLayout['bottom'], ...parsedLayout['bottom'] },
+          'fourth': { components: [], ...defaultLayout['fourth'], ...parsedLayout['fourth'] },
+          splitterPositions: { ...defaultLayout.splitterPositions, ...parsedLayout.splitterPositions }
+        };
+        return safeLayout;
       } catch (error) {
-        console.warn('Failed to parse saved panel layout, using defaults');
+        console.warn('Failed to parse saved panel layout, using defaults', error);
       }
     }
     return getDefaultLayout();

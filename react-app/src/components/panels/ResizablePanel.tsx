@@ -15,12 +15,18 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
   title,
   className = '',
   onDrop
-}) => {
-  const { layout, removeComponentFromPanel, updateComponent } = usePanels();
+}) => {  const { layout, removeComponentFromPanel, updateComponent } = usePanels();
   const [isDragOver, setIsDragOver] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-
   const panelState = layout[panelId];
+
+  // Safety check: if panelState is undefined, initialize with empty components
+  const safeComponents = panelState?.components || [];
+
+  // Debug logging to help identify the issue
+  if (!panelState) {
+    console.warn(`ResizablePanel: panelState is undefined for panelId: ${panelId}`, { layout, panelId });
+  }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -58,16 +64,13 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
         <h3 className={styles.panelTitle}>
           <i className="fas fa-th-large"></i>
           {title}
-        </h3>
-        <div className={styles.panelControls}>
+        </h3>        <div className={styles.panelControls}>
           <span className={styles.componentCount}>
-            {panelState.components.length} components
+            {safeComponents.length} components
           </span>
         </div>
-      </div>
-
-      <div className={styles.panelContent}>
-        {panelState.components.length === 0 ? (
+      </div>      <div className={styles.panelContent}>
+        {safeComponents.length === 0 ? (
           <div className={styles.emptyPanel}>
             <i className="fas fa-plus-circle"></i>
             <p>Drag components here</p>
@@ -75,7 +78,7 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
           </div>
         ) : (
           <div className={styles.componentGrid}>
-            {panelState.components.map((component: PanelComponent) => (
+            {safeComponents.map((component: PanelComponent) => (
               <div key={component.id} className={styles.componentWrapper}>
                 <div className={styles.componentHeader}>
                   <span className={styles.componentTitle}>{component.title}</span>

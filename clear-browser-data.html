@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ArtBastard DMX512 - Clear Browser Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .panel {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #444;
+        }
+        button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #e55a2b;
+        }
+        .warning {
+            background: #660000;
+            border: 1px solid #cc0000;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #006600;
+            border: 1px solid #00cc00;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #003366;
+            border: 1px solid #0066cc;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 ArtBastard DMX512 - Browser Data Manager</h1>
+    
+    <div class="warning">
+        <strong>⚠️ Warning:</strong> This tool clears browser localStorage data for the ArtBastard DMX512 application. 
+        Use this if you're experiencing layout issues or corrupted panel states.
+    </div>
+    
+    <div class="panel">
+        <h2>Panel Layout Issues</h2>
+        <p>If you're seeing errors like "Cannot read properties of undefined (reading 'components')", 
+        this is likely due to corrupted panel layout data in localStorage.</p>
+        
+        <button onclick="clearPanelLayout()">🗑️ Clear Panel Layout</button>
+        <button onclick="clearAllArtBastardData()">🗑️ Clear All ArtBastard Data</button>
+        <button onclick="viewCurrentData()">👁️ View Current Data</button>
+    </div>
+
+    <div class="panel">
+        <h2>Current Status</h2>
+        <div id="status"></div>
+    </div>
+
+    <div class="panel">
+        <h2>Stored Data</h2>
+        <pre id="dataView"></pre>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function clearPanelLayout() {
+            try {
+                localStorage.removeItem('artbastard-panel-layout');
+                updateStatus('✅ Panel layout data cleared successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:3030';
+                }, 1500);
+            } catch (error) {
+                updateStatus(`❌ Error clearing panel layout: ${error.message}`, 'warning');
+            }
+        }
+
+        function clearAllArtBastardData() {
+            try {
+                const keys = Object.keys(localStorage);
+                const artbastardKeys = keys.filter(key => key.startsWith('artbastard'));
+                
+                artbastardKeys.forEach(key => {
+                    localStorage.removeItem(key);
+                });
+                
+                updateStatus(`✅ Cleared ${artbastardKeys.length} ArtBastard localStorage items!`, 'success');
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:3030';
+                }, 1500);
+            } catch (error) {
+                updateStatus(`❌ Error clearing data: ${error.message}`, 'warning');
+            }
+        }
+
+        function viewCurrentData() {
+            try {
+                const keys = Object.keys(localStorage);
+                const artbastardKeys = keys.filter(key => key.startsWith('artbastard'));
+                
+                if (artbastardKeys.length === 0) {
+                    document.getElementById('dataView').textContent = 'No ArtBastard data found in localStorage.';
+                    updateStatus('No ArtBastard data found.', 'info');
+                    return;
+                }
+
+                const data = {};
+                artbastardKeys.forEach(key => {
+                    try {
+                        data[key] = JSON.parse(localStorage.getItem(key));
+                    } catch {
+                        data[key] = localStorage.getItem(key);
+                    }
+                });
+
+                document.getElementById('dataView').textContent = JSON.stringify(data, null, 2);
+                updateStatus(`Found ${artbastardKeys.length} ArtBastard localStorage items.`, 'info');
+            } catch (error) {
+                updateStatus(`❌ Error viewing data: ${error.message}`, 'warning');
+            }
+        }
+
+        // Auto-load current data on page load
+        window.onload = function() {
+            viewCurrentData();
+        };
+    </script>
+</body>
+</html>

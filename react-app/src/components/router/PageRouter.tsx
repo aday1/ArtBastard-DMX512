@@ -1,12 +1,12 @@
 import React from 'react'
-import { useRouter } from '../context/RouterContext'
-import MainPage from './MainPage'
-import ControlSetupPage from './ControlSetupPage'
-import FixturePage from './FixturePage'
-import SceneLibraryPage from './SceneLibraryPage'
-import AudioAnalysisPage from './AudioAnalysisPage'
-import RemoteControlPage from './RemoteControlPage'
-import SettingsPage from './SettingsPage'
+import { useRouter } from '../../context/RouterContext'
+import MainPage from '../../pages/MainPage'
+import ControlSetupPage from '../../pages/ControlSetupPage'
+import FixturePage from '../../pages/FixturePage'
+import SceneLibraryPage from '../../pages/SceneLibraryPage'
+import AudioAnalysisPage from '../../pages/AudioAnalysisPage'
+import RemoteControlPage from '../../pages/RemoteControlPage'
+import SettingsPage from '../../pages/SettingsPage'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()

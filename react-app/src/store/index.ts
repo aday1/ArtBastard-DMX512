@@ -216,7 +216,6 @@ interface State {
     midiMonitor: boolean
     oscMonitor: boolean
   }
-
   // MIDI State
   midiInterfaces: string[]
   activeInterfaces: string[]
@@ -230,6 +229,11 @@ interface State {
   midiLearnScene: string | null 
   midiMessages: any[]
   oscMessages: OscMessage[]; // Added for OSC Monitor
+  midiActivity: number // Activity level for MIDI signal flash indicator
+
+  // Audio/BPM State
+  bpm: number // Current BPM value
+  isPlaying: boolean // Whether audio/MIDI is currently playing
 
   // Debug State
   debugModules: {
@@ -338,6 +342,9 @@ interface State {
   removeNotification: (id: string) => void;
   clearAllNotifications: () => void;
   setExampleSliderValue: (value: number) => void;
+  setBpm: (bpm: number) => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  setMidiActivity: (activity: number) => void;
   setFixtureLayout: (layout: PlacedFixture[]) => void 
   setCanvasBackgroundImage: (image: HTMLImageElement | null) => void 
   addMasterSlider: (slider: MasterSlider) => void;
@@ -439,14 +446,18 @@ export const useStore = create<State>()(
         midiMonitor: true,
         oscMonitor: true
       },
-      
-      midiInterfaces: [],
+        midiInterfaces: [],
       activeInterfaces: [],
       midiMappings: {},
       midiLearnTarget: null,
       midiLearnScene: null,
       midiMessages: [],
       oscMessages: [], // Initialized oscMessages
+      midiActivity: 0, // Default MIDI activity level
+      
+      // Audio/BPM State defaults
+      bpm: 120, // Default BPM
+      isPlaying: false, // Default not playing
 
       fixtures: [],
       groups: [],
@@ -1147,6 +1158,9 @@ export const useStore = create<State>()(
       },
 
       setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
+      setBpm: (bpm: number) => set({ bpm }),
+      setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
+      setMidiActivity: (activity: number) => set({ midiActivity: activity }),
       setFixtureLayout: (layout: PlacedFixture[]) => {
         set({ fixtureLayout: layout });
       },
