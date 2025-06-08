@@ -1,0 +1,201 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  height: 100%;
+
+  &.dragOver {
+    border-color: rgba(78, 205, 196, 0.8);
+    background: rgba(78, 205, 196, 0.1);
+    box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+  }
+
+  .panelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.9);
+    border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+    min-height: 50px;
+
+    .panelTitle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4ecdc4;
+
+      i {
+        font-size: 0.9em;
+        opacity: 0.8;
+      }
+    }
+
+    .panelControls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .componentCount {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        font-style: italic;
+      }
+    }
+  }
+
+  .panelContent {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(78, 205, 196, 0.3);
+      border-radius: 3px;
+
+      &:hover {
+        background: rgba(78, 205, 196, 0.5);
+      }
+    }
+  }
+
+  .emptyPanel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    border: 2px dashed rgba(78, 205, 196, 0.2);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+
+    i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    p {
+      font-size: 1.1rem;
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+    }
+
+    small {
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+  }
+
+  .componentGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .componentWrapper {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: rgba(78, 205, 196, 0.4);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .componentHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.7);
+      border-bottom: 1px solid rgba(78, 205, 196, 0.1);
+
+      .componentTitle {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #4ecdc4;
+      }
+
+      .removeButton {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+
+        &:hover {
+          color: #ff6b6b;
+          background: rgba(255, 107, 107, 0.1);
+        }
+      }
+    }
+
+    .componentContent {
+      padding: 0.75rem;
+      
+      // Reset any fixed positioning from components
+      * {
+        position: static !important;
+        transform: none !important;
+        z-index: auto !important;
+      }
+    }
+  }
+}
+
+// Panel-specific styling
+.topLeftPanel,
+.topRightPanel {
+  min-height: 300px;
+}
+
+.bottomPanel {
+  min-height: 150px;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .panel {
+    .panelHeader {
+      padding: 0.5rem 0.75rem;
+      
+      .panelTitle {
+        font-size: 0.9rem;
+      }
+    }
+
+    .panelContent {
+      padding: 0.75rem;
+    }
+
+    .componentWrapper {
+      .componentContent {
+        padding: 0.5rem;
+      }
+    }
+  }
+}

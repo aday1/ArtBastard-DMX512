@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtBastard Panel Reset</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            background-color: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #444;
+        }
+        h1 {
+            color: #ff6b35;
+            text-align: center;
+        }
+        button {
+            background-color: #ff6b35;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #e55529;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ff6b35;
+            background-color: #333;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #1d4e1d;
+        }
+        .info {
+            border-left-color: #17a2b8;
+            background-color: #1d3e4e;
+        }
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+        }
+        ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ ArtBastard Panel Reset Tool</h1>
+        
+        <div class="status info">
+            <strong>Component Restoration Status:</strong><br>
+            This tool will reset the panel layout to defaults and ensure all components from previous builds are restored.
+        </div>
+
+        <div class="status">
+            <strong>Default Panel Configuration:</strong>
+            <ul>
+                <li><strong>Top Left Panel:</strong> Master Slider + Scene Control</li>
+                <li><strong>Top Right Panel:</strong> DMX Visual Display</li>
+                <li><strong>Bottom Panel:</strong> DMX Control Panel + Fixture Control</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button onclick="resetPanelLayout()">Reset Panel Layout to Defaults</button>
+            <button onclick="clearAllStorage()">Clear All Saved Data</button>
+            <button onclick="checkCurrentLayout()">Show Current Layout</button>
+        </div>
+
+        <div id="output" class="status" style="display: none;"></div>
+
+        <div class="status info">
+            <strong>Available Components in Toolbar:</strong>
+            <ul>
+                <li><strong>DMX:</strong> Master Slider, DMX Control Panel, DMX Channels, DMX Visualizer</li>
+                <li><strong>Scenes:</strong> Scene Quick Launch, Auto Scene Control, Scene Gallery</li>
+                <li><strong>Fixtures:</strong> Chromatic Energy Manipulator, Fixture Setup</li>
+                <li><strong>MIDI:</strong> MIDI Monitor</li>
+                <li><strong>OSC:</strong> OSC Monitor</li>
+                <li><strong>Audio:</strong> Audio Control Panel</li>
+                <li><strong>Setup:</strong> MIDI/OSC Setup</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button onclick="openMainApp()">Open Main Application</button>
+        </div>
+    </div>
+
+    <script>
+        function resetPanelLayout() {
+            const defaultLayout = {
+                'top-left': { 
+                    components: [
+                        {
+                            id: 'default-master-fader',
+                            type: 'master-fader',
+                            title: 'Master Slider',
+                            props: { isDockable: false }
+                        },
+                        {
+                            id: 'default-scene-control',
+                            type: 'scene-quick-launch',
+                            title: 'Scene Control',
+                            props: { isDockable: false }
+                        }
+                    ]
+                },
+                'top-right': { 
+                    components: [
+                        {
+                            id: 'default-dmx-visualizer',
+                            type: 'dmx-visualizer',
+                            title: 'DMX Visual Display',
+                            props: {}
+                        }
+                    ]
+                },
+                'bottom': { 
+                    components: [
+                        {
+                            id: 'default-dmx-control',
+                            type: 'dmx-control-panel',
+                            title: 'DMX Control Panel',
+                            props: {}
+                        },
+                        {
+                            id: 'default-fixture-control',
+                            type: 'chromatic-energy-manipulator',
+                            title: 'Fixture Control',
+                            props: { isDockable: false }
+                        }
+                    ]
+                },
+                splitterPositions: {
+                    horizontal: 50,
+                    vertical: 70,
+                },
+            };
+
+            localStorage.setItem('artbastard-panel-layout', JSON.stringify(defaultLayout));
+            showOutput('✅ Panel layout reset to defaults successfully!', 'success');
+        }
+
+        function clearAllStorage() {
+            const keys = Object.keys(localStorage).filter(key => key.startsWith('artbastard-'));
+            keys.forEach(key => localStorage.removeItem(key));
+            showOutput(`✅ Cleared ${keys.length} ArtBastard storage items`, 'success');
+        }
+
+        function checkCurrentLayout() {
+            const layout = localStorage.getItem('artbastard-panel-layout');
+            if (layout) {
+                const parsed = JSON.parse(layout);
+                const componentCount = Object.values(parsed).reduce((count, panel) => {
+                    return count + (panel.components ? panel.components.length : 0);
+                }, 0);
+                showOutput(`📊 Current layout contains ${componentCount} components across 3 panels`, 'info');
+            } else {
+                showOutput('ℹ️ No saved layout found - defaults will be used', 'info');
+            }
+        }
+
+        function openMainApp() {
+            window.open('http://localhost:3002', '_blank');
+        }
+
+        function showOutput(message, type = '') {
+            const output = document.getElementById('output');
+            output.innerHTML = message;
+            output.className = `status ${type}`;
+            output.style.display = 'block';
+        }
+
+        // Auto-check layout on page load
+        window.addEventListener('load', checkCurrentLayout);
+    </script>
+</body>
+</html>

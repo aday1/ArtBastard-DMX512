@@ -4,19 +4,16 @@ import { SocketProvider } from './context/SocketContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { DockingProvider } from './context/DockingContext'
 import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
+import { PanelProvider } from './context/PanelContext'
 import { useStore } from './store'
-import MainPage from './pages/MainPage'
+import { PanelLayout } from './components/panels/PanelLayout'
 import { useBrowserMidi } from './hooks/useBrowserMidi'
 import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
 import MidiDebugHelper from './components/midi/MidiDebugHelper'
 import MidiDmxDebug from './components/midi/MidiDmxDebug'
 import OscMonitor from './components/osc/OscMonitor'
 import DebugInfo from './components/DebugInfo'
-import { ThemeToggleButton } from './components/layout/ThemeToggleButton'; // Import ThemeToggleButton
-import { GridOverlay } from './components/ui/GridOverlay';
-import { GridControls } from './components/ui/GridControls';
-import { DragDebugOverlay } from './components/ui/DragDebugOverlay';
-import { GridKeyboardControls } from './components/ui/GridKeyboardControls';
+import { ThemeToggleButton } from './components/layout/ThemeToggleButton'
 import { HelpOverlay } from './components/ui/HelpOverlay';
 import './utils/midiTestUtils'
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
@@ -61,35 +58,33 @@ function App() {
       console.log('[App] WebMIDI API not supported by this browser.');
     }
   }, [connectBrowserInput, refreshDevices, isSupported, browserInputs]);
-
   useEffect(() => {
     // Fetch initial state
     fetchInitialState()
   }, [fetchInitialState])
+  
   // Scene Transition Animation is handled by useSceneTransitionAnimation hook
-
   return (
     <ThemeProvider>
       <ChromaticEnergyManipulatorProvider>
         <SocketProvider>
           <DockingProvider>
+            <PanelProvider>
             {/* Debug and background processors */}
             <div style={{ display: 'none' }}>
               <MidiDmxProcessor />
               <MidiDebugHelper />
               <MidiDmxDebug />
-            </div>            {/* Main UI should live inside SocketProvider */}
-            <GridOverlay />
-            <GridControls />            <GridKeyboardControls />
-            <DragDebugOverlay />
+            </div>
+            {/* Main UI should live inside SocketProvider */}
             <HelpOverlay />
             <ThemeToggleButton />
-            <DebugInfo position="top-right" />
-            <ErrorBoundary>
+            <DebugInfo position="top-right" />            <ErrorBoundary>
               <Layout>
-                <MainPage />
+                <PanelLayout />
               </Layout>
             </ErrorBoundary>
+            </PanelProvider>
           </DockingProvider>
         </SocketProvider>
       </ChromaticEnergyManipulatorProvider>

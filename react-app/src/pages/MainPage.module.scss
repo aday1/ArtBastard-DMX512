@@ -97,13 +97,16 @@
     width: 100%;
     min-height: 100vh;
     padding-bottom: 120px; // Space for bottom docked element
+    // Ensure this container doesn't create stacking context issues
+    z-index: auto;
+    transform: none;
+    contain: none;
   }
-
   .fixedQuickCapture {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 1000;
+    z-index: 1200;
     background: rgba(0, 0, 0, 0.8);
     border-radius: 8px;
     padding: 8px;
@@ -116,25 +119,29 @@
     padding: 2rem;
     padding-left: 300px; // Space for left dock
     padding-right: 300px; // Space for right dock
+    position: relative; // Normal document flow
+    z-index: 1; // Lower than docked components
   }
   .dockedElements {
     position: relative;
     pointer-events: none; // Allow clicks to pass through to content
 
+    // Ensure all docked children are positioned relative to viewport, not any scroll container
     .leftMiddleDock,
     .rightMiddleDock,
     .bottomCenterDock,
     .bottomLeftDock {
       pointer-events: auto; // Re-enable clicks on the docked elements
+      position: fixed !important; // Force fixed positioning
+      z-index: 1100 !important; // Ensure high z-index
     }
   }
-
   .leftMiddleDock {
     position: fixed;
     left: 20px;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 900;
+    z-index: 1100;
     max-width: 250px;
     background: rgba(0, 0, 0, 0.85);
     border-radius: 12px;
@@ -149,7 +156,7 @@
     right: 20px;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 900;
+    z-index: 1100;
     max-width: 250px;
     background: rgba(0, 0, 0, 0.85);
     border-radius: 12px;
@@ -163,7 +170,7 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 900;
+    z-index: 1100;
     background: rgba(0, 0, 0, 0.9);
     border-radius: 12px;
     padding: 12px;
@@ -172,13 +179,11 @@
     border: 1px solid rgba(78, 205, 196, 0.2);
     min-width: 300px;
   }
-
   .bottomLeftDock {
     position: fixed;
-    bottom: 50%;
+    bottom: 100px;
     left: 20px;
-    transform: translateY(50%);
-    z-index: 900;
+    z-index: 1100;
     max-width: 250px;
     background: rgba(0, 0, 0, 0.85);
     border-radius: 12px;
@@ -296,6 +301,156 @@
 
     .mainLayout {
       padding-bottom: 20px;
+    }
+  }
+
+  // Pinning states
+  .pinned {
+    position: fixed !important;
+    z-index: 1100 !important;
+  }
+
+  .unpinned {
+    position: relative !important;
+    z-index: auto !important;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 1rem !important;
+    display: block !important;
+    max-width: 100% !important;
+    width: auto !important;
+  }
+
+  // Unpinned layout adjustments for central content
+  .centralContent {
+    transition: padding 0.3s ease;
+  }
+
+  // When components are unpinned, reduce padding to make room
+  .mainLayout:has(.unpinned) .centralContent {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  // Special unpinned container for organizing unpinned components
+  .unpinnedContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 1px dashed rgba(78, 205, 196, 0.2);
+  }
+
+  // Special handling for unpinned quick capture
+  .fixedQuickCapture.unpinned {
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    margin: 1rem !important;
+    display: inline-block !important;
+  }
+
+  .fixedQuickCapture {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1200;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    padding: 8px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  // Enhanced docked component styles with pin button positioning
+  .leftMiddleDock,
+  .rightMiddleDock,
+  .bottomCenterDock,
+  .bottomLeftDock,
+  .fixedQuickCapture {
+    position: relative;
+    
+    // Pin button positioning within docked components
+    .pinButton {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.7) !important;
+      border: 1px solid rgba(78, 205, 196, 0.3) !important;
+      color: #4ecdc4 !important;
+      padding: 2px 6px !important;
+      font-size: 0.7rem !important;
+      border-radius: 3px !important;
+      
+      &:hover {
+        background: rgba(78, 205, 196, 0.2) !important;
+        border-color: rgba(78, 205, 196, 0.5) !important;
+      }
+      
+      .label {
+        display: none; // Hide labels in docked components for space
+      }
+    }
+  }
+
+  // Specific positioning adjustments for each dock
+  .fixedQuickCapture .pinButton {
+    top: 2px;
+    right: 2px;
+  }
+
+  // Global pin controls styling
+  .globalPinControls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    
+    .globalPinButton {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(78, 205, 196, 0.1);
+      border: 1px solid rgba(78, 205, 196, 0.3);
+      border-radius: 6px;
+      color: #4ecdc4;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+      font-weight: 500;
+      
+      &:hover {
+        background: rgba(78, 205, 196, 0.2);
+        border-color: rgba(78, 205, 196, 0.5);
+        transform: translateY(-1px);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+      
+      i {
+        font-size: 0.9em;
+      }
+    }
+    
+    .pinnedCount {
+      margin-left: auto;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.85rem;
+      font-style: italic;
     }
   }
 }

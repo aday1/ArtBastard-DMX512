@@ -1,0 +1,326 @@
+.componentToolbar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 320px;
+  max-height: 80vh;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  overflow: hidden;
+
+  &.collapsed {
+    height: auto;
+    max-height: 60px;
+  }
+
+  .toolbarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+
+    .toolbarTitle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #4ecdc4;
+
+      i {
+        font-size: 0.9em;
+      }
+    }
+
+    .toolbarControls {
+      .collapseButton {
+        background: transparent;
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 4px;
+        color: #4ecdc4;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(78, 205, 196, 0.1);
+          border-color: rgba(78, 205, 196, 0.5);
+        }
+      }
+    }
+  }
+
+  .toolbarContent {
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: calc(80vh - 70px);
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(78, 205, 196, 0.3);
+      border-radius: 3px;
+
+      &:hover {
+        background: rgba(78, 205, 196, 0.5);
+      }
+    }
+  }
+
+  .layoutControls {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(78, 205, 196, 0.1);
+
+    .controlGroup {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+
+      .controlButton {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(78, 205, 196, 0.1);
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 4px;
+        color: #4ecdc4;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(78, 205, 196, 0.2);
+          border-color: rgba(78, 205, 196, 0.5);
+        }
+
+        i {
+          font-size: 0.8em;
+        }
+      }
+    }
+
+    .saveDialog {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+
+      .layoutNameInput {
+        flex: 1;
+        padding: 0.5rem;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(78, 205, 196, 0.3);
+        border-radius: 4px;
+        color: white;
+        font-size: 0.85rem;
+
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        &:focus {
+          outline: none;
+          border-color: rgba(78, 205, 196, 0.6);
+          background: rgba(0, 0, 0, 0.7);
+        }
+      }
+
+      .saveButton {
+        padding: 0.5rem 1rem;
+        background: rgba(78, 205, 196, 0.2);
+        border: 1px solid rgba(78, 205, 196, 0.4);
+        border-radius: 4px;
+        color: #4ecdc4;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+
+        &:hover:not(:disabled) {
+          background: rgba(78, 205, 196, 0.3);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    .savedLayouts {
+      label {
+        display: block;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0.5rem;
+      }
+
+      .layoutList {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+
+        .layoutButton {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.4rem 0.6rem;
+          background: rgba(0, 0, 0, 0.5);
+          border: 1px solid rgba(78, 205, 196, 0.2);
+          border-radius: 4px;
+          color: rgba(255, 255, 255, 0.8);
+          cursor: pointer;
+          font-size: 0.8rem;
+          text-align: left;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background: rgba(78, 205, 196, 0.1);
+            border-color: rgba(78, 205, 196, 0.4);
+            color: #4ecdc4;
+          }
+
+          i {
+            font-size: 0.7em;
+            color: rgba(78, 205, 196, 0.6);
+          }
+        }
+      }
+    }
+  }
+
+  .categoryFilter {
+    margin-bottom: 1rem;
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.5rem;
+    }
+
+    .categorySelect {
+      width: 100%;
+      padding: 0.5rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(78, 205, 196, 0.3);
+      border-radius: 4px;
+      color: white;
+      font-size: 0.85rem;
+
+      &:focus {
+        outline: none;
+        border-color: rgba(78, 205, 196, 0.6);
+      }
+
+      option {
+        background: #1a1a1a;
+        color: white;
+      }
+    }
+  }
+
+  .componentList {
+    .listHeader {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.75rem;
+    }
+
+    .components {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+
+  .draggableComponent {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    border-radius: 6px;
+    cursor: grab;
+    transition: all 0.2s ease;
+    user-select: none;
+
+    &:hover {
+      background: rgba(78, 205, 196, 0.1);
+      border-color: rgba(78, 205, 196, 0.4);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    &.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+
+    .componentIcon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: rgba(78, 205, 196, 0.2);
+      border-radius: 4px;
+      color: #4ecdc4;
+      font-size: 1rem;
+    }
+
+    .componentInfo {
+      flex: 1;
+      min-width: 0;
+
+      .componentTitle {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: white;
+        margin-bottom: 0.2rem;
+        line-height: 1.2;
+      }
+
+      .componentCategory {
+        font-size: 0.75rem;
+        color: rgba(78, 205, 196, 0.7);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+}
+
+// Mobile responsive
+@media (max-width: 768px) {
+  .componentToolbar {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-height: none;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
