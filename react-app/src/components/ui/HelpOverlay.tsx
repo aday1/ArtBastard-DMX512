@@ -1,34 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDocking } from '@/context/DockingContext';
 import styles from './HelpOverlay.module.scss';
 
-interface TutorialStep {
-  id: string;
-  title: string;
-  description: string;
-  target?: string;
-  position?: 'top' | 'bottom' | 'left' | 'right';
-  action?: () => void;
-}
-
-type HelpTab = 'overview' | 'grid-controls' | 'keyboard' | 'components' | 'tutorial' | 'troubleshooting' | 'settings';
+type HelpTab = 'overview' | 'dmx-control' | 'midi-setup' | 'osc-integration' | 'components' | 'shortcuts';
 
 export const HelpOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<HelpTab>('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [tutorialStep, setTutorialStep] = useState<number | null>(null);
-  const [highlightedElement, setHighlightedElement] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
-  const { 
-    state, 
-    setGridSize, 
-    setGridSnappingEnabled, 
-    setShowGrid,
-    snapToGrid,
-    snapPositionToGrid 
-  } = useDocking();
 
   // Tutorial steps
   const tutorialSteps: TutorialStep[] = [

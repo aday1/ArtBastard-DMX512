@@ -74,6 +74,8 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     dmxChannels, midiMappings, 
     startMidiLearn, cancelMidiLearn, midiLearnTarget, // Added MIDI learn state/actions
     canvasBackgroundImage, // Added background image from store
+    saveScene, // Add saveScene action for Quick Save functionality
+    addNotification, // Add notification action for user feedback
   } = useStore(state => ({
     masterSliders: state.masterSliders,
     addMasterSlider: state.addMasterSlider,
@@ -87,6 +89,8 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     cancelMidiLearn: state.cancelMidiLearn,
     midiLearnTarget: state.midiLearnTarget,
     canvasBackgroundImage: state.canvasBackgroundImage,
+    saveScene: state.saveScene, // Add saveScene action
+    addNotification: state.addNotification, // Add notification action
   }));
 
   useEffect(() => { setPlacedFixtures(placedFixturesData); }, [placedFixturesData]);
@@ -1075,6 +1079,14 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
             }}
           >
             Add Master Slider
+          </button>
+          
+          <button
+            className={styles.quickSaveButton}
+            onClick={handleQuickSaveToScene}
+            title="Quick Save to Scene"
+          >
+            💾 Quick Save
           </button>
         </div>
       </div>
