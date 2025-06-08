@@ -1,8 +1,7 @@
-{
-  "name": "artbastard-dmx",
-  "version": "1.0.0",
+{  "name": "artbastard-dmx",
+  "version": "512.0.0",
   "private": true,
-  "description": "ArtBastard DMX512 Controller",
+  "description": "ArtBastard DMX512 Controller - Quantum Edition",
   "main": "dist/server.js",
   "scripts": {
     "install-all": "npm install && cd react-app && npm install && cd ../launcher && npm install",
