@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Storage Cleaner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #4ecdc4;
+        }
+        
+        .storage-info {
+            text-align: left;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            border-left: 4px solid #4caf50;
+        }
+        
+        .warning {
+            background: rgba(255, 193, 7, 0.3);
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Panel Storage Cleaner</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This tool helps clear corrupted panel layout data from localStorage that might be causing the React application to crash.
+        </div>
+        
+        <div class="storage-info" id="storageInfo">
+            Loading storage information...
+        </div>
+        
+        <button onclick="clearPanelData()">Clear Panel Layout Data</button>
+        <button onclick="clearAllAppData()">Clear All App Data</button>
+        <button onclick="refreshStorageInfo()">Refresh Info</button>
+        
+        <div id="result" class="info" style="display: none;"></div>
+        
+        <div class="info warning">
+            <strong>Note:</strong> After clearing data, you'll need to refresh your DMX application to load with default settings.
+        </div>
+    </div>
+
+    <script>
+        function showResult(message, isSuccess = true) {
+            const result = document.getElementById('result');
+            result.className = isSuccess ? 'info success' : 'info warning';
+            result.innerHTML = message;
+            result.style.display = 'block';
+            setTimeout(() => {
+                result.style.display = 'none';
+            }, 5000);
+        }
+        
+        function getStorageInfo() {
+            const keys = [
+                'artbastard-panel-layout',
+                'artbastard-saved-layouts',
+                'artbastard-theme',
+                'artbastard-docking-config',
+                'artbastard-master-fader-config'
+            ];
+            
+            let info = '<strong>Current localStorage Data:</strong><br><br>';
+            let totalSize = 0;
+            
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    const size = new Blob([value]).size;
+                    totalSize += size;
+                    info += `${key}: ${size} bytes<br>`;
+                    if (key === 'artbastard-panel-layout') {
+                        try {
+                            const parsed = JSON.parse(value);
+                            info += `  └─ Panels: ${Object.keys(parsed).filter(k => k !== 'splitterPositions').length}<br>`;
+                        } catch (e) {
+                            info += `  └─ ⚠️ CORRUPTED DATA<br>`;
+                        }
+                    }
+                } else {
+                    info += `${key}: (not set)<br>`;
+                }
+            });
+            
+            info += `<br><strong>Total Size:</strong> ${totalSize} bytes`;
+            return info;
+        }
+        
+        function refreshStorageInfo() {
+            document.getElementById('storageInfo').innerHTML = getStorageInfo();
+        }
+        
+        function clearPanelData() {
+            try {
+                localStorage.removeItem('artbastard-panel-layout');
+                localStorage.removeItem('artbastard-saved-layouts');
+                showResult('✅ Panel layout data cleared successfully!');
+                refreshStorageInfo();
+            } catch (error) {
+                showResult('❌ Error clearing panel data: ' + error.message, false);
+            }
+        }
+        
+        function clearAllAppData() {
+            try {
+                const keys = [
+                    'artbastard-panel-layout',
+                    'artbastard-saved-layouts',
+                    'artbastard-theme',
+                    'artbastard-docking-config',
+                    'artbastard-master-fader-config'
+                ];
+                
+                keys.forEach(key => localStorage.removeItem(key));
+                showResult('✅ All application data cleared successfully!');
+                refreshStorageInfo();
+            } catch (error) {
+                showResult('❌ Error clearing app data: ' + error.message, false);
+            }
+        }
+        
+        // Load initial storage info
+        refreshStorageInfo();
+    </script>
+</body>
+</html>

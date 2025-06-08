@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import ResizablePanel from './ResizablePanel'
 import { LucideIcon } from '../ui/LucideIcon'
+import { useExternalWindow } from '../../context/ExternalWindowContext'
 import styles from './FourthPanel.module.scss'
 
 interface FourthPanelProps {
@@ -15,6 +16,9 @@ export const FourthPanel: React.FC<FourthPanelProps> = ({ onDrop }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const panelRef = useRef<HTMLDivElement>(null)
   const dragStartRef = useRef({ x: 0, y: 0 })
+  
+  // Use external window context
+  const { externalWindow, openExternalWindow, closeExternalWindow } = useExternalWindow()
 
   // Handle drag start
   const handleDragStart = (e: React.MouseEvent) => {
@@ -74,51 +78,14 @@ export const FourthPanel: React.FC<FourthPanelProps> = ({ onDrop }) => {
   const toggleFollowMode = () => {
     setIsFollowMode(!isFollowMode)
   }
-
-  // Move to second monitor (simulated)
+  // Move to second monitor (now using ExternalWindowContext)
   const moveToSecondMonitor = () => {
-    if (window.screen && window.screen.availWidth) {
-      const newWindow = window.open(
-        '',
-        'FourthPanelWindow',
-        `width=800,height=600,left=${window.screen.availWidth},top=0,resizable=yes,scrollbars=yes`
-      )
-      
-      if (newWindow) {
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>ArtBastard DMX - 4th Panel</title>
-              <style>
-                body { 
-                  margin: 0; 
-                  padding: 20px; 
-                  background: #1a1a1a; 
-                  color: #fff; 
-                  font-family: Arial, sans-serif;
-                }
-                .panel-content {
-                  width: 100%;
-                  height: calc(100vh - 40px);
-                  border: 1px solid #333;
-                  border-radius: 8px;
-                  padding: 20px;
-                  box-sizing: border-box;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="panel-content">
-                <h2>4th Panel - External Monitor</h2>
-                <p>This panel is now running on a separate monitor/window.</p>
-                <p>Components can be dragged here for extended display.</p>
-              </div>
-            </body>
-          </html>
-        `)
-        newWindow.document.close()
-      }
+    if (externalWindow.isOpen) {
+      // If external window is already open, close it
+      closeExternalWindow()
+    } else {
+      // Open new external window
+      openExternalWindow()
     }
   }
 
@@ -175,13 +142,12 @@ export const FourthPanel: React.FC<FourthPanelProps> = ({ onDrop }) => {
           >
             <LucideIcon name="MousePointer" />
           </button>
-          
-          <button
+            <button
             onClick={moveToSecondMonitor}
-            className={styles.controlButton}
-            title="Move to Second Monitor"
+            className={`${styles.controlButton} ${externalWindow.isOpen ? styles.active : ''}`}
+            title={externalWindow.isOpen ? "Close External Monitor" : "Move to Second Monitor"}
           >
-            <LucideIcon name="Monitor" />
+            <LucideIcon name={externalWindow.isOpen ? "MonitorX" : "Monitor"} />
           </button>
           
           <button

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 
-export type PanelId = 'top-left' | 'top-right' | 'bottom' | 'fourth';
+export type PanelId = 'top-left' | 'top-right' | 'bottom' | 'fourth' | 'external';
 
 export interface PanelComponent {
   id: string;
@@ -20,6 +20,7 @@ export interface PanelLayout {
   'top-right': PanelState;
   'bottom': PanelState;
   'fourth': PanelState;
+  'external': PanelState;
   splitterPositions: {
     horizontal: number; // Top panels split (percentage)
     vertical: number;   // Top/bottom split (percentage)
@@ -87,8 +88,7 @@ const getDefaultLayout = (): PanelLayout => ({
         props: { isDockable: false }
       }
     ]
-  },
-  'fourth': {
+  },  'fourth': {
     components: [
       {
         id: 'default-touch-interface',
@@ -97,6 +97,9 @@ const getDefaultLayout = (): PanelLayout => ({
         props: { touchOptimized: true }
       }
     ]
+  },
+  'external': {
+    components: []
   },
   splitterPositions: {
     horizontal: 50, // 50% split between top panels
@@ -111,14 +114,14 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
       try {
         const parsedLayout = JSON.parse(saved);
         // Ensure all required panel IDs exist with proper structure
-        const defaultLayout = getDefaultLayout();
-        const safeLayout = {
+        const defaultLayout = getDefaultLayout();        const safeLayout = {
           ...defaultLayout,
           ...parsedLayout,
           'top-left': { components: [], ...defaultLayout['top-left'], ...parsedLayout['top-left'] },
           'top-right': { components: [], ...defaultLayout['top-right'], ...parsedLayout['top-right'] },
           'bottom': { components: [], ...defaultLayout['bottom'], ...parsedLayout['bottom'] },
           'fourth': { components: [], ...defaultLayout['fourth'], ...parsedLayout['fourth'] },
+          'external': { components: [], ...defaultLayout['external'], ...parsedLayout['external'] },
           splitterPositions: { ...defaultLayout.splitterPositions, ...parsedLayout.splitterPositions }
         };
         return safeLayout;
@@ -200,11 +203,23 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     savedLayouts[name] = layout;
     localStorage.setItem('artbastard-saved-layouts', JSON.stringify(savedLayouts));
   }, [layout]);
-
   const loadLayout = useCallback((name: string) => {
     const savedLayouts = JSON.parse(localStorage.getItem('artbastard-saved-layouts') || '{}');
     if (savedLayouts[name]) {
-      setLayout(savedLayouts[name]);
+      // Ensure loaded layout has all required panels with proper structure
+      const defaultLayout = getDefaultLayout();
+      const loadedLayout = savedLayouts[name];
+      const safeLayout = {
+        ...defaultLayout,
+        ...loadedLayout,
+        'top-left': { components: [], ...defaultLayout['top-left'], ...loadedLayout['top-left'] },
+        'top-right': { components: [], ...defaultLayout['top-right'], ...loadedLayout['top-right'] },
+        'bottom': { components: [], ...defaultLayout['bottom'], ...loadedLayout['bottom'] },
+        'fourth': { components: [], ...defaultLayout['fourth'], ...loadedLayout['fourth'] },
+        'external': { components: [], ...defaultLayout['external'], ...loadedLayout['external'] },
+        splitterPositions: { ...defaultLayout.splitterPositions, ...loadedLayout.splitterPositions }
+      };
+      setLayout(safeLayout);
     }
   }, []);
 

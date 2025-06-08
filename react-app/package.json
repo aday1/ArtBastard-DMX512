@@ -47,12 +47,13 @@
     "typescript": "~4.9.5",
     "vite": "^6.3.5",
     "vitest": "^3.2.1"
-  },
-  "scripts": {
+  },  "scripts": {
     "start": "vite",
     "dev": "vite",
     "build": "npm --omit=optional run build:vite",
     "build:vite": "tsc && vite build",
+    "build:skip-ts": "vite build",
+    "build:ultra-fast": "vite build --mode development",
     "preview": "vite preview",
     "test": "vitest",
     "postinstall": "npm --omit=optional run copy-fonts",

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "ArtBastard DMX512 Controller",
-  "main": "dist/server.js",  "scripts": {
+  "main": "dist/server.js",
+  "scripts": {
     "install-all": "npm install && cd react-app && npm install && cd ../launcher && npm install",
     "build": "npm run build-backend && npm run build-frontend",
     "build-backend": "node build-backend.js",
@@ -40,7 +41,7 @@
   "devDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.41.1",
     "@types/express": "^5.0.0",
-    "@types/node": "^18.0.0",
+    "@types/node": "^18.19.111",
     "copyfiles": "^2.4.1",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.1",

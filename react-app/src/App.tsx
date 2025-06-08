@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { DockingProvider } from './context/DockingContext'
 import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
 import { PanelProvider } from './context/PanelContext'
+import { ExternalWindowProvider } from './context/ExternalWindowContext'
 import { useStore } from './store'
 import { useBrowserMidi } from './hooks/useBrowserMidi'
 import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
@@ -55,8 +56,7 @@ function App() {
       };
     } else {
       console.log('[App] WebMIDI API not supported by this browser.');
-    }
-  }, [connectBrowserInput, refreshDevices, isSupported, browserInputs]);
+    }  }, [connectBrowserInput, refreshDevices, isSupported, browserInputs]);
   useEffect(() => {
     // Fetch initial state
     fetchInitialState()
@@ -69,18 +69,21 @@ function App() {
         <SocketProvider>
           <DockingProvider>
             <PanelProvider>
-            {/* Debug and background processors */}
-            <div style={{ display: 'none' }}>
-              <MidiDmxProcessor />
-              <MidiDebugHelper />
-              <MidiDmxDebug />
-            </div>
-            {/* Main UI should live inside SocketProvider */}
-            <HelpOverlay />
-            <ThemeToggleButton />
-            <DebugInfo position="top-right" />            <ErrorBoundary>
-              <Layout />
-            </ErrorBoundary>
+              <ExternalWindowProvider>
+                {/* Debug and background processors */}
+                <div style={{ display: 'none' }}>
+                  <MidiDmxProcessor />
+                  <MidiDebugHelper />
+                  <MidiDmxDebug />
+                </div>
+                {/* Main UI should live inside SocketProvider */}
+                <HelpOverlay />
+                <ThemeToggleButton />            
+                <DebugInfo position="top-right" />
+                <ErrorBoundary>
+                  <Layout />
+                </ErrorBoundary>
+              </ExternalWindowProvider>
             </PanelProvider>
           </DockingProvider>
         </SocketProvider>
