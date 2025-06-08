@@ -53,12 +53,11 @@ const getDefaultLayout = () => ({
                 props: { touchOptimized: true }
             }
         ]
-    },    splitterPositions: {
+    }, splitterPositions: {
         horizontal: 50,
-        vertical: 70, // 70% for top, 30% for bottom
-    },
+        vertical: 70 // 70% top, 30% bottom
+    }
 });
-
 const getBlankLayout = () => ({
     'top-left': { components: [] },
     'top-right': { components: [] },
@@ -69,7 +68,6 @@ const getBlankLayout = () => ({
         vertical: 70
     }
 });
-
 export const PanelProvider = ({ children }) => {
     const [layout, setLayout] = useState(() => {
         const saved = localStorage.getItem('artbastard-panel-layout');
@@ -176,28 +174,26 @@ export const PanelProvider = ({ children }) => {
             };
             setLayout(safeLayout);
         }
-    }, []);    const getSavedLayouts = useCallback(() => {
+    }, []);
+    const getSavedLayouts = useCallback(() => {
         const savedLayouts = JSON.parse(localStorage.getItem('artbastard-saved-layouts') || '{}');
         return Object.keys(savedLayouts);
     }, []);
-
     const deleteLayout = useCallback((name) => {
         const savedLayouts = JSON.parse(localStorage.getItem('artbastard-saved-layouts') || '{}');
         delete savedLayouts[name];
         localStorage.setItem('artbastard-saved-layouts', JSON.stringify(savedLayouts));
     }, []);
-
     const resetLayout = useCallback(() => {
         setLayout(getDefaultLayout());
     }, []);
-
     const loadBlankLayout = useCallback(() => {
         setLayout(getBlankLayout());
     }, []);
-
     const contextValue = {
         layout,
-        addComponentToPanel,        removeComponentFromPanel,
+        addComponentToPanel,
+        removeComponentFromPanel,
         moveComponent,
         updateComponent,
         updateSplitterPosition,

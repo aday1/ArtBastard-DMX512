@@ -1,107 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './HelpOverlay.module.scss';
+import { MidiMonitor } from '../midi/MidiMonitor';
+import { OscMonitor } from '../osc/OscMonitor';
 
-type HelpTab = 'overview' | 'dmx-control' | 'midi-setup' | 'osc-integration' | 'components' | 'shortcuts';
+type HelpTab = 'overview' | 'dmx-basics' | 'midi-setup' | 'osc-integration' | 'scene-management' | 'shortcuts';
 
 export const HelpOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<HelpTab>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Tutorial steps
-  const tutorialSteps: TutorialStep[] = [
-    {
-      id: 'welcome',
-      title: 'Welcome to ArtBastard DMX512',
-      description: 'This tutorial will guide you through the Grid & Docking System features.',
-    },
-    {
-      id: 'grid-basics',
-      title: 'Grid System Basics',
-      description: 'The grid system helps you align components precisely. You can see the current grid size and snapping status in the controls.',
-      target: '[data-tutorial="grid-controls"]',
-    },
-    {
-      id: 'dragging',
-      title: 'Dragging Components',
-      description: 'Try dragging any component by its title bar. Components will snap to the grid if snapping is enabled.',
-      target: '[data-tutorial="dockable-component"]',
-    },
-    {
-      id: 'docking',
-      title: 'Docking Zones',
-      description: 'Drag components to the edges of the screen to dock them in specific zones.',
-      target: '[data-tutorial="dock-zones"]',
-    },
-    {
-      id: 'keyboard',
-      title: 'Keyboard Shortcuts',
-      description: 'Use keyboard shortcuts for quick access to grid functions.',
-    },
-  ];
-
-  // Export/Import settings
-  const exportSettings = () => {
-    const settings = {
-      gridSize: state.gridSize,
-      gridSnappingEnabled: state.gridSnappingEnabled,
-      showGrid: state.showGrid,
-      timestamp: new Date().toISOString(),
-    };
-    
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'artbastard-grid-settings.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const settings = JSON.parse(e.target?.result as string);
-        if (settings.gridSize) setGridSize(settings.gridSize);
-        if (typeof settings.gridSnappingEnabled === 'boolean') setGridSnappingEnabled(settings.gridSnappingEnabled);
-        if (typeof settings.showGrid === 'boolean') setShowGrid(settings.showGrid);
-      } catch (error) {
-        alert('Invalid settings file format');
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-  };
-
-  // Tutorial management
-  const startTutorial = () => {
-    setTutorialStep(0);
-    setActiveTab('tutorial');
-  };
-
-  const nextTutorialStep = () => {
-    if (tutorialStep !== null && tutorialStep < tutorialSteps.length - 1) {
-      setTutorialStep(tutorialStep + 1);
-    } else {
-      endTutorial();
-    }
-  };
-
-  const endTutorial = () => {
-    setTutorialStep(null);
-    setHighlightedElement(null);
-  };
-
-  // Search functionality
-  const filteredContent = (content: string) => {
-    if (!searchQuery) return content;
-    return content.toLowerCase().includes(searchQuery.toLowerCase());
-  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -133,550 +41,394 @@ export const HelpOverlay: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVisible]);
 
+  // Search functionality
+  const filteredContent = (content: string) => {
+    if (!searchQuery) return content;
+    return content.toLowerCase().includes(searchQuery.toLowerCase());
+  };
+
   const tabs: Array<{id: HelpTab, label: string, icon: string}> = [
-    { id: 'overview', label: 'Overview', icon: '🏠' },
-    { id: 'grid-controls', label: 'Grid Controls', icon: '⚙️' },
-    { id: 'keyboard', label: 'Shortcuts', icon: '⌨️' },
-    { id: 'components', label: 'Components', icon: '🧩' },
-    { id: 'tutorial', label: 'Tutorial', icon: '🎓' },
-    { id: 'troubleshooting', label: 'Help', icon: '🔧' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'overview', label: 'Getting Started', icon: '🚀' },
+    { id: 'dmx-basics', label: 'DMX Control', icon: '💡' },
+    { id: 'midi-setup', label: 'MIDI Setup', icon: '🎹' },
+    { id: 'osc-integration', label: 'OSC Control', icon: '📡' },
+    { id: 'scene-management', label: 'Scene Management', icon: '🎬' },
+    { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
   ];
-
-  const renderGridControls = () => (
-    <div className={styles.gridControls} data-tutorial="grid-controls">
-      <div className={styles.controlGroup}>
-        <label htmlFor="gridSize">Grid Size: {state.gridSize}px</label>
-        <input
-          id="gridSize"
-          type="range"
-          min="20"
-          max="200"
-          value={state.gridSize}
-          onChange={(e) => setGridSize(parseInt(e.target.value))}
-          className={styles.slider}
-        />
-        <div className={styles.sliderTicks}>
-          <span>20px</span>
-          <span>100px</span>
-          <span>200px</span>
-        </div>
-      </div>
-
-      <div className={styles.controlGroup}>
-        <div className={styles.toggleGroup}>
-          <label>
-            <input
-              type="checkbox"
-              checked={state.gridSnappingEnabled}
-              onChange={(e) => setGridSnappingEnabled(e.target.checked)}
-            />
-            <span className={styles.toggleLabel}>Grid Snapping</span>
-          </label>
-          <div className={styles.toggleDescription}>
-            Automatically snap components to grid intersections
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.controlGroup}>
-        <div className={styles.toggleGroup}>
-          <label>
-            <input
-              type="checkbox"
-              checked={state.showGrid}
-              onChange={(e) => setShowGrid(e.target.checked)}
-            />
-            <span className={styles.toggleLabel}>Show Grid</span>
-          </label>
-          <div className={styles.toggleDescription}>
-            Display grid lines permanently (also shown during dragging)
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.quickActions}>
-        <button onClick={() => setGridSize(50)} className={styles.quickButton}>
-          Fine Grid (50px)
-        </button>
-        <button onClick={() => setGridSize(100)} className={styles.quickButton}>
-          Medium Grid (100px)
-        </button>
-        <button onClick={() => setGridSize(150)} className={styles.quickButton}>
-          Coarse Grid (150px)
-        </button>
-      </div>
-
-      <div className={styles.statusPanel}>
-        <h5>Current Status</h5>
-        <div className={styles.statusItem}>
-          <span>Grid Size:</span>
-          <span className={styles.statusValue}>{state.gridSize}px</span>
-        </div>
-        <div className={styles.statusItem}>
-          <span>Snapping:</span>
-          <span className={`${styles.statusValue} ${state.gridSnappingEnabled ? styles.enabled : styles.disabled}`}>
-            {state.gridSnappingEnabled ? 'ON' : 'OFF'}
-          </span>
-        </div>
-        <div className={styles.statusItem}>
-          <span>Grid Visible:</span>
-          <span className={`${styles.statusValue} ${state.showGrid ? styles.enabled : styles.disabled}`}>
-            {state.showGrid ? 'YES' : 'NO'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <div className={styles.tabContent}>
-            <div className={styles.welcomeSection}>
-              <h4>🎯 Welcome to the Grid & Docking System</h4>
-              <p>
-                The ArtBastard DMX512 application features a powerful grid and docking system 
-                that helps you organize and align your interface components with precision.
-              </p>
-              
-              <div className={styles.featureGrid}>
-                <div className={styles.featureCard}>
-                  <div className={styles.featureIcon}>📐</div>
-                  <h5>Precision Grid</h5>
-                  <p>Customizable grid system with 20-200px spacing for perfect alignment</p>
-                </div>
-                <div className={styles.featureCard}>
-                  <div className={styles.featureIcon}>🧲</div>
-                  <h5>Smart Snapping</h5>
-                  <p>Intelligent snapping within 30% of grid intersections</p>
-                </div>
-                <div className={styles.featureCard}>
-                  <div className={styles.featureIcon}>🎯</div>
-                  <h5>Dock Zones</h5>
-                  <p>Predefined docking zones at screen edges and corners</p>
-                </div>
-                <div className={styles.featureCard}>
-                  <div className={styles.featureIcon}>⌨️</div>
-                  <h5>Shortcuts</h5>
-                  <p>Keyboard shortcuts for rapid grid manipulation</p>
-                </div>
-              </div>
+            <h4>🚀 Welcome to ArtBastard DMX512</h4>
+            <p>ArtBastard is a powerful, web-based DMX lighting control system that lets you control professional lighting equipment through various protocols.</p>
+            
+            <div className={styles.section}>
+              <h5>🎯 Quick Start Guide</h5>
+              <ol className={styles.stepList}>
+                <li><strong>Connect Hardware:</strong> Connect your DMX interface to your lighting fixtures</li>
+                <li><strong>Configure Fixtures:</strong> Go to Fixture Setup to define your lighting fixtures</li>
+                <li><strong>Create Scenes:</strong> Set up lighting scenes and save them for later use</li>
+                <li><strong>Setup Control:</strong> Configure MIDI controllers or OSC devices for hands-free control</li>
+                <li><strong>Perform:</strong> Use the interface to control your lights in real-time</li>
+              </ol>
+            </div>
 
-              <div className={styles.quickStart}>
-                <h5>🚀 Quick Start</h5>
-                <ol>
-                  <li>Press <kbd>Ctrl + G</kbd> to toggle grid visibility</li>
-                  <li>Press <kbd>Ctrl + S</kbd> to enable/disable snapping</li>
-                  <li>Drag any component by its title bar</li>
-                  <li>Watch components snap to grid intersections</li>
-                  <li>Drag to screen edges to dock components</li>
-                </ol>
-                <button onClick={startTutorial} className={styles.tutorialButton}>
-                  Start Interactive Tutorial
-                </button>
-              </div>
+            <div className={styles.section}>
+              <h5>🔧 System Requirements</h5>
+              <ul>
+                <li>Modern web browser (Chrome, Firefox, Safari, Edge)</li>
+                <li>USB DMX interface or Art-Net compatible device</li>
+                <li>DMX512 lighting fixtures</li>
+                <li>Optional: MIDI controller or OSC-capable device</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📊 Interface Overview</h5>
+              <p>The interface is organized into modular panels that you can arrange to suit your workflow:</p>
+              <ul>
+                <li><strong>DMX Control Panel:</strong> Main fader interface for direct channel control</li>
+                <li><strong>Scene Control:</strong> Save and recall lighting scenes</li>
+                <li><strong>2D Canvas:</strong> Visual fixture layout and control</li>
+                <li><strong>Master Fader:</strong> Global brightness control</li>
+                <li><strong>Monitors:</strong> MIDI and OSC message monitoring</li>
+              </ul>
             </div>
           </div>
         );
 
-      case 'grid-controls':
+      case 'dmx-basics':
         return (
           <div className={styles.tabContent}>
-            <h4>⚙️ Advanced Grid Controls</h4>
-            {renderGridControls()}
+            <h4>💡 DMX512 Control Basics</h4>
+            <p>DMX512 is the industry standard protocol for controlling stage lighting and effects.</p>
+            
+            <div className={styles.section}>
+              <h5>🔌 Hardware Setup</h5>
+              <ol className={styles.stepList}>
+                <li><strong>Connect Interface:</strong> Connect your USB DMX interface to your computer</li>
+                <li><strong>Chain Fixtures:</strong> Connect fixtures using DMX cables (XLR 3-pin or 5-pin)</li>
+                <li><strong>Set Addresses:</strong> Configure unique DMX addresses for each fixture</li>
+                <li><strong>Terminate Chain:</strong> Add a 120-ohm terminator to the last fixture</li>
+              </ol>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📝 Fixture Configuration</h5>
+              <ul>
+                <li><strong>DMX Address:</strong> Set starting channel for each fixture (1-512)</li>
+                <li><strong>Channel Mode:</strong> Choose the number of channels your fixture uses</li>
+                <li><strong>Fixture Profile:</strong> Define what each channel controls (brightness, color, etc.)</li>
+                <li><strong>Personality:</strong> Some fixtures have multiple modes - choose the right one</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🎛️ Control Methods</h5>
+              <ul>
+                <li><strong>Direct Channel Control:</strong> Set individual DMX channel values (0-255)</li>
+                <li><strong>Fixture Control:</strong> Use fixture-specific controls (brightness, color, etc.)</li>
+                <li><strong>Scene Control:</strong> Save and recall preset lighting looks</li>
+                <li><strong>Real-time Control:</strong> Use MIDI or OSC for live performance</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>⚠️ Common Issues</h5>
+              <ul>
+                <li><strong>No Output:</strong> Check DMX interface connection and drivers</li>
+                <li><strong>Flickering:</strong> Check for loose connections or missing terminator</li>
+                <li><strong>Wrong Colors:</strong> Verify fixture addressing and channel mapping</li>
+                <li><strong>Partial Control:</strong> Check fixture mode matches your configuration</li>
+              </ul>
+            </div>
           </div>
         );
 
-      case 'keyboard':
+      case 'midi-setup':
+        return (
+          <div className={styles.tabContent}>
+            <h4>🎹 MIDI Controller Setup</h4>
+            <p>Control your lighting using MIDI controllers, keyboards, and control surfaces.</p>
+            
+            <div className={styles.section}>
+              <h5>🔗 Connection Setup</h5>
+              <ol className={styles.stepList}>
+                <li><strong>Connect MIDI Device:</strong> USB or traditional MIDI cables</li>
+                <li><strong>Enable Web MIDI:</strong> Grant browser permission for MIDI access</li>
+                <li><strong>Select Device:</strong> Choose your controller from the MIDI settings</li>
+                <li><strong>Test Connection:</strong> Verify MIDI messages are being received</li>
+              </ol>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🎛️ Control Mapping</h5>
+              <ul>
+                <li><strong>Channel Faders:</strong> Map controller faders to DMX channels</li>
+                <li><strong>Scene Triggers:</strong> Assign pads/keys to trigger lighting scenes</li>
+                <li><strong>Master Controls:</strong> Map rotary knobs to master brightness and effects</li>
+                <li><strong>Transport Controls:</strong> Use play/stop buttons for sequence control</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📊 MIDI Message Types</h5>
+              <ul>
+                <li><strong>Control Change (CC):</strong> Continuous controls like faders and knobs</li>
+                <li><strong>Note On/Off:</strong> Trigger events from keys and pads</li>
+                <li><strong>Program Change:</strong> Switch between different scene banks</li>
+                <li><strong>Aftertouch:</strong> Pressure-sensitive control for dynamic effects</li>
+              </ul>
+            </div>            <div className={styles.section}>
+              <h5>🔧 Popular Controllers</h5>
+              <ul>
+                <li><strong>Akai APC series:</strong> Grid-based controllers perfect for scene triggering</li>
+                <li><strong>Novation Launchpad:</strong> RGB feedback and extensive grid control</li>
+                <li><strong>Behringer X-Touch:</strong> Professional mixing console with motorized faders</li>
+                <li><strong>Korg nanoKONTROL:</strong> Compact USB controller with faders and knobs</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📊 Live MIDI Monitor</h5>
+              <p>Use the MIDI Monitor below to test your controller and see incoming messages in real-time:</p>
+              <div className={styles.monitorContainer}>
+                <MidiMonitor />
+              </div>
+              <p><em>The monitor shows the last 5 MIDI messages with details about message type, channel, and values.</em></p>
+            </div>
+          </div>
+        );
+
+      case 'osc-integration':
+        return (
+          <div className={styles.tabContent}>
+            <h4>📡 OSC (Open Sound Control) Integration</h4>
+            <p>Control ArtBastard remotely using OSC messages from other applications or devices.</p>
+            
+            <div className={styles.section}>
+              <h5>🌐 Network Setup</h5>
+              <ol className={styles.stepList}>
+                <li><strong>Configure Port:</strong> Set OSC receive port (default: 8080)</li>
+                <li><strong>Network Access:</strong> Ensure firewall allows OSC traffic</li>
+                <li><strong>IP Address:</strong> Note your computer's IP for remote control</li>
+                <li><strong>Test Connection:</strong> Send test messages to verify setup</li>
+              </ol>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📬 OSC Address Patterns</h5>
+              <ul>
+                <li><strong>/dmx/channel/[1-512]</strong> - Control individual DMX channels</li>
+                <li><strong>/scene/trigger/[name]</strong> - Trigger saved scenes by name</li>
+                <li><strong>/master/brightness</strong> - Control master brightness (0.0-1.0)</li>
+                <li><strong>/fixture/[id]/brightness</strong> - Control fixture brightness</li>
+                <li><strong>/fixture/[id]/color/[r,g,b]</strong> - Set RGB color values</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🔧 Compatible Software</h5>
+              <ul>
+                <li><strong>TouchOSC:</strong> Create custom mobile control interfaces</li>
+                <li><strong>Max/MSP:</strong> Advanced programming and algorithmic control</li>
+                <li><strong>Pure Data:</strong> Open-source visual programming for lighting</li>
+                <li><strong>Reaper:</strong> DAW with built-in OSC support for music-synchronized lighting</li>
+                <li><strong>QLab:</strong> Show control software with OSC output capabilities</li>
+              </ul>
+            </div>            <div className={styles.section}>
+              <h5>💡 Example Use Cases</h5>
+              <ul>
+                <li><strong>Mobile Control:</strong> Use tablet as wireless lighting console</li>
+                <li><strong>Music Sync:</strong> Sync lighting with audio software</li>
+                <li><strong>Automated Shows:</strong> Program sequences with timing</li>
+                <li><strong>Multi-User Control:</strong> Multiple operators with different interfaces</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📡 Live OSC Monitor</h5>
+              <p>Use the OSC Monitor below to test your setup and see incoming messages in real-time:</p>
+              <div className={styles.monitorContainer}>
+                <OscMonitor />
+              </div>
+              <p><em>The monitor displays incoming OSC messages with address patterns, arguments, and timestamps.</em></p>
+            </div>
+          </div>
+        );
+
+      case 'scene-management':
+        return (
+          <div className={styles.tabContent}>
+            <h4>🎬 Scene Management</h4>
+            <p>Create, save, and organize lighting scenes for quick recall during performances.</p>
+            
+            <div className={styles.section}>
+              <h5>💾 Creating Scenes</h5>
+              <ol className={styles.stepList}>
+                <li><strong>Set Lighting:</strong> Adjust fixtures to desired look</li>
+                <li><strong>Name Scene:</strong> Give it a descriptive name</li>
+                <li><strong>Add OSC Address:</strong> Optional OSC trigger address</li>
+                <li><strong>Save Scene:</strong> Store the current lighting state</li>
+              </ol>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🎭 Scene Organization</h5>
+              <ul>
+                <li><strong>Naming Convention:</strong> Use clear, descriptive names (e.g., "Verse_Blue", "Chorus_Bright")</li>
+                <li><strong>Categories:</strong> Group scenes by song, color, or intensity</li>
+                <li><strong>Numbering:</strong> Use numbers for easy MIDI/OSC triggering</li>
+                <li><strong>Backup:</strong> Export scene lists for backup and sharing</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>⚡ Quick Save Options</h5>
+              <ul>
+                <li><strong>2D Canvas Quick Save:</strong> Save current canvas state as scene</li>
+                <li><strong>Keyboard Shortcuts:</strong> Rapid scene saving with hotkeys</li>
+                <li><strong>Auto-naming:</strong> Timestamp-based naming for rapid workflow</li>
+                <li><strong>Overwrite Protection:</strong> Prevent accidental scene overwrites</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🔄 Scene Recall</h5>
+              <ul>
+                <li><strong>Manual Trigger:</strong> Click scene buttons in the interface</li>
+                <li><strong>MIDI Trigger:</strong> Assign MIDI notes or CCs to scenes</li>
+                <li><strong>OSC Trigger:</strong> Remote triggering via OSC messages</li>
+                <li><strong>Fade Times:</strong> Set transition speeds between scenes</li>
+              </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>📂 Import/Export</h5>
+              <ul>
+                <li><strong>Scene Export:</strong> Save scenes to file for backup</li>
+                <li><strong>Scene Import:</strong> Load scenes from other projects</li>
+                <li><strong>Sharing:</strong> Share scene configurations with other users</li>
+                <li><strong>Version Control:</strong> Track changes to scene configurations</li>
+              </ul>
+            </div>
+          </div>
+        );
+
+      case 'shortcuts':
         return (
           <div className={styles.tabContent}>
             <h4>⌨️ Keyboard Shortcuts</h4>
+            <p>Speed up your workflow with these keyboard shortcuts.</p>
             
-            <div className={styles.shortcutSection}>
-              <h5>Grid Controls</h5>
+            <div className={styles.section}>
+              <h5>🔧 General Controls</h5>
               <div className={styles.shortcutList}>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + G</kbd>
-                  <span>Toggle grid visibility</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>H</kbd>
+                  <span>Toggle Help Overlay</span>
                 </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + S</kbd>
-                  <span>Toggle grid snapping</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>/</kbd>
+                  <span>Focus Search in Help</span>
                 </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + +</kbd>
-                  <span>Increase grid size (up to 200px)</span>
-                </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + -</kbd>
-                  <span>Decrease grid size (down to 20px)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.shortcutSection}>
-              <h5>Help System</h5>
-              <div className={styles.shortcutList}>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + H</kbd>
-                  <span>Toggle help overlay</span>
-                </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Ctrl + /</kbd>
-                  <span>Focus search field</span>
-                </div>
-                <div className={styles.shortcutItem}>
+                <div className={styles.shortcut}>
                   <kbd>Esc</kbd>
-                  <span>Close help overlay</span>
+                  <span>Close Help/Cancel Action</span>
                 </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Tab</kbd>
-                  <span>Navigate between help tabs</span>
+                <div className={styles.shortcut}>
+                  <kbd>Space</kbd>
+                  <span>Emergency Blackout</span>
                 </div>
               </div>
             </div>
 
-            <div className={styles.shortcutSection}>
-              <h5>Component Controls</h5>
+            <div className={styles.section}>
+              <h5>🎭 Scene Controls</h5>
               <div className={styles.shortcutList}>
-                <div className={styles.shortcutItem}>
-                  <kbd>Double Click</kbd>
-                  <span>Minimize/Maximize component</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>S</kbd>
+                  <span>Quick Save Scene</span>
                 </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Drag Title Bar</kbd>
-                  <span>Move component</span>
+                <div className={styles.shortcut}>
+                  <kbd>1</kbd> - <kbd>9</kbd>
+                  <span>Trigger Scene 1-9</span>
                 </div>
-                <div className={styles.shortcutItem}>
-                  <kbd>Drag to Edge</kbd>
-                  <span>Dock component to zone</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>1-9</kbd>
+                  <span>Save to Scene Slot 1-9</span>
                 </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'components':
-        return (
-          <div className={styles.tabContent}>
-            <h4>🧩 Component Reference</h4>
-            
-            <div className={styles.componentSection}>
-              <h5>Available Components</h5>
-              
-              <div className={styles.componentCard}>
-                <h6>🎛️ Master Fader</h6>
-                <p>Controls global DMX output level with fade options</p>
-                <ul>
-                  <li><strong>Default Position:</strong> Bottom Center</li>
-                  <li><strong>Features:</strong> MIDI Learn, Blackout, Full On</li>
-                  <li><strong>Shortcuts:</strong> Minimizable, Dockable</li>
-                </ul>
-              </div>
-
-              <div className={styles.componentCard}>
-                <h6>🎹 MIDI Monitor</h6>
-                <p>Real-time MIDI message monitoring and debugging</p>
-                <ul>
-                  <li><strong>Default Position:</strong> Top Right</li>
-                  <li><strong>Features:</strong> Message filtering, Clear history</li>
-                  <li><strong>Data:</strong> Note On/Off, CC messages, timestamps</li>
-                </ul>
-              </div>
-
-              <div className={styles.componentCard}>
-                <h6>📡 OSC Monitor</h6>
-                <p>Open Sound Control message monitoring</p>
-                <ul>
-                  <li><strong>Default Position:</strong> Top Right</li>
-                  <li><strong>Features:</strong> Address filtering, Value display</li>
-                  <li><strong>Data:</strong> OSC addresses, values, timestamps</li>
-                </ul>
-              </div>
-
-              <div className={styles.componentCard}>
-                <h6>💡 DMX Channel Grid</h6>
-                <p>Visual grid of all 512 DMX channels</p>
-                <ul>
-                  <li><strong>Default Position:</strong> Floating</li>
-                  <li><strong>Features:</strong> Channel selection, Value display</li>
-                  <li><strong>Controls:</strong> Click to select, scroll to navigate</li>
-                </ul>
-              </div>
-
-              <div className={styles.componentCard}>
-                <h6>🎨 Chromatic Energy Manipulator</h6>
-                <p>Advanced color and energy manipulation controls</p>
-                <ul>
-                  <li><strong>Default Position:</strong> Middle Left</li>
-                  <li><strong>Features:</strong> Color picking, Energy levels</li>
-                  <li><strong>Controls:</strong> Multi-parameter adjustment</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className={styles.dockingZones}>
-              <h5>🎯 Docking Zones</h5>
-              <div className={styles.zoneGrid}>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Top Left</span>
-                  <span className={styles.zoneSize}>200×150px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Top Center</span>
-                  <span className={styles.zoneSize}>300×100px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Top Right</span>
-                  <span className={styles.zoneSize}>200×150px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Left Center</span>
-                  <span className={styles.zoneSize}>150×200px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Right Center</span>
-                  <span className={styles.zoneSize}>150×200px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Bottom Left</span>
-                  <span className={styles.zoneSize}>200×150px</span>
-                </div>
-                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Bottom Center</span>
-                  <span className={styles.zoneSize}>300×100px</span>
-                </div>                <div className={styles.zoneItem}>
-                  <span className={styles.zoneName}>Bottom Right</span>
-                  <span className={styles.zoneSize}>200×150px</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'tutorial':
-        return (
-          <div className={styles.tabContent}>
-            <h4>🎓 Interactive Tutorial</h4>
-            
-            {tutorialStep !== null ? (
-              <div className={styles.tutorialActive}>
-                <div className={styles.tutorialProgress}>
-                  <div 
-                    className={styles.progressBar}
-                    style={{ width: `${((tutorialStep + 1) / tutorialSteps.length) * 100}%` }}
-                  />
-                  <span>Step {tutorialStep + 1} of {tutorialSteps.length}</span>
-                </div>
-
-                <div className={styles.tutorialStep}>
-                  <h5>{tutorialSteps[tutorialStep].title}</h5>
-                  <p>{tutorialSteps[tutorialStep].description}</p>
-                  
-                  <div className={styles.tutorialControls}>
-                    <button onClick={endTutorial} className={styles.skipButton}>
-                      Skip Tutorial
-                    </button>
-                    <button onClick={nextTutorialStep} className={styles.nextButton}>
-                      {tutorialStep === tutorialSteps.length - 1 ? 'Finish' : 'Next'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.tutorialStart}>
-                <div className={styles.tutorialIntro}>
-                  <h5>Learn the Grid & Docking System</h5>
-                  <p>
-                    This interactive tutorial will guide you through all the features of the 
-                    grid and docking system, helping you become proficient with component 
-                    management and layout organization.
-                  </p>
-                  
-                  <div className={styles.tutorialFeatures}>
-                    <div className={styles.tutorialFeature}>
-                      <span className={styles.featureIcon}>📐</span>
-                      <span>Grid system basics</span>
-                    </div>
-                    <div className={styles.tutorialFeature}>
-                      <span className={styles.featureIcon}>🖱️</span>
-                      <span>Dragging and positioning</span>
-                    </div>
-                    <div className={styles.tutorialFeature}>
-                      <span className={styles.featureIcon}>🎯</span>
-                      <span>Docking zones</span>
-                    </div>
-                    <div className={styles.tutorialFeature}>
-                      <span className={styles.featureIcon}>⌨️</span>
-                      <span>Keyboard shortcuts</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <button onClick={startTutorial} className={styles.startTutorialButton}>
-                  Start Tutorial
-                </button>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'troubleshooting':
-        return (
-          <div className={styles.tabContent}>
-            <h4>🔧 Troubleshooting & FAQ</h4>
-            
-            <div className={styles.troubleshootingSection}>
-              <h5>🚨 Common Issues</h5>
-              
-              <div className={styles.troubleshootingItem}>
-                <h6>Components won't snap to grid</h6>
-                <p><strong>Solution:</strong> Check that grid snapping is enabled (Ctrl+S) and you're dragging close enough to grid intersections (within 30% of grid size).</p>
-              </div>
-
-              <div className={styles.troubleshootingItem}>
-                <h6>Grid is not visible</h6>
-                <p><strong>Solution:</strong> Press Ctrl+G to toggle grid visibility, or enable it in the Grid Controls tab. Grid also appears temporarily during dragging.</p>
-              </div>
-
-              <div className={styles.troubleshootingItem}>
-                <h6>Components disappear off screen</h6>
-                <p><strong>Solution:</strong> Components are constrained to keep at least 30% visible. Try refreshing the page to reset positions, or use dock zones to reposition.</p>
-              </div>
-
-              <div className={styles.troubleshootingItem}>
-                <h6>Docking zones don't appear</h6>
-                <p><strong>Solution:</strong> Dock zones only appear while dragging components. Start dragging a component by its title bar to see the zones.</p>
-              </div>
-
-              <div className={styles.troubleshootingItem}>
-                <h6>Keyboard shortcuts not working</h6>
-                <p><strong>Solution:</strong> Ensure the browser window has focus and no other input fields are active. Some shortcuts require Ctrl key.</p>
-              </div>
-            </div>
-
-            <div className={styles.troubleshootingSection}>
-              <h5>💡 Tips & Best Practices</h5>
-              
-              <div className={styles.tipsList}>
-                <div className={styles.tip}>
-                  <span className={styles.tipIcon}>💡</span>
-                  <span>Use medium grid size (100px) for most layout tasks</span>
-                </div>
-                <div className={styles.tip}>
-                  <span className={styles.tipIcon}>💡</span>
-                  <span>Enable grid snapping for precise alignment</span>
-                </div>
-                <div className={styles.tip}>
-                  <span className={styles.tipIcon}>💡</span>
-                  <span>Use corner dock zones for permanent component placement</span>
-                </div>
-                <div className={styles.tip}>
-                  <span className={styles.tipIcon}>💡</span>
-                  <span>Minimize components when not in use to save screen space</span>
-                </div>
-                <div className={styles.tip}>
-                  <span className={styles.tipIcon}>💡</span>
-                  <span>Use the floating zone for temporary component positioning</span>
+                <div className={styles.shortcut}>
+                  <kbd>Shift</kbd> + <kbd>1-9</kbd>
+                  <span>Delete Scene 1-9</span>
                 </div>
               </div>
             </div>
 
-            <div className={styles.troubleshootingSection}>
-              <h5>📊 System Information</h5>
-              <div className={styles.systemInfo}>
-                <div className={styles.infoItem}>
-                  <span>Grid Size Range:</span>
-                  <span>20px - 200px</span>
+            <div className={styles.section}>
+              <h5>🎛️ Fader Controls</h5>
+              <div className={styles.shortcutList}>
+                <div className={styles.shortcut}>
+                  <kbd>M</kbd>
+                  <span>Toggle Master Fader</span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span>Snap Threshold:</span>
-                  <span>30% of grid size</span>
+                <div className={styles.shortcut}>
+                  <kbd>↑</kbd> / <kbd>↓</kbd>
+                  <span>Adjust Selected Fader</span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span>Dock Zone Threshold:</span>
-                  <span>100px from edge</span>
+                <div className={styles.shortcut}>
+                  <kbd>Shift</kbd> + <kbd>↑/↓</kbd>
+                  <span>Fine Adjust Selected Fader</span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span>Available Zones:</span>
-                  <span>8 dock zones + floating</span>
+                <div className={styles.shortcut}>
+                  <kbd>0</kbd>
+                  <span>Zero All Faders</span>
                 </div>
               </div>
             </div>
-          </div>
-        );
 
-      case 'settings':
-        return (
-          <div className={styles.tabContent}>
-            <h4>⚙️ Settings & Configuration</h4>
-            
-            <div className={styles.settingsSection}>
-              <h5>💾 Export/Import Settings</h5>
-              <p>Save your grid configuration or load previously saved settings.</p>
-              
-              <div className={styles.settingsActions}>
-                <button onClick={exportSettings} className={styles.exportButton}>
-                  📤 Export Settings
-                </button>
-                <label className={styles.importButton}>
-                  📥 Import Settings
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importSettings}
-                    style={{ display: 'none' }}
-                  />
-                </label>
+            <div className={styles.section}>
+              <h5>🖼️ 2D Canvas</h5>
+              <div className={styles.shortcutList}>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>Q</kbd>
+                  <span>Quick Save Canvas to Scene</span>
+                </div>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>Click</kbd>
+                  <span>Multi-select Fixtures</span>
+                </div>
+                <div className={styles.shortcut}>
+                  <kbd>Shift</kbd> + <kbd>Drag</kbd>
+                  <span>Select Multiple Fixtures</span>
+                </div>
+                <div className={styles.shortcut}>
+                  <kbd>Del</kbd>
+                  <span>Delete Selected Fixtures</span>
+                </div>
               </div>
             </div>
 
-            <div className={styles.settingsSection}>
-              <h5>🔄 Reset Options</h5>
-              <p>Reset various aspects of the grid and docking system.</p>
-              
-              <div className={styles.resetActions}>
-                <button 
-                  onClick={() => {
-                    setGridSize(100);
-                    setGridSnappingEnabled(true);
-                    setShowGrid(false);
-                  }}
-                  className={styles.resetButton}
-                >
-                  Reset Grid Settings
-                </button>
-                <button 
-                  onClick={() => {
-                    localStorage.removeItem('docking-grid-size');
-                    localStorage.removeItem('docking-grid-snapping');
-                    localStorage.removeItem('docking-show-grid');
-                  }}
-                  className={styles.clearButton}
-                >
-                  Clear Saved Settings
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.settingsSection}>
-              <h5>📈 Performance</h5>
-              <p>Current performance and system status.</p>
-              
-              <div className={styles.performanceInfo}>
-                <div className={styles.performanceItem}>
-                  <span>Active Components:</span>
-                  <span>{Object.keys(state.components).length}</span>
+            <div className={styles.section}>
+              <h5>🔍 Navigation</h5>
+              <div className={styles.shortcutList}>
+                <div className={styles.shortcut}>
+                  <kbd>Tab</kbd>
+                  <span>Cycle Through Panels</span>
                 </div>
-                <div className={styles.performanceItem}>
-                  <span>Grid Calculations:</span>
-                  <span>{state.gridSnappingEnabled ? 'Active' : 'Disabled'}</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>Tab</kbd>
+                  <span>Switch Panel Focus</span>
                 </div>
-                <div className={styles.performanceItem}>
-                  <span>Drag State:</span>
-                  <span>{state.isDragging ? 'Active' : 'Idle'}</span>
+                <div className={styles.shortcut}>
+                  <kbd>Ctrl</kbd> + <kbd>F</kbd>
+                  <span>Find/Filter Fixtures</span>
+                </div>
+                <div className={styles.shortcut}>
+                  <kbd>F11</kbd>
+                  <span>Toggle Fullscreen</span>
                 </div>
               </div>
             </div>
@@ -694,7 +446,7 @@ export const HelpOverlay: React.FC = () => {
       <button
         className={styles.helpButton}
         onClick={() => setIsVisible(!isVisible)}
-        title="Show Grid & Docking System Help (Ctrl+H)"
+        title="Show ArtBastard Help (Ctrl+H)"
       >
         <i className="fas fa-question-circle"></i>
       </button>
@@ -705,7 +457,7 @@ export const HelpOverlay: React.FC = () => {
           <div className={styles.helpContent}>
             <div className={styles.helpHeader}>
               <div className={styles.headerLeft}>
-                <h3>🎯 Grid & Docking System Help</h3>
+                <h3>🎵 ArtBastard DMX512 Help</h3>
                 <div className={styles.searchContainer}>
                   <input
                     ref={searchInputRef}
@@ -747,11 +499,7 @@ export const HelpOverlay: React.FC = () => {
             <div className={styles.helpFooter}>
               <div className={styles.footerInfo}>
                 <span>💡 Press <kbd>Ctrl+H</kbd> to toggle this help anytime</span>
-              </div>
-              <div className={styles.footerActions}>
-                <button onClick={startTutorial} className={styles.tutorialShortcut}>
-                  🎓 Start Tutorial
-                </button>
+                <span>🎵 ArtBastard DMX512 Lighting Control System</span>
               </div>
             </div>
           </div>
@@ -760,3 +508,5 @@ export const HelpOverlay: React.FC = () => {
     </>
   );
 };
+
+export default HelpOverlay;

@@ -875,7 +875,6 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       }
     }
   };
-
   const handleAddMasterSlider = () => {
     const newSlider: MasterSlider = {
       id: `master-${Date.now()}`,
@@ -885,7 +884,30 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       targets: []
     };
     addMasterSlider(newSlider);
-  };  const handleMasterSliderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  };
+  const handleQuickSaveToScene = () => {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const sceneName = `2D_Canvas_Scene_${timestamp}`;
+      const oscAddress = `/scene/${sceneName.toLowerCase()}`;
+      
+      saveScene(sceneName, oscAddress);
+      addNotification({
+        message: `Scene "${sceneName}" saved successfully!`,
+        type: 'success',
+        priority: 'normal'
+      });
+    } catch (error) {
+      console.error('Failed to save scene:', error);
+      addNotification({
+        message: 'Failed to save scene. Please try again.',
+        type: 'error',
+        priority: 'high'
+      });
+    }
+  };
+
+  const handleMasterSliderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditingMasterSliderName(e.target.value);
   };
 

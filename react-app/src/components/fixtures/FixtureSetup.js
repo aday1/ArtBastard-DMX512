@@ -22,7 +22,7 @@ const channelTypes = [
     { value: 'other', label: 'Other' }
 ];
 // Define Fixture Templates
-const fixtureTemplates = [    {
+const fixtureTemplates = [{
         templateName: 'Blank Template',
         defaultNamePrefix: 'Custom Fixture',
         channels: [{ name: 'Channel 1', type: 'other' }],

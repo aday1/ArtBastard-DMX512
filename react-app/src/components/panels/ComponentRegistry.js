@@ -12,6 +12,7 @@ import { AudioControlPanel } from '../audio/AudioControlPanel';
 import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
+import { FixtureCanvas2DWrapper } from '../fixtures/FixtureCanvas2DWrapper';
 export const COMPONENT_REGISTRY = {
     // Core DMX Controls - Most Important
     'master-fader': {
@@ -91,6 +92,14 @@ export const COMPONENT_REGISTRY = {
         component: ChromaticEnergyManipulatorMini,
         defaultProps: { isDockable: false },
         minSize: { width: 280, height: 250 },
+    }, 'fixture-canvas-2d': {
+        type: 'fixture-canvas-2d',
+        title: '2D Canvas',
+        description: 'Visual fixture layout and control',
+        category: 'fixtures',
+        icon: 'fas fa-vector-square',
+        component: FixtureCanvas2DWrapper,
+        minSize: { width: 800, height: 600 },
     },
     'fixture-setup': {
         type: 'fixture-setup',

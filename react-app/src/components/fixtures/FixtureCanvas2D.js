@@ -53,6 +53,8 @@ export const FixtureCanvas2D = ({ fixtures, placedFixturesData, onUpdatePlacedFi
     const [gridSnappingEnabled, setGridSnappingEnabled] = useState(true);
     const { masterSliders, addMasterSlider, updateMasterSlider, updateMasterSliderValue, removeMasterSlider, setDmxChannel, dmxChannels, midiMappings, startMidiLearn, cancelMidiLearn, midiLearnTarget, // Added MIDI learn state/actions
     canvasBackgroundImage, // Added background image from store
+    saveScene, // Add saveScene action for Quick Save functionality
+    addNotification, // Add notification action for user feedback
      } = useStore(state => ({
         masterSliders: state.masterSliders,
         addMasterSlider: state.addMasterSlider,
@@ -66,6 +68,8 @@ export const FixtureCanvas2D = ({ fixtures, placedFixturesData, onUpdatePlacedFi
         cancelMidiLearn: state.cancelMidiLearn,
         midiLearnTarget: state.midiLearnTarget,
         canvasBackgroundImage: state.canvasBackgroundImage,
+        saveScene: state.saveScene,
+        addNotification: state.addNotification, // Add notification action
     }));
     useEffect(() => { setPlacedFixtures(placedFixturesData); }, [placedFixturesData]);
     // Grid snapping utilities
@@ -715,6 +719,27 @@ export const FixtureCanvas2D = ({ fixtures, placedFixturesData, onUpdatePlacedFi
         };
         addMasterSlider(newSlider);
     };
+    const handleQuickSaveToScene = () => {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const sceneName = `2D_Canvas_Scene_${timestamp}`;
+            const oscAddress = `/scene/${sceneName.toLowerCase()}`;
+            saveScene(sceneName, oscAddress);
+            addNotification({
+                message: `Scene "${sceneName}" saved successfully!`,
+                type: 'success',
+                priority: 'normal'
+            });
+        }
+        catch (error) {
+            console.error('Failed to save scene:', error);
+            addNotification({
+                message: 'Failed to save scene. Please try again.',
+                type: 'error',
+                priority: 'high'
+            });
+        }
+    };
     const handleMasterSliderNameChange = (e) => {
         setEditingMasterSliderName(e.target.value);
     };
@@ -847,7 +872,7 @@ export const FixtureCanvas2D = ({ fixtures, placedFixturesData, onUpdatePlacedFi
                                         targets: []
                                     };
                                     addMasterSlider(newSlider);
-                                }, children: "Add Master Slider" })] })] }), _jsxs("div", { className: styles.canvasWrapper, children: ["        ", _jsx("canvas", { ref: canvasRef, className: `${styles.fixtureCanvas} ${isDragging ? styles.dragging : ''} ${snapPreview ? styles.snapping : ''}`, onClick: handleCanvasClick, onMouseDown: handleMouseDown, onMouseMove: handleMouseMove, onMouseUp: handleMouseUp, onMouseLeave: handleMouseLeave, onContextMenu: handleContextMenu }), selectedMasterSliderForConfig && (_jsxs("div", { className: styles.masterSliderConfigPanel, children: [_jsxs("h4", { children: ["Configure: ", selectedMasterSliderForConfig.name] }), _jsxs("div", { className: styles.formGroup, children: [_jsx("label", { children: "MIDI Control:" }), _jsx("button", { onClick: () => handleMasterSliderMidiLearnToggle(selectedMasterSliderForConfig), className: `${styles.panelMidiLearnButton} ${midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id ? styles.learningActive : ''}`, children: midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id
+                                }, children: "Add Master Slider" }), _jsx("button", { className: styles.quickSaveButton, onClick: handleQuickSaveToScene, title: "Quick Save to Scene", children: "\uD83D\uDCBE Quick Save" })] })] }), _jsxs("div", { className: styles.canvasWrapper, children: ["        ", _jsx("canvas", { ref: canvasRef, className: `${styles.fixtureCanvas} ${isDragging ? styles.dragging : ''} ${snapPreview ? styles.snapping : ''}`, onClick: handleCanvasClick, onMouseDown: handleMouseDown, onMouseMove: handleMouseMove, onMouseUp: handleMouseUp, onMouseLeave: handleMouseLeave, onContextMenu: handleContextMenu }), selectedMasterSliderForConfig && (_jsxs("div", { className: styles.masterSliderConfigPanel, children: [_jsxs("h4", { children: ["Configure: ", selectedMasterSliderForConfig.name] }), _jsxs("div", { className: styles.formGroup, children: [_jsx("label", { children: "MIDI Control:" }), _jsx("button", { onClick: () => handleMasterSliderMidiLearnToggle(selectedMasterSliderForConfig), className: `${styles.panelMidiLearnButton} ${midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id ? styles.learningActive : ''}`, children: midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === selectedMasterSliderForConfig.id
                                             ? "Listening... (Click to Cancel)"
                                             : selectedMasterSliderForConfig.midiMapping
                                                 ? `Mapped: ${selectedMasterSliderForConfig.midiMapping.note !== undefined ? 'Note ' + selectedMasterSliderForConfig.midiMapping.note : 'CC ' + selectedMasterSliderForConfig.midiMapping.controller} (Ch ${selectedMasterSliderForConfig.midiMapping.channel})`
