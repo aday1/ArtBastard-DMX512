@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>External Monitor Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .test-button {
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .test-button:hover {
+            background: #45b7b8;
+            transform: translateY(-2px);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ External Monitor Test</h1>
+        <p>Testing the External Monitor functionality for touchscreen display</p>
+        
+        <div class="status" id="status">
+            <strong>Status:</strong> Ready to test
+        </div>
+        
+        <button class="test-button" onclick="testApplicationAccess()">
+            🌐 Test Main Application
+        </button>
+        
+        <button class="test-button" onclick="testConfigurationPage()">
+            ⚙️ Test Configuration Page
+        </button>
+        
+        <button class="test-button" onclick="openExternalMonitorGuide()">
+            📖 External Monitor Guide
+        </button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<strong>Status:</strong> ${message}`;
+            status.style.background = isError ? 'rgba(255, 0, 0, 0.2)' : 'rgba(0, 255, 0, 0.2)';
+        }
+
+        function testApplicationAccess() {
+            updateStatus('Testing main application...');
+            
+            fetch('http://localhost:3030/')
+                .then(response => {
+                    if (response.ok) {
+                        updateStatus('✅ Main application is accessible');
+                        window.open('http://localhost:3030/', '_blank');
+                    } else {
+                        updateStatus(`❌ Application returned status: ${response.status}`, true);
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`❌ Cannot reach application: ${error.message}`, true);
+                });
+        }
+
+        function testConfigurationPage() {
+            updateStatus('Testing configuration page...');
+            
+            fetch('http://localhost:3030/#/misc')
+                .then(response => {
+                    if (response.ok) {
+                        updateStatus('✅ Configuration page is accessible');
+                        window.open('http://localhost:3030/#/misc', '_blank');
+                    } else {
+                        updateStatus(`❌ Configuration page returned status: ${response.status}`, true);
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`❌ Cannot reach configuration page: ${error.message}`, true);
+                });
+        }
+
+        function openExternalMonitorGuide() {
+            const guide = `
+📋 External Monitor Usage Guide:
+
+1. 🚀 Open Main Application:
+   - Go to http://localhost:3030/
+   
+2. 🖥️ Find External Monitor Button:
+   - Look for "External Monitor" button in the panel controls area
+   - It should be at the top of the interface
+   
+3. ✨ Open External Window:
+   - Click the "External Monitor" button
+   - A new window will open that you can move to your touchscreen
+   
+4. 🎯 Use as Touchscreen Interface:
+   - The external window includes touch-optimized controls
+   - You can drag components from the main window to the external monitor
+   - The window can be moved to any display/monitor
+   
+5. 🔧 Configuration Issues:
+   - If configuration page isn't loading, check browser console for errors
+   - Try refreshing the page or restarting the server
+   
+💡 The External Monitor replaces the old 4th Panel system and provides 
+   exactly what you need for a separate touchscreen window!
+            `;
+            
+            alert(guide);
+        }
+
+        // Auto-test on load
+        setTimeout(() => {
+            updateStatus('Running initial connectivity test...');
+            testApplicationAccess();
+        }, 1000);
+    </script>
+</body>
+</html>

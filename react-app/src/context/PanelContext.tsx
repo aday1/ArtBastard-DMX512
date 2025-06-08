@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 
-export type PanelId = 'top-left' | 'top-right' | 'bottom' | 'fourth' | 'external';
+export type PanelId = 'top-left' | 'top-right' | 'bottom' | 'external';
 
 export interface PanelComponent {
   id: string;
@@ -19,7 +19,6 @@ export interface PanelLayout {
   'top-left': PanelState;
   'top-right': PanelState;
   'bottom': PanelState;
-  'fourth': PanelState;
   'external': PanelState;
   splitterPositions: {
     horizontal: number; // Top panels split (percentage)
@@ -86,9 +85,9 @@ const getDefaultLayout = (): PanelLayout => ({
         type: 'chromatic-energy-manipulator',
         title: 'Fixture Control',
         props: { isDockable: false }
-      }
-    ]
-  },  'fourth': {
+      }    ]
+  },
+  'external': {
     components: [
       {
         id: 'default-touch-interface',
@@ -97,9 +96,6 @@ const getDefaultLayout = (): PanelLayout => ({
         props: { touchOptimized: true }
       }
     ]
-  },
-  'external': {
-    components: []
   },
   splitterPositions: {
     horizontal: 50, // 50% split between top panels
@@ -120,7 +116,6 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
           'top-left': { components: [], ...defaultLayout['top-left'], ...parsedLayout['top-left'] },
           'top-right': { components: [], ...defaultLayout['top-right'], ...parsedLayout['top-right'] },
           'bottom': { components: [], ...defaultLayout['bottom'], ...parsedLayout['bottom'] },
-          'fourth': { components: [], ...defaultLayout['fourth'], ...parsedLayout['fourth'] },
           'external': { components: [], ...defaultLayout['external'], ...parsedLayout['external'] },
           splitterPositions: { ...defaultLayout.splitterPositions, ...parsedLayout.splitterPositions }
         };

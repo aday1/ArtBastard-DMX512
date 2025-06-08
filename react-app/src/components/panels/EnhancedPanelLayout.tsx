@@ -1,15 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { usePanels } from '../../context/PanelContext'
+import { useExternalWindow } from '../../context/ExternalWindowContext'
 import ResizablePanel from './ResizablePanel'
 import { ComponentToolbar } from './ComponentToolbar'
-import { FourthPanel } from './FourthPanel'
 import styles from './EnhancedPanelLayout.module.scss'
 
 export const EnhancedPanelLayout: React.FC = () => {
   const { layout, addComponentToPanel, updateSplitterPosition } = usePanels()
-  const [isDragging, setIsDragging] = useState<'horizontal' | 'vertical' | 'fourth-vertical' | null>(null)
-  const [fourthPanelVisible, setFourthPanelVisible] = useState(true)
-  const [fourthPanelHeight, setFourthPanelHeight] = useState(25) // percentage
+  const { externalWindow, openExternalWindow, closeExternalWindow } = useExternalWindow()
+  const [isDragging, setIsDragging] = useState<'horizontal' | 'vertical' | null>(null)
   const layoutRef = useRef<HTMLDivElement>(null)
 
   const handleDrop = useCallback((panelId: string) => (e: React.DragEvent) => {
@@ -32,8 +31,7 @@ export const EnhancedPanelLayout: React.FC = () => {
       console.error('Failed to parse dropped component data:', error)
     }
   }, [addComponentToPanel])
-
-  const handleMouseDown = useCallback((type: 'horizontal' | 'vertical' | 'fourth-vertical') => (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((type: 'horizontal' | 'vertical') => (e: React.MouseEvent) => {
     e.preventDefault()
     setIsDragging(type)
   }, [])
@@ -47,25 +45,23 @@ export const EnhancedPanelLayout: React.FC = () => {
       const newPosition = ((e.clientX - rect.left) / rect.width) * 100
       updateSplitterPosition('horizontal', Math.max(20, Math.min(80, newPosition)))
     } else if (isDragging === 'vertical') {
-      const availableHeight = fourthPanelVisible ? 100 - fourthPanelHeight : 100
-      const newPosition = ((e.clientY - rect.top) / rect.height) * availableHeight
+      const newPosition = ((e.clientY - rect.top) / rect.height) * 100
       updateSplitterPosition('vertical', Math.max(20, Math.min(80, newPosition)))
-    } else if (isDragging === 'fourth-vertical') {
-      const newHeight = ((rect.bottom - e.clientY) / rect.height) * 100
-      setFourthPanelHeight(Math.max(10, Math.min(60, newHeight)))
     }
-  }, [isDragging, updateSplitterPosition, fourthPanelVisible, fourthPanelHeight])
-
+  }, [isDragging, updateSplitterPosition])
   const handleMouseUp = useCallback(() => {
     setIsDragging(null)
   }, [])
 
-  const toggleFourthPanel = () => {
-    setFourthPanelVisible(!fourthPanelVisible)
+  const toggleExternalMonitor = () => {
+    if (externalWindow.isOpen) {
+      closeExternalWindow()
+    } else {
+      openExternalWindow()
+    }
   }
 
   const { horizontal, vertical } = layout.splitterPositions
-  const mainAreaHeight = fourthPanelVisible ? 100 - fourthPanelHeight : 100
 
   return (
     <div className={styles.layoutContainer}>
@@ -73,11 +69,11 @@ export const EnhancedPanelLayout: React.FC = () => {
       
       <div className={styles.panelControls}>
         <button 
-          onClick={toggleFourthPanel}
-          className={`${styles.panelToggle} ${fourthPanelVisible ? styles.active : ''}`}
-          title={fourthPanelVisible ? 'Hide 4th Panel' : 'Show 4th Panel'}
+          onClick={toggleExternalMonitor}
+          className={`${styles.panelToggle} ${externalWindow.isOpen ? styles.active : ''}`}
+          title={externalWindow.isOpen ? 'Close External Monitor' : 'Open External Monitor'}
         >
-          4th Panel
+          External Monitor
         </button>
       </div>
 
@@ -88,10 +84,10 @@ export const EnhancedPanelLayout: React.FC = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Main Three Panel Area */}
+        {/* Main Three Panel Area - Now Full Height */}
         <div 
           className={styles.mainPanelArea}
-          style={{ height: `${mainAreaHeight}%` }}
+          style={{ height: '100%' }}
         >
           {/* Top Section */}
           <div 
@@ -155,32 +151,8 @@ export const EnhancedPanelLayout: React.FC = () => {
               title="Bottom Panel"
               className={styles.bottomPanel}
               onDrop={handleDrop('bottom')}
-            />
-          </div>
+            />          </div>
         </div>
-
-        {/* Fourth Panel Section */}
-        {fourthPanelVisible && (
-          <>
-            {/* Fourth Panel Splitter */}
-            <div
-              className={`${styles.splitter} ${styles.fourthPanelSplitter}`}
-              onMouseDown={handleMouseDown('fourth-vertical')}
-            >
-              <div className={styles.splitterHandle}>
-                <i className="fas fa-grip-lines"></i>
-              </div>
-            </div>
-
-            {/* Fourth Panel */}
-            <div 
-              className={styles.fourthPanelSection}
-              style={{ height: `${fourthPanelHeight}%` }}
-            >
-              <FourthPanel onDrop={handleDrop('fourth')} />
-            </div>
-          </>
-        )}
       </div>
     </div>
   )

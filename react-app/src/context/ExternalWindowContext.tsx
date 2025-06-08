@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { PanelComponent } from './PanelContext';
+import { PanelComponent, usePanels, PanelProvider } from './PanelContext';
 import { renderComponent } from '../components/panels/ComponentRegistry';
+import ResizablePanel from '../components/panels/ResizablePanel';
 
 interface ExternalWindowState {
   isOpen: boolean;
@@ -24,42 +25,35 @@ interface ExternalWindowContextType {
 const ExternalWindowContext = createContext<ExternalWindowContextType | undefined>(undefined);
 
 // External Window React Component
-const ExternalWindowContent: React.FC<{ 
-  components: PanelComponent[];
-  onDrop?: (componentData: any) => void;
-  onComponentSelect?: (componentId: string) => void;
-  selectedComponentId?: string | null;
-  onRemoveComponent?: (componentId: string) => void;
-}> = ({ components, onDrop, onComponentSelect, selectedComponentId, onRemoveComponent }) => {
-  const [isDragOver, setIsDragOver] = React.useState(false);
+const ExternalWindowContent: React.FC = () => {
+  const { addComponentToPanel } = usePanels();
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
+  // Handle drop events like the main window panels do
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
     
     try {
       const componentData = JSON.parse(e.dataTransfer.getData('application/json'));
-      if (onDrop) {
-        onDrop(componentData);
-      }
+      
+      // Generate unique ID for component instance
+      const componentId = `${componentData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newComponent = {
+        id: componentId,
+        type: componentData.type,
+        title: componentData.title,
+        props: componentData.defaultProps || {},
+      };
+
+      // Add component to the external panel using PanelContext
+      addComponentToPanel('external', newComponent);
+      console.log('Component added to external monitor:', newComponent);
     } catch (error) {
       console.error('Failed to parse dropped component data:', error);
     }
   };
 
-  return (
-    <div 
+  return (    <div 
       style={{
         width: '100vw',
         height: '100vh',
@@ -69,9 +63,6 @@ const ExternalWindowContent: React.FC<{
         color: '#ffffff',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
       }}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       {/* Header */}
       <div style={{
@@ -93,175 +84,156 @@ const ExternalWindowContent: React.FC<{
           gap: '0.5rem'
         }}>
           🖥️ External Monitor - ArtBastard DMX
-        </div>
-        <div style={{
+        </div>        <div style={{
           color: 'rgba(255, 255, 255, 0.6)',
           fontSize: '0.9rem'
         }}>
-          Components: {components.length}
+          Touchscreen Interface
         </div>
-      </div>      {/* Content Area */}
+      </div>      {/* Content Area - Using ResizablePanel like FourthPanel */}
       <div style={{
         flex: 1,
-        padding: '1rem',
-        overflow: 'auto',
-        position: 'relative',
-        background: isDragOver ? 'rgba(78, 205, 196, 0.1)' : 'transparent',
-        border: isDragOver ? '2px dashed rgba(78, 205, 196, 0.5)' : '2px dashed transparent',
-        borderRadius: '8px',
-        transition: 'all 0.3s ease'
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        {components.length === 0 ? (
+        <div style={{
+          flex: 1,
+          padding: '1rem',
+          overflow: 'hidden'
+        }}>
+          <ResizablePanel
+            panelId="external"
+            title="External Monitor Interface"
+            className=""
+            onDrop={handleDrop}
+          />
+        </div>
+
+        {/* Touch Interface Controls - Merged from FourthPanel */}
+        <div style={{
+          position: 'absolute',
+          bottom: '1rem',
+          right: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          opacity: 0.8,
+          transition: 'opacity 0.2s'
+        }}>
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: isDragOver ? '#4ecdc4' : 'rgba(255, 255, 255, 0.5)',
-            textAlign: 'center',
-            transition: 'color 0.3s ease'
+            gap: '0.5rem',
+            background: 'rgba(0, 0, 0, 0.7)',
+            padding: '0.5rem',
+            borderRadius: '8px',
+            backdropFilter: 'blur(10px)'
           }}>
-            <div style={{ 
-              fontSize: '3rem', 
-              marginBottom: '1rem',
-              opacity: isDragOver ? 1 : 0.7,
-              transform: isDragOver ? 'scale(1.1)' : 'scale(1)',
-              transition: 'all 0.3s ease'
-            }}>
-              {isDragOver ? '⬇️' : '📺'}
-            </div>
-            <h2 style={{ marginBottom: '0.5rem', fontWeight: 300 }}>
-              {isDragOver ? 'Drop Component Here' : 'External Monitor Ready'}
-            </h2>
-            <p>{isDragOver ? 'Release to add component to external monitor' : 'Drag components from the main window to display them here'}</p>
+            <button
+              style={{
+                background: '#8b5cf6',
+                border: 'none',
+                color: 'white',
+                padding: '0.75rem',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '48px',
+                height: '48px',
+                transition: 'all 0.2s',
+                touchAction: 'manipulation'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#7c3aed';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#8b5cf6';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              title="Play"
+            >
+              ▶️
+            </button>
+            <button
+              style={{
+                background: '#8b5cf6',
+                border: 'none',
+                color: 'white',
+                padding: '0.75rem',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '48px',
+                height: '48px',
+                transition: 'all 0.2s',
+                touchAction: 'manipulation'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#7c3aed';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#8b5cf6';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              title="Pause"
+            >
+              ⏸️
+            </button>
+            <button
+              style={{
+                background: '#8b5cf6',
+                border: 'none',
+                color: 'white',
+                padding: '0.75rem',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '48px',
+                height: '48px',
+                transition: 'all 0.2s',
+                touchAction: 'manipulation'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#7c3aed';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#8b5cf6';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              title="Stop"
+            >
+              ⏹️
+            </button>
           </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '1rem',
-            height: 'fit-content'
-          }}>            {components.map((component) => (
-              <div
-                key={component.id}
-                style={{
-                  background: selectedComponentId === component.id 
-                    ? 'rgba(78, 205, 196, 0.2)' 
-                    : 'rgba(78, 205, 196, 0.1)',
-                  border: selectedComponentId === component.id 
-                    ? '2px solid rgba(78, 205, 196, 0.8)' 
-                    : '1px solid rgba(78, 205, 196, 0.3)',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  backdropFilter: 'blur(5px)',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '200px',
-                  cursor: 'pointer'
-                }}
-                onClick={() => onComponentSelect && onComponentSelect(component.id)}
-                onMouseEnter={(e) => {
-                  if (selectedComponentId !== component.id) {
-                    e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.6)';
-                    e.currentTarget.style.background = 'rgba(78, 205, 196, 0.15)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedComponentId !== component.id) {
-                    e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.3)';
-                    e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)';
-                  }
-                }}
-              >                {/* Selection indicator and controls */}
-                {selectedComponentId === component.id && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '0.5rem',
-                    right: '0.5rem',
-                    display: 'flex',
-                    gap: '0.5rem',
-                    alignItems: 'center'
-                  }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onRemoveComponent) {
-                          onRemoveComponent(component.id);
-                        }
-                      }}
-                      style={{
-                        background: '#ff6b6b',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold'
-                      }}
-                      title="Remove from External Monitor"
-                    >
-                      Remove
-                    </button>
-                    <div style={{
-                      background: '#4ecdc4',
-                      color: '#1a1a1a',
-                      borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 'bold'
-                    }}>
-                      ✓
-                    </div>
-                  </div>
-                )}
-                
-                <div style={{
-                  marginBottom: '1rem',
-                  paddingBottom: '0.5rem',
-                  borderBottom: '1px solid rgba(78, 205, 196, 0.2)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <h3 style={{
-                    color: '#4ecdc4',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    margin: 0
-                  }}>
-                    {component.title}
-                  </h3>
-                  <div style={{
-                    background: 'rgba(78, 205, 196, 0.2)',
-                    color: '#4ecdc4',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.7rem',
-                    fontWeight: 500
-                  }}>
-                    {component.type}
-                  </div>
-                </div>
-                <div style={{
-                  color: '#ffffff',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  borderRadius: '6px',
-                  padding: '1rem',
-                  minHeight: '120px'
-                }}>
-                  {/* This renders the actual interactive React component */}
-                  {renderComponent(component.type, component.props)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -278,58 +250,16 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
     components: [],
     reactRoot: null
   });
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
-  // Function to re-render external window with current state
-  const renderExternalWindow = useCallback((components: PanelComponent[]) => {
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);  // Function to re-render external window with current state
+  const renderExternalWindow = useCallback(() => {
     if (externalWindow.reactRoot && externalWindow.window && !externalWindow.window.closed) {
-      const handleDrop = (componentData: any) => {
-        // Generate unique ID for component instance
-        const componentId = `${componentData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        const newComponent: PanelComponent = {
-          id: componentId,
-          type: componentData.type,
-          title: componentData.title,
-          props: componentData.defaultProps || {},
-        };
-
-        // Add component directly to state
-        setExternalWindow(prev => {
-          const newComponents = [...prev.components, newComponent];
-          // Re-render will happen via useEffect
-          return {
-            ...prev,
-            components: newComponents
-          };
-        });
-      };
-
-      const handleComponentSelect = (componentId: string) => {
-        setSelectedComponentId(selectedComponentId === componentId ? null : componentId);
-      };
-
-      const handleRemoveComponent = (componentId: string) => {
-        setExternalWindow(prev => {
-          const newComponents = prev.components.filter(comp => comp.id !== componentId);
-          return {
-            ...prev,
-            components: newComponents
-          };
-        });
-        setSelectedComponentId(null);
-      };
-
       externalWindow.reactRoot.render(
-        <ExternalWindowContent 
-          components={components}
-          onDrop={handleDrop}
-          onComponentSelect={handleComponentSelect}
-          selectedComponentId={selectedComponentId}
-          onRemoveComponent={handleRemoveComponent}
-        />
+        <PanelProvider>
+          <ExternalWindowContent />
+        </PanelProvider>
       );
     }
-  }, [externalWindow.reactRoot, externalWindow.window, selectedComponentId]);
+  }, [externalWindow.reactRoot, externalWindow.window]);
   const addComponentToExternal = useCallback((component: PanelComponent) => {
     setExternalWindow(prev => ({
       ...prev,
@@ -343,13 +273,12 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
       components: prev.components.filter(comp => comp.id !== componentId)
     }));
   }, []);
-
-  // Re-render external window when components change
+  // Re-render external window when it's opened
   useEffect(() => {
-    if (externalWindow.isOpen && externalWindow.components) {
-      renderExternalWindow(externalWindow.components);
+    if (externalWindow.isOpen) {
+      renderExternalWindow();
     }
-  }, [externalWindow.components, renderExternalWindow, externalWindow.isOpen]);
+  }, [renderExternalWindow, externalWindow.isOpen]);
 
   const sendMessageToExternal = useCallback((message: any) => {
     if (externalWindow.window && !externalWindow.window.closed) {
@@ -438,23 +367,6 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
           return;
         }        // Create React root and render initial content
         const reactRoot = createRoot(rootElement);
-          // Setup the drop handler for the initial render
-        const handleDrop = (componentData: any) => {
-          // Generate unique ID for component instance
-          const componentId = `${componentData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          
-          const newComponent: PanelComponent = {
-            id: componentId,
-            type: componentData.type,
-            title: componentData.title,
-            props: componentData.defaultProps || {},
-          };
-
-          setExternalWindow(prev => ({
-            ...prev,
-            components: [...prev.components, newComponent]
-          }));
-        };
 
         const handleComponentSelect = (componentId: string) => {
           setSelectedComponentId(selectedComponentId === componentId ? null : componentId);
@@ -465,17 +377,10 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
             ...prev,
             components: prev.components.filter(comp => comp.id !== componentId)
           }));
-          setSelectedComponentId(null);
-        };
-
-        reactRoot.render(
-          <ExternalWindowContent 
-            components={[]}
-            onDrop={handleDrop}
-            onComponentSelect={handleComponentSelect}
-            selectedComponentId={selectedComponentId}
-            onRemoveComponent={handleRemoveComponent}
-          />
+          setSelectedComponentId(null);        };reactRoot.render(
+          <PanelProvider>
+            <ExternalWindowContent />
+          </PanelProvider>
         );
 
         // Update state with the new window and React root
