@@ -1,8 +1,12 @@
 import React from 'react'
-import { PanelLayout } from '../components/panels/PanelLayout'
+import { EnhancedPanelLayout } from '../components/panels/EnhancedPanelLayout'
 
 const MainPage: React.FC = () => {
-  return <PanelLayout />
+  return (
+    <div>
+      <EnhancedPanelLayout />
+    </div>
+  )
 }
 
 export default MainPage

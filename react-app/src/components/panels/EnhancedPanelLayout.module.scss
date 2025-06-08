@@ -1,0 +1,159 @@
+.layoutContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.panelControls {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.panelToggle {
+  background: var(--button-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.panelToggle:hover {
+  background: var(--button-hover-bg);
+}
+
+.panelToggle.active {
+  background: var(--accent-blue);
+  color: white;
+  border-color: var(--accent-blue);
+}
+
+.panelLayout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+}
+
+.mainPanelArea {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.topSection {
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.topLeft,
+.topRight {
+  overflow: hidden;
+  position: relative;
+}
+
+.bottomSection {
+  overflow: hidden;
+  position: relative;
+}
+
+.fourthPanelSection {
+  overflow: hidden;
+  position: relative;
+  border-top: 1px solid var(--border-color);
+}
+
+.splitter {
+  background: var(--border-color);
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.splitter:hover {
+  background: var(--accent-blue);
+}
+
+.horizontalSplitter {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.verticalSplitter {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.fourthPanelSplitter {
+  height: 4px;
+  cursor: row-resize;
+  background: var(--accent-purple);
+}
+
+.fourthPanelSplitter:hover {
+  background: var(--accent-purple-hover);
+}
+
+.splitterHandle {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.splitter:hover .splitterHandle {
+  opacity: 1;
+  color: white;
+}
+
+.topLeftPanel,
+.topRightPanel,
+.bottomPanel {
+  height: 100%;
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .panelControls {
+    padding: 0.25rem;
+  }
+  
+  .panelToggle {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .splitter {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .horizontalSplitter {
+    width: 6px;
+  }
+  
+  .verticalSplitter,
+  .fourthPanelSplitter {
+    height: 6px;
+  }
+}

@@ -1,0 +1,265 @@
+.fourthPanel {
+  position: absolute;
+  background: var(--panel-bg);
+  border: 2px solid var(--accent-purple);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  min-width: 400px;
+  min-height: 200px;
+  max-width: 90vw;
+  max-height: 90vh;
+  z-index: 1000;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.fourthPanel.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+  z-index: 9999;
+  transform: none !important;
+}
+
+.fourthPanel.minimized {
+  height: 50px !important;
+  min-height: 50px;
+  overflow: hidden;
+}
+
+.fourthPanel.followMode {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 20px rgba(0, 255, 100, 0.3);
+}
+
+.fourthPanel.dragging {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  transform: scale(1.02) !important;
+  border-color: var(--accent-blue);
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+  cursor: move;
+  user-select: none;
+  min-height: 50px;
+  box-sizing: border-box;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.followIndicator {
+  color: var(--accent-green);
+  font-size: 0.8rem;
+  font-weight: normal;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.headerControls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.controlButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  min-width: 32px;
+  height: 32px;
+}
+
+.controlButton:hover {
+  background: var(--button-hover-bg);
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
+.controlButton.active {
+  background: var(--accent-blue);
+  color: white;
+  border-color: var(--accent-blue);
+}
+
+.panelContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(100% - 50px);
+}
+
+.innerPanel {
+  flex: 1;
+  height: 100%;
+}
+
+.touchInterface {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.touchInterface:hover {
+  opacity: 1;
+}
+
+.touchControls {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.5rem;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.touchButton {
+  background: var(--accent-purple);
+  border: none;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 48px;
+  transition: all 0.2s;
+  touch-action: manipulation;
+}
+
+.touchButton:hover {
+  background: var(--accent-purple-hover);
+  transform: scale(1.1);
+}
+
+.touchButton:active {
+  transform: scale(0.95);
+}
+
+/* Touch device optimizations */
+@media (pointer: coarse) {
+  .controlButton {
+    min-width: 40px;
+    height: 40px;
+    padding: 0.5rem;
+  }
+  
+  .touchButton {
+    min-width: 56px;
+    height: 56px;
+    padding: 1rem;
+  }
+  
+  .panelHeader {
+    padding: 1rem;
+    min-height: 60px;
+  }
+  
+  .fourthPanel {
+    min-width: 320px;
+    min-height: 240px;
+  }
+}
+
+/* Fullscreen optimizations */
+.fourthPanel.fullscreen .touchInterface {
+  bottom: 2rem;
+  right: 2rem;
+}
+
+.fourthPanel.fullscreen .touchControls {
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.fourthPanel.fullscreen .touchButton {
+  min-width: 64px;
+  height: 64px;
+  padding: 1.25rem;
+}
+
+/* Minimize state */
+.fourthPanel.minimized .panelContent,
+.fourthPanel.minimized .touchInterface {
+  display: none;
+}
+
+.fourthPanel.minimized .headerTitle {
+  font-size: 0.8rem;
+}
+
+.fourthPanel.minimized .controlButton {
+  min-width: 28px;
+  height: 28px;
+  padding: 0.3rem;
+}
+
+/* Animation for follow mode */
+.fourthPanel.followMode {
+  animation: followGlow 3s ease-in-out infinite;
+}
+
+@keyframes followGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 100, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 100, 0.6);
+  }
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .fourthPanel {
+    min-width: 280px;
+    min-height: 180px;
+  }
+  
+  .headerTitle {
+    font-size: 0.8rem;
+  }
+  
+  .controlButton {
+    min-width: 36px;
+    height: 36px;
+  }
+  
+  .touchButton {
+    min-width: 44px;
+    height: 44px;
+  }
+}

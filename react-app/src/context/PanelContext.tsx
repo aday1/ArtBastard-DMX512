@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 
-export type PanelId = 'top-left' | 'top-right' | 'bottom';
+export type PanelId = 'top-left' | 'top-right' | 'bottom' | 'fourth';
 
 export interface PanelComponent {
   id: string;
@@ -19,6 +19,7 @@ export interface PanelLayout {
   'top-left': PanelState;
   'top-right': PanelState;
   'bottom': PanelState;
+  'fourth': PanelState;
   splitterPositions: {
     horizontal: number; // Top panels split (percentage)
     vertical: number;   // Top/bottom split (percentage)
@@ -84,6 +85,16 @@ const getDefaultLayout = (): PanelLayout => ({
         type: 'chromatic-energy-manipulator',
         title: 'Fixture Control',
         props: { isDockable: false }
+      }
+    ]
+  },
+  'fourth': {
+    components: [
+      {
+        id: 'default-touch-interface',
+        type: 'audio-control-panel',
+        title: 'Touchscreen Interface',
+        props: { touchOptimized: true }
       }
     ]
   },

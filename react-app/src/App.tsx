@@ -6,7 +6,6 @@ import { DockingProvider } from './context/DockingContext'
 import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
 import { PanelProvider } from './context/PanelContext'
 import { useStore } from './store'
-import { PanelLayout } from './components/panels/PanelLayout'
 import { useBrowserMidi } from './hooks/useBrowserMidi'
 import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
 import MidiDebugHelper from './components/midi/MidiDebugHelper'
@@ -80,9 +79,7 @@ function App() {
             <HelpOverlay />
             <ThemeToggleButton />
             <DebugInfo position="top-right" />            <ErrorBoundary>
-              <Layout>
-                <PanelLayout />
-              </Layout>
+              <Layout />
             </ErrorBoundary>
             </PanelProvider>
           </DockingProvider>
