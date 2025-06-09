@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import SceneLibraryPage from './SceneLibraryPage';
 import '@testing-library/jest-dom';
+import { vi } from 'vitest'; // Import vi for mocking
 
 // Mock child components that are not relevant to this specific test
-jest.mock('../components/scenes/SceneGallery', () => () => <div data-testid="scene-gallery">Scene Gallery</div>);
-jest.mock('../components/scenes/AutoSceneControlMini', () => () => <div data-testid="auto-scene-control-mini">Auto Scene Control Mini</div>);
+vi.mock('../components/scenes/SceneGallery', () => ({ default: () => <div data-testid="scene-gallery">Scene Gallery</div> }));
+vi.mock('../components/scenes/AutoSceneControlMini', () => ({ default: () => <div data-testid="auto-scene-control-mini">Auto Scene Control Mini</div> }));
 
 describe('SceneLibraryPage', () => {
   it('should render the page title and sections', () => {

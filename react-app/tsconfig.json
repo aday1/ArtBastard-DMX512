@@ -12,13 +12,14 @@
     "moduleResolution": "node", // Reverted from "node16"
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "outDir": "./dist-tsc",
     "noEmit": false,
     "jsx": "react-jsx",
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "suppressImplicitAnyIndexErrors": true,
+    "types": ["vitest/globals", "node"],
     "baseUrl": ".",
     "paths": {
       "@/*": [

@@ -580,7 +580,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
       >
         <div className={styles.fixtureInfo}>
           <div className={styles.fixtureName}>
-            {flags.favorite && <FaHeart className={styles.favoriteIcon} />}
+            {flags.favorite && <FontAwesomeIcon icon={faHeart} className={styles.favoriteIcon} />}
             {fixture.name}
           </div>
           <div className={styles.fixtureDetails}>
@@ -589,11 +589,11 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
         </div>
         
         <div className={styles.fixtureFlags}>
-          {flags.mute && <FaVolumeMute className={styles.flagIcon} title="Muted" />}
-          {flags.solo && <FaVolumeUp className={styles.flagIcon} title="Solo" />}
-          {flags.protect && <FaLock className={styles.flagIcon} title="Protected" />}
-          {flags.ignoreScenes && <FaEyeSlash className={styles.flagIcon} title="Ignore Scenes" />}
-          {flags.ignoreBlackout && <FaBolt className={styles.flagIcon} title="Ignore Blackout" />}
+          {flags.mute && <FontAwesomeIcon icon={faVolumeMute} className={styles.flagIcon} title="Muted" />}
+          {flags.solo && <FontAwesomeIcon icon={faVolumeUp} className={styles.flagIcon} title="Solo" />}
+          {flags.protect && <FontAwesomeIcon icon={faLock} className={styles.flagIcon} title="Protected" />}
+          {flags.ignoreScenes && <FontAwesomeIcon icon={faEyeSlash} className={styles.flagIcon} title="Ignore Scenes" />}
+          {flags.ignoreBlackout && <FontAwesomeIcon icon={faBolt} className={styles.flagIcon} title="Ignore Blackout" />}
         </div>
 
         <div className={styles.fixtureActions}>
@@ -605,7 +605,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
             }}
             title="Mute"
           >
-            <FaVolumeMute />
+            <FontAwesomeIcon icon={faVolumeMute} />
           </button>
           <button
             className={`${styles.flagButton} ${flags.solo ? styles.active : ''}`}
@@ -615,7 +615,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
             }}
             title="Solo"
           >
-            <FaVolumeUp />
+            <FontAwesomeIcon icon={faVolumeUp} />
           </button>
           <button
             className={`${styles.flagButton} ${flags.protect ? styles.active : ''}`}
@@ -625,7 +625,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
             }}
             title="Protect"
           >
-            <FaLock />
+            <FontAwesomeIcon icon={faLock} />
           </button>
           <button
             className={`${styles.flagButton} ${flags.favorite ? styles.active : ''}`}
@@ -635,7 +635,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
             }}
             title="Favorite"
           >
-            <FaHeart />
+            <FontAwesomeIcon icon={faHeart} />
           </button>
         </div>
       </div>
@@ -647,7 +647,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
       {/* Header */}
       <div className={styles.header}>
         <h2 className={styles.title}>
-          <FaLayerGroup />
+          <FontAwesomeIcon icon={faLayerGroup} />
           Advanced Fixture Controller
         </h2>
         <div className={styles.headerActions}>
@@ -660,42 +660,42 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
               onClick={selectAll}
               title="Select All (Ctrl+A)"
             >
-              <FaCopy />
+              <FontAwesomeIcon icon={faCopy} />
             </button>
             <button 
               className={styles.actionButton}
               onClick={clearSelection}
               title="Clear Selection (Esc)"
             >
-              <FaStop />
+              <FontAwesomeIcon icon={faStop} />
             </button>
             <button 
               className={styles.actionButton}
               onClick={selectInverse}
               title="Invert Selection (Ctrl+I)"
             >
-              <FaMagic />
+              <FontAwesomeIcon icon={faMagicWandSparkles} />
             </button>
             <button 
               className={styles.actionButton}
               onClick={randomizeSelected}
               title="Randomize Selected (Ctrl+R)"
             >
-              <FaRandom />
+              <FontAwesomeIcon icon={faRandom} />
             </button>
             <button 
               className={styles.actionButton}
               onClick={blackoutSelected}
               title="Blackout Selected (Del)"
             >
-              <FaStop />
+              <FontAwesomeIcon icon={faStop} />
             </button>
             <button 
               className={styles.actionButton}
               onClick={fullIntensitySelected}
               title="Full Intensity (Space)"
             >
-              <FaLightbulb />
+              <FontAwesomeIcon icon={faLightbulb} />
             </button>
           </div>
         </div>
@@ -707,7 +707,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* Search and Filter */}
           <div className={styles.searchSection}>
             <div className={styles.searchBar}>
-              <FaSearch className={styles.searchIcon} />
+              <FontAwesomeIcon icon={faSearch} className={styles.searchIcon} />
               <input
                 type="text"
                 placeholder="Search fixtures..."
@@ -720,7 +720,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                 onClick={() => setShowAdvancedControls(!showAdvancedControls)}
                 title="Advanced Filters"
               >
-                <FaFilter />
+                <FontAwesomeIcon icon={faFilter} />
               </button>
             </div>
             
@@ -786,35 +786,35 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                 onClick={() => selectByCapability('rgb')}
                 title="Select RGB fixtures"
               >
-                <FaPalette /> RGB
+                <FontAwesomeIcon icon={faPalette} /> RGB
               </button>
               <button 
                 className={styles.quickSelectButton}
                 onClick={() => selectByCapability('pan')}
                 title="Select moving head fixtures"
               >
-                <FaArrowsAlt /> Moving
+                <FontAwesomeIcon icon={faArrowsAlt} /> Moving
               </button>
               <button 
                 className={styles.quickSelectButton}
                 onClick={() => selectByFlags('favorite', true)}
                 title="Select favorite fixtures"
               >
-                <FaHeart /> Favorites
+                <FontAwesomeIcon icon={faHeart} /> Favorites
               </button>
               <button 
                 className={styles.quickSelectButton}
                 onClick={() => selectByFlags('mute', false)}
                 title="Select unmuted fixtures"
               >
-                <FaVolumeUp /> Active
+                <FontAwesomeIcon icon={faVolumeUp} /> Active
               </button>
               <button 
                 className={styles.quickSelectButton}
                 onClick={() => selectByFlags('solo', true)}
                 title="Select soloed fixtures"
               >
-                <FaStar /> Solo
+                <FontAwesomeIcon icon={faStar} /> Solo
               </button>
             </div>
           </div>
@@ -833,7 +833,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
               </List>
             ) : (
               <div className={styles.emptyState}>
-                <FaLightbulb className={styles.emptyIcon} />
+                <FontAwesomeIcon icon={faLightbulb} className={styles.emptyIcon} />
                 <p>No fixtures found</p>
                 <p>Try adjusting your search or filters</p>
               </div>
@@ -846,9 +846,9 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* Quick Presets */}
           <div className={`${styles.controlSection} ${expandedSections.presets ? styles.expanded : ''}`}>
             <div className={styles.sectionHeader} onClick={() => toggleSection('presets')}>
-              <FaMagic />
+              <FontAwesomeIcon icon={faMagicWandSparkles} />
               <span>Quick Presets</span>
-              <FaExpand className={expandedSections.presets ? styles.rotated : ''} />
+              <FontAwesomeIcon icon={faExpand} className={expandedSections.presets ? styles.rotated : ''} />
             </div>
             
             {expandedSections.presets && (
@@ -879,9 +879,9 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* Color Control */}
           <div className={`${styles.controlSection} ${expandedSections.color ? styles.expanded : ''}`}>
             <div className={styles.sectionHeader} onClick={() => toggleSection('color')}>
-              <FaPalette />
+              <FontAwesomeIcon icon={faPalette} />
               <span>Color Control</span>
-              <FaExpand className={expandedSections.color ? styles.rotated : ''} />
+              <FontAwesomeIcon icon={faExpand} className={expandedSections.color ? styles.rotated : ''} />
             </div>
             
             {expandedSections.color && (
@@ -907,7 +907,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                     onClick={() => setShowColorPicker(!showColorPicker)}
                     style={{ backgroundColor: `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})` }}
                   >
-                    <FaPalette />
+                    <FontAwesomeIcon icon={faPalette} />
                     Pick Color
                   </button>
                   
@@ -951,9 +951,9 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* Movement Control */}
           <div className={`${styles.controlSection} ${expandedSections.movement ? styles.expanded : ''}`}>
             <div className={styles.sectionHeader} onClick={() => toggleSection('movement')}>
-              <FaArrowsAlt />
+              <FontAwesomeIcon icon={faArrowsAlt} />
               <span>Pan/Tilt Control</span>
-              <FaExpand className={expandedSections.movement ? styles.rotated : ''} />
+              <FontAwesomeIcon icon={faExpand} className={expandedSections.movement ? styles.rotated : ''} />
             </div>
             
             {expandedSections.movement && (
@@ -1008,7 +1008,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                       onClick={() => applyPreset(preset)}
                       title={`${preset.name} (${preset.shortcut})`}
                     >
-                      <FaArrowsAlt />
+                      <FontAwesomeIcon icon={faArrowsAlt} />
                       {preset.name}
                     </button>
                   ))}
@@ -1056,9 +1056,9 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* Intensity Control */}
           <div className={`${styles.controlSection} ${expandedSections.intensity ? styles.expanded : ''}`}>
             <div className={styles.sectionHeader} onClick={() => toggleSection('intensity')}>
-              <FaBolt />
+              <FontAwesomeIcon icon={faBolt} />
               <span>Intensity Control</span>
-              <FaExpand className={expandedSections.intensity ? styles.rotated : ''} />
+              <FontAwesomeIcon icon={faExpand} className={expandedSections.intensity ? styles.rotated : ''} />
             </div>
             
             {expandedSections.intensity && (
@@ -1091,7 +1091,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                       onClick={() => applyPreset(preset)}
                       title={`${preset.name} (${preset.shortcut})`}
                     >
-                      <FaLightbulb />
+                      <FontAwesomeIcon icon={faLightbulb} />
                       {preset.name}
                     </button>
                   ))}
@@ -1103,9 +1103,9 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
           {/* MIDI Mapping */}
           <div className={`${styles.controlSection} ${expandedSections.midi ? styles.expanded : ''}`}>
             <div className={styles.sectionHeader} onClick={() => toggleSection('midi')}>
-              <FaGamepad />
+              <FontAwesomeIcon icon={faGamepad} />
               <span>MIDI Mapping</span>
-              <FaExpand className={expandedSections.midi ? styles.rotated : ''} />
+              <FontAwesomeIcon icon={faExpand} className={expandedSections.midi ? styles.rotated : ''} />
             </div>
             
             {expandedSections.midi && (
@@ -1146,7 +1146,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                           disabled={!midiMappings.panTilt.x.enabled}
                           title="MIDI Learn"
                         >
-                          <FaRecordVinyl />
+                          <FontAwesomeIcon icon={faCircleNotch} /> {/* Placeholder, assuming faRecordVinyl was intended but not imported or specific */}
                         </button>
                       </div>
                     </div>
@@ -1183,7 +1183,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                           disabled={!midiMappings.panTilt.y.enabled}
                           title="MIDI Learn"
                         >
-                          <FaRecordVinyl />
+                          <FontAwesomeIcon icon={faCircleNotch} /> {/* Placeholder */}
                         </button>
                       </div>
                     </div>
@@ -1225,7 +1225,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                             disabled={!midiMappings.color[color].enabled}
                             title="MIDI Learn"
                           >
-                            <FaRecordVinyl />
+                            <FontAwesomeIcon icon={faCircleNotch} /> {/* Placeholder */}
                           </button>
                         </div>
                       </div>
@@ -1267,7 +1267,7 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
                           disabled={!midiMappings.intensity.enabled}
                           title="MIDI Learn"
                         >
-                          <FaRecordVinyl />
+                          <FontAwesomeIcon icon={faCircleNotch} /> {/* Placeholder */}
                         </button>
                       </div>
                     </div>
@@ -1283,16 +1283,16 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
       <div className={styles.statusBar}>
         <div className={styles.statusLeft}>
           <span className={styles.statusItem}>
-            <FaCircle className={isLiveMode ? styles.statusActive : styles.statusInactive} />
+            <FontAwesomeIcon icon={faCircle} className={isLiveMode ? styles.statusActive : styles.statusInactive} />
             Live Mode: {isLiveMode ? 'ON' : 'OFF'}
           </span>
           <span className={styles.statusItem}>
-            <FaBolt />
+            <FontAwesomeIcon icon={faBolt} />
             Master: {masterIntensity}
           </span>
           {blackout && (
             <span className={`${styles.statusItem} ${styles.blackout}`}>
-              <FaStop />
+              <FontAwesomeIcon icon={faStop} />
               BLACKOUT
             </span>
           )}
@@ -1300,15 +1300,15 @@ export const AdvancedFixtureController: React.FC<AdvancedFixtureControllerProps>
         
         <div className={styles.statusRight}>
           <span className={styles.statusItem}>
-            <FaLightbulb />
+            <FontAwesomeIcon icon={faLightbulb} />
             Fixtures: {filteredFixtures.length}
           </span>          <span className={styles.statusItem}>
-            <FaCircle />
+            <FontAwesomeIcon icon={faCircle} />
             Selected: {selectedFixtures.size}
           </span>
           {scenes.length > 0 && (
             <span className={styles.statusItem}>
-              <FaLayerGroup />
+              <FontAwesomeIcon icon={faLayerGroup} />
               Scenes: {scenes.length}
             </span>
           )}
