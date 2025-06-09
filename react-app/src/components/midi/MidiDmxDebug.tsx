@@ -187,13 +187,12 @@ const MidiDmxDebug: React.FC = () => {
     }));
   };
   
-  if (!isActive) {
-    return (
+  if (!isActive) {    return (
       <div style={{
         position: 'fixed', 
         bottom: '10px', 
-        right: '10px',
-        zIndex: 9999
+        right: '240px', // Moved to avoid navbar overlap
+        zIndex: 1000 // Lower than navbar z-index (1001)
       }}>
         <button onClick={toggleActive} style={{padding: '5px 10px'}}>
           Debug MIDI-DMX
@@ -201,12 +200,11 @@ const MidiDmxDebug: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div style={{
       position: 'fixed',
       bottom: '10px',
-      right: '10px',
+      right: '240px', // Moved to avoid navbar overlap
       width: '400px',
       height: '500px',
       backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -216,7 +214,7 @@ const MidiDmxDebug: React.FC = () => {
       borderRadius: '5px',
       display: 'flex',
       flexDirection: 'column',
-      zIndex: 9999
+      zIndex: 1000 // Lower than navbar z-index (1001)
     }}>
       <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
         <h3 style={{margin: 0}}>MIDI-DMX Debugger</h3>

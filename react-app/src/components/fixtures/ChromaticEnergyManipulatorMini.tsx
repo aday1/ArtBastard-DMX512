@@ -11,11 +11,104 @@ interface ChromaticEnergyManipulatorMiniProps {
   isDockable?: boolean;
 }
 
+// Enhanced color and movement interfaces
+interface HSVColor {
+  h: number; // 0-360
+  s: number; // 0-100
+  v: number; // 0-100
+}
+
+interface MovementPreset {
+  name: string;
+  pan: number;
+  tilt: number;
+  icon: keyof typeof import('lucide-react');
+}
+
+interface ControlMode {
+  type: 'basic' | 'advanced' | 'performance';
+  label: string;
+}
+
+// Utility functions for color conversion
+const hsvToRgb = (h: number, s: number, v: number): { r: number; g: number; b: number } => {
+  h = h / 360;
+  s = s / 100;
+  v = v / 100;
+  
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h * 6) % 2) - 1));
+  const m = v - c;
+  
+  let r = 0, g = 0, b = 0;
+  
+  if (h < 1/6) { r = c; g = x; b = 0; }
+  else if (h < 2/6) { r = x; g = c; b = 0; }
+  else if (h < 3/6) { r = 0; g = c; b = x; }
+  else if (h < 4/6) { r = 0; g = x; b = c; }
+  else if (h < 5/6) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+  
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  };
+};
+
+const rgbToHsv = (r: number, g: number, b: number): HSVColor => {
+  r = r / 255;
+  g = g / 255;
+  b = b / 255;
+  
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const diff = max - min;
+  
+  let h = 0;
+  let s = max === 0 ? 0 : (diff / max) * 100;
+  let v = max * 100;
+  
+  if (diff !== 0) {
+    if (max === r) h = ((g - b) / diff) % 6;
+    else if (max === g) h = (b - r) / diff + 2;
+    else h = (r - g) / diff + 4;
+  }
+  
+  h = h * 60;
+  if (h < 0) h += 360;
+  
+  return { h, s, v };
+};
+
+const kelvinToRgb = (kelvin: number): { r: number; g: number; b: number } => {
+  const temp = kelvin / 100;
+  let r, g, b;
+  
+  if (temp <= 66) {
+    r = 255;
+    g = temp <= 19 ? 0 : 99.4708025861 * Math.log(temp - 10) - 161.1195681661;
+    b = temp >= 66 ? 255 : temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
+  } else {
+    r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
+    g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
+    b = 255;
+  }
+  
+  return {
+    r: Math.max(0, Math.min(255, Math.round(r))),
+    g: Math.max(0, Math.min(255, Math.round(g))),
+    b: Math.max(0, Math.min(255, Math.round(b)))
+  };
+};
+
 const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
   isDockable = true,
-}) => {const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
+}) => {
+  // ...existing state...
+  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [showFixtureSelect, setShowFixtureSelect] = useState(false);
   const [showFlagPanel, setShowFlagPanel] = useState(false);
   const [newFlagName, setNewFlagName] = useState('');
@@ -24,17 +117,56 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [lastColorPreset, setLastColorPreset] = useState<{ r: number; g: number; b: number } | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);  const [searchTerm, setSearchTerm] = useState('');
   const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
   
-  // Color and movement state
+  // Enhanced state for advanced controls
+  const [controlMode, setControlMode] = useState<ControlMode['type']>('basic');
+  const [showColorWheel, setShowColorWheel] = useState(false);
+  const [showRGBSliders, setShowRGBSliders] = useState(false);
+  const [showHSVControls, setShowHSVControls] = useState(false);
+  const [showMovementPresets, setShowMovementPresets] = useState(false);
+  const [showPanTiltSliders, setShowPanTiltSliders] = useState(false);
+  const [isColorWheelMode, setIsColorWheelMode] = useState(false);
+  const [lockValues, setLockValues] = useState({ color: false, movement: false });
+  const [smoothMovement, setSmoothMovement] = useState(false);
+  const [movementSpeed, setMovementSpeed] = useState(100); // 1-100%
+  const [colorTemperature, setColorTemperature] = useState(5600); // Kelvin
+  
+  // Color and movement state with HSV support
   const [color, setColor] = useState<{ r: number; g: number; b: number }>({ r: 255, g: 255, b: 255 });
+  const [hsvColor, setHsvColor] = useState<HSVColor>({ h: 0, s: 0, v: 100 });
   const [movement, setMovement] = useState<{ pan: number; tilt: number }>({ pan: 127, tilt: 127 });
   
-  // Canvas references
+  // Enhanced canvas references
   const colorCanvasRef = useRef<HTMLCanvasElement>(null);
   const movementCanvasRef = useRef<HTMLCanvasElement>(null);
+  const colorWheelRef = useRef<HTMLCanvasElement>(null);
+  const hueSliderRef = useRef<HTMLCanvasElement>(null);
+  
+  // Undo/Redo state
+  const [undoStack, setUndoStack] = useState<Array<{ color: any; movement: any }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{ color: any; movement: any }>>([]);
+  // Movement presets
+  const movementPresets: MovementPreset[] = [
+    { name: 'Home', pan: 127, tilt: 127, icon: 'Home' },
+    { name: 'Center', pan: 127, tilt: 127, icon: 'Target' },
+    { name: 'Left', pan: 64, tilt: 127, icon: 'ArrowLeft' },
+    { name: 'Right', pan: 192, tilt: 127, icon: 'ArrowRight' },
+    { name: 'Up', pan: 127, tilt: 192, icon: 'ArrowUp' },
+    { name: 'Down', pan: 127, tilt: 64, icon: 'ArrowDown' },
+    { name: 'Top Left', pan: 64, tilt: 192, icon: 'MoveUpLeft' },
+    { name: 'Top Right', pan: 192, tilt: 192, icon: 'MoveUpRight' },
+    { name: 'Bottom Left', pan: 64, tilt: 64, icon: 'MoveDownLeft' },
+    { name: 'Bottom Right', pan: 192, tilt: 64, icon: 'MoveDownRight' },
+  ];
+
+  // Control modes
+  const controlModes: ControlMode[] = [
+    { type: 'basic', label: 'Basic' },
+    { type: 'advanced', label: 'Advanced' },
+    { type: 'performance', label: 'Performance' },
+  ];
 
   const { 
     fixtures, 
@@ -196,6 +328,100 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     }
   };
 
+  // Undo/Redo functionality
+  const saveToUndoStack = () => {
+    const currentState = { color: { ...color }, movement: { ...movement } };
+    setUndoStack(prev => {
+      const newStack = [...prev, currentState];
+      return newStack.slice(-10); // Keep only last 10 states
+    });
+    setRedoStack([]); // Clear redo stack when new action is performed
+  };
+
+  const undo = () => {
+    if (undoStack.length === 0) return;
+    
+    const currentState = { color: { ...color }, movement: { ...movement } };
+    setRedoStack(prev => [currentState, ...prev.slice(0, 9)]);
+    
+    const previousState = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    
+    setColor(previousState.color);
+    setMovement(previousState.movement);
+    
+    // Apply to fixtures
+    selectedFixtures.forEach(fixtureId => {
+      const { rgbChannels, movementChannels } = getFixtureChannels(fixtureId);
+      
+      // Apply color
+      if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, previousState.color.r);
+      if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, previousState.color.g);
+      if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, previousState.color.b);
+      
+      // Apply movement
+      if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, previousState.movement.pan);
+      if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, previousState.movement.tilt);
+    });
+  };
+
+  const redo = () => {
+    if (redoStack.length === 0) return;
+    
+    const currentState = { color: { ...color }, movement: { ...movement } };
+    setUndoStack(prev => [...prev, currentState].slice(-10));
+    
+    const nextState = redoStack[0];
+    setRedoStack(prev => prev.slice(1));
+    
+    setColor(nextState.color);
+    setMovement(nextState.movement);
+    
+    // Apply to fixtures
+    selectedFixtures.forEach(fixtureId => {
+      const { rgbChannels, movementChannels } = getFixtureChannels(fixtureId);
+      
+      // Apply color
+      if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, nextState.color.r);
+      if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, nextState.color.g);
+      if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, nextState.color.b);
+      
+      // Apply movement
+      if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, nextState.movement.pan);
+      if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, nextState.movement.tilt);
+    });
+  };
+
+  // Enhanced application functions with undo support
+  const applyColorWithUndo = (newColor: { r: number; g: number; b: number }) => {
+    saveToUndoStack();
+    applyColorPreset(newColor);
+  };
+
+  const applyMovementWithUndo = (newMovement: { pan: number; tilt: number }) => {
+    saveToUndoStack();
+    setMovement(newMovement);
+    
+    selectedFixtures.forEach(fixtureId => {
+      const { movementChannels } = getFixtureChannels(fixtureId);
+      if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, newMovement.pan);
+      if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
+    });
+  };
+
+  // Enhanced color control functions
+  const applyColorTemperature = (kelvin: number) => {
+    const rgb = kelvinToRgb(kelvin);
+    applyColorWithUndo(rgb);
+    setColorTemperature(kelvin);
+  };
+
+  const applyHSVColor = (hsv: HSVColor) => {
+    const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+    setHsvColor(hsv);
+    applyColorWithUndo(rgb);
+  };
+
   const selectAllFlagged = () => {
     const flaggedFixtures = fixtures.filter(f => f.isFlagged);
     setSelectedFixtures(flaggedFixtures.map(f => f.id));
@@ -325,7 +551,95 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     }
   }, [fixtures, selectedFixtures.length, settings.autoSelectFirstFixture]);
 
-  // Keyboard shortcuts
+  // Update color when RGB changes to sync HSV
+  useEffect(() => {
+    const hsv = rgbToHsv(color.r, color.g, color.b);
+    setHsvColor(hsv);
+  }, [color]);
+
+  // Enhanced canvas drawing functions
+  const drawColorWheel = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw color wheel
+    for (let angle = 0; angle < 360; angle += 1) {
+      const startAngle = (angle - 1) * Math.PI / 180;
+      const endAngle = angle * Math.PI / 180;
+      
+      for (let r = 0; r < radius; r += 1) {
+        const saturation = r / radius * 100;
+        const rgb = hsvToRgb(angle, saturation, 100);
+        
+        ctx.strokeStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, startAngle, endAngle);
+        ctx.stroke();
+      }
+    }
+
+    // Draw current color indicator
+    const currentRadius = (hsvColor.s / 100) * radius;
+    const currentAngle = (hsvColor.h - 90) * Math.PI / 180;
+    const indicatorX = centerX + currentRadius * Math.cos(currentAngle);
+    const indicatorY = centerY + currentRadius * Math.sin(currentAngle);
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.fillStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(indicatorX, indicatorY, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  const drawHueSlider = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw hue gradient
+    for (let x = 0; x < width; x++) {
+      const hue = (x / width) * 360;
+      const rgb = hsvToRgb(hue, 100, 100);
+      ctx.fillStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+      ctx.fillRect(x, 0, 1, height);
+    }
+
+    // Draw current hue indicator
+    const indicatorX = (hsvColor.h / 360) * width;
+    ctx.strokeStyle = '#ffffff';
+    ctx.fillStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(indicatorX - 2, 0, 4, height);
+    ctx.fill();
+    ctx.stroke();
+  };
+  // Canvas drawing effect hooks
+  useEffect(() => {
+    if (colorWheelRef.current && showColorWheel) {
+      drawColorWheel(colorWheelRef.current);
+    }
+  }, [hsvColor, showColorWheel]);
+
+  useEffect(() => {
+    if (hueSliderRef.current && showHSVControls) {
+      drawHueSlider(hueSliderRef.current);
+    }
+  }, [hsvColor, showHSVControls]);
+
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (selectedFixtures.length === 0) return;
@@ -357,17 +671,30 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
         case '3':
           event.preventDefault();
           applyColorPreset({ r: 0, g: 0, b: 255 }); // Blue
-          break;
-        case '0':
+          break;        case '0':
           event.preventDefault();
           applyColorPreset({ r: 0, g: 0, b: 0 }); // Off
           break;
+        case 'z':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            if (event.shiftKey) {
+              redo(); // Ctrl+Shift+Z for redo
+            } else {
+              undo(); // Ctrl+Z for undo
+            }
+          }
+          break;
+        case 'y':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            redo(); // Ctrl+Y for redo (alternative)
+          }
+          break;
       }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
+    };    window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedFixtures, applyColorPreset, randomizeColor, centerMovement]);
+  }, [selectedFixtures, applyColorPreset, randomizeColor, centerMovement, undo, redo]);
 
   // Update color and movement when selection changes
   useEffect(() => {
@@ -993,10 +1320,454 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
               </div>
             )}
 
-            {!hasRgbChannels && !hasMovementChannels && (
-              <div className={styles.noChannels}>
-                <LucideIcon name="AlertCircle" />
-                <span>No RGB or movement channels found</span>
+            {/* Enhanced Controls - Color Wheel, Sliders, Movement Presets */}
+            {selectedFixtures.length > 0 && (
+              <div className={styles.enhancedControls}>
+                {/* Control Mode Selector */}
+                <div className={styles.controlMode}>
+                  {controlModes.map(mode => (
+                    <button
+                      key={mode.type}
+                      onClick={() => setControlMode(mode.type)}
+                      className={`${styles.modeButton} ${controlMode === mode.type ? styles.active : ''}`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Undo/Redo Controls */}
+                <div className={styles.undoRedoControls}>
+                  <button
+                    className={styles.undoButton}
+                    onClick={undo}
+                    disabled={undoStack.length === 0}
+                    title="Undo (Ctrl+Z)"
+                  >
+                    <LucideIcon name="Undo2" />
+                    Undo
+                  </button>
+                  <button
+                    className={styles.redoButton}
+                    onClick={redo}
+                    disabled={redoStack.length === 0}
+                    title="Redo (Ctrl+Y)"
+                  >
+                    <LucideIcon name="Redo2" />
+                    Redo
+                  </button>
+                </div>
+
+                {/* Toggle Controls for Advanced Features */}
+                {controlMode === 'advanced' && (
+                  <div className={styles.toggleControls}>
+                    <button
+                      className={`${styles.toggleButton} ${showColorWheel ? styles.active : ''}`}
+                      onClick={() => setShowColorWheel(!showColorWheel)}
+                      title="Toggle Color Wheel"
+                    >
+                      Color Wheel
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showRGBSliders ? styles.active : ''}`}
+                      onClick={() => setShowRGBSliders(!showRGBSliders)}
+                      title="Toggle RGB Sliders"
+                    >
+                      RGB Sliders
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showHSVControls ? styles.active : ''}`}
+                      onClick={() => setShowHSVControls(!showHSVControls)}
+                      title="Toggle HSV Controls"
+                    >
+                      HSV Controls
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showMovementPresets ? styles.active : ''}`}
+                      onClick={() => setShowMovementPresets(!showMovementPresets)}
+                      title="Toggle Movement Presets"
+                    >
+                      Movement Presets
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showPanTiltSliders ? styles.active : ''}`}
+                      onClick={() => setShowPanTiltSliders(!showPanTiltSliders)}
+                      title="Toggle Pan/Tilt Sliders"
+                    >
+                      Pan/Tilt Sliders
+                    </button>
+                  </div>
+                )}
+
+                {/* Color Wheel Control */}
+                {controlMode === 'advanced' && showColorWheel && (
+                  <div className={styles.colorWheelControl}>
+                    <canvas
+                      ref={colorWheelRef}
+                      width={200}
+                      height={200}
+                      className={styles.colorWheel}
+                      onClick={(e) => {
+                        const rect = colorWheelRef.current?.getBoundingClientRect();
+                        const x = e.clientX - (rect?.left || 0);
+                        const y = e.clientY - (rect?.top || 0);
+                        const radius = colorWheelRef.current?.width / 2;
+                        const centerX = radius;
+                        const centerY = radius;
+                        const dx = x - centerX;
+                        const dy = y - centerY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance <= radius) {
+                          const hue = Math.atan2(dy, dx) * (180 / Math.PI) + 180;
+                          const saturation = Math.min(100, (distance / radius) * 100);
+                          
+                          setHsvColor(prev => ({ ...prev, h: hue, s: saturation }));
+                          
+                          const rgb = hsvToRgb(hue, saturation, 100);
+                          setColor(rgb);
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, rgb.r);
+                            if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, rgb.g);
+                            if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, rgb.b);
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* RGB Sliders Control */}
+                {controlMode === 'advanced' && showRGBSliders && (
+                  <div className={styles.rgbSlidersControl}>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Red</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={color.r}
+                        onChange={(e) => {
+                          const newValue = Math.min(255, Math.max(0, parseInt(e.target.value)));
+                          setColor(prev => ({ ...prev, r: newValue }));
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, newValue);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Green</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={color.g}
+                        onChange={(e) => {
+                          const newValue = Math.min(255, Math.max(0, parseInt(e.target.value)));
+                          setColor(prev => ({ ...prev, g: newValue }));
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, newValue);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Blue</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={color.b}
+                        onChange={(e) => {
+                          const newValue = Math.min(255, Math.max(0, parseInt(e.target.value)));
+                          setColor(prev => ({ ...prev, b: newValue }));
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, newValue);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* HSV Controls */}
+                {controlMode === 'advanced' && showHSVControls && (
+                  <div className={styles.hsvControls}>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Hue</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={hsvColor.h}
+                        onChange={(e) => {
+                          const newValue = Math.min(360, Math.max(0, parseInt(e.target.value)));
+                          setHsvColor(prev => ({ ...prev, h: newValue }));
+                          
+                          const rgb = hsvToRgb(newValue, hsvColor.s, hsvColor.v);
+                          setColor(rgb);
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, rgb.r);
+                            if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, rgb.g);
+                            if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, rgb.b);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Saturation</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={hsvColor.s}
+                        onChange={(e) => {
+                          const newValue = Math.min(100, Math.max(0, parseInt(e.target.value)));
+                          setHsvColor(prev => ({ ...prev, s: newValue }));
+                          
+                          const rgb = hsvToRgb(hsvColor.h, newValue, hsvColor.v);
+                          setColor(rgb);
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, rgb.r);
+                            if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, rgb.g);
+                            if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, rgb.b);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Value</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={hsvColor.v}
+                        onChange={(e) => {
+                          const newValue = Math.min(100, Math.max(0, parseInt(e.target.value)));
+                          setHsvColor(prev => ({ ...prev, v: newValue }));
+                          
+                          const rgb = hsvToRgb(hsvColor.h, hsvColor.s, newValue);
+                          setColor(rgb);
+                          
+                          // Update all selected fixtures
+                          selectedFixtures.forEach(fixtureId => {
+                            const { rgbChannels } = getFixtureChannels(fixtureId);
+                            if (rgbChannels.redChannel !== undefined) setDmxChannelValue(rgbChannels.redChannel, rgb.r);
+                            if (rgbChannels.greenChannel !== undefined) setDmxChannelValue(rgbChannels.greenChannel, rgb.g);
+                            if (rgbChannels.blueChannel !== undefined) setDmxChannelValue(rgbChannels.blueChannel, rgb.b);
+                          });
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Color Temperature Control */}
+                {controlMode === 'advanced' && (
+                  <div className={styles.colorTemperatureControl}>
+                    <h4>Color Temperature</h4>
+                    <div className={styles.temperatureSlider}>
+                      <input
+                        type="range"
+                        min="2700"
+                        max="8000"
+                        value={colorTemperature}
+                        onChange={(e) => {
+                          const kelvin = parseInt(e.target.value);
+                          applyColorTemperature(kelvin);
+                        }}
+                        className={styles.slider}
+                      />
+                    </div>
+                    <div className={styles.temperatureValue}>
+                      {colorTemperature}K
+                    </div>
+                  </div>
+                )}
+
+                {/* Lock Controls */}
+                {controlMode === 'advanced' && (
+                  <div className={styles.lockControls}>                    <label className={styles.lockToggle}>
+                      <input
+                        type="checkbox"
+                        checked={lockValues.color}
+                        onChange={(e) => setLockValues(prev => ({ ...prev, color: e.target.checked }))}
+                      />
+                      Lock Color
+                    </label>                    <label className={styles.lockToggle}>
+                      <input
+                        type="checkbox"
+                        checked={lockValues.movement}
+                        onChange={(e) => setLockValues(prev => ({ ...prev, movement: e.target.checked }))}
+                      />
+                      Lock Movement
+                    </label>
+                    <label className={styles.lockToggle}>
+                      <input
+                        type="checkbox"
+                        checked={smoothMovement}
+                        onChange={(e) => setSmoothMovement(e.target.checked)}
+                      />
+                      Smooth Movement
+                    </label>
+                  </div>
+                )}
+
+                {/* Movement Presets */}
+                {controlMode === 'advanced' && showMovementPresets && (
+                  <div className={styles.movementPresets}>
+                    <h4>Movement Presets</h4>
+                    <div className={styles.presetButtons}>
+                      {movementPresets.map(preset => (
+                        <button
+                          key={preset.name}
+                          onClick={() => {
+                            setMovement({ pan: preset.pan, tilt: preset.tilt });
+                            
+                            // Update all selected fixtures
+                            selectedFixtures.forEach(fixtureId => {
+                              const { movementChannels } = getFixtureChannels(fixtureId);
+                              if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, preset.pan);
+                              if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, preset.tilt);
+                            });
+                          }}
+                          className={styles.presetButton}
+                          title={preset.name}
+                        >
+                          <LucideIcon name={preset.icon} />
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pan/Tilt Sliders */}
+                {controlMode === 'advanced' && showPanTiltSliders && (
+                  <div className={styles.movementSliders}>
+                    <h4>Pan/Tilt Control</h4>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Pan</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={movement.pan}
+                        onChange={(e) => {
+                          const newPan = parseInt(e.target.value);
+                          if (!lockValues.movement) {
+                            setMovement(prev => ({ ...prev, pan: newPan }));
+                            
+                            selectedFixtures.forEach(fixtureId => {
+                              const { movementChannels } = getFixtureChannels(fixtureId);
+                              if (movementChannels.panChannel !== undefined) {
+                                setDmxChannelValue(movementChannels.panChannel, newPan);
+                              }
+                            });
+                          }
+                        }}
+                        className={styles.slider}
+                      />
+                      <span className={styles.value}>{movement.pan}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Tilt</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={movement.tilt}
+                        onChange={(e) => {
+                          const newTilt = parseInt(e.target.value);
+                          if (!lockValues.movement) {
+                            setMovement(prev => ({ ...prev, tilt: newTilt }));
+                            
+                            selectedFixtures.forEach(fixtureId => {
+                              const { movementChannels } = getFixtureChannels(fixtureId);
+                              if (movementChannels.tiltChannel !== undefined) {
+                                setDmxChannelValue(movementChannels.tiltChannel, newTilt);
+                              }
+                            });
+                          }
+                        }}
+                        className={styles.slider}
+                      />
+                      <span className={styles.value}>{movement.tilt}</span>
+                    </div>
+                    {smoothMovement && (
+                      <div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>Speed</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="100"
+                          value={movementSpeed}
+                          onChange={(e) => setMovementSpeed(parseInt(e.target.value))}
+                          className={styles.slider}
+                        />
+                        <span className={styles.value}>{movementSpeed}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Performance Mode Controls */}
+                {controlMode === 'performance' && (
+                  <div className={styles.performanceControls}>
+                    <h4>Performance Mode</h4>
+                    <div className={styles.quickActions}>
+                      <button
+                        className={styles.actionButton}
+                        onClick={randomizeColor}
+                        title="Random Color (Ctrl+R)"
+                      >
+                        <LucideIcon name="Shuffle" />
+                        Random Color
+                      </button>
+                      <button
+                        className={styles.actionButton}
+                        onClick={centerMovement}
+                        title="Center Position (Ctrl+C)"
+                      >
+                        <LucideIcon name="Target" />
+                        Center
+                      </button>
+                      <button
+                        className={styles.actionButton}
+                        onClick={() => applyColorPreset({ r: 0, g: 0, b: 0 })}
+                        title="Blackout (0)"
+                      >
+                        <LucideIcon name="Power" />
+                        Blackout
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

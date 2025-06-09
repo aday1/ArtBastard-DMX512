@@ -1,7 +1,7 @@
 .componentToolbar {
   position: fixed;
   top: 20px;
-  right: 20px;
+  right: 240px; // Moved to avoid navbar overlap
   width: 320px;
   max-height: 80vh;
   background: rgba(0, 0, 0, 0.95);
@@ -9,7 +9,7 @@
   border-radius: 8px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 11000;
+  z-index: 1000; // Lower than navbar z-index (1001)
   transition: all 0.3s ease;
   overflow: hidden;
 

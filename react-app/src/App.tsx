@@ -13,8 +13,8 @@ import MidiDebugHelper from './components/midi/MidiDebugHelper'
 import MidiDmxDebug from './components/midi/MidiDmxDebug'
 import OscMonitor from './components/osc/OscMonitor'
 import DebugInfo from './components/DebugInfo'
-import { ThemeToggleButton } from './components/layout/ThemeToggleButton'
 import { HelpOverlay } from './components/ui/HelpOverlay';
+import { UIResetButton } from './components/layout/UIResetButton';
 import './utils/midiTestUtils'
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -75,10 +75,9 @@ function App() {
                   <MidiDmxProcessor />
                   <MidiDebugHelper />
                   <MidiDmxDebug />
-                </div>
-                {/* Main UI should live inside SocketProvider */}
+                </div>                {/* Main UI should live inside SocketProvider */}
                 <HelpOverlay />
-                <ThemeToggleButton />            
+                <UIResetButton />
                 <DebugInfo position="top-right" />
                 <ErrorBoundary>
                   <Layout />

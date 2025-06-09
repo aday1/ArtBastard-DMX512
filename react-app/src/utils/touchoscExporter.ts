@@ -1,6 +1,6 @@
 import { Fixture, MasterSlider, PlacedFixture, PlacedControl } from '../store'; // Updated imports
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver'; // For triggering download
+import * as FileSaver from 'file-saver'; // For triggering download
 
 // Helper to sanitize names for OSC paths and XML names
 const sanitizeName = (name: string): string => {
@@ -348,7 +348,7 @@ export const exportToToscFile = async (
     // zip.file("properties.xml", generatePropertiesXmlIfNeeded());
 
     const content = await zip.generateAsync({ type: "blob" });
-    saveAs(content, filename); // saveAs from file-saver
+    FileSaver.saveAs(content, filename); // saveAs from file-saver
     
     console.log("TouchOSC file generated and download initiated.");
     return { success: true, message: "Export successful!" };

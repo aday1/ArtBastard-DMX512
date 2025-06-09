@@ -34,27 +34,8 @@ export const Sparkles: React.FC = () => {
         key: Math.random(), // Force re-render for animation
       };
       return [...filteredSparkles, newSparkle];
-    });
-  }, []);
+    });  }, []);
 
-  // Manual test feature - add sparkle every 2 seconds for testing
-  useEffect(() => {
-    const testInterval = setInterval(() => {
-      addSparkle();
-      console.log('Test sparkle added for visual verification');
-    }, 2000);
-
-    // Clean up after 30 seconds
-    const cleanupTimeout = setTimeout(() => {
-      clearInterval(testInterval);
-      console.log('Sparkle test mode disabled');
-    }, 30000);
-
-    return () => {
-      clearInterval(testInterval);
-      clearTimeout(cleanupTimeout);
-    };
-  }, [addSparkle]);
   useEffect(() => {
     // Effect to add sparkle on DMX channel change
     const dmxChanged = prevDmxChannelsRef.current.some((val, i) => val !== dmxChannels[i]);
