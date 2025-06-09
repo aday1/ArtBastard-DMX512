@@ -1,1688 +1,998 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useChromaticEnergyManipulatorSettings } from '../../context/ChromaticEnergyManipulatorContext';
-import { DockableComponent } from '../ui/DockableComponent';
-import { useStore, Fixture, FixtureFlag } from '../../store';
-import { LucideIcon } from '../ui/LucideIcon';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Fixture, Scene, DMXValue } from '../../types/dmxTypes';
+import { useDMXStore } from '../../store/dmxStore';
+import { useSceneStore } from '../../store/sceneStore';
+import { useAppStore } from '../../store/appStore';
+import { FixedSizeList as List } from 'react-window';
+import { SketchPicker } from 'react-color';
+import { 
+  FaPalette, FaArrowsAlt, FaCog, FaSearch, FaFilter, 
+  FaPlay, FaPause, FaStop, FaVolumeMute, FaVolumeUp,
+  FaLock, FaUnlock, FaEye, FaEyeSlash, FaKeyboard,
+  FaGamepad, FaMidiIn, FaMidiOut, FaRecordVinyl,
+  FaExpand, FaCompress, FaCopy, FaPaste, FaRandom,
+  FaMagic, FaLayerGroup, FaBolt, FaHeart
+} from 'react-icons/fa';
 import styles from './UnifiedFixtureController.module.scss';
 
+// Enhanced interfaces for professional lighting control
+export interface EnhancedFixtureFlag {
+  mute: boolean;          // Mute output (no DMX changes)
+  solo: boolean;          // Solo mode (only soloed fixtures output)
+  ignoreScenes: boolean;  // Ignore scene changes
+  ignoreBlackout: boolean; // Ignore master blackout
+  protect: boolean;       // Protect from overrides
+  favorite: boolean;      // Mark as favorite
+}
+
+export interface ControlMidiMapping {
+  enabled: boolean;
+  channel: number;
+  ccNumber: number;
+  minValue: number;
+  maxValue: number;
+  curve: 'linear' | 'exponential' | 'logarithmic';
+  invert: boolean;
+  learning: boolean;
+}
+
+export interface FixtureFilter {
+  searchTerm: string;
+  fixtureType: string;
+  manufacturer: string;
+  capabilities: string[];
+  flags: Partial<EnhancedFixtureFlag>;
+  dmxRange: { min: number; max: number };
+  outputRange: { min: number; max: number };
+}
+
+export interface QuickControlPreset {
+  id: string;
+  name: string;
+  color?: { r: number; g: number; b: number; a?: number };
+  position?: { pan: number; tilt: number };
+  intensity?: number;
+  icon?: string;
+  shortcut?: string;
+}
+
 interface UnifiedFixtureControllerProps {
-  isCollapsed?: boolean;
-  onCollapsedChange?: (collapsed: boolean) => void;
-  isDockable?: boolean;
+  className?: string;
 }
 
-// Enhanced interfaces
-interface HSVColor {
-  h: number; // 0-360
-  s: number; // 0-100
-  v: number; // 0-100
-}
+const DEFAULT_QUICK_PRESETS: QuickControlPreset[] = [
+  { id: 'red', name: 'Red', color: { r: 255, g: 0, b: 0 }, shortcut: '1' },
+  { id: 'green', name: 'Green', color: { r: 0, g: 255, b: 0 }, shortcut: '2' },
+  { id: 'blue', name: 'Blue', color: { r: 0, g: 0, b: 255 }, shortcut: '3' },
+  { id: 'white', name: 'White', color: { r: 255, g: 255, b: 255 }, shortcut: '4' },
+  { id: 'amber', name: 'Amber', color: { r: 255, g: 191, b: 0 }, shortcut: '5' },
+  { id: 'cyan', name: 'Cyan', color: { r: 0, g: 255, b: 255 }, shortcut: '6' },
+  { id: 'magenta', name: 'Magenta', color: { r: 255, g: 0, b: 255 }, shortcut: '7' },
+  { id: 'center', name: 'Center', position: { pan: 128, tilt: 128 }, shortcut: 'C' },
+  { id: 'full', name: 'Full', intensity: 255, shortcut: 'F' },
+  { id: 'half', name: '50%', intensity: 128, shortcut: 'H' }
+];
 
-interface RGBColor {
-  r: number;
-  g: number;
-  b: number;
-}
-
-interface MovementPosition {
-  pan: number;
-  tilt: number;
-}
-
-interface ControlState {
-  color: RGBColor;
-  hsvColor: HSVColor;
-  movement: MovementPosition;
-  timestamp: number;
-}
-
-interface ScenePreset {
-  id: string;
-  name: string;
-  description?: string;
-  fixtures: {
-    [fixtureId: string]: {
-      color?: RGBColor;
-      movement?: MovementPosition;
-    };
-  };
-  createdAt: number;
-}
-
-// Enhanced interfaces for advanced control
-interface FixtureIndividualState {
-  [fixtureId: string]: {
-    color?: RGBColor;
-    movement?: MovementPosition;
-    dimmer?: number;
-  };
-}
-
-interface ColorEffect {
-  id: string;
-  name: string;
-  type: 'strobe' | 'fade' | 'rainbow' | 'chase';
-  speed: number;
-  active: boolean;
-}
-
-type ControlMode = 'collective' | 'independent';
-type ViewMode = 'compact' | 'expanded' | 'professional';
-
-// Utility functions
-const hsvToRgb = (h: number, s: number, v: number): RGBColor => {
-  h = h / 360;
-  s = s / 100;
-  v = v / 100;
-  
-  const c = v * s;
-  const x = c * (1 - Math.abs(((h * 6) % 2) - 1));
-  const m = v - c;
-  
-  let r = 0, g = 0, b = 0;
-  
-  if (h < 1/6) { r = c; g = x; b = 0; }
-  else if (h < 2/6) { r = x; g = c; b = 0; }
-  else if (h < 3/6) { r = 0; g = c; b = x; }
-  else if (h < 4/6) { r = 0; g = x; b = c; }
-  else if (h < 5/6) { r = x; g = 0; b = c; }
-  else { r = c; g = 0; b = x; }
-  
-  return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255)
-  };
-};
-
-const rgbToHsv = (r: number, g: number, b: number): HSVColor => {
-  r = r / 255;
-  g = g / 255;
-  b = b / 255;
-  
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const diff = max - min;
-  
-  let h = 0;
-  let s = max === 0 ? 0 : (diff / max) * 100;
-  let v = max * 100;
-  
-  if (diff !== 0) {
-    if (max === r) h = ((g - b) / diff) % 6;
-    else if (max === g) h = (b - r) / diff + 2;
-    else h = (r - g) / diff + 4;
-  }
-  
-  h = h * 60;
-  if (h < 0) h += 360;
-  
-  return { h, s, v };
-};
-
-const kelvinToRgb = (kelvin: number): RGBColor => {
-  const temp = kelvin / 100;
-  let r, g, b;
-  
-  if (temp <= 66) {
-    r = 255;
-    g = temp <= 19 ? 0 : 99.4708025861 * Math.log(temp - 10) - 161.1195681661;
-    b = temp >= 66 ? 255 : temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
-  } else {
-    r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
-    g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
-    b = 255;
-  }
-  
-  return {
-    r: Math.max(0, Math.min(255, Math.round(r))),
-    g: Math.max(0, Math.min(255, Math.round(g))),
-    b: Math.max(0, Math.min(255, Math.round(b)))
-  };
-};
-
-const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> = ({
-  isCollapsed = false,
-  onCollapsedChange,
-  isDockable = true,
+export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> = ({
+  className
 }) => {
-  // Core state
-  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
-  const [controlMode, setControlMode] = useState<ControlMode>('collective');
-  const [viewMode, setViewMode] = useState<ViewMode>('compact');
-  
-  // Color and movement state
-  const [color, setColor] = useState<RGBColor>({ r: 255, g: 255, b: 255 });
-  const [hsvColor, setHsvColor] = useState<HSVColor>({ h: 0, s: 0, v: 100 });
-  const [movement, setMovement] = useState<MovementPosition>({ pan: 127, tilt: 127 });
-  const [colorTemperature, setColorTemperature] = useState(5600);
-  
-  // UI state
-  const [showFixtureSelect, setShowFixtureSelect] = useState(false);
-  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
-  const [showSceneManager, setShowSceneManager] = useState(false);
-  const [isLiveMode, setIsLiveMode] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Scene management
-  const [scenePresets, setScenePresets] = useState<ScenePreset[]>([]);
-  const [newSceneName, setNewSceneName] = useState('');
-  
-  // History and performance
-  const [undoStack, setUndoStack] = useState<ControlState[]>([]);
-  const [redoStack, setRedoStack] = useState<ControlState[]>([]);
-  const [lastUpdateTime, setLastUpdateTime] = useState(0);
-  const updateTimeoutRef = useRef<NodeJS.Timeout>();
-  
-  // Canvas references
-  const colorWheelRef = useRef<HTMLCanvasElement>(null);
-  const movementCanvasRef = useRef<HTMLCanvasElement>(null);
-  const colorSpectrumRef = useRef<HTMLCanvasElement>(null);
-    // Store access
+  // Store hooks
   const { 
     fixtures, 
-    getDmxChannelValue, 
-    setDmxChannelValue
-  } = useStore(state => ({
-    fixtures: state.fixtures,
-    getDmxChannelValue: state.getDmxChannelValue,
-    setDmxChannelValue: state.setDmxChannelValue
-  }));
+    dmxValues, 
+    updateDMXValue, 
+    updateMultipleDMXValues,
+    masterIntensity,
+    blackout 
+  } = useDMXStore();
+  
+  const { scenes, activeScene } = useSceneStore();
+  const { isLiveMode } = useAppStore();
 
-  const { settings } = useChromaticEnergyManipulatorSettings();
+  // State management
+  const [selectedFixtures, setSelectedFixtures] = useState<Set<string>>(new Set());
+  const [fixtureFlags, setFixtureFlags] = useState<Map<string, EnhancedFixtureFlag>>(new Map());
+  const [filter, setFilter] = useState<FixtureFilter>({
+    searchTerm: '',
+    fixtureType: '',
+    manufacturer: '',
+    capabilities: [],
+    flags: {},
+    dmxRange: { min: 1, max: 512 },
+    outputRange: { min: 0, max: 255 }
+  });
+  
+  // Control states
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [currentColor, setCurrentColor] = useState({ r: 255, g: 255, b: 255, a: 1 });
+  const [panTiltPosition, setPanTiltPosition] = useState({ x: 128, y: 128 });
+  const [masterIntensityLocal, setMasterIntensityLocal] = useState(255);
+  const [quickPresets, setQuickPresets] = useState<QuickControlPreset[]>(DEFAULT_QUICK_PRESETS);
+  
+  // MIDI mapping states
+  const [midiMappings, setMidiMappings] = useState<{
+    panTilt: { x: ControlMidiMapping; y: ControlMidiMapping };
+    color: { r: ControlMidiMapping; g: ControlMidiMapping; b: ControlMidiMapping };
+    intensity: ControlMidiMapping;
+  }>({
+    panTilt: {
+      x: { enabled: false, channel: 1, ccNumber: 1, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false },
+      y: { enabled: false, channel: 1, ccNumber: 2, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false }
+    },
+    color: {
+      r: { enabled: false, channel: 1, ccNumber: 3, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false },
+      g: { enabled: false, channel: 1, ccNumber: 4, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false },
+      b: { enabled: false, channel: 1, ccNumber: 5, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false }
+    },
+    intensity: { enabled: false, channel: 1, ccNumber: 6, minValue: 0, maxValue: 127, curve: 'linear', invert: false, learning: false }
+  });
 
-  // Get fixture channels with enhanced error handling
-  const getFixtureChannels = useCallback((fixtureId: string) => {
-    const fixture = fixtures.find(f => f.id === fixtureId);
-    if (!fixture) return { rgbChannels: {}, movementChannels: {} };
-    
-    const rgbChannels: {
-      redChannel?: number;
-      greenChannel?: number;
-      blueChannel?: number;
-    } = {};
-    
-    const movementChannels: {
-      panChannel?: number;
-      tiltChannel?: number;
-    } = {};
+  // UI states
+  const [expandedSections, setExpandedSections] = useState({
+    fixtures: true,
+    color: true,
+    movement: true,
+    intensity: true,
+    presets: false,
+    midi: false,
+    advanced: false
+  });
 
-    fixture.channels.forEach((channel, index) => {
-      const dmxAddress = fixture.startAddress + index;
-      switch (channel.type) {
-        case 'red':
-          rgbChannels.redChannel = dmxAddress - 1;
-          break;
-        case 'green':
-          rgbChannels.greenChannel = dmxAddress - 1;
-          break;
-        case 'blue':
-          rgbChannels.blueChannel = dmxAddress - 1;
-          break;
-        case 'dimmer':
-          // For fixtures without separate RGB channels
-          if (!rgbChannels.redChannel) {
-            rgbChannels.redChannel = rgbChannels.greenChannel = rgbChannels.blueChannel = dmxAddress - 1;
-          }
-          break;
-        case 'pan':
-          movementChannels.panChannel = dmxAddress - 1;
-          break;
-        case 'tilt':
-          movementChannels.tiltChannel = dmxAddress - 1;
-          break;
+  // Refs
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const panTiltRef = useRef<HTMLDivElement>(null);
+  const lastUpdateRef = useRef<number>(0);
+
+  // Filtered and processed fixtures
+  const filteredFixtures = useMemo(() => {
+    let result = fixtures.filter(fixture => {
+      // Search term filter
+      if (filter.searchTerm) {
+        const term = filter.searchTerm.toLowerCase();
+        if (!fixture.name.toLowerCase().includes(term) &&
+            !fixture.manufacturer.toLowerCase().includes(term) &&
+            !fixture.mode.toLowerCase().includes(term)) {
+          return false;
+        }
       }
+
+      // Type and manufacturer filters
+      if (filter.fixtureType && fixture.mode !== filter.fixtureType) return false;
+      if (filter.manufacturer && fixture.manufacturer !== filter.manufacturer) return false;
+
+      // DMX range filter
+      if (fixture.startChannel < filter.dmxRange.min || fixture.startChannel > filter.dmxRange.max) {
+        return false;
+      }
+
+      // Capabilities filter
+      if (filter.capabilities.length > 0) {
+        const hasRequiredCapabilities = filter.capabilities.every(cap => 
+          fixture.channels.some(ch => ch.capability.toLowerCase().includes(cap.toLowerCase()))
+        );
+        if (!hasRequiredCapabilities) return false;
+      }
+
+      // Flags filter
+      const flags = fixtureFlags.get(fixture.id) || getDefaultFlags();
+      for (const [flagKey, flagValue] of Object.entries(filter.flags)) {
+        if (flagValue !== undefined && flags[flagKey as keyof EnhancedFixtureFlag] !== flagValue) {
+          return false;
+        }
+      }
+
+      return true;
     });
+
+    return result.sort((a, b) => a.startChannel - b.startChannel);
+  }, [fixtures, filter, fixtureFlags]);
+
+  // Helper functions
+  const getDefaultFlags = (): EnhancedFixtureFlag => ({
+    mute: false,
+    solo: false,
+    ignoreScenes: false,
+    ignoreBlackout: false,
+    protect: false,
+    favorite: false
+  });
+
+  const getFixtureFlags = (fixtureId: string): EnhancedFixtureFlag => {
+    return fixtureFlags.get(fixtureId) || getDefaultFlags();
+  };
+
+  const setFixtureFlag = (fixtureId: string, flag: keyof EnhancedFixtureFlag, value: boolean) => {
+    const currentFlags = getFixtureFlags(fixtureId);
+    const newFlags = { ...currentFlags, [flag]: value };
     
-    return { rgbChannels, movementChannels };
-  }, [fixtures]);
-
-  // Enhanced DMX update with batching for performance
-  const updateFixtureValues = useCallback((
-    fixtureUpdates: Array<{
-      fixtureId: string;
-      color?: RGBColor;
-      movement?: MovementPosition;
-    }>
-  ) => {
-    if (!isLiveMode) return;
-
-    const now = Date.now();
-    if (now - lastUpdateTime < 16) { // 60fps throttling
-      clearTimeout(updateTimeoutRef.current);
-      updateTimeoutRef.current = setTimeout(() => {
-        updateFixtureValues(fixtureUpdates);
-      }, 16);
-      return;
+    // Handle solo logic - if soloing this fixture, unmute it
+    if (flag === 'solo' && value) {
+      newFlags.mute = false;
     }
+    
+    setFixtureFlags(prev => new Map(prev.set(fixtureId, newFlags)));
+  };
 
-    const channelUpdates: Array<{ channel: number; value: number }> = [];
+  // Throttled DMX update function for performance
+  const throttledUpdateDMX = useCallback((updates: { channel: number; value: DMXValue }[]) => {
+    const now = Date.now();
+    if (now - lastUpdateRef.current < 16) return; // ~60fps max
+    
+    lastUpdateRef.current = now;
+    updateMultipleDMXValues(updates);
+  }, [updateMultipleDMXValues]);
 
-    fixtureUpdates.forEach(({ fixtureId, color, movement }) => {
-      const { rgbChannels, movementChannels } = getFixtureChannels(fixtureId);
-      
-      // Color updates
-      if (color) {
-        if (rgbChannels.redChannel !== undefined) {
-          channelUpdates.push({ channel: rgbChannels.redChannel, value: color.r });
+  // Fixture selection functions
+  const selectFixture = (fixtureId: string, exclusive = false) => {
+    if (exclusive) {
+      setSelectedFixtures(new Set([fixtureId]));
+    } else {
+      setSelectedFixtures(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(fixtureId)) {
+          newSet.delete(fixtureId);
+        } else {
+          newSet.add(fixtureId);
         }
-        if (rgbChannels.greenChannel !== undefined) {
-          channelUpdates.push({ channel: rgbChannels.greenChannel, value: color.g });
-        }
-        if (rgbChannels.blueChannel !== undefined) {
-          channelUpdates.push({ channel: rgbChannels.blueChannel, value: color.b });
-        }
-      }
-      
-      // Movement updates
-      if (movement) {
-        if (movementChannels.panChannel !== undefined) {
-          channelUpdates.push({ channel: movementChannels.panChannel, value: movement.pan });
-        }
-        if (movementChannels.tiltChannel !== undefined) {
-          channelUpdates.push({ channel: movementChannels.tiltChannel, value: movement.tilt });
-        }
-      }
-    });
-
-    // Batch update for performance
-    if (channelUpdates.length > 0) {
-      channelUpdates.forEach(({ channel, value }) => {
-        setDmxChannelValue(channel, Math.max(0, Math.min(255, value)));
+        return newSet;
       });
     }
+  };
 
-    setLastUpdateTime(now);
-  }, [isLiveMode, lastUpdateTime, getFixtureChannels, setDmxChannelValue]);
+  const selectAll = () => {
+    setSelectedFixtures(new Set(filteredFixtures.map(f => f.id)));
+  };
 
-  // Color control functions
-  const applyColorToFixtures = useCallback((newColor: RGBColor) => {
-    setColor(newColor);
-    
-    if (controlMode === 'collective') {
-      // Apply same color to all selected fixtures
-      const updates = selectedFixtures.map(fixtureId => ({
-        fixtureId,
-        color: newColor
-      }));
-      updateFixtureValues(updates);
-    }
-  }, [controlMode, selectedFixtures, updateFixtureValues]);
+  const clearSelection = () => {
+    setSelectedFixtures(new Set());
+  };
 
-  const applyMovementToFixtures = useCallback((newMovement: MovementPosition) => {
-    setMovement(newMovement);
-    
-    if (controlMode === 'collective') {
-      // Apply same movement to all selected fixtures
-      const updates = selectedFixtures.map(fixtureId => ({
-        fixtureId,
-        movement: newMovement
-      }));
-      updateFixtureValues(updates);
-    }
-  }, [controlMode, selectedFixtures, updateFixtureValues]);
+  const selectByType = (fixtureType: string) => {
+    const fixturesOfType = filteredFixtures.filter(f => f.mode === fixtureType);
+    setSelectedFixtures(new Set(fixturesOfType.map(f => f.id)));
+  };
 
-  // Scene management
-  const saveCurrentScene = useCallback(() => {
-    if (!newSceneName.trim() || selectedFixtures.length === 0) return;
+  const selectByCapability = (capability: string) => {
+    const fixturesWithCapability = filteredFixtures.filter(f => 
+      f.channels.some(ch => ch.capability.toLowerCase().includes(capability.toLowerCase()))
+    );
+    setSelectedFixtures(new Set(fixturesWithCapability.map(f => f.id)));
+  };
 
-    const scene: ScenePreset = {
-      id: `scene_${Date.now()}`,
-      name: newSceneName.trim(),
-      fixtures: {},
-      createdAt: Date.now()
-    };
+  const selectByFlags = (flag: keyof EnhancedFixtureFlag, value: boolean) => {
+    const fixturesWithFlag = filteredFixtures.filter(f => 
+      getFixtureFlags(f.id)[flag] === value
+    );
+    setSelectedFixtures(new Set(fixturesWithFlag.map(f => f.id)));
+  };
+
+  // Control functions
+  const applyColorToSelected = (color: { r: number; g: number; b: number }) => {
+    const updates: { channel: number; value: DMXValue }[] = [];
 
     selectedFixtures.forEach(fixtureId => {
-      const { rgbChannels, movementChannels } = getFixtureChannels(fixtureId);
-      const fixtureState: any = {};
-      
-      // Save current color values
-      if (rgbChannels.redChannel !== undefined) {
-        fixtureState.color = {
-          r: getDmxChannelValue(rgbChannels.redChannel) || 0,
-          g: getDmxChannelValue(rgbChannels.greenChannel || 0) || 0,
-          b: getDmxChannelValue(rgbChannels.blueChannel || 0) || 0
-        };
+      const fixture = fixtures.find(f => f.id === fixtureId);
+      if (!fixture) return;
+
+      const flags = getFixtureFlags(fixtureId);
+      if (flags.mute) return;
+
+      // Check if any fixture is soloed and this isn't one of them
+      const hasSoloedFixtures = Array.from(fixtureFlags.values()).some(f => f.solo);
+      if (hasSoloedFixtures && !flags.solo) return;
+
+      // Find RGB channels
+      const redChannel = fixture.channels.find(ch => ch.capability.toLowerCase().includes('red'));
+      const greenChannel = fixture.channels.find(ch => ch.capability.toLowerCase().includes('green'));
+      const blueChannel = fixture.channels.find(ch => ch.capability.toLowerCase().includes('blue'));
+
+      if (redChannel) {
+        updates.push({ channel: fixture.startChannel + redChannel.offset, value: color.r });
       }
-      
-      // Save current movement values
-      if (movementChannels.panChannel !== undefined) {
-        fixtureState.movement = {
-          pan: getDmxChannelValue(movementChannels.panChannel) || 127,
-          tilt: getDmxChannelValue(movementChannels.tiltChannel || 0) || 127
-        };
+      if (greenChannel) {
+        updates.push({ channel: fixture.startChannel + greenChannel.offset, value: color.g });
       }
-      
-      scene.fixtures[fixtureId] = fixtureState;
-    });
-
-    setScenePresets(prev => [...prev, scene]);
-    setNewSceneName('');
-  }, [newSceneName, selectedFixtures, getFixtureChannels, getDmxChannelValue]);
-
-  const recallScene = useCallback((scene: ScenePreset) => {
-    const updates: Array<{
-      fixtureId: string;
-      color?: RGBColor;
-      movement?: MovementPosition;
-    }> = [];
-
-    Object.entries(scene.fixtures).forEach(([fixtureId, state]) => {
-      if (selectedFixtures.includes(fixtureId) || selectedFixtures.length === 0) {
-        updates.push({
-          fixtureId,
-          color: state.color,
-          movement: state.movement
-        });
+      if (blueChannel) {
+        updates.push({ channel: fixture.startChannel + blueChannel.offset, value: color.b });
       }
     });
 
-    updateFixtureValues(updates);
-  }, [selectedFixtures, updateFixtureValues]);
-
-  // Enhanced selection functions
-  const selectAllRgbFixtures = useCallback(() => {
-    const rgbFixtures = fixtures.filter(fixture =>
-      fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type))
-    );
-    setSelectedFixtures(rgbFixtures.map(f => f.id));
-  }, [fixtures]);
-
-  const selectAllMovementFixtures = useCallback(() => {
-    const movementFixtures = fixtures.filter(fixture =>
-      fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type))
-    );
-    setSelectedFixtures(movementFixtures.map(f => f.id));
-  }, [fixtures]);
-  // Color wheel interaction with enhanced drag support
-  const handleColorWheelClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    handleColorWheelInteraction(event);
-  }, [handleColorWheelInteraction]);
-  // Enhanced movement canvas interaction with drag support
-  const [isDraggingMovement, setIsDraggingMovement] = useState(false);
-  const [isDraggingColor, setIsDraggingColor] = useState(false);
-
-  const handleMovementCanvasInteraction = useCallback((event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = movementCanvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-    
-    if ('touches' in event) {
-      if (event.touches.length === 0) return;
-      clientX = event.touches[0].clientX;
-      clientY = event.touches[0].clientY;
-    } else {
-      clientX = event.clientX;
-      clientY = event.clientY;
+    if (updates.length > 0) {
+      throttledUpdateDMX(updates);
     }
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    
-    const newMovement = {
-      pan: Math.max(0, Math.min(255, Math.round((x / canvas.width) * 255))),
-      tilt: Math.max(0, Math.min(255, Math.round(((canvas.height - y) / canvas.height) * 255)))
-    };
-    
-    applyMovementToFixtures(newMovement);
-  }, [applyMovementToFixtures]);
-
-  const handleMovementMouseDown = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDraggingMovement(true);
-    handleMovementCanvasInteraction(event);
-  }, [handleMovementCanvasInteraction]);
-
-  const handleMovementMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDraggingMovement) {
-      handleMovementCanvasInteraction(event);
-    }
-  }, [isDraggingMovement, handleMovementCanvasInteraction]);
-
-  const handleMovementMouseUp = useCallback(() => {
-    setIsDraggingMovement(false);
-  }, []);
-
-  // Enhanced color wheel interaction with drag support
-  const handleColorWheelInteraction = useCallback((event: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = colorWheelRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-    
-    if ('touches' in event) {
-      if (event.touches.length === 0) return;
-      clientX = event.touches[0].clientX;
-      clientY = event.touches[0].clientY;
-    } else {
-      clientX = event.clientX;
-      clientY = event.clientY;
-    }
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const radius = Math.min(centerX, centerY) - 10;
-
-    if (distance <= radius) {
-      const hue = (Math.atan2(dy, dx) * (180 / Math.PI) + 360) % 360;
-      const saturation = Math.min(100, (distance / radius) * 100);
-      
-      const newHsv = { ...hsvColor, h: hue, s: saturation };
-      setHsvColor(newHsv);
-      
-      const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-      applyColorToFixtures(newColor);
-    }
-  }, [hsvColor, applyColorToFixtures]);
-
-  const handleColorWheelMouseDown = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDraggingColor(true);
-    handleColorWheelInteraction(event);
-  }, [handleColorWheelInteraction]);
-
-  const handleColorWheelMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDraggingColor) {
-      handleColorWheelInteraction(event);
-    }
-  }, [isDraggingColor, handleColorWheelInteraction]);
-
-  const handleColorWheelMouseUp = useCallback(() => {
-    setIsDraggingColor(false);
-  }, []);
-
-  // Filter fixtures based on search
-  const filteredFixtures = fixtures.filter(fixture =>
-    fixture.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Calculate selection stats
-  const selectionStats = {
-    total: selectedFixtures.length,
-    rgbCount: selectedFixtures.filter(id => {
-      const fixture = fixtures.find(f => f.id === id);
-      return fixture?.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
-    }).length,
-    movementCount: selectedFixtures.filter(id => {
-      const fixture = fixtures.find(f => f.id === id);
-      return fixture?.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
-    }).length
   };
-  // Add global mouse event listeners for drag operations
+
+  const applyPanTiltToSelected = (pan: number, tilt: number) => {
+    const updates: { channel: number; value: DMXValue }[] = [];
+
+    selectedFixtures.forEach(fixtureId => {
+      const fixture = fixtures.find(f => f.id === fixtureId);
+      if (!fixture) return;
+
+      const flags = getFixtureFlags(fixtureId);
+      if (flags.mute) return;
+
+      const hasSoloedFixtures = Array.from(fixtureFlags.values()).some(f => f.solo);
+      if (hasSoloedFixtures && !flags.solo) return;
+
+      const panChannel = fixture.channels.find(ch => ch.capability.toLowerCase().includes('pan'));
+      const tiltChannel = fixture.channels.find(ch => ch.capability.toLowerCase().includes('tilt'));
+
+      if (panChannel) {
+        updates.push({ channel: fixture.startChannel + panChannel.offset, value: pan });
+      }
+      if (tiltChannel) {
+        updates.push({ channel: fixture.startChannel + tiltChannel.offset, value: tilt });
+      }
+    });
+
+    if (updates.length > 0) {
+      throttledUpdateDMX(updates);
+    }
+  };
+
+  const applyIntensityToSelected = (intensity: number) => {
+    const updates: { channel: number; value: DMXValue }[] = [];
+
+    selectedFixtures.forEach(fixtureId => {
+      const fixture = fixtures.find(f => f.id === fixtureId);
+      if (!fixture) return;
+
+      const flags = getFixtureFlags(fixtureId);
+      if (flags.mute) return;
+
+      const hasSoloedFixtures = Array.from(fixtureFlags.values()).some(f => f.solo);
+      if (hasSoloedFixtures && !flags.solo) return;
+
+      const intensityChannel = fixture.channels.find(ch => 
+        ch.capability.toLowerCase().includes('intensity') ||
+        ch.capability.toLowerCase().includes('dimmer') ||
+        ch.capability.toLowerCase().includes('master')
+      );
+
+      if (intensityChannel) {
+        updates.push({ channel: fixture.startChannel + intensityChannel.offset, value: intensity });
+      }
+    });
+
+    if (updates.length > 0) {
+      throttledUpdateDMX(updates);
+    }
+  };
+
+  const applyPreset = (preset: QuickControlPreset) => {
+    if (preset.color) {
+      applyColorToSelected(preset.color);
+      setCurrentColor(preset.color);
+    }
+    if (preset.position) {
+      applyPanTiltToSelected(preset.position.pan, preset.position.tilt);
+      setPanTiltPosition({ x: preset.position.pan, y: preset.position.tilt });
+    }
+    if (preset.intensity !== undefined) {
+      applyIntensityToSelected(preset.intensity);
+      setMasterIntensityLocal(preset.intensity);
+    }
+  };
+
+  const blackoutSelected = () => {
+    applyIntensityToSelected(0);
+  };
+
+  const randomizeSelected = () => {
+    // Random color
+    const randomColor = {
+      r: Math.floor(Math.random() * 256),
+      g: Math.floor(Math.random() * 256),
+      b: Math.floor(Math.random() * 256)
+    };
+    applyColorToSelected(randomColor);
+    setCurrentColor(randomColor);
+
+    // Random position
+    const randomPan = Math.floor(Math.random() * 256);
+    const randomTilt = Math.floor(Math.random() * 256);
+    applyPanTiltToSelected(randomPan, randomTilt);
+    setPanTiltPosition({ x: randomPan, y: randomTilt });
+  };
+
+  // Event handlers
+  const handleFixtureClick = (fixtureId: string, event: React.MouseEvent) => {
+    if (event.ctrlKey || event.metaKey) {
+      selectFixture(fixtureId, false);
+    } else if (event.shiftKey && selectedFixtures.size > 0) {
+      // Range selection
+      const fixtureIds = filteredFixtures.map(f => f.id);
+      const lastSelected = Array.from(selectedFixtures).pop();
+      if (lastSelected) {
+        const lastIndex = fixtureIds.indexOf(lastSelected);
+        const currentIndex = fixtureIds.indexOf(fixtureId);
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const rangeIds = fixtureIds.slice(start, end + 1);
+        setSelectedFixtures(new Set([...selectedFixtures, ...rangeIds]));
+      }
+    } else {
+      selectFixture(fixtureId, true);
+    }
+  };
+
+  const handleColorChange = (color: any) => {
+    const newColor = { r: color.rgb.r, g: color.rgb.g, b: color.rgb.b };
+    setCurrentColor(newColor);
+    applyColorToSelected(newColor);
+  };
+
+  const handlePanTiltChange = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!panTiltRef.current) return;
+
+    const rect = panTiltRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(255, ((event.clientX - rect.left) / rect.width) * 255));
+    const y = Math.max(0, Math.min(255, (1 - (event.clientY - rect.top) / rect.height) * 255));
+
+    setPanTiltPosition({ x: Math.round(x), y: Math.round(y) });
+    applyPanTiltToSelected(Math.round(x), Math.round(y));
+  };
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  // Keyboard shortcuts
   useEffect(() => {
-    const handleGlobalMouseMove = (event: MouseEvent) => {
-      if (isDraggingMovement) {
-        const canvas = movementCanvasRef.current;
-        if (canvas) {
-          const rect = canvas.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top;
-          
-          if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
-            const newMovement = {
-              pan: Math.max(0, Math.min(255, Math.round((x / canvas.width) * 255))),
-              tilt: Math.max(0, Math.min(255, Math.round(((canvas.height - y) / canvas.height) * 255)))
-            };
-            applyMovementToFixtures(newMovement);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement) return;
+
+      switch (event.key) {
+        case 'Escape':
+          clearSelection();
+          break;
+        case 'Delete':
+        case 'Backspace':
+          blackoutSelected();
+          break;
+        case ' ':
+          event.preventDefault();
+          // Toggle live mode or apply changes
+          break;
+        case 'a':
+        case 'A':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            selectAll();
           }
-        }
-      }
-      
-      if (isDraggingColor) {
-        const canvas = colorWheelRef.current;
-        if (canvas) {
-          const rect = canvas.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top;
-          const centerX = canvas.width / 2;
-          const centerY = canvas.height / 2;
-          const dx = x - centerX;
-          const dy = y - centerY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const radius = Math.min(centerX, centerY) - 10;
-
-          if (distance <= radius) {
-            const hue = (Math.atan2(dy, dx) * (180 / Math.PI) + 360) % 360;
-            const saturation = Math.min(100, (distance / radius) * 100);
-            
-            const newHsv = { ...hsvColor, h: hue, s: saturation };
-            setHsvColor(newHsv);
-            
-            const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-            applyColorToFixtures(newColor);
+          break;
+        case 'r':
+        case 'R':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            randomizeSelected();
           }
-        }
+          break;
+        default:
+          // Check for preset shortcuts
+          const preset = quickPresets.find(p => p.shortcut === event.key);
+          if (preset) {
+            applyPreset(preset);
+          }
+          break;
       }
     };
 
-    const handleGlobalMouseUp = () => {
-      setIsDraggingMovement(false);
-      setIsDraggingColor(false);
-    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFixtures, quickPresets]);
 
-    if (isDraggingMovement || isDraggingColor) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [isDraggingMovement, isDraggingColor, hsvColor, applyMovementToFixtures, applyColorToFixtures]);
-
-  // Draw color wheel
+  // Click outside handlers
   useEffect(() => {
-    const canvas = colorWheelRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = Math.min(centerX, centerY) - 10;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw color wheel
-    for (let angle = 0; angle < 360; angle += 1) {
-      for (let r = 0; r < radius; r += 1) {
-        const saturation = (r / radius) * 100;
-        const rgb = hsvToRgb(angle, saturation, 100);
-        
-        ctx.fillStyle = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-        const x = centerX + r * Math.cos(angle * Math.PI / 180);
-        const y = centerY + r * Math.sin(angle * Math.PI / 180);
-        
-        ctx.fillRect(x, y, 2, 2);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
       }
-    }
+    };
 
-    // Draw current color indicator
-    const currentRadius = (hsvColor.s / 100) * radius;
-    const currentAngle = hsvColor.h * Math.PI / 180;
-    const indicatorX = centerX + currentRadius * Math.cos(currentAngle);
-    const indicatorY = centerY + currentRadius * Math.sin(currentAngle);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    ctx.strokeStyle = '#ffffff';
-    ctx.fillStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, 6, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-  }, [hsvColor]);
+  // Render fixture item for virtual list
+  const FixtureItem = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const fixture = filteredFixtures[index];
+    const isSelected = selectedFixtures.has(fixture.id);
+    const flags = getFixtureFlags(fixture.id);
 
-  // Draw movement canvas
-  useEffect(() => {
-    const canvas = movementCanvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Grid background
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    
-    for (let i = 0; i <= 4; i++) {
-      const x = (i / 4) * canvas.width;
-      const y = (i / 4) * canvas.height;
-      
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-    
-    // Center crosshair
-    ctx.strokeStyle = '#666';
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Current position indicator
-    const x = (movement.pan / 255) * canvas.width;
-    const y = ((255 - movement.tilt) / 255) * canvas.height;
-    
-    ctx.fillStyle = '#007acc';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-  }, [movement]);
-
-  // Auto-sync HSV when RGB changes
-  useEffect(() => {
-    const hsv = rgbToHsv(color.r, color.g, color.b);
-    setHsvColor(hsv);
-  }, [color]);
-
-  const renderMainInterface = () => (
-    <div className={styles.container}>
-      {/* Header with mode controls */}
-      <div className={styles.header}>
-        <div className={styles.modeSelector}>
-          <button
-            className={`${styles.modeButton} ${controlMode === 'collective' ? styles.active : ''}`}
-            onClick={() => setControlMode('collective')}
-            title="Control all selected fixtures together"
-          >
-            <LucideIcon name="Users" />
-            Collective
-          </button>
-          <button
-            className={`${styles.modeButton} ${controlMode === 'independent' ? styles.active : ''}`}
-            onClick={() => setControlMode('independent')}
-            title="Control fixtures independently"
-          >
-            <LucideIcon name="User" />
-            Independent
-          </button>
+    return (
+      <div 
+        style={style}
+        className={`${styles.fixtureItem} ${isSelected ? styles.selected : ''}`}
+        onClick={(e) => handleFixtureClick(fixture.id, e)}
+      >
+        <div className={styles.fixtureInfo}>
+          <div className={styles.fixtureName}>{fixture.name}</div>
+          <div className={styles.fixtureDetails}>
+            {fixture.manufacturer} • {fixture.mode} • Ch {fixture.startChannel}
+          </div>
         </div>
         
-        <div className={styles.viewModeSelector}>
+        <div className={styles.fixtureFlags}>
+          {flags.favorite && <FaHeart className={styles.flagIcon} title="Favorite" />}
+          {flags.mute && <FaVolumeMute className={styles.flagIcon} title="Muted" />}
+          {flags.solo && <FaVolumeUp className={styles.flagIcon} title="Solo" />}
+          {flags.protect && <FaLock className={styles.flagIcon} title="Protected" />}
+          {flags.ignoreScenes && <FaEyeSlash className={styles.flagIcon} title="Ignore Scenes" />}
+          {flags.ignoreBlackout && <FaBolt className={styles.flagIcon} title="Ignore Blackout" />}
+        </div>
+
+        <div className={styles.fixtureActions}>
           <button
-            className={`${styles.viewButton} ${viewMode === 'compact' ? styles.active : ''}`}
-            onClick={() => setViewMode('compact')}
-            title="Compact view"
+            className={`${styles.flagButton} ${flags.mute ? styles.active : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFixtureFlag(fixture.id, 'mute', !flags.mute);
+            }}
+            title="Mute"
           >
-            <LucideIcon name="Minimize2" />
+            <FaVolumeMute />
           </button>
           <button
-            className={`${styles.viewButton} ${viewMode === 'expanded' ? styles.active : ''}`}
-            onClick={() => setViewMode('expanded')}
-            title="Expanded view"
+            className={`${styles.flagButton} ${flags.solo ? styles.active : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFixtureFlag(fixture.id, 'solo', !flags.solo);
+            }}
+            title="Solo"
           >
-            <LucideIcon name="Maximize2" />
+            <FaVolumeUp />
           </button>
           <button
-            className={`${styles.viewButton} ${viewMode === 'professional' ? styles.active : ''}`}
-            onClick={() => setViewMode('professional')}
-            title="Professional view"
+            className={`${styles.flagButton} ${flags.protect ? styles.active : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFixtureFlag(fixture.id, 'protect', !flags.protect);
+            }}
+            title="Protect"
           >
-            <LucideIcon name="Layout" />
+            <FaLock />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`${styles.unifiedController} ${className}`}>
+      {/* Header */}
+      <div className={styles.header}>
+        <h2 className={styles.title}>
+          <FaLayerGroup />
+          Fixture Controller
+        </h2>
+        <div className={styles.headerActions}>
+          <div className={styles.selectionInfo}>
+            {selectedFixtures.size} of {filteredFixtures.length} selected
+          </div>
+          <button 
+            className={styles.actionButton}
+            onClick={selectAll}
+            title="Select All (Ctrl+A)"
+          >
+            <FaCopy />
+          </button>
+          <button 
+            className={styles.actionButton}
+            onClick={clearSelection}
+            title="Clear Selection (Esc)"
+          >
+            <FaStop />
+          </button>
+          <button 
+            className={styles.actionButton}
+            onClick={randomizeSelected}
+            title="Randomize Selected (Ctrl+R)"
+          >
+            <FaRandom />
           </button>
         </div>
       </div>
 
-      {/* Fixture selection */}
-      <div className={styles.fixtureSection}>
-        <button 
-          className={styles.fixtureSelector}
-          onClick={() => setShowFixtureSelect(!showFixtureSelect)}
-        >
-          <LucideIcon name="Target" />
-          <span className={styles.fixtureName}>
-            {selectedFixtures.length === 0 
-              ? 'Select fixtures' 
-              : `${selectedFixtures.length} fixture${selectedFixtures.length === 1 ? '' : 's'} selected`}
-          </span>
-          <div className={styles.selectionStats}>
-            {selectionStats.rgbCount > 0 && (
-              <span className={styles.statBadge} title="RGB fixtures">
-                <LucideIcon name="Palette" />
-                {selectionStats.rgbCount}
-              </span>
-            )}
-            {selectionStats.movementCount > 0 && (
-              <span className={styles.statBadge} title="Movement fixtures">
-                <LucideIcon name="Move" />
-                {selectionStats.movementCount}
-              </span>
-            )}
-          </div>
-          <LucideIcon name={showFixtureSelect ? "ChevronUp" : "ChevronDown"} />
-        </button>
-
-        {showFixtureSelect && (
-          <div className={styles.fixtureDropdown}>
-            {/* Search */}
-            <div className={styles.searchSection}>
-              <LucideIcon name="Search" />
+      <div className={styles.mainContent}>
+        {/* Left Panel - Fixture List */}
+        <div className={styles.leftPanel}>
+          {/* Search and Filter */}
+          <div className={styles.searchSection}>
+            <div className={styles.searchBar}>
+              <FaSearch className={styles.searchIcon} />
               <input
                 type="text"
                 placeholder="Search fixtures..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filter.searchTerm}
+                onChange={(e) => setFilter(prev => ({ ...prev, searchTerm: e.target.value }))}
                 className={styles.searchInput}
               />
             </div>
-
-            {/* Quick selection */}
-            <div className={styles.quickSelection}>
-              <button onClick={() => setSelectedFixtures(filteredFixtures.map(f => f.id))}>
-                <LucideIcon name="CheckSquare" />
-                Select All
-              </button>
-              <button onClick={selectAllRgbFixtures}>
-                <LucideIcon name="Palette" />
-                RGB Only
-              </button>
-              <button onClick={selectAllMovementFixtures}>
-                <LucideIcon name="Move" />
-                Movement Only
-              </button>
-              <button onClick={() => setSelectedFixtures([])}>
-                <LucideIcon name="Square" />
-                Clear
-              </button>
+            
+            <div className={styles.filterControls}>
+              <select
+                value={filter.fixtureType}
+                onChange={(e) => setFilter(prev => ({ ...prev, fixtureType: e.target.value }))}
+                className={styles.filterSelect}
+              >
+                <option value="">All Types</option>
+                {Array.from(new Set(fixtures.map(f => f.mode))).map(mode => (
+                  <option key={mode} value={mode}>{mode}</option>
+                ))}
+              </select>
+              
+              <select
+                value={filter.manufacturer}
+                onChange={(e) => setFilter(prev => ({ ...prev, manufacturer: e.target.value }))}
+                className={styles.filterSelect}
+              >
+                <option value="">All Manufacturers</option>
+                {Array.from(new Set(fixtures.map(f => f.manufacturer))).map(manufacturer => (
+                  <option key={manufacturer} value={manufacturer}>{manufacturer}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Fixture list */}
-            <div className={styles.fixtureList}>
-              {filteredFixtures.map(fixture => {
-                const isSelected = selectedFixtures.includes(fixture.id);
-                const hasRgb = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
-                const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
-                
-                return (
-                  <div
-                    key={fixture.id}
-                    className={`${styles.fixtureOption} ${isSelected ? styles.selected : ''}`}
-                    onClick={() => {
-                      setSelectedFixtures(prev =>
-                        prev.includes(fixture.id)
-                          ? prev.filter(id => id !== fixture.id)
-                          : [...prev, fixture.id]
-                      );
-                    }}
-                  >
-                    <div className={styles.checkbox}>
-                      {isSelected && <LucideIcon name="Check" />}
-                    </div>
-                    <div className={styles.fixtureInfo}>
-                      <span className={styles.name}>{fixture.name}</span>
-                      <div className={styles.capabilities}>
-                        {hasRgb && <LucideIcon name="Palette" title="RGB" />}
-                        {hasMovement && <LucideIcon name="Move" title="Pan/Tilt" />}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Quick selection buttons */}
+            <div className={styles.quickSelectionButtons}>
+              <button 
+                className={styles.quickSelectButton}
+                onClick={() => selectByCapability('rgb')}
+                title="Select RGB fixtures"
+              >
+                <FaPalette /> RGB
+              </button>
+              <button 
+                className={styles.quickSelectButton}
+                onClick={() => selectByCapability('pan')}
+                title="Select moving head fixtures"
+              >
+                <FaArrowsAlt /> Moving
+              </button>
+              <button 
+                className={styles.quickSelectButton}
+                onClick={() => selectByFlags('favorite', true)}
+                title="Select favorite fixtures"
+              >
+                <FaHeart /> Favorites
+              </button>
+              <button 
+                className={styles.quickSelectButton}
+                onClick={() => selectByFlags('mute', false)}
+                title="Select unmuted fixtures"
+              >
+                <FaVolumeUp /> Active
+              </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {selectedFixtures.length > 0 && (
-        <>
-          {/* Control interface based on view mode */}
-          {viewMode === 'compact' && renderCompactControls()}
-          {viewMode === 'expanded' && renderExpandedControls()}
-          {viewMode === 'professional' && renderProfessionalControls()}
-          
-          {/* Scene management */}
-          <div className={styles.sceneSection}>
-            <button
-              className={styles.sceneToggle}
-              onClick={() => setShowSceneManager(!showSceneManager)}
+          {/* Fixture List */}
+          <div className={styles.fixtureListContainer}>
+            <List
+              height={400}
+              itemCount={filteredFixtures.length}
+              itemSize={80}
+              className={styles.fixtureList}
             >
-              <LucideIcon name="Bookmark" />
-              Scenes
-              <LucideIcon name={showSceneManager ? "ChevronUp" : "ChevronDown"} />
-            </button>
+              {FixtureItem}
+            </List>
+          </div>
+        </div>
+
+        {/* Right Panel - Controls */}
+        <div className={styles.rightPanel}>
+          {/* Color Control */}
+          <div className={`${styles.controlSection} ${expandedSections.color ? styles.expanded : ''}`}>
+            <div className={styles.sectionHeader} onClick={() => toggleSection('color')}>
+              <FaPalette />
+              <span>Color Control</span>
+              <FaExpand className={expandedSections.color ? styles.rotated : ''} />
+            </div>
             
-            {showSceneManager && (
-              <div className={styles.sceneManager}>
-                <div className={styles.saveScene}>
-                  <input
-                    type="text"
-                    placeholder="Scene name..."
-                    value={newSceneName}
-                    onChange={(e) => setNewSceneName(e.target.value)}
-                    className={styles.sceneInput}
-                  />
+            {expandedSections.color && (
+              <div className={styles.sectionContent}>
+                <div className={styles.colorControls}>
                   <button
-                    onClick={saveCurrentScene}
-                    disabled={!newSceneName.trim()}
-                    className={styles.saveButton}
+                    className={styles.colorPickerButton}
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    style={{ backgroundColor: `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})` }}
                   >
-                    <LucideIcon name="Save" />
-                    Save
+                    Pick Color
                   </button>
-                </div>
-                
-                <div className={styles.sceneList}>
-                  {scenePresets.map(scene => (
-                    <div key={scene.id} className={styles.sceneItem}>
-                      <button
-                        onClick={() => recallScene(scene)}
-                        className={styles.recallButton}
-                      >
-                        <LucideIcon name="Play" />
-                        {scene.name}
-                      </button>
-                      <button
-                        onClick={() => setScenePresets(prev => prev.filter(s => s.id !== scene.id))}
-                        className={styles.deleteButton}
-                      >
-                        <LucideIcon name="Trash2" />
-                      </button>
+                  
+                  {showColorPicker && (
+                    <div className={styles.colorPickerWrapper} ref={colorPickerRef}>
+                      <SketchPicker
+                        color={currentColor}
+                        onChange={handleColorChange}
+                        disableAlpha={true}
+                      />
                     </div>
+                  )}
+                </div>
+
+                {/* Quick Color Presets */}
+                <div className={styles.quickColors}>
+                  {quickPresets.filter(p => p.color).map(preset => (
+                    <button
+                      key={preset.id}
+                      className={styles.quickColorButton}
+                      onClick={() => applyPreset(preset)}
+                      style={{ backgroundColor: `rgb(${preset.color!.r}, ${preset.color!.g}, ${preset.color!.b})` }}
+                      title={`${preset.name} (${preset.shortcut})`}
+                    >
+                      {preset.shortcut}
+                    </button>
                   ))}
                 </div>
               </div>
             )}
           </div>
-        </>
-      )}
-    </div>
-  );
 
-  const renderCompactControls = () => (
-    <div className={styles.compactControls}>
-      {selectionStats.rgbCount > 0 && (
-        <div className={styles.colorControl}>
-          <div className={styles.colorPresets}>
-            {[
-              { name: 'Red', r: 255, g: 0, b: 0 },
-              { name: 'Green', r: 0, g: 255, b: 0 },
-              { name: 'Blue', r: 0, g: 0, b: 255 },
-              { name: 'White', r: 255, g: 255, b: 255 },
-              { name: 'Off', r: 0, g: 0, b: 0 }
-            ].map(preset => (
-              <button
-                key={preset.name}
-                className={styles.colorPreset}
-                style={{ backgroundColor: `rgb(${preset.r}, ${preset.g}, ${preset.b})` }}
-                onClick={() => applyColorToFixtures(preset)}
-                title={preset.name}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {selectionStats.movementCount > 0 && (
-        <div className={styles.movementControl}>          <canvas
-            ref={movementCanvasRef}
-            width={100}
-            height={100}
-            className={styles.movementCanvas}
-            onMouseDown={handleMovementMouseDown}
-            onMouseMove={handleMovementMouseMove}
-            onMouseUp={handleMovementMouseUp}
-            onClick={handleMovementCanvasInteraction}
-            style={{ cursor: isDraggingMovement ? 'grabbing' : 'grab' }}
-          />
-        </div>
-      )}
-    </div>
-  );
+          {/* Movement Control */}
+          <div className={`${styles.controlSection} ${expandedSections.movement ? styles.expanded : ''}`}>
+            <div className={styles.sectionHeader} onClick={() => toggleSection('movement')}>
+              <FaArrowsAlt />
+              <span>Pan/Tilt Control</span>
+              <FaExpand className={expandedSections.movement ? styles.rotated : ''} />
+            </div>
+            
+            {expandedSections.movement && (
+              <div className={styles.sectionContent}>
+                <div 
+                  className={styles.panTiltPad}
+                  ref={panTiltRef}
+                  onClick={handlePanTiltChange}
+                  onMouseMove={(e) => {
+                    if (e.buttons === 1) handlePanTiltChange(e);
+                  }}
+                >
+                  <div 
+                    className={styles.panTiltCursor}
+                    style={{
+                      left: `${(panTiltPosition.x / 255) * 100}%`,
+                      top: `${(1 - panTiltPosition.y / 255) * 100}%`
+                    }}
+                  />
+                  <div className={styles.panTiltLabels}>
+                    <span className={styles.panLabel}>Pan: {panTiltPosition.x}</span>
+                    <span className={styles.tiltLabel}>Tilt: {panTiltPosition.y}</span>
+                  </div>
+                </div>
 
-  const renderExpandedControls = () => (
-    <div className={styles.expandedControls}>
-      {selectionStats.rgbCount > 0 && (
-        <div className={styles.colorSection}>
-          <h3>Color Control</h3>
-          <div className={styles.colorControls}>            <canvas
-              ref={colorWheelRef}
-              width={200}
-              height={200}
-              className={styles.colorWheel}
-              onMouseDown={handleColorWheelMouseDown}
-              onMouseMove={handleColorWheelMouseMove}
-              onMouseUp={handleColorWheelMouseUp}
-              onClick={handleColorWheelClick}
-              style={{ cursor: isDraggingColor ? 'grabbing' : 'grab' }}
-            /><div className={styles.colorSliders}>
-              {/* RGB Sliders */}
-              <div className={styles.sliderGroup}>
-                <label>Red: {color.r}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  value={color.r}
-                  onChange={(e) => {
-                    const newColor = { ...color, r: parseInt(e.target.value) };
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.colorSlider}
-                  style={{ '--slider-color': '#ff4444' } as React.CSSProperties}
-                />
-              </div>
-              <div className={styles.sliderGroup}>
-                <label>Green: {color.g}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  value={color.g}
-                  onChange={(e) => {
-                    const newColor = { ...color, g: parseInt(e.target.value) };
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.colorSlider}
-                  style={{ '--slider-color': '#44ff44' } as React.CSSProperties}
-                />
-              </div>
-              <div className={styles.sliderGroup}>
-                <label>Blue: {color.b}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  value={color.b}
-                  onChange={(e) => {
-                    const newColor = { ...color, b: parseInt(e.target.value) };
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.colorSlider}
-                  style={{ '--slider-color': '#4444ff' } as React.CSSProperties}
-                />
-              </div>
-
-              {/* HSV Sliders */}
-              <div className={styles.sliderGroup}>
-                <label>Hue: {Math.round(hsvColor.h)}°</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="360"
-                  value={hsvColor.h}
-                  onChange={(e) => {
-                    const newHsv = { ...hsvColor, h: parseInt(e.target.value) };
-                    setHsvColor(newHsv);
-                    const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.hueSlider}
-                />
-              </div>
-              <div className={styles.sliderGroup}>
-                <label>Saturation: {Math.round(hsvColor.s)}%</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={hsvColor.s}
-                  onChange={(e) => {
-                    const newHsv = { ...hsvColor, s: parseInt(e.target.value) };
-                    setHsvColor(newHsv);
-                    const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.colorSlider}
-                />
-              </div>
-              <div className={styles.sliderGroup}>
-                <label>Value: {Math.round(hsvColor.v)}%</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={hsvColor.v}
-                  onChange={(e) => {
-                    const newHsv = { ...hsvColor, v: parseInt(e.target.value) };
-                    setHsvColor(newHsv);
-                    const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                    applyColorToFixtures(newColor);
-                  }}
-                  className={styles.colorSlider}
-                />
-              </div>
-
-              {/* Color Temperature */}
-              <div className={styles.sliderGroup}>
-                <label>Temperature: {colorTemperature}K</label>
-                <input
-                  type="range"
-                  min="2700"
-                  max="6500"
-                  value={colorTemperature}
-                  onChange={(e) => {
-                    const temp = parseInt(e.target.value);
-                    setColorTemperature(temp);
-                    const tempColor = kelvinToRgb(temp);
-                    applyColorToFixtures(tempColor);
-                  }}
-                  className={styles.temperatureSlider}
-                />
-              </div>
-
-              {/* Color Presets */}
-              <div className={styles.colorPresets}>
-                <h4>Color Presets</h4>
-                <div className={styles.presetGrid}>
-                  {[
-                    { name: 'Red', r: 255, g: 0, b: 0 },
-                    { name: 'Green', r: 0, g: 255, b: 0 },
-                    { name: 'Blue', r: 0, g: 0, b: 255 },
-                    { name: 'Cyan', r: 0, g: 255, b: 255 },
-                    { name: 'Magenta', r: 255, g: 0, b: 255 },
-                    { name: 'Yellow', r: 255, g: 255, b: 0 },
-                    { name: 'White', r: 255, g: 255, b: 255 },
-                    { name: 'Warm White', r: 255, g: 220, b: 170 },
-                    { name: 'Cool White', r: 170, g: 220, b: 255 },
-                    { name: 'Off', r: 0, g: 0, b: 0 }
-                  ].map(preset => (
+                {/* Position Presets */}
+                <div className={styles.positionPresets}>
+                  {quickPresets.filter(p => p.position).map(preset => (
                     <button
-                      key={preset.name}
-                      className={styles.colorPreset}
-                      style={{ backgroundColor: `rgb(${preset.r}, ${preset.g}, ${preset.b})` }}
-                      onClick={() => applyColorToFixtures(preset)}
-                      title={preset.name}
+                      key={preset.id}
+                      className={styles.positionButton}
+                      onClick={() => applyPreset(preset)}
+                      title={`${preset.name} (${preset.shortcut})`}
                     >
                       {preset.name}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Current Color Preview */}
-              <div className={styles.colorPreview}>
-                <div 
-                  className={styles.currentColor}
-                  style={{ backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})` }}
-                />
-                <span>RGB({color.r}, {color.g}, {color.b})</span>
-              </div>
-            </div>
+            )}
           </div>
-        </div>
-      )}
-      
-      {selectionStats.movementCount > 0 && (
-        <div className={styles.movementSection}>
-          <h3>Movement Control</h3>
-          <div className={styles.movementControls}>            <canvas
-              ref={movementCanvasRef}
-              width={150}
-              height={150}
-              className={styles.movementCanvas}
-              onMouseDown={handleMovementMouseDown}
-              onMouseMove={handleMovementMouseMove}
-              onMouseUp={handleMovementMouseUp}
-              onClick={handleMovementCanvasInteraction}
-              style={{ cursor: isDraggingMovement ? 'grabbing' : 'grab' }}
-            /><div className={styles.movementSliders}>
-              <div className={styles.sliderGroup}>
-                <label>Pan: {movement.pan}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  value={movement.pan}
-                  onChange={(e) => {
-                    const newMovement = { ...movement, pan: parseInt(e.target.value) };
-                    applyMovementToFixtures(newMovement);
-                  }}
-                  className={styles.movementSlider}
-                />
-              </div>
-              <div className={styles.sliderGroup}>
-                <label>Tilt: {movement.tilt}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  value={movement.tilt}
-                  onChange={(e) => {
-                    const newMovement = { ...movement, tilt: parseInt(e.target.value) };
-                    applyMovementToFixtures(newMovement);
-                  }}
-                  className={styles.movementSlider}
-                />
-              </div>
 
-              {/* Movement Presets */}
-              <div className={styles.movementPresets}>
-                <h4>Movement Presets</h4>
-                <div className={styles.presetGrid}>
-                  <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 127 })}>
-                    <LucideIcon name="Target" />
-                    Center
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 127 })}>
-                    <LucideIcon name="ArrowLeft" />
-                    Left
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 127 })}>
-                    <LucideIcon name="ArrowRight" />
-                    Right
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 255 })}>
-                    <LucideIcon name="ArrowUp" />
-                    Up
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 0 })}>
-                    <LucideIcon name="ArrowDown" />
-                    Down
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 255 })}>
-                    <LucideIcon name="ArrowUpLeft" />
-                    Up-Left
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 255 })}>
-                    <LucideIcon name="ArrowUpRight" />
-                    Up-Right
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 0 })}>
-                    <LucideIcon name="ArrowDownLeft" />
-                    Down-Left
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 0 })}>
-                    <LucideIcon name="ArrowDownRight" />
-                    Down-Right
-                  </button>
-                </div>
-              </div>
-
-              {/* Fine Movement Controls */}
-              <div className={styles.fineMovement}>
-                <h4>Fine Adjustment</h4>
-                <div className={styles.fineControls}>
-                  <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.max(0, movement.pan - 1) })}>
-                    <LucideIcon name="Minus" />
-                    Pan -
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.min(255, movement.pan + 1) })}>
-                    <LucideIcon name="Plus" />
-                    Pan +
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.max(0, movement.tilt - 1) })}>
-                    <LucideIcon name="Minus" />
-                    Tilt -
-                  </button>
-                  <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.min(255, movement.tilt + 1) })}>
-                    <LucideIcon name="Plus" />
-                    Tilt +
-                  </button>
-                </div>
-              </div>
+          {/* Intensity Control */}
+          <div className={`${styles.controlSection} ${expandedSections.intensity ? styles.expanded : ''}`}>
+            <div className={styles.sectionHeader} onClick={() => toggleSection('intensity')}>
+              <FaBolt />
+              <span>Intensity Control</span>
+              <FaExpand className={expandedSections.intensity ? styles.rotated : ''} />
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-  const renderProfessionalControls = () => (
-    <div className={styles.professionalControls}>
-      <div className={styles.controlGrid}>
-        {selectionStats.rgbCount > 0 && (
-          <div className={styles.colorSection}>
-            <h3>
-              <LucideIcon name="Palette" />
-              Color Control ({selectionStats.rgbCount} fixtures)
-            </h3>
-            <div className={styles.colorProfessional}>
-              <div className={styles.colorWheelContainer}>                <canvas
-                  ref={colorWheelRef}
-                  width={180}
-                  height={180}
-                  className={styles.colorWheel}
-                  onMouseDown={handleColorWheelMouseDown}
-                  onMouseMove={handleColorWheelMouseMove}
-                  onMouseUp={handleColorWheelMouseUp}
-                  onClick={handleColorWheelClick}
-                  style={{ cursor: isDraggingColor ? 'grabbing' : 'grab' }}
-                />
-                <div className={styles.wheelLabels}>
-                  <span>Click or drag on wheel</span>
-                </div>
-              </div>
-              
-              <div className={styles.colorControls}>
-                <div className={styles.rgbControls}>
-                  <h4>RGB Controls</h4>
-                  <div className={styles.sliderGroup}>
-                    <label>Red</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="255"
-                      value={color.r}
-                      onChange={(e) => {
-                        const newColor = { ...color, r: parseInt(e.target.value) };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.redSlider}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={color.r}
-                      onChange={(e) => {
-                        const newColor = { ...color, r: parseInt(e.target.value) || 0 };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.numberInput}
-                    />
-                  </div>
-                  <div className={styles.sliderGroup}>
-                    <label>Green</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="255"
-                      value={color.g}
-                      onChange={(e) => {
-                        const newColor = { ...color, g: parseInt(e.target.value) };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.greenSlider}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={color.g}
-                      onChange={(e) => {
-                        const newColor = { ...color, g: parseInt(e.target.value) || 0 };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.numberInput}
-                    />
-                  </div>
-                  <div className={styles.sliderGroup}>
-                    <label>Blue</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="255"
-                      value={color.b}
-                      onChange={(e) => {
-                        const newColor = { ...color, b: parseInt(e.target.value) };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.blueSlider}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={color.b}
-                      onChange={(e) => {
-                        const newColor = { ...color, b: parseInt(e.target.value) || 0 };
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.numberInput}
-                    />
-                  </div>
-                </div>
-                
-                <div className={styles.hsvControls}>
-                  <h4>HSV Controls</h4>
-                  <div className={styles.sliderGroup}>
-                    <label>Hue</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="360"
-                      value={hsvColor.h}
-                      onChange={(e) => {
-                        const newHsv = { ...hsvColor, h: parseInt(e.target.value) };
-                        setHsvColor(newHsv);
-                        const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.hueSlider}
-                    />
-                    <span>{Math.round(hsvColor.h)}°</span>
-                  </div>
-                  <div className={styles.sliderGroup}>
-                    <label>Saturation</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={hsvColor.s}
-                      onChange={(e) => {
-                        const newHsv = { ...hsvColor, s: parseInt(e.target.value) };
-                        setHsvColor(newHsv);
-                        const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.saturationSlider}
-                    />
-                    <span>{Math.round(hsvColor.s)}%</span>
-                  </div>
-                  <div className={styles.sliderGroup}>
-                    <label>Value</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={hsvColor.v}
-                      onChange={(e) => {
-                        const newHsv = { ...hsvColor, v: parseInt(e.target.value) };
-                        setHsvColor(newHsv);
-                        const newColor = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.valueSlider}
-                    />
-                    <span>{Math.round(hsvColor.v)}%</span>
-                  </div>
-                </div>
-                
-                <div className={styles.temperatureControl}>
-                  <h4>Color Temperature</h4>
-                  <div className={styles.sliderGroup}>
-                    <label>Kelvin</label>
-                    <input
-                      type="range"
-                      min="2700"
-                      max="8000"
-                      value={colorTemperature}
-                      onChange={(e) => {
-                        const kelvin = parseInt(e.target.value);
-                        setColorTemperature(kelvin);
-                        const newColor = kelvinToRgb(kelvin);
-                        applyColorToFixtures(newColor);
-                      }}
-                      className={styles.temperatureSlider}
-                    />
-                    <span>{colorTemperature}K</span>
-                  </div>
-                  <div className={styles.temperaturePresets}>
-                    <button onClick={() => { const tc = 2700; setColorTemperature(tc); applyColorToFixtures(kelvinToRgb(tc)); }}>
-                      Warm
-                    </button>
-                    <button onClick={() => { const tc = 4000; setColorTemperature(tc); applyColorToFixtures(kelvinToRgb(tc)); }}>
-                      Neutral
-                    </button>
-                    <button onClick={() => { const tc = 5600; setColorTemperature(tc); applyColorToFixtures(kelvinToRgb(tc)); }}>
-                      Daylight
-                    </button>
-                    <button onClick={() => { const tc = 7000; setColorTemperature(tc); applyColorToFixtures(kelvinToRgb(tc)); }}>
-                      Cool
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.colorPreview}>
-                  <div 
-                    className={styles.currentColor}
-                    style={{ backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})` }}
+            
+            {expandedSections.intensity && (
+              <div className={styles.sectionContent}>
+                <div className={styles.intensitySlider}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={masterIntensityLocal}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setMasterIntensityLocal(value);
+                      applyIntensityToSelected(value);
+                    }}
+                    className={styles.slider}
                   />
-                  <div className={styles.colorInfo}>
-                    <span>RGB({color.r}, {color.g}, {color.b})</span>
-                    <span>HSV({Math.round(hsvColor.h)}°, {Math.round(hsvColor.s)}%, {Math.round(hsvColor.v)}%)</span>
-                    <span>#{color.r.toString(16).padStart(2, '0')}{color.g.toString(16).padStart(2, '0')}{color.b.toString(16).padStart(2, '0')}</span>
-                  </div>
+                  <div className={styles.sliderValue}>{masterIntensityLocal}</div>
+                </div>
+
+                {/* Intensity Presets */}
+                <div className={styles.intensityPresets}>
+                  {quickPresets.filter(p => p.intensity !== undefined).map(preset => (
+                    <button
+                      key={preset.id}
+                      className={styles.intensityButton}
+                      onClick={() => applyPreset(preset)}
+                      title={`${preset.name} (${preset.shortcut})`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-        
-        {selectionStats.movementCount > 0 && (
-          <div className={styles.movementSection}>
-            <h3>
-              <LucideIcon name="Move" />
-              Movement Control ({selectionStats.movementCount} fixtures)
-            </h3>
-            <div className={styles.movementProfessional}>
-              <div className={styles.xyPadContainer}>                <canvas
-                  ref={movementCanvasRef}
-                  width={200}
-                  height={200}
-                  className={styles.movementCanvas}
-                  onMouseDown={handleMovementMouseDown}
-                  onMouseMove={handleMovementMouseMove}
-                  onMouseUp={handleMovementMouseUp}
-                  onClick={handleMovementCanvasInteraction}
-                  style={{ cursor: isDraggingMovement ? 'grabbing' : 'grab' }}
-                />
-                <div className={styles.xyLabels}>
-                  <span className={styles.topLabel}>Tilt +</span>
-                  <span className={styles.rightLabel}>Pan +</span>
-                  <span className={styles.bottomLabel}>Tilt -</span>
-                  <span className={styles.leftLabel}>Pan -</span>
-                </div>
-              </div>
-              
-              <div className={styles.movementControls}>
-                <div className={styles.movementSliders}>
-                  <div className={styles.sliderGroup}>
+
+          {/* MIDI Mapping */}
+          <div className={`${styles.controlSection} ${expandedSections.midi ? styles.expanded : ''}`}>
+            <div className={styles.sectionHeader} onClick={() => toggleSection('midi')}>
+              <FaMidiIn />
+              <span>MIDI Mapping</span>
+              <FaExpand className={expandedSections.midi ? styles.rotated : ''} />
+            </div>
+            
+            {expandedSections.midi && (
+              <div className={styles.sectionContent}>
+                <div className={styles.midiMappingGrid}>
+                  <div className={styles.midiControl}>
                     <label>Pan</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="255"
-                      value={movement.pan}
-                      onChange={(e) => {
-                        const newMovement = { ...movement, pan: parseInt(e.target.value) };
-                        applyMovementToFixtures(newMovement);
-                      }}
-                      className={styles.panSlider}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={movement.pan}
-                      onChange={(e) => {
-                        const newMovement = { ...movement, pan: parseInt(e.target.value) || 0 };
-                        applyMovementToFixtures(newMovement);
-                      }}
-                      className={styles.numberInput}
-                    />
+                    <div className={styles.midiInputs}>
+                      <input 
+                        type="checkbox" 
+                        checked={midiMappings.panTilt.x.enabled}
+                        onChange={(e) => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, x: { ...prev.panTilt.x, enabled: e.target.checked }}
+                        }))}
+                      />
+                      <input 
+                        type="number" 
+                        value={midiMappings.panTilt.x.ccNumber}
+                        onChange={(e) => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, x: { ...prev.panTilt.x, ccNumber: parseInt(e.target.value) }}
+                        }))}
+                        min="1" 
+                        max="127"
+                        disabled={!midiMappings.panTilt.x.enabled}
+                      />
+                      <button
+                        className={`${styles.learnButton} ${midiMappings.panTilt.x.learning ? styles.learning : ''}`}
+                        onClick={() => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, x: { ...prev.panTilt.x, learning: !prev.panTilt.x.learning }}
+                        }))}
+                        disabled={!midiMappings.panTilt.x.enabled}
+                      >
+                        <FaRecordVinyl />
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.sliderGroup}>
-                    <label>Tilt</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="255"
-                      value={movement.tilt}
-                      onChange={(e) => {
-                        const newMovement = { ...movement, tilt: parseInt(e.target.value) };
-                        applyMovementToFixtures(newMovement);
-                      }}
-                      className={styles.tiltSlider}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={movement.tilt}
-                      onChange={(e) => {
-                        const newMovement = { ...movement, tilt: parseInt(e.target.value) || 0 };
-                        applyMovementToFixtures(newMovement);
-                      }}
-                      className={styles.numberInput}
-                    />
-                  </div>
-                </div>
-                
-                <div className={styles.movementPresets}>
-                  <h4>Movement Presets</h4>
-                  <div className={styles.presetGrid}>
-                    <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 127 })}>
-                      <LucideIcon name="Target" />
-                      Center
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 127 })}>
-                      <LucideIcon name="ArrowLeft" />
-                      Left
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 127 })}>
-                      <LucideIcon name="ArrowRight" />
-                      Right
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 255 })}>
-                      <LucideIcon name="ArrowUp" />
-                      Up
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 127, tilt: 0 })}>
-                      <LucideIcon name="ArrowDown" />
-                      Down
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 255 })}>
-                      <LucideIcon name="CornerUpLeft" />
-                      Up-Left
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 255 })}>
-                      <LucideIcon name="CornerUpRight" />
-                      Up-Right
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 0, tilt: 0 })}>
-                      <LucideIcon name="CornerDownLeft" />
-                      Down-Left
-                    </button>
-                    <button onClick={() => applyMovementToFixtures({ pan: 255, tilt: 0 })}>
-                      <LucideIcon name="CornerDownRight" />
-                      Down-Right
-                    </button>
-                  </div>
-                </div>
 
-                <div className={styles.fineMovement}>
-                  <h4>Fine Adjustment</h4>
-                  <div className={styles.fineGrid}>
-                    <div className={styles.fineRow}>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.max(0, movement.pan - 10) })}>
-                        <LucideIcon name="ChevronsLeft" />
-                        -10
-                      </button>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.max(0, movement.pan - 1) })}>
-                        <LucideIcon name="ChevronLeft" />
-                        -1
-                      </button>
-                      <span>Pan</span>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.min(255, movement.pan + 1) })}>
-                        <LucideIcon name="ChevronRight" />
-                        +1
-                      </button>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, pan: Math.min(255, movement.pan + 10) })}>
-                        <LucideIcon name="ChevronsRight" />
-                        +10
-                      </button>
-                    </div>
-                    <div className={styles.fineRow}>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.max(0, movement.tilt - 10) })}>
-                        <LucideIcon name="ChevronsDown" />
-                        -10
-                      </button>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.max(0, movement.tilt - 1) })}>
-                        <LucideIcon name="ChevronDown" />
-                        -1
-                      </button>
-                      <span>Tilt</span>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.min(255, movement.tilt + 1) })}>
-                        <LucideIcon name="ChevronUp" />
-                        +1
-                      </button>
-                      <button onClick={() => applyMovementToFixtures({ ...movement, tilt: Math.min(255, movement.tilt + 10) })}>
-                        <LucideIcon name="ChevronsUp" />
-                        +10
+                  <div className={styles.midiControl}>
+                    <label>Tilt</label>
+                    <div className={styles.midiInputs}>
+                      <input 
+                        type="checkbox" 
+                        checked={midiMappings.panTilt.y.enabled}
+                        onChange={(e) => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, y: { ...prev.panTilt.y, enabled: e.target.checked }}
+                        }))}
+                      />
+                      <input 
+                        type="number" 
+                        value={midiMappings.panTilt.y.ccNumber}
+                        onChange={(e) => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, y: { ...prev.panTilt.y, ccNumber: parseInt(e.target.value) }}
+                        }))}
+                        min="1" 
+                        max="127"
+                        disabled={!midiMappings.panTilt.y.enabled}
+                      />
+                      <button
+                        className={`${styles.learnButton} ${midiMappings.panTilt.y.learning ? styles.learning : ''}`}
+                        onClick={() => setMidiMappings(prev => ({
+                          ...prev,
+                          panTilt: { ...prev.panTilt, y: { ...prev.panTilt.y, learning: !prev.panTilt.y.learning }}
+                        }))}
+                        disabled={!midiMappings.panTilt.y.enabled}
+                      >
+                        <FaRecordVinyl />
                       </button>
                     </div>
                   </div>
+
+                  {/* RGB MIDI controls */}
+                  {['r', 'g', 'b'].map(color => (
+                    <div key={color} className={styles.midiControl}>
+                      <label>{color.toUpperCase()}</label>
+                      <div className={styles.midiInputs}>
+                        <input 
+                          type="checkbox" 
+                          checked={midiMappings.color[color as 'r'|'g'|'b'].enabled}
+                          onChange={(e) => setMidiMappings(prev => ({
+                            ...prev,
+                            color: { ...prev.color, [color]: { ...prev.color[color as 'r'|'g'|'b'], enabled: e.target.checked }}
+                          }))}
+                        />
+                        <input 
+                          type="number" 
+                          value={midiMappings.color[color as 'r'|'g'|'b'].ccNumber}
+                          onChange={(e) => setMidiMappings(prev => ({
+                            ...prev,
+                            color: { ...prev.color, [color]: { ...prev.color[color as 'r'|'g'|'b'], ccNumber: parseInt(e.target.value) }}
+                          }))}
+                          min="1" 
+                          max="127"
+                          disabled={!midiMappings.color[color as 'r'|'g'|'b'].enabled}
+                        />
+                        <button
+                          className={`${styles.learnButton} ${midiMappings.color[color as 'r'|'g'|'b'].learning ? styles.learning : ''}`}
+                          onClick={() => setMidiMappings(prev => ({
+                            ...prev,
+                            color: { ...prev.color, [color]: { ...prev.color[color as 'r'|'g'|'b'], learning: !prev.color[color as 'r'|'g'|'b'].learning }}
+                          }))}
+                          disabled={!midiMappings.color[color as 'r'|'g'|'b'].enabled}
+                        >
+                          <FaRecordVinyl />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
-      
-      <div className={styles.globalControls}>
-        <div className={styles.modeToggle}>
-          <label>
-            <input
-              type="checkbox"
-              checked={isLiveMode}
-              onChange={(e) => setIsLiveMode(e.target.checked)}
-            />
-            <LucideIcon name={isLiveMode ? "Zap" : "ZapOff"} />
-            Live Mode
-          </label>
         </div>
+      </div>
 
-        <div className={styles.globalActions}>
-          <button 
-            onClick={() => {
-              if (selectionStats.rgbCount > 0) {
-                applyColorToFixtures({ r: 0, g: 0, b: 0 });
-              }
-            }}
-            className={styles.blackoutButton}
-            disabled={selectionStats.rgbCount === 0}
-          >
-            <LucideIcon name="Power" />
-            Blackout RGB
-          </button>
-          
-          <button 
-            onClick={() => {
-              if (selectionStats.movementCount > 0) {
-                applyMovementToFixtures({ pan: 127, tilt: 127 });
-              }
-            }}
-            className={styles.centerButton}
-            disabled={selectionStats.movementCount === 0}
-          >
-            <LucideIcon name="Target" />
-            Center All
-          </button>
-          
-          <button 
-            onClick={() => {
-              if (selectionStats.rgbCount > 0) {
-                applyColorToFixtures({ r: 255, g: 255, b: 255 });
-              }
-            }}
-            className={styles.fullOnButton}
-            disabled={selectionStats.rgbCount === 0}
-          >
-            <LucideIcon name="Sun" />
-            Full White
-          </button>
+      {/* Status Bar */}
+      <div className={styles.statusBar}>
+        <div className={styles.statusLeft}>
+          <span className={styles.statusItem}>
+            Live Mode: {isLiveMode ? 'ON' : 'OFF'}
+          </span>
+          <span className={styles.statusItem}>
+            Master: {masterIntensity}
+          </span>
+          {blackout && (
+            <span className={`${styles.statusItem} ${styles.blackout}`}>
+              BLACKOUT
+            </span>
+          )}
+        </div>
+        
+        <div className={styles.statusRight}>
+          <span className={styles.statusItem}>
+            Fixtures: {filteredFixtures.length}
+          </span>
+          <span className={styles.statusItem}>
+            Selected: {selectedFixtures.size}
+          </span>
+          {activeScene && (
+            <span className={styles.statusItem}>
+              Scene: {activeScene.name}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Keyboard Shortcuts Help */}
+      <div className={styles.shortcutsHelp}>
+        <div className={styles.shortcutGroup}>
+          <span>Ctrl+A: Select All</span>
+          <span>Esc: Clear Selection</span>
+          <span>Del: Blackout</span>
+          <span>Ctrl+R: Randomize</span>
+        </div>
+        <div className={styles.shortcutGroup}>
+          {quickPresets.map(preset => (
+            <span key={preset.id}>{preset.shortcut}: {preset.name}</span>
+          ))}
         </div>
       </div>
     </div>
-  );
-
-  if (!isDockable) {
-    return (
-      <div className={styles.unifiedFixtureController}>
-        {renderMainInterface()}
-      </div>
-    );
-  }
-
-  return (
-    <DockableComponent
-      id="unified-fixture-controller"
-      component="unified-fixture-controller"
-      title="Unified Fixture Controller"
-      defaultPosition={{ zone: 'floating', offset: { x: 300, y: 100 } }}
-      className={styles.unifiedFixtureController}
-      isCollapsed={isCollapsed}
-      onCollapsedChange={onCollapsedChange}
-      width="400px"
-      height="auto"
-    >
-      {renderMainInterface()}
-    </DockableComponent>
   );
 };
 
