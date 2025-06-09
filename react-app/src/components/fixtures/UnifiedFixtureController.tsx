@@ -9,10 +9,12 @@ import {
   FaPalette, FaArrowsAlt, FaCog, FaSearch, FaFilter, 
   FaPlay, FaPause, FaStop, FaVolumeMute, FaVolumeUp,
   FaLock, FaUnlock, FaEye, FaEyeSlash, FaKeyboard,
-  FaGamepad, FaMidiIn, FaMidiOut, FaRecordVinyl,
+  FaGamepad, FaRecordVinyl, // FaMidiIn, FaMidiOut removed from here
   FaExpand, FaCompress, FaCopy, FaPaste, FaRandom,
   FaMagic, FaLayerGroup, FaBolt, FaHeart
 } from 'react-icons/fa';
+import { BiSolidPiano as FaMidiIn } from 'react-icons/bi';
+import { CgPiano as FaMidiOut } from 'react-icons/cg';
 import styles from './UnifiedFixtureController.module.scss';
 
 // Enhanced interfaces for professional lighting control
@@ -77,17 +79,17 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
   className
 }) => {
   // Store hooks
-  const { 
-    fixtures, 
-    dmxValues, 
-    updateDMXValue, 
-    updateMultipleDMXValues,
-    masterIntensity,
-    blackout 
-  } = useDMXStore();
+  const fixtures: Fixture[] = useDMXStore(state => state.fixtures);
+  const dmxValues: DMXValue[] = useDMXStore(state => state.dmxValues);
+  const updateDMXValue: (channel: number, value: DMXValue) => void = useDMXStore(state => state.updateDMXValue);
+  const updateMultipleDMXValues: (values: { channel: number, value: DMXValue }[]) => void = useDMXStore(state => state.updateMultipleDMXValues);
+  const masterIntensity: number = useDMXStore(state => state.masterIntensity);
+  const blackout: boolean = useDMXStore(state => state.blackout);
   
-  const { scenes, activeScene } = useSceneStore();
-  const { isLiveMode } = useAppStore();
+  const scenes: Scene[] = useSceneStore(state => state.scenes);
+  const activeScene: string | null = useSceneStore(state => state.activeScene);
+
+  const isLiveMode: boolean = useAppStore(state => state.isLiveMode);
 
   // State management
   const [selectedFixtures, setSelectedFixtures] = useState<Set<string>>(new Set());
