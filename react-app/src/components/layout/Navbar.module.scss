@@ -47,15 +47,19 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* May need opacity transition */
   overflow-y: auto; /* Allow scrolling if content exceeds height */
   overflow-x: hidden; /* Hide horizontal overflow during transition */
-
   &.navContentCollapsed {
     /* display: none;  Replaced: Now controls content visibility within buttons */
     /* Instead of hiding the whole content, we hide text in buttons and center icons */
-    .navButton span {
-      display: none;
-    }
-    .navButton svg {
-      margin: 0 auto; /* Center icon when text is hidden */
+    .navButton {
+      span {
+        display: none;
+      }
+      svg {
+        margin: 0 auto; /* Center icon when text is hidden */
+      }
+      justify-content: center; /* Center the icon */
+      padding: 0.5rem; /* Reduce padding for icon-only display */
+      min-height: 40px; /* Maintain minimum height */
     }
     .networkStatusContainer { /* Example: if NetworkStatus has its own container */
       /* Potentially hide or change NetworkStatus rendering in collapsed state */
@@ -176,6 +180,73 @@
     
     &:hover {
       background: var(--color-primary, rgba(78, 205, 196, 0.25));
+    }
+  }
+
+  // Icon container for collapsed navbar
+  &:global(.collapsed-icon) {
+    svg {
+      width: 20px;
+      height: 20px;
+      opacity: 1;
+    }
+  }
+}
+
+// Enhanced styling for collapsed navbar menu items  
+.navBarCollapsedState {
+  .navButton {
+    &:hover {
+      background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+      transform: scale(1.05);
+      
+      svg {
+        transform: scale(1.2);
+        color: var(--color-primary, #4ecdc4);
+      }
+    }
+    
+    &.active {
+      background: var(--color-primary, #4ecdc4);
+      color: white;
+      
+      svg {
+        color: white;
+        transform: scale(1.1);
+      }
+    }
+  }
+}
+
+// Additional styling for better collapsed icon visibility
+.navBarCollapsedState {
+  .navButton {
+    // Add subtle background for better icon visibility
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 4px;
+    
+    &:not(.active):hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+// Add subtle pulse animation for active collapsed items
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.navBarCollapsedState {
+  .navButton.active {
+    svg {
+      animation: subtlePulse 2s infinite ease-in-out;
     }
   }
 }
