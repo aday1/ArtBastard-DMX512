@@ -166,40 +166,52 @@ export const Navbar: React.FC = () => {
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
             </button>          ))}        </div>
-        
-        {/* Status icons container - only visible when collapsed */}
-        {isCollapsed && (
-          <div className={styles.statusIcons}>
-            {/* Connection Status */}
-            <div 
-              className={`${styles.statusIcon} ${connected ? styles.statusOk : styles.statusError}`}
-              title={connected ? 'Connected to server' : 'Disconnected from server'}
-            >
-              <LucideIcon name={connected ? 'Wifi' : 'WifiOff'} />
-            </div>
-            
-            {/* MIDI Activity */}
-            <div 
-              className={`${styles.statusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
-              title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
-            >
-              <LucideIcon name="Music" />
-            </div>
-              {/* Scene/DMX Activity */}
-            <div 
-              className={`${styles.statusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
-              title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
-            >
-              <LucideIcon name="Lightbulb" />
-            </div>            {/* Audio Analysis */}
-            <div 
-              className={`${styles.statusIcon} ${styles.statusHighlight}`}
-              title={`Current View: ${navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}`}
-            >
-              <LucideIcon name={navItems.find(item => item.id === activeView)?.icon as keyof typeof Icons || 'Layout'} />
-            </div>
+          {/* Status icons container - visible in both expanded and collapsed states */}
+        <div className={`${styles.statusIcons} ${isCollapsed ? styles.statusIconsCollapsed : styles.statusIconsExpanded}`}>
+          {/* Connection Status */}
+          <div 
+            className={`${styles.statusIcon} ${connected ? styles.statusOk : styles.statusError}`}
+            title={connected ? 'Connected to server' : 'Disconnected from server'}
+          >
+            <LucideIcon name={connected ? 'Wifi' : 'WifiOff'} />
+            {!isCollapsed && <span className={styles.statusLabel}>
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>}
           </div>
-        )}
+          
+          {/* MIDI Activity */}
+          <div 
+            className={`${styles.statusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
+            title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
+          >
+            <LucideIcon name="Music" />
+            {!isCollapsed && <span className={styles.statusLabel}>
+              MIDI ({activeBrowserInputs?.size || 0})
+            </span>}
+          </div>
+          
+          {/* DMX Activity */}
+          <div 
+            className={`${styles.statusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
+            title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
+          >
+            <LucideIcon name="Lightbulb" />
+            {!isCollapsed && <span className={styles.statusLabel}>
+              DMX {dmxActivity ? '(Active)' : '(Idle)'}
+            </span>}
+          </div>
+          
+          {/* Current View Indicator */}
+          <div 
+            className={`${styles.statusIcon} ${styles.statusHighlight}`}
+            title={`Current View: ${navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}`}
+          >
+            <LucideIcon name={navItems.find(item => item.id === activeView)?.icon as keyof typeof Icons || 'Layout'} />
+            {!isCollapsed && <span className={styles.statusLabel}>
+              {navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}
+            </span>}
+          </div>
+        </div>
       </div>
        {/* If Sparkles is meant to be fixed at the bottom or outside scroll, place it here, relative to navbarContainer */}
        <Sparkles />

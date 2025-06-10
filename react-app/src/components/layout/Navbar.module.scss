@@ -303,30 +303,68 @@
   }
 }
 
-// Status icons for collapsed navbar
+// Status icons for both collapsed and expanded navbar
 .statusIcons {
   display: flex;
-  flex-direction: column;
   gap: 0.375rem;
   margin-top: auto;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1));
 }
 
-.statusIcon {
-  display: flex;
-  align-items: center;
+.statusIconsCollapsed {
+  flex-direction: column;
+}
+
+.statusIconsExpanded {
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+// Collapsed state: icon-only, centered, small
+.statusIconsCollapsed .statusIcon {
   justify-content: center;
   width: 32px;
   height: 32px;
+  padding: 0;
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Expanded state: icon + text, left-aligned, full width
+.statusIconsExpanded .statusIcon {
+  justify-content: flex-start;
+  width: 100%;
+  height: auto;
+  padding: 0.375rem 0.5rem;
+  gap: 0.5rem;
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.statusLabel {
+  font-size: 0.75rem;
+  font-weight: 450;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.statusIcon {
+  display: flex;
+  align-items: center;
   border-radius: 6px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
   
   svg {
-    width: 16px;
-    height: 16px;
     transition: all 0.2s ease;
+    flex-shrink: 0;
   }
   
   &:hover {
@@ -387,6 +425,14 @@
     
     &:hover {
       background: rgba(96, 125, 139, 0.2);
+    }
+  }
+    &.statusHighlight {
+    background: var(--color-primary, rgba(78, 205, 196, 0.15));
+    color: var(--color-primary, #4ecdc4);
+    
+    &:hover {
+      background: var(--color-primary, rgba(78, 205, 196, 0.25));
     }
   }
 }
