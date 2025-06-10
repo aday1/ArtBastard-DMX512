@@ -2,7 +2,7 @@
 .helpButton {
   position: fixed;
   bottom: 20px;
-  left: 280px; // Position to avoid navbar when expanded
+  left: 20px; // Moved back to bottom left corner
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -42,10 +42,10 @@
   }
 }
 
-// Responsive positioning for collapsed navbar
-:global(body.navbar-is-collapsed) .helpButton {
+// Remove responsive positioning to keep it in bottom left corner
+/* :global(body.navbar-is-collapsed) .helpButton {
   left: 120px; // Position when navbar is collapsed
-}
+} */
 
 .helpOverlay {
   position: fixed;

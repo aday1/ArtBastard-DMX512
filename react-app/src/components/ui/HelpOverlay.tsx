@@ -189,9 +189,7 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>Behringer X-Touch:</strong> Professional mixing console with motorized faders</li>
                 <li><strong>Korg nanoKONTROL:</strong> Compact USB controller with faders and knobs</li>
               </ul>
-            </div>
-
-            <div className={styles.section}>
+            </div>            <div className={styles.section}>
               <h5>📊 Live MIDI Monitor</h5>
               <p>Use the MIDI Monitor below to test your controller and see incoming messages in real-time:</p>
               <div className={styles.monitorContainer}>
@@ -246,9 +244,7 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>Automated Shows:</strong> Program sequences with timing</li>
                 <li><strong>Multi-User Control:</strong> Multiple operators with different interfaces</li>
               </ul>
-            </div>
-
-            <div className={styles.section}>
+            </div>            <div className={styles.section}>
               <h5>📡 Live OSC Monitor</h5>
               <p>Use the OSC Monitor below to test your setup and see incoming messages in real-time:</p>
               <div className={styles.monitorContainer}>

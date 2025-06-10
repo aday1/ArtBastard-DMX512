@@ -24,11 +24,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     <RouterProvider>
       <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`} 
            style={{ fontFeatureSettings: "'liga' 1, 'calt' 1, 'tnum' 1, 'case' 1" }}>
-        
-        {/* Global UI Effects */}
+          {/* Global UI Effects */}
         <Sparkles />
         <BpmIndicator />
-        <SignalFlashIndicator position="bottom-left" />
+        {/* <SignalFlashIndicator position="bottom-left" /> */}
         
         <Navbar />
         <ToastContainer /> 
