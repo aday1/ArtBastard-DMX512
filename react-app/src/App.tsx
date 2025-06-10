@@ -12,7 +12,6 @@ import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
 import MidiDebugHelper from './components/midi/MidiDebugHelper'
 import MidiDmxDebug from './components/midi/MidiDmxDebug'
 import OscMonitor from './components/osc/OscMonitor'
-import DebugInfo from './components/DebugInfo'
 import { HelpOverlay } from './components/ui/HelpOverlay';
 import { UIResetButton } from './components/layout/UIResetButton';
 import './utils/midiTestUtils'
@@ -78,7 +77,6 @@ function App() {
                 </div>                {/* Main UI should live inside SocketProvider */}
                 <HelpOverlay />
                 <UIResetButton />
-                <DebugInfo position="top-right" />
                 <ErrorBoundary>
                   <Layout />
                 </ErrorBoundary>
