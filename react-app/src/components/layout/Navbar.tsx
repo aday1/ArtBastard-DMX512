@@ -140,11 +140,7 @@ export const Navbar: React.FC = () => {
             >
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
-            </button>
-          ))}        </div>
-        {/* NetworkStatus with proper container styling */}        <div className={styles.networkStatusContainer}>
-          <NetworkStatus compact={isCollapsed} navbar={true} />
-        </div>
+            </button>          ))}        </div>
       </div>
        {/* If Sparkles is meant to be fixed at the bottom or outside scroll, place it here, relative to navbarContainer */}
        <Sparkles />
