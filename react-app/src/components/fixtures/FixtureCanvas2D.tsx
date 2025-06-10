@@ -73,11 +73,14 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ x: number; y: number } | null>(null);
-  const [gridSnappingEnabled, setGridSnappingEnabled] = useState<boolean>(true);
-  // Multi-select functionality
+  const [gridSnappingEnabled, setGridSnappingEnabled] = useState<boolean>(true);  // Multi-select functionality
   const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [selectionBox, setSelectionBox] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
+  
+  // Fullscreen functionality
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { 
     masterSliders, addMasterSlider, updateMasterSlider,
     updateMasterSliderValue, removeMasterSlider, setDmxChannel,
@@ -183,7 +186,6 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     
     setSelectedFixtures(fixturesInBox);
   };
-
   const animateToPosition = (
     element: PlacedFixture | MasterSlider,
     newPosition: { x: number; y: number },
@@ -195,6 +197,60 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       setTimeout(onComplete, DRAG_ANIMATION_DURATION);
     }
   };
+
+  // Fullscreen functionality
+  const toggleFullscreen = useCallback(() => {
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (containerRef.current?.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  }, [isFullscreen]);
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+      if (event.key === 'F11') {
+        event.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen, toggleFullscreen]);
+
+  // Handle canvas resizing in fullscreen mode
+  useEffect(() => {
+    if (isFullscreen) {
+      // Adjust canvas size for fullscreen
+      const newWidth = Math.max(1280, window.innerWidth - 100);
+      const newHeight = Math.max(720, window.innerHeight - 200);
+      setCanvasSize({ width: newWidth, height: newHeight });
+    } else {
+      // Reset to default size when exiting fullscreen
+      setCanvasSize({ width: 1280, height: 720 });
+    }
+  }, [isFullscreen]);
   
   useEffect(() => {
     if (selectedMasterSliderForConfig) {
@@ -1507,9 +1563,11 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     }
   };
   const selectedTargetFixtureDef = targetFixtureId ? getFixtureDefinition(placedFixtures.find(pf => pf.id === targetFixtureId) || null) : null;
-
   return (
-    <div className={styles.fixtureCanvasContainer}>
+    <div 
+      ref={containerRef}
+      className={`${styles.fixtureCanvasContainer} ${isFullscreen ? styles.fullscreen : ''}`}
+    >
       {/* Controls Bar - Fixture Selection */}
       <div className={styles.controls}>
         <div className={styles.fixturePalette}>
@@ -1537,13 +1595,21 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
               </button>
             ))
           )}
-        </div>          <div className={styles.masterControls}>
+        </div>        <div className={styles.masterControls}>
           <button
             className={`${styles.gridSnapToggle} ${gridSnappingEnabled ? styles.active : ''}`}
             onClick={() => setGridSnappingEnabled(!gridSnappingEnabled)}
             title={`Grid snapping: ${gridSnappingEnabled ? 'ON' : 'OFF'}`}
           >
             🧲 Grid Snap
+          </button>
+          
+          <button
+            className={`${styles.fullscreenToggle} ${isFullscreen ? styles.active : ''}`}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen (F11/Esc)' : 'Enter Fullscreen (F11)'}
+          >
+            {isFullscreen ? '🗗' : '⛶'} Fullscreen
           </button>
           
           <button

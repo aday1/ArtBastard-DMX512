@@ -8,7 +8,48 @@
   background: var(--bg-secondary, #f9f9f9);
   height: 100%; // Take full available height
   min-height: 600px; // Ensure minimum height
-  overflow: hidden; // Prevent container overflow
+  overflow: visible; // Changed from hidden to allow canvas to display fully
+  
+  // Fullscreen styles
+  &.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    border: none;
+    border-radius: 0;
+    padding: 0.5rem;
+    background: var(--bg-primary, #fff);
+    gap: 0.5rem;
+    
+    // Enhanced canvas sizing in fullscreen
+    .canvasContainer {
+      flex: 1;
+      min-height: calc(100vh - 120px); // Account for controls
+    }
+    
+    .fixtureCanvas {
+      min-height: calc(100vh - 160px); // Maximize canvas space
+    }
+    
+    // Compact controls in fullscreen
+    .controls {
+      padding-bottom: 0.5rem;
+      gap: 0.75rem;
+    }
+    
+    // Hide or compact certain elements in fullscreen if needed
+    .masterSliderConfigPanel,
+    .placedControlConfigPanel,
+    .placedFixtureConfigPanel {
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+  }
 }
 
 .controls {
@@ -223,6 +264,51 @@
     font-size: 1rem;
     transition: transform 0.2s ease;
   }
+  &.active svg,
+  &.active i {
+    transform: scale(1.1);
+  }
+}
+
+.fullscreenToggle {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color-strong, #ccc);
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+  border-radius: var(--border-radius-md, 6px);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: center;
+
+  &:hover {
+    border-color: var(--accent-color, #4ecdc4);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  &.active {
+    background-color: var(--accent-color-secondary, #8855ff);
+    border-color: var(--accent-color-secondary-dark, #6a3ddf);
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(136, 85, 255, 0.3);
+
+    &:hover {
+      background-color: var(--accent-color-secondary-dark, #6a3ddf);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(136, 85, 255, 0.4);
+    }
+  }
+
+  svg, i {
+    font-size: 1rem;
+    transition: transform 0.2s ease;
+  }
 
   &.active svg,
   &.active i {
@@ -432,12 +518,14 @@
   display: flex;
   flex-direction: column;
   min-width: 0; // Allow shrinking below content width
-  overflow: hidden; // Prevent overflow
+  overflow: visible; // Changed from hidden to allow canvas to display fully
+  min-height: 400px; // Ensure minimum height for canvas
   
   // In fullscreen, maximize canvas space
-  :global(.fullscreen) & {
+  .fixtureCanvasContainer.fullscreen & {
     flex: 1;
     min-height: calc(100vh - 200px); // Account for controls and padding
+    overflow: visible; // Ensure overflow is visible in fullscreen too
   }
 }
 
@@ -446,18 +534,19 @@
   gap: 1rem;
   align-items: flex-start; // Align canvas and config panel at the top
   flex-wrap: wrap; // Allow wrapping on smaller screens
-  min-height: 500px; // Ensure minimum height for the wrapper
+  min-height: 400px; // Reduced from 500px to allow better fitting
+  flex: 1; // Allow wrapper to grow and fill available space
   
   // Responsive behavior for fullscreen and smaller viewports
   @media (max-width: 1200px) {
     flex-direction: column; // Stack vertically on smaller screens
     align-items: stretch;
   }
-  
-  // In fullscreen, prioritize canvas space
-  :global(.fullscreen) & {
+    // In fullscreen, prioritize canvas space
+  .fixtureCanvasContainer.fullscreen & {
     flex-direction: row;
     align-items: flex-start;
+    min-height: calc(100vh - 200px); // Maximize space in fullscreen
   }
 }
 

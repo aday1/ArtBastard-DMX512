@@ -139,7 +139,7 @@
   min-height: 400px; /* Minimum reasonable height */
   max-height: none;
   grid-template-columns: none;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow canvas to display fully */
   height: 100%; /* Take full available height */
   
   /* Ensure the controller takes full available space */
