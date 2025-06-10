@@ -2,7 +2,7 @@
 .helpButton {
   position: fixed;
   bottom: 20px;
-  left: 20px;
+  left: 280px; // Position to avoid navbar when expanded
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -40,6 +40,11 @@
     background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1));
     z-index: -1;
   }
+}
+
+// Responsive positioning for collapsed navbar
+:global(body.navbar-is-collapsed) .helpButton {
+  left: 120px; // Position when navbar is collapsed
 }
 
 .helpOverlay {
