@@ -1,23 +1,32 @@
-# 🌈 **ArtBastard DMX512** - *Quantum Edition* 🎭
-### *Version 512.0.0 - "Quantum" - Live Monitor Integration*
+# 🌈 **ArtBastard DMX512** - *Quantum Resonance Edition* 🎭
+### *Version 5.1.2 - "Quantum Resonance" - Enhanced Debug System & Canvas Architecture*
 
-> *"In the electric gap between wavelength phenomena and neural synthesis, we manipulate the very fabric of luminous expression, weaving chromatic patterns through spectral currents that bridge digital abstraction with physical manifestation. The Quantum Edition transcends traditional boundaries by embedding real-time data streams directly into the knowledge acquisition process."*
+> *"In the quantum field where digital consciousness meets electromagnetic resonance, we transcend the boundaries of traditional lighting control. The Quantum Resonance Edition harmonizes advanced debugging architectures with responsive canvas systems, creating a symphony of technical precision and artistic liberation that resonates across all dimensional interfaces."*
 
-## 🚀 **Quantum Edition Release Highlights**
+## 🚀 **Quantum Resonance Edition Release Highlights**
 
-### 🎯 **What's New in Version 512.0.0**
-- **🔮 Live Monitor Integration**: MIDI and OSC monitors embedded directly in help documentation
-- **📚 Contextual Learning**: Monitor real-time data while reading setup instructions  
-- **🧠 Zero-Switch Workflow**: Eliminate interface switching during configuration
-- **🎛️ Enhanced Troubleshooting**: Immediate feedback during MIDI/OSC setup
-- **📊 Responsive Monitor Design**: Monitors adapt seamlessly to help overlay context
+### 🎯 **What's New in Version 5.1.2 "Quantum Resonance"**
+- **🔧 Enhanced DebugMenu System**: Professional debugging interface with comprehensive system monitoring
+- **🎹 Advanced MIDI Debugging**: Real-time MIDI testing, mapping visualization, and workflow diagnostics  
+- **📐 Responsive Canvas Architecture**: Fixed fullscreen overflow with dynamic resizing capabilities
+- **🎨 Professional UI Enhancements**: Modern CSS modules with responsive design patterns
+- **⚡ Performance Optimizations**: Streamlined rendering and improved memory management
+- **🌐 Cross-Platform Compatibility**: Enhanced browser support and mobile-responsive interfaces
 
-### 🎪 **Quantum Breakthrough Features**
-- **Real-time MIDI monitoring** within "MIDI Setup" help section
-- **Live OSC packet visualization** within "OSC Integration" documentation  
-- **Contextual data streams** positioned exactly where you need them
-- **Immediate validation feedback** during configuration processes
-- **Enhanced pattern recognition** via simultaneous instruction + monitoring
+### 🎪 **Quantum Resonance Breakthrough Features**
+- **Real-time system monitoring** with comprehensive environment diagnostics
+- **Advanced MIDI testing tools** with interactive workflow validation
+- **Responsive canvas system** that adapts to any viewport size seamlessly  
+- **Professional debugging interface** with tabbed organization and visual indicators
+- **Enhanced error tracking** with detailed reporting and timestamp analysis
+- **Cross-device compatibility** ensuring optimal experience on desktop, tablet, and mobile
+
+### 🔮 **Previous Quantum Edition Features** (v512.0.0)
+- **🎛️ Live Monitor Integration**: Real-time MIDI and OSC monitoring embedded directly within help documentation
+- **📚 Contextual Learning**: Monitor data streams while reading setup instructions - no interface switching required
+- **🔧 Enhanced Troubleshooting**: Live monitoring during configuration provides immediate feedback
+- **📊 Embedded Data Visualization**: Monitor components positioned strategically within relevant help sections
+- **🎨 Responsive Design**: Monitor displays adapt seamlessly to help overlay context
 
 ## 🌟 **Prismatic Entity Overview**
 
@@ -60,11 +69,48 @@ The **Quantum Edition** represents a paradigm shift in how artists learn and con
 - **Enhanced pattern recognition** via simultaneous instruction + monitoring
 - **Immediate validation feedback** during configuration processes
 
+## 🌟 **Quantum Resonance Edition - Comprehensive Feature Matrix**
+
+### 🔧 **Enhanced DebugMenu System Architecture**
+The Quantum Resonance Edition introduces a revolutionary debugging interface that transcends traditional development tools:
+
+#### **System Tab - Environmental Consciousness**
+- **Real-time Environment Monitoring**: NODE_ENV, React version, document state, window loaded status
+- **Advanced Performance Tracking**: JS heap usage analysis, navigation timing metrics, memory utilization graphs
+- **Network Status Integration**: Current URL tracking, user agent detection, Socket.IO connection status
+- **Error Tracking Matrix**: Comprehensive error capture with timestamps, stack traces, and detailed reporting
+- **Browser Compatibility Validation**: WebMIDI API support detection, Socket.IO availability verification
+
+#### **MIDI Tab - Hardware Interface Mastery**
+- **WebMIDI Support Validation**: Real-time detection and status reporting of browser MIDI capabilities
+- **Interactive MIDI Mapping Visualization**: Live display of all active DMX-to-MIDI bindings with channel and controller information
+- **Advanced Testing Framework**: 
+  - 🎵 **Test Note (C4)**: Send test note-on messages for immediate hardware validation
+  - 🎛️ **Test CC (Volume)**: Send continuous controller messages for parameter testing
+  - 🔄 **Test MIDI Learn**: Interactive workflow testing for learning new MIDI mappings
+- **Recent Messages Monitor**: Real-time MIDI message stream with formatted JSON output for debugging
+- **Mapping Management Interface**: Visual organization of MIDI mappings with channel highlighting
+
+### 📐 **Responsive Canvas Architecture Revolution**
+The 2D Canvas system has been completely reimagined for universal compatibility:
+
+#### **Dynamic Sizing Engine**
+- **Flexible Container System**: Canvas now uses `flex: 1` to dynamically fill available space
+- **Aspect Ratio Preservation**: Intelligent scaling maintains proportions while maximizing viewport utilization
+- **Real-time Resize Handling**: Automatic canvas adjustment during window resize events
+- **Container-Aware Scaling**: Adaptive sizing based on parent container dimensions with padding calculations
+
+#### **Cross-Device Responsive Design**
+- **Desktop Optimization**: Side-by-side canvas and configuration panels for maximum productivity
+- **Tablet/Mobile Adaptation**: Vertical stacking layout for screens < 1200px width
+- **Touch Interface Enhancement**: Improved touch interaction support for mobile devices
+- **Configuration Panel Flexibility**: Panels adapt from fixed 280px width to full-width responsive design
+
 ### 🎨 **Core Illumination Paradigms**
 
 ### 🧠 **Multidimensional Layer Architecture**
 
-The system operates across **Eight Functional Layers** in the Quantum Edition:
+The system operates across **Eight Functional Layers** in the Quantum Resonance Edition:
 
 1. **🔥 Electrical Substrate Layer** - Raw voltage and current manipulation through DMX512 protocol
 2. **⚡ Signal Processing Cortex** - Neural networks interpreting MIDI/OSC/ArtNet data streams  
@@ -95,9 +141,12 @@ graph TD
             ScenePalace["🏛️ Memory Palace"]
             TemporalEngine["⏰ Temporal Morphing"]
         end
-        
-        subgraph Layer5["🔮 Layer 5: Quantum Monitoring"]
-            LiveMIDIMonitor["🎹 Live MIDI Monitor"]
+          subgraph Layer5["🔮 Layer 5: Quantum Resonance Debugging"]
+            EnhancedDebugMenu["🔧 Enhanced DebugMenu System"]
+            AdvancedMIDITesting["🎹 Advanced MIDI Testing"]
+            SystemMonitoring["📊 Real-time System Monitoring"]
+            ResponsiveCanvasEngine["📐 Responsive Canvas Engine"]
+            LiveMIDIMonitor["🎛️ Live MIDI Monitor"]
             LiveOSCMonitor["📡 Live OSC Monitor"]
             ContextualLearning["📚 Contextual Learning Engine"]
         end

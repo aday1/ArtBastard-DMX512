@@ -12,6 +12,7 @@ export interface MidiMapping {
 export interface Fixture {
   id: string
   name: string
+  type: string
   startAddress: number
   channels: { name: string; type: string }[]
   // Flagging system for organizing fixtures
@@ -104,11 +105,16 @@ export interface PlacedFixture {
 export interface PlacedControl {
   id: string;                     // Unique ID for this control instance
   channelNameInFixture: string; // Name of the channel within the fixture's definition (e.g., "Dimmer", "Pan")
-  type: 'slider';                 // Initially, only sliders are supported
+  type: 'slider' | 'xypad';       // Control type: slider for single channel, xypad for pan/tilt combined
   label: string;                  // Display label for the control (e.g., could be same as channelNameInFixture or custom)
   xOffset: number;                // X position relative to the fixture icon's center
   yOffset: number;                // Y position relative to the fixture icon's center
-  currentValue: number;           // Current value of this control (0-255), directly maps to DMX for now
+  currentValue: number;           // Current value of this control (0-255), for sliders only
+  // XY Pad specific fields
+  panValue?: number;              // Pan value (0-255) for xypad controls
+  tiltValue?: number;             // Tilt value (0-255) for xypad controls
+  panChannelName?: string;        // Name of the pan channel (e.g., "Pan")
+  tiltChannelName?: string;       // Name of the tilt channel (e.g., "Tilt")
 }
 
 // Define MasterSlider related types

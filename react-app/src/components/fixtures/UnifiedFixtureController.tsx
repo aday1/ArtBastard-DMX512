@@ -362,10 +362,9 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
     }
   };
 
-  const applyPreset = (preset: QuickControlPreset) => {
-    if (preset.color) {
+  const applyPreset = (preset: QuickControlPreset) => {    if (preset.color) {
       applyColorToSelected(preset.color);
-      setCurrentColor(preset.color);
+      setCurrentColor({ ...preset.color, a: preset.color.a || 1 });
     }
     if (preset.position) {
       applyPanTiltToSelected(preset.position.pan, preset.position.tilt);
@@ -380,13 +379,13 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
   const blackoutSelected = () => {
     applyIntensityToSelected(0);
   };
-
   const randomizeSelected = () => {
     // Random color
     const randomColor = {
       r: Math.floor(Math.random() * 256),
       g: Math.floor(Math.random() * 256),
-      b: Math.floor(Math.random() * 256)
+      b: Math.floor(Math.random() * 256),
+      a: 1
     };
     applyColorToSelected(randomColor);
     setCurrentColor(randomColor);
@@ -418,9 +417,8 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
       selectFixture(fixtureId, true);
     }
   };
-
   const handleColorChange = (color: any) => {
-    const newColor = { r: color.rgb.r, g: color.rgb.g, b: color.rgb.b };
+    const newColor = { r: color.rgb.r, g: color.rgb.g, b: color.rgb.b, a: color.rgb.a || 1 };
     setCurrentColor(newColor);
     applyColorToSelected(newColor);
   };
@@ -560,9 +558,8 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
       </div>
     );
   };
-
   return (
-    <div className={`${styles.unifiedController} ${className}`}>
+    <div className={`${styles.unifiedFixtureController} ${className}`}>
       {/* Header */}
       <div className={styles.header}>
         <h2 className={styles.title}>
@@ -668,12 +665,10 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
                 <FaVolumeUp /> Active
               </button>
             </div>
-          </div>
-
-          {/* Fixture List */}
-          <div className={styles.fixtureListContainer}>
-            <List
+          </div>          {/* Fixture List */}
+          <div className={styles.fixtureListContainer}>            <List
               height={400}
+              width="100%"
               itemCount={filteredFixtures.length}
               itemSize={80}
               className={styles.fixtureList}
@@ -968,13 +963,12 @@ export const UnifiedFixtureController: React.FC<UnifiedFixtureControllerProps> =
         <div className={styles.statusRight}>
           <span className={styles.statusItem}>
             Fixtures: {filteredFixtures.length}
-          </span>
-          <span className={styles.statusItem}>
+          </span>          <span className={styles.statusItem}>
             Selected: {selectedFixtures.size}
           </span>
           {activeScene && (
             <span className={styles.statusItem}>
-              Scene: {activeScene.name}
+              Scene: {activeScene}
             </span>
           )}
         </div>

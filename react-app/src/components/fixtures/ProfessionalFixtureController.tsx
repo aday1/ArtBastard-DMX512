@@ -175,9 +175,27 @@ const ProfessionalFixtureController: React.FC<ProfessionalFixtureControllerProps
   const [hsvColor, setHsvColor] = useState<HSVColor>({ h: 0, s: 0, v: 100 });
   const [movement, setMovement] = useState<MovementPosition>({ pan: 127, tilt: 127 });
   const [colorTemperature, setColorTemperature] = useState(5600);
-  
-  // Professional features state
+    // Professional features state
   const [fixtureFlags, setFixtureFlags] = useState<Map<string, EnhancedFixtureFlag>>(new Map());
+  
+  // Helper function to get fixture flags with defaults
+  const getFixtureFlags = useCallback((fixtureId: string): EnhancedFixtureFlag => {
+    const flags = fixtureFlags.get(fixtureId);
+    if (flags) return flags;
+    
+    // Return default flags for fixtures without flags
+    return {
+      id: '',
+      name: '',
+      color: '',
+      isMuted: false,
+      isSolo: false,
+      ignoreSceneChanges: false,
+      ignoreBlackouts: false,
+      isProtected: false,
+      isHighlighted: false
+    };
+  }, [fixtureFlags]);
   const [fixtureFilter, setFixtureFilter] = useState<FixtureFilter>({
     searchTerm: '',
     byType: [],
@@ -352,12 +370,11 @@ const ProfessionalFixtureController: React.FC<ProfessionalFixtureControllerProps
 
     lastUpdateTime.current = now;
   }, [isLiveMode, getFixtureChannels, setDmxChannelValue, fixtureFlags]);
-
   // Fixture flagging functions
   const toggleFixtureFlag = useCallback((fixtureId: string, flag: keyof EnhancedFixtureFlag) => {
     setFixtureFlags(prev => {
       const newFlags = new Map(prev);
-      const currentFlags = newFlags.get(fixtureId) || {};
+      const currentFlags = getFixtureFlags(fixtureId);
       
       if (flag === 'isSolo') {
         // If turning on solo, turn off solo for all other fixtures
@@ -372,12 +389,12 @@ const ProfessionalFixtureController: React.FC<ProfessionalFixtureControllerProps
       
       newFlags.set(fixtureId, {
         ...currentFlags,
-        [flag]: !currentFlags[flag]
+        [flag]: !currentFlags[flag as keyof EnhancedFixtureFlag]
       });
       
       return newFlags;
     });
-  }, []);
+  }, [getFixtureFlags]);
 
   const clearAllFlags = useCallback((flag?: keyof EnhancedFixtureFlag) => {
     setFixtureFlags(prev => {
@@ -949,11 +966,9 @@ const ProfessionalFixtureController: React.FC<ProfessionalFixtureControllerProps
                   </div>
                 </div>
               </div>
-            )}
-
-            <div className={styles.fixtureList}>
+            )}            <div className={styles.fixtureList}>
               {filteredFixtures.map(fixture => {
-                const flags = fixtureFlags.get(fixture.id) || {};
+                const flags = getFixtureFlags(fixture.id);
                 const isSelected = selectedFixtures.includes(fixture.id);
                 const hasRGB = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
                 const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));

@@ -13,7 +13,7 @@ interface SceneState {
   setActiveScene: (sceneId: string | null) => void;
 }
 
-export const useSceneStore = create<SceneState>((set) => ({
+export const useSceneStore = create<SceneState>()((set) => ({
   // Initial state
   scenes: [],
   activeScene: null,

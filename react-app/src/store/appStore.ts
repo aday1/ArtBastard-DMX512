@@ -5,7 +5,7 @@ interface AppState {
   setIsLiveMode: (isLive: boolean) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>()((set) => ({
   isLiveMode: false,
   setIsLiveMode: (isLive) => set(state => ({ ...state, isLiveMode: isLive })),
 }));

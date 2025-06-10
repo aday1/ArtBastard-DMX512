@@ -20,6 +20,13 @@ const PLACED_CONTROL_BG_COLOR = 'rgba(120, 120, 120, 0.7)';
 const PLACED_CONTROL_TEXT_COLOR = '#ffffff';
 const PLACED_CONTROL_VALUE_BAR_COLOR = 'rgba(78, 205, 196, 0.8)'; 
 const PLACED_CONTROL_INTERACTION_PADDING = 3;
+// XY Pad constants
+const XYPAD_SIZE = 80;
+const XYPAD_BG_COLOR = 'rgba(120, 120, 120, 0.7)';
+const XYPAD_GRID_COLOR = 'rgba(255, 255, 255, 0.2)';
+const XYPAD_CURSOR_COLOR = '#4ecdc4';
+const XYPAD_CURSOR_SIZE = 8;
+const XYPAD_TEXT_COLOR = '#ffffff';
 const MIDI_OSC_DISPLAY_TEXT_COLOR = '#333';
 
 // Grid and animation constants
@@ -62,12 +69,15 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
   const [targetFixtureId, setTargetFixtureId] = useState<string>("");
   const [targetChannelName, setTargetChannelName] = useState<string>("");
   const [targetMinRange, setTargetMinRange] = useState<number>(0);
-  const [targetMaxRange, setTargetMaxRange] = useState<number>(255);
-    // Animation and dragging state
+  const [targetMaxRange, setTargetMaxRange] = useState<number>(255);    // Animation and dragging state
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragGhost, setDragGhost] = useState<{ x: number; y: number; type: string } | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ x: number; y: number } | null>(null);
   const [gridSnappingEnabled, setGridSnappingEnabled] = useState<boolean>(true);
+  // Multi-select functionality
+  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
+  const [selectionBox, setSelectionBox] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
+  const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const { 
     masterSliders, addMasterSlider, updateMasterSlider,
     updateMasterSliderValue, removeMasterSlider, setDmxChannel,
@@ -128,7 +138,6 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
 
     return { x: finalX, y: finalY };
   };
-
   const shouldSnapToGrid = (currentX: number, currentY: number): boolean => {
     if (!gridSnappingEnabled) return false;
     
@@ -139,6 +148,40 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     const distanceY = Math.abs(currentY - nearestGridY);
     
     return distanceX <= SNAP_THRESHOLD || distanceY <= SNAP_THRESHOLD;
+  };
+
+  // Selection utilities
+  const isFixtureInSelectionBox = (fixture: PlacedFixture, selectionBox: { start: { x: number; y: number }; end: { x: number; y: number } }): boolean => {
+    const { start, end } = selectionBox;
+    const left = Math.min(start.x, end.x);
+    const right = Math.max(start.x, end.x);
+    const top = Math.min(start.y, end.y);
+    const bottom = Math.max(start.y, end.y);
+    
+    // Check if fixture center is within selection box
+    return fixture.x >= left && fixture.x <= right && fixture.y >= top && fixture.y <= bottom;
+  };
+
+  const updateFixtureSelection = (fixtureId: string, isCtrlPressed: boolean) => {
+    if (isCtrlPressed) {
+      // Toggle selection
+      setSelectedFixtures(prev => 
+        prev.includes(fixtureId) 
+          ? prev.filter(id => id !== fixtureId)
+          : [...prev, fixtureId]
+      );
+    } else {
+      // Single selection
+      setSelectedFixtures([fixtureId]);
+    }
+  };
+
+  const selectFixturesInBox = (selectionBox: { start: { x: number; y: number }; end: { x: number; y: number } }) => {
+    const fixturesInBox = placedFixtures
+      .filter(fixture => isFixtureInSelectionBox(fixture, selectionBox))
+      .map(fixture => fixture.id);
+    
+    setSelectedFixtures(fixturesInBox);
   };
 
   const animateToPosition = (
@@ -240,9 +283,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       }
       ctx.stroke();
       ctx.globalAlpha = 1.0; // Reset alpha just in case, though strokeStyle doesn't use it
-    }
-
-    // Draw placed fixtures
+    }    // Draw placed fixtures
     placedFixtures.forEach(placedFixture => {
       const fixtureDef = getFixtureDefinition(placedFixture);
       if (!fixtureDef) return;
@@ -253,42 +294,120 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       ctx.arc(placedFixture.x, placedFixture.y, placedFixture.radius, 0, 2 * Math.PI);
       ctx.fill();
 
+      // Draw selection indicator if fixture is selected
+      if (selectedFixtures.includes(placedFixture.id)) {
+        ctx.strokeStyle = '#ffff00'; // Yellow selection indicator
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(placedFixture.x, placedFixture.y, placedFixture.radius + 3, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+
       // Draw fixture name
       ctx.fillStyle = '#000';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(placedFixture.name, placedFixture.x, placedFixture.y - placedFixture.radius - 5);
-
-      // Draw placed controls for this fixture
+      ctx.fillText(placedFixture.name, placedFixture.x, placedFixture.y - placedFixture.radius - 5);// Draw placed controls for this fixture
       if (placedFixture.controls) {
         placedFixture.controls.forEach(control => {
           const controlX = placedFixture.x + control.xOffset;
           const controlY = placedFixture.y + control.yOffset;
 
-          // Draw control background
-          ctx.fillStyle = PLACED_CONTROL_BG_COLOR;
-          ctx.fillRect(
-            controlX - PLACED_CONTROL_WIDTH / 2,
-            controlY - PLACED_CONTROL_HEIGHT / 2,
-            PLACED_CONTROL_WIDTH,
-            PLACED_CONTROL_HEIGHT
-          );
+          if (control.type === 'xypad') {
+            // Draw XY Pad background
+            ctx.fillStyle = XYPAD_BG_COLOR;
+            ctx.fillRect(
+              controlX - XYPAD_SIZE / 2,
+              controlY - XYPAD_SIZE / 2,
+              XYPAD_SIZE,
+              XYPAD_SIZE
+            );
 
-          // Draw control value bar
-          const valuePercent = control.currentValue / 255;
-          ctx.fillStyle = PLACED_CONTROL_VALUE_BAR_COLOR;
-          ctx.fillRect(
-            controlX - PLACED_CONTROL_WIDTH / 2,
-            controlY - PLACED_CONTROL_HEIGHT / 2,
-            PLACED_CONTROL_WIDTH * valuePercent,
-            PLACED_CONTROL_HEIGHT
-          );
+            // Draw grid lines
+            ctx.strokeStyle = XYPAD_GRID_COLOR;
+            ctx.lineWidth = 1;
+            for (let i = 1; i < 4; i++) {
+              const gridX = controlX - XYPAD_SIZE / 2 + (i * XYPAD_SIZE / 4);
+              const gridY = controlY - XYPAD_SIZE / 2 + (i * XYPAD_SIZE / 4);
+              
+              // Vertical lines
+              ctx.beginPath();
+              ctx.moveTo(gridX, controlY - XYPAD_SIZE / 2);
+              ctx.lineTo(gridX, controlY + XYPAD_SIZE / 2);
+              ctx.stroke();
+              
+              // Horizontal lines
+              ctx.beginPath();
+              ctx.moveTo(controlX - XYPAD_SIZE / 2, gridY);
+              ctx.lineTo(controlX + XYPAD_SIZE / 2, gridY);
+              ctx.stroke();
+            }
 
-          // Draw control label
-          ctx.fillStyle = PLACED_CONTROL_TEXT_COLOR;
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(control.label, controlX, controlY + 3);          // Draw MIDI mapping indicator if available
+            // Draw center crosshair
+            ctx.strokeStyle = XYPAD_GRID_COLOR;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(controlX, controlY - XYPAD_SIZE / 2);
+            ctx.lineTo(controlX, controlY + XYPAD_SIZE / 2);
+            ctx.moveTo(controlX - XYPAD_SIZE / 2, controlY);
+            ctx.lineTo(controlX + XYPAD_SIZE / 2, controlY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Calculate cursor position
+            const panNormalized = (control.panValue || 127) / 255;
+            const tiltNormalized = 1 - ((control.tiltValue || 127) / 255); // Invert Y for intuitive control
+            const cursorX = controlX - XYPAD_SIZE / 2 + (panNormalized * XYPAD_SIZE);
+            const cursorY = controlY - XYPAD_SIZE / 2 + (tiltNormalized * XYPAD_SIZE);
+
+            // Draw cursor
+            ctx.fillStyle = XYPAD_CURSOR_COLOR;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cursorX, cursorY, XYPAD_CURSOR_SIZE, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw label
+            ctx.fillStyle = XYPAD_TEXT_COLOR;
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(control.label, controlX, controlY + XYPAD_SIZE / 2 + 15);
+
+            // Draw pan/tilt values
+            ctx.font = '8px Arial';
+            ctx.fillText(`P:${control.panValue || 127} T:${control.tiltValue || 127}`, controlX, controlY + XYPAD_SIZE / 2 + 25);
+
+          } else {
+            // Draw regular slider control
+            ctx.fillStyle = PLACED_CONTROL_BG_COLOR;
+            ctx.fillRect(
+              controlX - PLACED_CONTROL_WIDTH / 2,
+              controlY - PLACED_CONTROL_HEIGHT / 2,
+              PLACED_CONTROL_WIDTH,
+              PLACED_CONTROL_HEIGHT
+            );
+
+            // Draw control value bar
+            const valuePercent = control.currentValue / 255;
+            ctx.fillStyle = PLACED_CONTROL_VALUE_BAR_COLOR;
+            ctx.fillRect(
+              controlX - PLACED_CONTROL_WIDTH / 2,
+              controlY - PLACED_CONTROL_HEIGHT / 2,
+              PLACED_CONTROL_WIDTH * valuePercent,
+              PLACED_CONTROL_HEIGHT
+            );
+
+            // Draw control label
+            ctx.fillStyle = PLACED_CONTROL_TEXT_COLOR;
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(control.label, controlX, controlY + 3);
+          }
+
+          // Draw MIDI mapping indicator if available
           const dmxAddress = getDmxAddressForPlacedControl(placedFixture, control);
           if (dmxAddress !== null) {
             const mapping = midiMappings[dmxAddress];
@@ -420,8 +539,24 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           MASTER_SLIDER_HEIGHT
         );
       }
+        ctx.globalAlpha = 1.0; // Reset alpha
+    }
+
+    // Draw selection box
+    if (selectionBox && isSelecting) {
+      const { start, end } = selectionBox;
+      const width = end.x - start.x;
+      const height = end.y - start.y;
       
-      ctx.globalAlpha = 1.0; // Reset alpha
+      ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Yellow selection box
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Semi-transparent fill
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      
+      ctx.fillRect(start.x, start.y, width, height);
+      ctx.strokeRect(start.x, start.y, width, height);
+      
+      ctx.setLineDash([]); // Reset line dash
     }  }, [
     canvasSize, 
     placedFixtures, 
@@ -433,9 +568,56 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     fixtures,
     isDragging,
     dragGhost,
-    snapPreview
+    snapPreview,
+    selectedFixtures,
+    selectionBox,    isSelecting
   ]);
-
+  
+  // Handle responsive canvas sizing
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const container = canvas.parentElement;
+      if (!container) return;
+      
+      // Get container dimensions
+      const containerRect = container.getBoundingClientRect();
+      const availableWidth = containerRect.width - 32; // Account for padding/borders
+      const availableHeight = Math.max(400, containerRect.height - 32);
+      
+      // Maintain aspect ratio while fitting in available space
+      const aspectRatio = canvasSize.width / canvasSize.height;
+      let newWidth = availableWidth;
+      let newHeight = newWidth / aspectRatio;
+      
+      // If height is too large, constrain by height instead
+      if (newHeight > availableHeight) {
+        newHeight = availableHeight;
+        newWidth = newHeight * aspectRatio;
+      }
+      
+      // Update canvas display size
+      canvas.style.width = `${newWidth}px`;
+      canvas.style.height = `${newHeight}px`;
+      
+      // Redraw canvas with new display size
+      drawCanvas();
+    };
+    
+    // Initial sizing
+    handleResize();
+    
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [canvasSize, drawCanvas]);
+  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -457,6 +639,62 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       window.removeEventListener('resize', handleResize);
     };
   }, [drawCanvas, canvasSize]);
+
+  // Keyboard shortcuts for multi-select operations
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when canvas has focus or no input is focused
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (event.key.toLowerCase()) {
+        case 'a':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            // Select all fixtures
+            setSelectedFixtures(placedFixtures.map(f => f.id));
+          }
+          break;
+        case 'd':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            // Deselect all fixtures
+            setSelectedFixtures([]);
+          }
+          break;
+        case 'i':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            // Invert selection
+            const allIds = placedFixtures.map(f => f.id);
+            const newSelection = allIds.filter(id => !selectedFixtures.includes(id));
+            setSelectedFixtures(newSelection);
+          }
+          break;
+        case 'escape':
+          // Clear selection and cancel any ongoing operations
+          setSelectedFixtures([]);
+          setIsSelecting(false);
+          setSelectionBox(null);
+          break;
+        case 'delete':
+        case 'backspace':
+          if (selectedFixtures.length > 0) {
+            event.preventDefault();
+            // Delete selected fixtures
+            const updatedFixtures = placedFixtures.filter(f => !selectedFixtures.includes(f.id));
+            setPlacedFixtures(updatedFixtures);
+            onUpdatePlacedFixtures(updatedFixtures);
+            setSelectedFixtures([]);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [placedFixtures, selectedFixtures, onUpdatePlacedFixtures]);
   const getMousePos = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -487,21 +725,55 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     
     const finalPos = getSnappedPosition(snappedPos.x, snappedPos.y, bounds);
     
-    const newFixtureId = `placed-${Date.now()}-${Math.random()}`;
-
-    const generatedControls: PlacedControl[] = [];
+    const newFixtureId = `placed-${Date.now()}-${Math.random()}`;    const generatedControls: PlacedControl[] = [];
     if (selectedFixtureToAdd.channels) {
-      selectedFixtureToAdd.channels.forEach((channel, index) => {
-        const controlId = `control-${newFixtureId}-${sanitizeName(channel.name)}-${index}`;
+      // First, check for pan/tilt pairs to create XY pads
+      const panChannel = selectedFixtureToAdd.channels.find(ch => 
+        ch.name.toLowerCase().includes('pan') || ch.type === 'pan'
+      );
+      const tiltChannel = selectedFixtureToAdd.channels.find(ch => 
+        ch.name.toLowerCase().includes('tilt') || ch.type === 'tilt'
+      );
+
+      let controlYOffset = DEFAULT_FIXTURE_RADIUS + 10;
+
+      // Create XY pad for pan/tilt if both channels exist
+      if (panChannel && tiltChannel) {
+        const xypadControlId = `control-${newFixtureId}-pantilt-xypad`;
         generatedControls.push({
-          id: controlId,
-          channelNameInFixture: channel.name,
-          type: 'slider', // Default type
-          label: channel.name.substring(0, 12), // Keep label concise
+          id: xypadControlId,
+          channelNameInFixture: 'Pan/Tilt', // Combined name
+          type: 'xypad',
+          label: 'Pan/Tilt',
           xOffset: 0,
-          yOffset: DEFAULT_FIXTURE_RADIUS + 10 + (index * (PLACED_CONTROL_HEIGHT + 8)), // Position below fixture icon
-          currentValue: 0,
+          yOffset: controlYOffset,
+          currentValue: 0, // Not used for xypad
+          panValue: 127, // Default to center
+          tiltValue: 127, // Default to center
+          panChannelName: panChannel.name,
+          tiltChannelName: tiltChannel.name,
         });
+        controlYOffset += XYPAD_SIZE + 10;
+      }
+
+      // Create sliders for all other channels (excluding pan/tilt if XY pad was created)
+      selectedFixtureToAdd.channels.forEach((channel, index) => {
+        const isPanTiltChannel = (panChannel && tiltChannel) && 
+          (channel.name === panChannel.name || channel.name === tiltChannel.name);
+        
+        if (!isPanTiltChannel) {
+          const controlId = `control-${newFixtureId}-${sanitizeName(channel.name)}-${index}`;
+          generatedControls.push({
+            id: controlId,
+            channelNameInFixture: channel.name,
+            type: 'slider',
+            label: channel.name.substring(0, 12),
+            xOffset: 0,
+            yOffset: controlYOffset,
+            currentValue: 0,
+          });
+          controlYOffset += PLACED_CONTROL_HEIGHT + 8;
+        }
       });
     }
 
@@ -569,88 +841,200 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     
     // Check if clicking on a placed control
     for (const placedFixture of placedFixtures) {
-      if (placedFixture.controls) {
-        for (const control of placedFixture.controls) {
+      if (placedFixture.controls) {        for (const control of placedFixture.controls) {
           const controlX = placedFixture.x + control.xOffset;
           const controlY = placedFixture.y + control.yOffset;
-          const controlBounds = {
-            left: controlX - PLACED_CONTROL_WIDTH / 2 - PLACED_CONTROL_INTERACTION_PADDING,
-            right: controlX + PLACED_CONTROL_WIDTH / 2 + PLACED_CONTROL_INTERACTION_PADDING,
-            top: controlY - PLACED_CONTROL_HEIGHT / 2 - PLACED_CONTROL_INTERACTION_PADDING,
-            bottom: controlY + PLACED_CONTROL_HEIGHT / 2 + PLACED_CONTROL_INTERACTION_PADDING
-          };
           
-          if (mousePos.x >= controlBounds.left && mousePos.x <= controlBounds.right &&
-              mousePos.y >= controlBounds.top && mousePos.y <= controlBounds.bottom) {
-            
-            // Check if clicking on the value bar area for adjustment
-            const valueBarBounds = {
-              left: controlX - PLACED_CONTROL_WIDTH / 2,
-              right: controlX + PLACED_CONTROL_WIDTH / 2,
-              top: controlY - PLACED_CONTROL_HEIGHT / 2,
-              bottom: controlY + PLACED_CONTROL_HEIGHT / 2
+          if (control.type === 'xypad') {
+            // XY Pad interaction
+            const xypadBounds = {
+              left: controlX - XYPAD_SIZE / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              right: controlX + XYPAD_SIZE / 2 + PLACED_CONTROL_INTERACTION_PADDING,
+              top: controlY - XYPAD_SIZE / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              bottom: controlY + XYPAD_SIZE / 2 + PLACED_CONTROL_INTERACTION_PADDING
             };
             
-            if (mousePos.x >= valueBarBounds.left && mousePos.x <= valueBarBounds.right &&
-                mousePos.y >= valueBarBounds.top && mousePos.y <= valueBarBounds.bottom) {
-              const dmxAddress = getDmxAddressForPlacedControl(placedFixture, control);
-              if (dmxAddress !== null) {
-                setAdjustingPlacedControlValueInfo({ 
-                  fixtureId: placedFixture.id, 
-                  controlId: control.id, 
-                  control, 
-                  originalDmxAddress: dmxAddress 
-                });
-                // Calculate and set initial value based on mouse position
-                const valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / PLACED_CONTROL_WIDTH));
-                const newValue = Math.round(valuePercent * 255);
-                setDmxChannel(dmxAddress, newValue);
-                // Update control's current value
-                const updatedFixtures = placedFixtures.map(pf => 
-                  pf.id === placedFixture.id 
-                    ? {
-                        ...pf,
-                        controls: pf.controls?.map(c => 
-                          c.id === control.id ? { ...c, currentValue: newValue } : c
-                        ) || []
-                      }
-                    : pf
-                );
-                setPlacedFixtures(updatedFixtures);
-                onUpdatePlacedFixtures(updatedFixtures);
-                return;
+            if (mousePos.x >= xypadBounds.left && mousePos.x <= xypadBounds.right &&
+                mousePos.y >= xypadBounds.top && mousePos.y <= xypadBounds.bottom) {
+              
+              // Check if clicking inside the XY pad area for value adjustment
+              const padBounds = {
+                left: controlX - XYPAD_SIZE / 2,
+                right: controlX + XYPAD_SIZE / 2,
+                top: controlY - XYPAD_SIZE / 2,
+                bottom: controlY + XYPAD_SIZE / 2
+              };
+              
+              if (mousePos.x >= padBounds.left && mousePos.x <= padBounds.right &&
+                  mousePos.y >= padBounds.top && mousePos.y <= padBounds.bottom) {
+                
+                // Calculate pan/tilt values from mouse position
+                const panNormalized = (mousePos.x - padBounds.left) / XYPAD_SIZE;
+                const tiltNormalized = 1 - ((mousePos.y - padBounds.top) / XYPAD_SIZE); // Invert Y
+                const newPanValue = Math.max(0, Math.min(255, Math.round(panNormalized * 255)));
+                const newTiltValue = Math.max(0, Math.min(255, Math.round(tiltNormalized * 255)));
+                
+                // Find and update both pan and tilt channels
+                const fixtureDef = getFixtureDefinition(placedFixture);
+                if (fixtureDef && control.panChannelName && control.tiltChannelName) {
+                  const panChannelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.panChannelName);
+                  const tiltChannelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.tiltChannelName);
+                  
+                  if (panChannelIndex !== -1 && tiltChannelIndex !== -1) {
+                    const panDmxAddress = placedFixture.startAddress + panChannelIndex;
+                    const tiltDmxAddress = placedFixture.startAddress + tiltChannelIndex;
+                    
+                    // Update DMX channels
+                    setDmxChannel(panDmxAddress, newPanValue);
+                    setDmxChannel(tiltDmxAddress, newTiltValue);
+                    
+                    // Update control values
+                    const updatedFixtures = placedFixtures.map(pf => 
+                      pf.id === placedFixture.id 
+                        ? {
+                            ...pf,
+                            controls: pf.controls?.map(c => 
+                              c.id === control.id 
+                                ? { ...c, panValue: newPanValue, tiltValue: newTiltValue }
+                                : c
+                            ) || []
+                          }
+                        : pf
+                    );
+                    setPlacedFixtures(updatedFixtures);
+                    onUpdatePlacedFixtures(updatedFixtures);
+                    
+                    // Set adjusting state for continuous interaction
+                    setAdjustingPlacedControlValueInfo({ 
+                      fixtureId: placedFixture.id, 
+                      controlId: control.id, 
+                      control, 
+                      originalDmxAddress: panDmxAddress // Use pan address for reference
+                    });
+                    return;
+                  }
+                }
               }
+              
+              // Start dragging the XY pad
+              setDraggingPlacedControlInfo({ fixtureId: placedFixture.id, controlId: control.id, control });
+              setIsDragging(true);
+              setDragOffset({ 
+                x: mousePos.x - controlX, 
+                y: mousePos.y - controlY 
+              });
+              return;
             }
+            
+          } else {
+            // Regular slider control interaction
+            const controlBounds = {
+              left: controlX - PLACED_CONTROL_WIDTH / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              right: controlX + PLACED_CONTROL_WIDTH / 2 + PLACED_CONTROL_INTERACTION_PADDING,
+              top: controlY - PLACED_CONTROL_HEIGHT / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              bottom: controlY + PLACED_CONTROL_HEIGHT / 2 + PLACED_CONTROL_INTERACTION_PADDING
+            };
+            
+            if (mousePos.x >= controlBounds.left && mousePos.x <= controlBounds.right &&
+                mousePos.y >= controlBounds.top && mousePos.y <= controlBounds.bottom) {
+              
+              // Check if clicking on the value bar area for adjustment
+              const valueBarBounds = {
+                left: controlX - PLACED_CONTROL_WIDTH / 2,
+                right: controlX + PLACED_CONTROL_WIDTH / 2,
+                top: controlY - PLACED_CONTROL_HEIGHT / 2,
+                bottom: controlY + PLACED_CONTROL_HEIGHT / 2
+              };
+              
+              if (mousePos.x >= valueBarBounds.left && mousePos.x <= valueBarBounds.right &&
+                  mousePos.y >= valueBarBounds.top && mousePos.y <= valueBarBounds.bottom) {
+                const dmxAddress = getDmxAddressForPlacedControl(placedFixture, control);
+                if (dmxAddress !== null) {
+                  setAdjustingPlacedControlValueInfo({ 
+                    fixtureId: placedFixture.id, 
+                    controlId: control.id, 
+                    control, 
+                    originalDmxAddress: dmxAddress 
+                  });
+                  // Calculate and set initial value based on mouse position
+                  const valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / PLACED_CONTROL_WIDTH));
+                  const newValue = Math.round(valuePercent * 255);
+                  setDmxChannel(dmxAddress, newValue);
+                  // Update control's current value
+                  const updatedFixtures = placedFixtures.map(pf => 
+                    pf.id === placedFixture.id 
+                      ? {
+                          ...pf,
+                          controls: pf.controls?.map(c => 
+                            c.id === control.id ? { ...c, currentValue: newValue } : c
+                          ) || []
+                        }
+                      : pf
+                  );
+                  setPlacedFixtures(updatedFixtures);
+                  onUpdatePlacedFixtures(updatedFixtures);
+                  return;
+                }
+              }
+              
               // Start dragging the control
-            setDraggingPlacedControlInfo({ fixtureId: placedFixture.id, controlId: control.id, control });
-            setIsDragging(true);
-            setDragOffset({ 
-              x: mousePos.x - controlX, 
-              y: mousePos.y - controlY 
-            });
-            return;
+              setDraggingPlacedControlInfo({ fixtureId: placedFixture.id, controlId: control.id, control });
+              setIsDragging(true);
+              setDragOffset({ 
+                x: mousePos.x - controlX, 
+                y: mousePos.y - controlY 
+              });
+              return;
+            }
           }
         }
       }
     }
-    
-    // Check if clicking on a placed fixture
+      // Check if clicking on a placed fixture
     for (const placedFixture of placedFixtures) {
       const distance = Math.sqrt(
         Math.pow(mousePos.x - placedFixture.x, 2) + 
         Math.pow(mousePos.y - placedFixture.y, 2)
       );
         if (distance <= placedFixture.radius + 5) { // Add some padding for easier clicking
-        // Start dragging the fixture
-        setDraggingPlacedFixture(placedFixture);
-        setIsDragging(true);
-        setDragOffset({ 
-          x: mousePos.x - placedFixture.x, 
-          y: mousePos.y - placedFixture.y 
-        });
+        // Handle multi-select for fixtures
+        if (event.ctrlKey || event.metaKey) {
+          updateFixtureSelection(placedFixture.id, true);
+          return;
+        } else if (event.shiftKey) {
+          // For shift-click, we could implement range selection in the future
+          updateFixtureSelection(placedFixture.id, false);
+          return;
+        } else {
+          // Single selection
+          updateFixtureSelection(placedFixture.id, false);
+        }
+        
+        // Start dragging the fixture (only if it's in the current selection)
+        if (selectedFixtures.includes(placedFixture.id)) {
+          setDraggingPlacedFixture(placedFixture);
+          setIsDragging(true);
+          setDragOffset({ 
+            x: mousePos.x - placedFixture.x, 
+            y: mousePos.y - placedFixture.y 
+          });
+        }
         return;
       }
     }
+    
+    // If we get here, we're clicking on empty canvas - start selection box
+    if (!event.ctrlKey && !event.metaKey) {
+      // Clear previous selection unless Ctrl is held
+      setSelectedFixtures([]);
+    }
+    
+    // Start selection box
+    setIsSelecting(true);
+    setSelectionBox({
+      start: { x: mousePos.x, y: mousePos.y },
+      end: { x: mousePos.x, y: mousePos.y }
+    });
   };
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const mousePos = getMousePos(event);
@@ -767,41 +1151,107 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       }
       return;
     }
-    
-    // Handle adjusting placed control value
+      // Handle adjusting placed control value
     if (adjustingPlacedControlValueInfo) {
       const parentFixture = placedFixtures.find(pf => pf.id === adjustingPlacedControlValueInfo.fixtureId);
       if (parentFixture) {
-        const controlX = parentFixture.x + adjustingPlacedControlValueInfo.control.xOffset;
-        const valueBarBounds = {
-          left: controlX - PLACED_CONTROL_WIDTH / 2,
-          right: controlX + PLACED_CONTROL_WIDTH / 2
-        };
+        const control = adjustingPlacedControlValueInfo.control;
+        const controlX = parentFixture.x + control.xOffset;
+        const controlY = parentFixture.y + control.yOffset;
         
-        const valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / PLACED_CONTROL_WIDTH));
-        const newValue = Math.round(valuePercent * 255);
-        
-        setDmxChannel(adjustingPlacedControlValueInfo.originalDmxAddress, newValue);
-        
-        // Update control's current value
-        const updatedFixtures = placedFixtures.map(pf => 
-          pf.id === adjustingPlacedControlValueInfo.fixtureId 
-            ? {
-                ...pf,
-                controls: pf.controls?.map(c => 
-                  c.id === adjustingPlacedControlValueInfo.controlId 
-                    ? { ...c, currentValue: newValue }
-                    : c
-                ) || []
-              }
-            : pf
-        );
-        setPlacedFixtures(updatedFixtures);
-        onUpdatePlacedFixtures(updatedFixtures);
+        if (control.type === 'xypad') {
+          // Handle XY pad value adjustment
+          const padBounds = {
+            left: controlX - XYPAD_SIZE / 2,
+            right: controlX + XYPAD_SIZE / 2,
+            top: controlY - XYPAD_SIZE / 2,
+            bottom: controlY + XYPAD_SIZE / 2
+          };
+          
+          // Calculate pan/tilt values from mouse position
+          const panNormalized = Math.max(0, Math.min(1, (mousePos.x - padBounds.left) / XYPAD_SIZE));
+          const tiltNormalized = Math.max(0, Math.min(1, 1 - ((mousePos.y - padBounds.top) / XYPAD_SIZE))); // Invert Y
+          const newPanValue = Math.round(panNormalized * 255);
+          const newTiltValue = Math.round(tiltNormalized * 255);
+          
+          // Find and update both pan and tilt channels
+          const fixtureDef = getFixtureDefinition(parentFixture);
+          if (fixtureDef && control.panChannelName && control.tiltChannelName) {
+            const panChannelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.panChannelName);
+            const tiltChannelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.tiltChannelName);
+            
+            if (panChannelIndex !== -1 && tiltChannelIndex !== -1) {
+              const panDmxAddress = parentFixture.startAddress + panChannelIndex;
+              const tiltDmxAddress = parentFixture.startAddress + tiltChannelIndex;
+              
+              // Update DMX channels
+              setDmxChannel(panDmxAddress, newPanValue);
+              setDmxChannel(tiltDmxAddress, newTiltValue);
+              
+              // Update control values
+              const updatedFixtures = placedFixtures.map(pf => 
+                pf.id === adjustingPlacedControlValueInfo.fixtureId 
+                  ? {
+                      ...pf,
+                      controls: pf.controls?.map(c => 
+                        c.id === adjustingPlacedControlValueInfo.controlId 
+                          ? { ...c, panValue: newPanValue, tiltValue: newTiltValue }
+                          : c
+                      ) || []
+                    }
+                  : pf
+              );
+              setPlacedFixtures(updatedFixtures);
+              onUpdatePlacedFixtures(updatedFixtures);
+            }
+          }
+        } else {
+          // Handle regular slider adjustment
+          const valueBarBounds = {
+            left: controlX - PLACED_CONTROL_WIDTH / 2,
+            right: controlX + PLACED_CONTROL_WIDTH / 2
+          };
+          
+          const valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / PLACED_CONTROL_WIDTH));
+          const newValue = Math.round(valuePercent * 255);
+          
+          setDmxChannel(adjustingPlacedControlValueInfo.originalDmxAddress, newValue);
+          
+          // Update control's current value
+          const updatedFixtures = placedFixtures.map(pf => 
+            pf.id === adjustingPlacedControlValueInfo.fixtureId 
+              ? {
+                  ...pf,
+                  controls: pf.controls?.map(c => 
+                    c.id === adjustingPlacedControlValueInfo.controlId 
+                      ? { ...c, currentValue: newValue }
+                      : c
+                  ) || []
+                }
+              : pf
+          );
+          setPlacedFixtures(updatedFixtures);
+          onUpdatePlacedFixtures(updatedFixtures);        }
       }
       return;
     }
+    
+    // Handle selection box dragging
+    if (isSelecting && selectionBox) {
+      setSelectionBox({
+        start: selectionBox.start,
+        end: { x: mousePos.x, y: mousePos.y }
+      });
+      return;
+    }
   };  const handleMouseUp = () => {
+    // Complete selection box operation
+    if (isSelecting && selectionBox) {
+      selectFixturesInBox(selectionBox);
+      setIsSelecting(false);
+      setSelectionBox(null);
+    }
+    
     setDraggingMasterSlider(null);
     setAdjustingMasterSliderValue(null);
     setDraggingPlacedFixture(null);
@@ -839,19 +1289,29 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         return;
       }
     }
-    
-    // Check if right-clicking on a placed control
+      // Check if right-clicking on a placed control
     for (const placedFixture of placedFixtures) {
       if (placedFixture.controls) {
         for (const control of placedFixture.controls) {
           const controlX = placedFixture.x + control.xOffset;
           const controlY = placedFixture.y + control.yOffset;
-          const controlBounds = {
-            left: controlX - PLACED_CONTROL_WIDTH / 2 - PLACED_CONTROL_INTERACTION_PADDING,
-            right: controlX + PLACED_CONTROL_WIDTH / 2 + PLACED_CONTROL_INTERACTION_PADDING,
-            top: controlY - PLACED_CONTROL_HEIGHT / 2 - PLACED_CONTROL_INTERACTION_PADDING,
-            bottom: controlY + PLACED_CONTROL_HEIGHT / 2 + PLACED_CONTROL_INTERACTION_PADDING
-          };
+          
+          let controlBounds;
+          if (control.type === 'xypad') {
+            controlBounds = {
+              left: controlX - XYPAD_SIZE / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              right: controlX + XYPAD_SIZE / 2 + PLACED_CONTROL_INTERACTION_PADDING,
+              top: controlY - XYPAD_SIZE / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              bottom: controlY + XYPAD_SIZE / 2 + PLACED_CONTROL_INTERACTION_PADDING
+            };
+          } else {
+            controlBounds = {
+              left: controlX - PLACED_CONTROL_WIDTH / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              right: controlX + PLACED_CONTROL_WIDTH / 2 + PLACED_CONTROL_INTERACTION_PADDING,
+              top: controlY - PLACED_CONTROL_HEIGHT / 2 - PLACED_CONTROL_INTERACTION_PADDING,
+              bottom: controlY + PLACED_CONTROL_HEIGHT / 2 + PLACED_CONTROL_INTERACTION_PADDING
+            };
+          }
           
           if (mousePos.x >= controlBounds.left && mousePos.x <= controlBounds.right &&
               mousePos.y >= controlBounds.top && mousePos.y <= controlBounds.bottom) {
@@ -1077,8 +1537,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
               </button>
             ))
           )}
-        </div>
-          <div className={styles.masterControls}>
+        </div>          <div className={styles.masterControls}>
           <button
             className={`${styles.gridSnapToggle} ${gridSnappingEnabled ? styles.active : ''}`}
             onClick={() => setGridSnappingEnabled(!gridSnappingEnabled)}
@@ -1110,18 +1569,75 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           >
             💾 Quick Save
           </button>
+          
+          {/* Multi-select controls */}
+          <div className={styles.multiSelectControls}>
+            <span className={styles.selectionInfo}>
+              {selectedFixtures.length > 0 ? `${selectedFixtures.length} selected` : 'No selection'}
+            </span>
+            
+            <button
+              className={styles.selectAllButton}
+              onClick={() => setSelectedFixtures(placedFixtures.map(f => f.id))}
+              disabled={placedFixtures.length === 0}
+              title="Select All (Ctrl+A)"
+            >
+              ✓ All
+            </button>
+            
+            <button
+              className={styles.clearSelectionButton}
+              onClick={() => setSelectedFixtures([])}
+              disabled={selectedFixtures.length === 0}
+              title="Clear Selection (Ctrl+D)"
+            >
+              ✗ Clear
+            </button>
+            
+            <button
+              className={styles.invertSelectionButton}
+              onClick={() => {
+                const allIds = placedFixtures.map(f => f.id);
+                const newSelection = allIds.filter(id => !selectedFixtures.includes(id));
+                setSelectedFixtures(newSelection);
+              }}
+              disabled={placedFixtures.length === 0}
+              title="Invert Selection (Ctrl+I)"
+            >
+              ⇄ Invert
+            </button>
+            
+            {selectedFixtures.length > 0 && (
+              <button
+                className={styles.deleteSelectedButton}
+                onClick={() => {
+                  if (window.confirm(`Delete ${selectedFixtures.length} selected fixture(s)?`)) {
+                    const updatedFixtures = placedFixtures.filter(f => !selectedFixtures.includes(f.id));
+                    setPlacedFixtures(updatedFixtures);
+                    onUpdatePlacedFixtures(updatedFixtures);
+                    setSelectedFixtures([]);
+                  }
+                }}
+                title="Delete Selected (Delete/Backspace)"
+              >
+                🗑️ Delete ({selectedFixtures.length})
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-        <div className={styles.canvasWrapper}>        <canvas 
-          ref={canvasRef} 
-          className={`${styles.fixtureCanvas} ${isDragging ? styles.dragging : ''} ${snapPreview ? styles.snapping : ''}`}
-          onClick={handleCanvasClick}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          onContextMenu={handleContextMenu}
-        />
+      </div>      <div className={styles.canvasWrapper}>
+        <div className={styles.canvasContainer}>
+          <canvas 
+            ref={canvasRef} 
+            className={`${styles.fixtureCanvas} ${isDragging ? styles.dragging : ''} ${snapPreview ? styles.snapping : ''}`}
+            onClick={handleCanvasClick}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            onContextMenu={handleContextMenu}
+          />
+        </div>
         
         {selectedMasterSliderForConfig && (
           <div className={styles.masterSliderConfigPanel}>

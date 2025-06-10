@@ -1,5 +1,6 @@
 .pageContainer {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 1rem;
@@ -63,6 +64,7 @@
   flex-direction: column;
   gap: 1rem;
   overflow: hidden;
+  min-height: 500px; /* Ensure minimum usable height */
 }
 
 /* Control Setup Page */
@@ -127,6 +129,34 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   max-height: 30%;
+}
+
+/* Fixture Page - Controller Section */
+.controlSection.fixtureController {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px; /* Minimum reasonable height */
+  max-height: none;
+  grid-template-columns: none;
+  overflow: hidden;
+  height: 100%; /* Take full available height */
+  
+  /* Ensure the controller takes full available space */
+  > * {
+    flex: 1;
+    min-height: 400px; /* Match parent minimum */
+    height: 100%;
+  }
+}
+
+/* Setup section styling */
+.setupSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .quickLaunchPanel,

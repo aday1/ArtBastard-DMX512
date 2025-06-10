@@ -2,6 +2,121 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v5.1.2 "Quantum Resonance" Edition] - 2025-06-10
+
+### 🌟 **Quantum Resonance Edition - Enhanced Debug System Integration**
+- **Enhanced**: **DebugMenu System Tab** - Comprehensive system monitoring and diagnostics
+  - Real-time environment monitoring (NODE_ENV, React version, document state, window loaded status)
+  - Advanced performance & memory tracking (JS heap usage, navigation timing)
+  - Network & status section (current URL, user agent, timestamps, load times)
+  - Error tracking display with detailed stack traces and timestamps
+  - Enhanced system information grid with visual status indicators
+
+- **Enhanced**: **DebugMenu MIDI Tab** - Advanced MIDI debugging and testing capabilities
+  - WebMIDI support status indicator with real-time validation
+  - Comprehensive MIDI mappings display with channel and controller/note information
+  - Enhanced MIDI test functions with improved button labels and icons:
+    - 🎵 Test Note (C4) - Send test note-on message
+    - 🎛️ Test CC (Volume) - Send test continuous controller message  
+    - 🔄 Test MIDI Learn - Interactive MIDI learn workflow testing
+  - Recent MIDI messages display with formatted JSON output
+  - Live MIDI activity monitoring and debugging tools
+
+- **Added**: **Enhanced CSS Styling System** - Professional debug interface design
+  - `.mappingsList` styles for organized MIDI mappings display with scrolling
+  - `.mappingItem` styling for individual mapping entries with monospace font and cyan highlighting
+  - `.noMappings` placeholder styling for empty state messaging
+  - Responsive design improvements for different screen sizes
+  - Dark mode compatibility and high contrast mode support
+
+### 🎨 **2D Canvas Layout System Overhaul**
+- **Fixed**: **Fullscreen Canvas Overflow Issue** - Canvas now properly fits on page in fullscreen mode
+  - Removed restrictive `max-width: 100%` and `height: auto` constraints
+  - Implemented flexible `width: 100%`, `height: auto`, `min-height: 400px`, `flex: 1`
+  - Canvas now grows to fill available container space dynamically
+
+- **Enhanced**: **Responsive Layout Architecture** - Adaptive design for all viewport sizes
+  - Added `.canvasContainer` wrapper with `flex: 1` for optimal space utilization
+  - Updated `.canvasWrapper` with responsive breakpoints and flex-wrap capability
+  - Vertical stacking layout for screens < 1200px width
+  - Configuration panels now use `flex-shrink: 0` to prevent unwanted compression
+
+- **Added**: **Dynamic Canvas Resizing System** - Intelligent size management
+  - Automatic aspect ratio maintenance while fitting available container space
+  - Real-time canvas resizing based on container dimensions
+  - Window resize event handling with smooth transitions
+  - Container dimension calculation with padding/border accounting
+
+- **Enhanced**: **Configuration Panel Responsiveness** - Adaptive panel behavior
+  - Master Slider, Placed Fixture, and Placed Control panels now responsive
+  - Fixed width (280px) on desktop, full width on mobile/tablet
+  - Consistent spacing and alignment across different viewport sizes
+  - Improved touch interaction support for mobile devices
+
+### 🎭 **Component Integration & Architecture Improvements**
+- **Merged**: **DebugInfo functionality into DebugMenu** - Consolidated debugging interface
+  - Eliminated redundant debug components while preserving all functionality
+  - Enhanced user experience with tabbed interface design
+  - Improved organization of debug tools and system information
+  - Maintained backward compatibility with existing debug features
+
+- **Enhanced**: **Store Integration** - Improved state management and data flow
+  - Better integration between debug components and application store
+  - Real-time data synchronization across debug tabs
+  - Enhanced error tracking and performance monitoring
+  - Streamlined MIDI message processing and display
+
+### 🚀 **Performance & User Experience Enhancements**
+- **Improved**: **Canvas Rendering Performance** - Optimized drawing operations
+  - Reduced unnecessary redraws and improved rendering efficiency
+  - Better memory management for large fixture layouts
+  - Smoother interactions during dragging and resizing operations
+  - Enhanced visual feedback during canvas operations
+
+- **Enhanced**: **Debug Interface Usability** - Professional debugging experience
+  - Organized tab-based interface with logical grouping
+  - Improved button layouts and visual hierarchy
+  - Better contrast and readability in debug panels
+  - Enhanced tooltips and user guidance
+
+- **Added**: **Comprehensive Error Handling** - Robust error management system
+  - Enhanced error capture and display in debug interface
+  - Detailed error reporting with timestamps and stack traces
+  - Graceful degradation for browser compatibility issues
+  - Improved debugging workflow for development and troubleshooting
+
+### 🔧 **Technical Infrastructure Improvements**
+- **Enhanced**: **TypeScript Integration** - Better type safety and development experience
+  - Improved type definitions for debug components
+  - Enhanced interface definitions for system monitoring
+  - Better error checking and IDE support
+  - Streamlined development workflow
+
+- **Added**: **CSS Module Enhancements** - Modern styling architecture
+  - Comprehensive SCSS modules for debug components
+  - Responsive design patterns and mobile-first approach
+  - Consistent design tokens and theme integration
+  - Enhanced accessibility and contrast support
+
+### 🎯 **Quality Assurance & Testing**
+- **Verified**: **Cross-browser Compatibility** - Tested across major browsers
+  - Chrome, Firefox, Safari, and Edge compatibility confirmed
+  - WebMIDI API support validation across platforms
+  - Touch interface testing on mobile devices
+  - Responsive design validation at multiple breakpoints
+
+- **Enhanced**: **Development Tools** - Improved debugging and development workflow
+  - Better error reporting and diagnostic capabilities
+  - Enhanced logging and monitoring systems
+  - Improved development server stability
+  - Streamlined build and deployment processes
+
+**Status**: ✅ **Version 5.1.2 "Quantum Resonance" Edition - Production Ready**
+
+The Quantum Resonance Edition represents a significant advancement in debugging capabilities and responsive design. By enhancing the DebugMenu system and fixing critical canvas layout issues, this release provides developers and users with professional-grade tools for troubleshooting and a seamless experience across all device types.
+
+---
+
 ## [v512.0.0 "Quantum" Edition] - 2025-06-09
 
 ### 🌟 **Quantum Edition - Live Monitor Integration**

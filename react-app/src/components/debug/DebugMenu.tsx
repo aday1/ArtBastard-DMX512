@@ -317,8 +317,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
 
           {/* Tab Content - only show when not minimized */}
           {!isMinimized && (
-            <div className={styles.tabContent}>
-            {/* System Tab */}
+            <div className={styles.tabContent}>            {/* System Tab */}
             {activeTab === 'system' && (
               <div className={styles.systemTab}>
                 <div className={styles.section}>
@@ -326,18 +325,31 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                   <div className={styles.infoGrid}>
                     <div>NODE_ENV: {systemInfo.nodeEnv}</div>
                     <div>React: {systemInfo.reactVersion}</div>
+                    <div>Document State: {systemInfo.documentReadyState}</div>
+                    <div>Window Loaded: {systemInfo.windowLoaded ? '✅' : '❌'}</div>
                     <div>Socket.IO: {connected ? '✅ Connected' : '❌ Disconnected'}</div>
                     <div>WebMIDI: {systemInfo.webMidiSupported ? '✅' : '❌'}</div>
                   </div>
                 </div>
 
                 <div className={styles.section}>
-                  <h4>📊 Performance</h4>
+                  <h4>📊 Performance & Memory</h4>
                   <div className={styles.infoGrid}>
                     <div>JS Heap Used: {formatBytes(systemInfo.memoryUsage?.usedJSHeapSize)}</div>
                     <div>JS Heap Total: {formatBytes(systemInfo.memoryUsage?.totalJSHeapSize)}</div>
                     <div>JS Heap Limit: {formatBytes(systemInfo.memoryUsage?.jsHeapSizeLimit)}</div>
+                    <div>Navigation Type: {systemInfo.performance?.navigation || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <div className={styles.section}>
+                  <h4>🌐 Network & Status</h4>
+                  <div className={styles.infoGrid}>
+                    <div>Current URL: {systemInfo.currentUrl}</div>
+                    <div>User Agent: {systemInfo.userAgent?.substring(0, 50)}...</div>
                     <div>Last Update: {systemInfo.timestamp}</div>
+                    <div>Load Time: {systemInfo.performance?.timing ? 
+                      `${systemInfo.performance.timing.loadEventEnd - systemInfo.performance.timing.navigationStart}ms` : 'N/A'}</div>
                   </div>
                 </div>
 
@@ -360,9 +372,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                   </div>
                 )}
               </div>
-            )}
-
-            {/* MIDI Tab */}
+            )}            {/* MIDI Tab */}
             {activeTab === 'midi' && (
               <div className={styles.midiTab}>
                 <div className={styles.section}>
@@ -371,6 +381,25 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                     <div>Learn Target: {midiLearnTarget !== null ? JSON.stringify(midiLearnTarget) : 'None'}</div>
                     <div>Active Mappings: {Object.keys(midiMappings).length}</div>
                     <div>Recent Messages: {midiMessages.length}</div>
+                    <div>WebMIDI Support: {typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator ? '✅' : '❌'}</div>
+                  </div>
+                </div>
+
+                <div className={styles.section}>
+                  <h4>🗺️ MIDI Mappings</h4>
+                  <div className={styles.mappingsList}>
+                    {Object.keys(midiMappings).length === 0 ? (
+                      <div className={styles.noMappings}>No MIDI mappings configured</div>
+                    ) : (
+                      Object.entries(midiMappings).map(([channel, mapping]) => (
+                        <div key={channel} className={styles.mappingItem}>
+                          <strong>DMX Ch {channel}:</strong> 
+                          {mapping.controller !== undefined 
+                            ? ` MIDI CC ${mapping.channel}:${mapping.controller}` 
+                            : ` MIDI Note ${mapping.channel}:${mapping.note}`}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -381,7 +410,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                       onClick={() => sendTestNoteOnMessage(0, 60, 127)}
                       className={styles.testButton}
                     >
-                      📝 Test Note (C4)
+                      🎵 Test Note (C4)
                     </button>
                     <button
                       onClick={() => sendTestCCMessage(0, 7, 127)}
@@ -411,7 +440,8 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                   <h4>📋 Recent MIDI Messages</h4>
                   <div className={styles.messageList}>
                     {midiMessages.length === 0 ? (
-                      <div className={styles.noMessages}>No recent MIDI messages</div>                ) : (
+                      <div className={styles.noMessages}>No recent MIDI messages</div>
+                    ) : (
                       midiMessages.slice(-5).map((message, idx) => (
                         <div key={idx} className={styles.message}>
                           {JSON.stringify(message)}

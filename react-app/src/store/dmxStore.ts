@@ -17,7 +17,7 @@ interface DmxState {
   setBlackout: (blackout: boolean) => void;
 }
 
-export const useDMXStore = create<DmxState>((set) => ({
+export const useDMXStore = create<DmxState>()((set) => ({
   // Initial state
   fixtures: [],
   dmxValues: Array(512).fill(0), // Initialize 512 DMX channels to 0

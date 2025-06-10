@@ -1,7 +1,21 @@
 # ✨ Celestial Liberation Declaration ✨
 # Creative Commons CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
 
+**ArtBastard DMX512 - Quantum Resonance Edition (v5.1.2)**
+
 Into the infinite cosmic void, Aday (aday.net.au) releases all earthly tethers of copyright and neighboring rights to ArtBastard-DMX512. This luminous creation emanates freely from Australia into the universal creative commons.
+
+## 🌟 Public Domain Declaration
+
+This software is released into the **PUBLIC DOMAIN** under the Creative Commons CC0 1.0 Universal license. You are free to:
+
+- ✅ **Use** - for any purpose, commercial or non-commercial
+- ✅ **Modify** - adapt, remix, transform, and build upon the material
+- ✅ **Distribute** - copy and redistribute in any medium or format
+- ✅ **Sublicense** - incorporate into proprietary software
+- ✅ **Sell** - use in commercial products without restriction
+
+**NO RIGHTS RESERVED** - This is truly free software in every sense.
 
 ## Illuminated Statement of Intent
 
@@ -29,7 +43,32 @@ The ancient methods faded with the coming of electricity, but their philosophy l
 
 This work is dedicated to the public domain, free as the wind that once danced with flames, free as the light that illuminates our collective creativity. May it serve as one small contribution to the universal commons of human imagination.
 
+## 🔧 Technical Implementation Notes
+
+**Software Architecture**: Node.js backend with React frontend, utilizing TypeScript for enhanced development experience. Features real-time WebSocket communication, MIDI API integration, OSC protocol support, and WebGL-based visualizations.
+
+**Cross-Platform Compatibility**: Designed to run on Windows, macOS, and Linux systems with modern web browsers. Mobile-responsive interface supports tablet and smartphone interactions.
+
+**Dependencies**: Built upon open-source foundations including React, Socket.IO, WebMIDI API, OSC.js, and numerous other community-contributed libraries. All dependencies respect their respective licenses.
+
+## ⚖️ Legal Disclaimer
+
+**NO WARRANTY**: This software is provided "AS IS" without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement.
+
+**LIMITATION OF LIABILITY**: In no event shall the author or contributors be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+
+**USE AT YOUR OWN RISK**: DMX lighting equipment can involve high voltages and significant electrical loads. Users are responsible for ensuring proper electrical safety, equipment compatibility, and compliance with local regulations. The authors assume no responsibility for equipment damage, personal injury, or regulatory violations resulting from the use of this software.
+
+## 🌐 Contact & Community
+
+Made with creative passion by **Aday** (aday.net.au)  
+For questions: aday@aday.net.au  
+GitHub: https://github.com/adam-bre/ArtBastard-DMX512  
+
+**Community Guidelines**: This is a community-driven project. Contributors are encouraged to maintain the spirit of creative freedom and technical excellence that defines the ArtBastard ecosystem.
+
 ---
 
-Made with creative passion by Aday (aday.net.au)
-For questions: aday@aday.net.au
+*"In the quantum resonance between digital consciousness and electromagnetic manifestation, we transcend the boundaries of traditional ownership and embrace the infinite possibilities of shared creation."*
+
+**Version 5.1.2 "Quantum Resonance" Edition - Released into the Public Domain - June 2025**

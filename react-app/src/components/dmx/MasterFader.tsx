@@ -11,13 +11,15 @@ interface MasterFaderProps {
   isMinimized?: boolean;
   onMinimizedChange?: (minimized: boolean) => void;
   isDockable?: boolean;
+  compact?: boolean; // New prop for compact mode
 }
 
 export const MasterFader: React.FC<MasterFaderProps> = ({ 
   onValueChange, 
   isMinimized: externalIsMinimized = false,
   onMinimizedChange,
-  isDockable = true
+  isDockable = true,
+  compact = false // Default to false for backward compatibility
 }) => {
   const [value, setValue] = useState(0);
   const [oscAddress, setOscAddress] = useState('/master');
@@ -325,10 +327,9 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       }
     }, intervalTime);
     setFadeIntervalId(newIntervalId);
-  };
-  // Render the core content
+  };  // Render the core content
   const masterFaderContent = (
-    <div className={`${styles.masterFaderContent} ${isMinimized ? styles.minimized : ''}`}>
+    <div className={`${styles.masterFaderContent} ${isMinimized ? styles.minimized : ''} ${compact ? styles.compact : ''}`}>
       <Sparkles /> {/* Add Sparkles component here */}
         {/* Essential Action buttons - Always visible */}
       <div className={styles.headerActions}>
@@ -338,7 +339,8 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
           title="Toggle Full On (All channels to 255)"
         >
           <i className="fas fa-lightbulb"></i>
-          {!isMinimized && "FULL ON"}
+          {!isMinimized && !compact && "FULL ON"}
+          {compact && "FULL"}
         </button>
         <button 
           className={`${styles.blackoutButton} ${value === 0 ? styles.active : ''}`}
@@ -346,7 +348,8 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
           title="Blackout All Channels"
         >
           <i className="fas fa-power-off"></i>
-          {!isMinimized && "Blackout"}
+          {!isMinimized && !compact && "Blackout"}
+          {compact && "BLACK"}
         </button>
         <button
           className={`${styles.slowFadeoutButton} ${isFading && value > 0 ? styles.active : ''}`}
@@ -355,7 +358,8 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
           title="Slowly fade out to 0"
         >
           <i className="fas fa-arrow-down"></i>
-          {!isMinimized && "Fade Out"}
+          {!isMinimized && !compact && "Fade Out"}
+          {compact && "OUT"}
         </button>
         <button
           className={`${styles.fadeBackupButton} ${isFading && value < (valueBeforeFadeout > 0 ? valueBeforeFadeout : 255) ? styles.active : ''}`}
@@ -364,7 +368,8 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
           title="Fade back up to previous or full"
         >
           <i className="fas fa-arrow-up"></i>
-          {!isMinimized && "Fade In"}
+          {!isMinimized && !compact && "Fade In"}
+          {compact && "IN"}
         </button>
       </div>
 
@@ -385,64 +390,67 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
             </div>
           </div>
 
-          <div className={styles.controls}>
-            <div className={styles.oscConfig}>
-              <label>OSC Address:</label>
-              <input
-                type="text"
-                value={oscAddress}
-                onChange={(e) => setOscAddress(e.target.value)}
-                className={styles.addressInput}
-                placeholder="/master"
-              />
-            </div>
-
-            <div className={styles.midiConfig}>
-              <div className={styles.midiStatus}>
-                {midiCC !== null ? (
-                  <span className={styles.midiAssigned}>
-                    MIDI CC {midiCC} (Ch {midiChannel})
-                  </span>
-                ) : (
-                  <span className={styles.midiUnassigned}>No MIDI mapping</span>
-                )}
+          {/* Hide detailed controls in compact mode */}
+          {!compact && (
+            <div className={styles.controls}>
+              <div className={styles.oscConfig}>
+                <label>OSC Address:</label>
+                <input
+                  type="text"
+                  value={oscAddress}
+                  onChange={(e) => setOscAddress(e.target.value)}
+                  className={styles.addressInput}
+                  placeholder="/master"
+                />
               </div>
 
-              <div className={styles.midiActions}>
-                <button
-                  className={`${styles.learnButton} ${isLearning ? styles.learning : ''}`}
-                  onClick={handleMidiLearnToggle}
-                  disabled={false}
-                >
-                  {isLearning ? (
-                    <>
-                      <i className="fas fa-circle-notch fa-spin"></i>
-                      Learning...
-                    </>
+              <div className={styles.midiConfig}>
+                <div className={styles.midiStatus}>
+                  {midiCC !== null ? (
+                    <span className={styles.midiAssigned}>
+                      MIDI CC {midiCC} (Ch {midiChannel})
+                    </span>
                   ) : (
-                    <>
-                      <i className="fas fa-graduation-cap"></i>
-                      MIDI Learn
-                    </>
+                    <span className={styles.midiUnassigned}>No MIDI mapping</span>
                   )}
-                </button>
+                </div>
 
-                {midiCC !== null && (
+                <div className={styles.midiActions}>
                   <button
-                    className={styles.clearButton}
-                    onClick={handleClearMidi}
-                    title="Clear MIDI mapping"
+                    className={`${styles.learnButton} ${isLearning ? styles.learning : ''}`}
+                    onClick={handleMidiLearnToggle}
+                    disabled={false}
                   >
-                    <i className="fas fa-times"></i>
+                    {isLearning ? (
+                      <>
+                        <i className="fas fa-circle-notch fa-spin"></i>
+                        Learning...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-graduation-cap"></i>
+                        MIDI Learn
+                      </>
+                    )}
                   </button>
-                )}
+
+                  {midiCC !== null && (
+                    <button
+                      className={styles.clearButton}
+                      onClick={handleClearMidi}
+                      title="Clear MIDI mapping"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.channelInfo}>
+                <span>Active Channels: {Object.values(dmxChannels).filter(v => v > 0).length}</span>
               </div>
             </div>
-
-            <div className={styles.channelInfo}>
-              <span>Active Channels: {Object.values(dmxChannels).filter(v => v > 0).length}</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -450,15 +458,15 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     return (
       <DockableComponent
         id="master-fader"
-        title="Master Fader"
+        title={compact ? "Master" : "Master Fader"}
         component="master-fader"
         defaultPosition={{ zone: 'bottom-center' }}
         defaultZIndex={1100}
         isMinimized={isMinimized}
         onMinimizedChange={toggleMinimize}
-        width={isMinimized ? "min(600px, calc(100vw - 40px))" : "min(800px, calc(100vw - 40px))"}
-        height={isMinimized ? "auto" : "400px"}
-        className={styles.masterFader}
+        width={isMinimized ? "min(600px, calc(100vw - 40px))" : compact ? "min(500px, calc(100vw - 40px))" : "min(800px, calc(100vw - 40px))"}
+        height={isMinimized ? "auto" : compact ? "120px" : "400px"}
+        className={`${styles.masterFader} ${compact ? styles.compact : ''}`}
         isDraggable={false}
       >
         {masterFaderContent}
@@ -468,15 +476,17 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
 
   // Non-dockable fallback
   return (
-    <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''}`}>
-      <div className={`${styles.header}`}>
-        <h3>Master Fader</h3>
-        <div className={styles.windowControls}>
-          <button onClick={toggleMinimize} className={styles.minimizeButton}>
-            {isMinimized ? <i className="fas fa-chevron-up"></i> : <i className="fas fa-chevron-down"></i>}
-          </button>
+    <div className={`${styles.masterFader} ${isMinimized ? styles.minimized : ''} ${compact ? styles.compact : ''}`}>
+      {!compact && (
+        <div className={`${styles.header}`}>
+          <h3>{compact ? "Master" : "Master Fader"}</h3>
+          <div className={styles.windowControls}>
+            <button onClick={toggleMinimize} className={styles.minimizeButton}>
+              {isMinimized ? <i className="fas fa-chevron-up"></i> : <i className="fas fa-chevron-down"></i>}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       {masterFaderContent}
     </div>
   );

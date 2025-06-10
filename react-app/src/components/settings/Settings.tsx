@@ -460,16 +460,47 @@ export const Settings: React.FC = () => {
       }
     }));
   };
-  
-  return (
+    return (
     <div className={styles.settings}>
-      <h2 className={styles.sectionTitle}>
-        {theme === 'artsnob' && 'Configuration Sanctuary'}
-        {theme === 'standard' && 'Settings'}
-        {theme === 'minimal' && 'Config'}
-      </h2>
+      <div className={styles.unifiedPanel}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>
+            <i className="fas fa-cog"></i>
+            {theme === 'artsnob' && 'Configuration Sanctuary'}
+            {theme === 'standard' && 'Configuration & Settings'}
+            {theme === 'minimal' && 'Config'}
+          </h2>
+          <div className={styles.panelActions}>
+            <button 
+              className={styles.actionButton}
+              onClick={handleExportSettings}
+              disabled={exportInProgress}
+            >
+              <i className="fas fa-download"></i>
+              {exportInProgress ? 'Exporting...' : 'Export All'}
+            </button>
+            <label className={styles.actionButton}>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportSettings}
+                style={{ display: 'none' }}
+                disabled={importInProgress}
+              />
+              <i className="fas fa-upload"></i>
+              {importInProgress ? 'Importing...' : 'Import'}
+            </label>
+            <button 
+              className={styles.dangerButton}
+              onClick={handleFactoryReset}
+            >
+              <i className="fas fa-undo"></i>
+              Factory Reset
+            </button>
+          </div>
+        </div>
 
-      <div className={styles.settingsGrid}>        {/* Navigation Visibility Card */}
+        <div className={styles.panelContent}>{/* Navigation Visibility Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>Navigation Menu Items</h3>
@@ -535,10 +566,10 @@ export const Settings: React.FC = () => {
                       key
                     }</span>
                   </div>
-                </div>
-              ))}
+                </div>              ))}
             </div>
-          </div>        </div>
+          </div>
+        </div>
 
         {/* ChromaticEnergyManipulator Settings Card */}
         <div className={styles.card}>
@@ -1117,8 +1148,7 @@ export const Settings: React.FC = () => {
               Through the ancient protocol of DMX, we bridge dimensions of creativity and control.<br/>
               Let those who seek mere illumination step aside —<br/>
               For we are the light-shapers, the masters of luminous expression,<br/>
-              Channeling the very essence of artistry through 512 channels of infinite possibility.
-            </p>
+              Channeling the very essence of artistry through 512 channels of infinite possibility.            </p>
           </div>
         </div>
         
@@ -1126,6 +1156,7 @@ export const Settings: React.FC = () => {
           showModal={showReleaseNotes}
           onClose={() => setShowReleaseNotes(false)}
         />
+      </div>
     </div>
   )
 }

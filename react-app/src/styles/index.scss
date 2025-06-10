@@ -27,13 +27,19 @@
   --color-status-disconnected: #e24338; /* Slightly desaturated red */
   --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
   --color-status-active: #2aa764; /* Matches connected status */
-  
-  // Additional UI variables for components
+    // Additional UI variables for components
   --bg-primary: var(--color-background);
   --bg-secondary: var(--color-card-bg);
+  --bg-tertiary: #f0e9d8; /* Even lighter for depth */
+  --bg-hover: #e6dacb;
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
   --accent-color: #ed8936; /* Light orange accent for overall harmony */
+  --border-color: var(--color-card-border);
+  --header-bg: #e6dacb;
+  --input-bg: #faf3e8;
+  --error-color: var(--color-error);
+  --system-sans: var(--font-body);
   
   // Fonts with emoji support
   --emoji-fonts: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol";
@@ -73,13 +79,19 @@
   --color-status-inactive: #3a3a3c;
   --color-status-active: #30d158;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  
-  // Additional UI variables for dark mode
+    // Additional UI variables for dark mode
   --bg-primary: var(--color-background);
   --bg-secondary: var(--color-card-bg);
+  --bg-tertiary: #1a1a1c;
+  --bg-hover: #3a3a3c;
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
   --accent-color: #4ecdc4;
+  --border-color: var(--color-card-border);
+  --header-bg: #2c2c2e;
+  --input-bg: #1a1a1c;
+  --error-color: var(--color-error);
+  --system-sans: var(--font-body);
 }
 
 // Art Snob theme overrides

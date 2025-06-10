@@ -1,28 +1,108 @@
 .masterFader {
   background: var(--color-card-bg);
-  padding: 0.75rem; /* Reduced from 1rem */
-  border-radius: 15px;
+  padding: 0.5rem; /* Reduced from 0.75rem for more compact design */
+  border-radius: 12px; /* Reduced from 15px */
   border: 1px solid var(--color-card-border);
-  box-shadow: 0 -4px 16px rgba(78, 205, 196, 0.2);
+  box-shadow: 0 -2px 8px rgba(78, 205, 196, 0.15); /* Reduced shadow for less visual weight */
   
   /* Default styles - positioning will be handled by parent container */
   width: 100%;
-  max-width: 1000px; /* Increased from 800px to 1000px for better slider interaction */
-  min-width: 500px; /* Increased from 400px to 500px to ensure adequate slider space */
+  max-width: 600px; /* Reduced from 1000px for more reasonable size */
+  min-width: 350px; /* Reduced from 500px for better flexibility */
   transition: width 0.3s ease, height 0.3s ease, padding 0.3s ease;
   
   /* Ensure component stays within viewport bounds */
-  max-width: calc(100vw - 40px); /* Prevent overflow beyond viewport */
-  min-width: min(500px, calc(100vw - 40px)); /* Responsive min-width */
+  max-width: calc(100vw - 20px); /* Reduced margin for more available space */
+  min-width: min(350px, calc(100vw - 20px)); /* Responsive min-width */
+
+  /* Compact mode styles */
+  &.compact {
+    padding: 0.25rem;
+    max-width: 500px;
+    min-width: 300px;
+    
+    .masterFaderContent {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+      height: 80px;
+    }
+    
+    .headerActions {
+      flex-shrink: 0;
+      margin-bottom: 0;
+      gap: 0.25rem;
+      
+      .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+        min-width: 60px;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.8rem;
+        height: 32px;
+      }
+    }
+    
+    .faderContainer {
+      flex: 1;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0;
+      
+      .sliderWrapper {
+        flex: 1;
+        padding: 0.5rem;
+        min-height: 50px;
+        min-width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      
+      .verticalSlider {
+        height: 16px;
+        min-width: 150px;
+      }
+      
+      .valueDisplay {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.9rem;
+        min-width: 50px;
+      }
+        .controls {
+        display: none; // Hide all detailed controls in compact mode
+      }
+    }
+  }
+  
+  .masterFaderContent {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    
+    &.compact {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+      height: 80px;
+    }
+    
     &.minimized {
-    padding: 0.4rem; /* Reduced from 0.5rem */
+      .faderContainer {
+        display: none;
+      }
+    }
+  }
+
+  &.minimized {
+    padding: 0.4rem; /* Keep reduced padding */
     height: auto;
     width: 100%; /* Use full width of parent container */
-    max-width: min(600px, calc(100vw - 40px)); /* Smaller max width when minimized */
-    min-width: min(400px, calc(100vw - 40px)); /* Ensure buttons fit */
+    max-width: min(500px, calc(100vw - 20px)); /* Reduced max width when minimized */
+    min-width: min(320px, calc(100vw - 20px)); /* Smaller min-width for better mobile support */
 
     .header h3 {
-      font-size: 0.9rem; /* Reduced from 1rem */
+      font-size: 0.9rem; /* Keep reduced font size */
     }
     
     .faderContainer {
@@ -30,31 +110,31 @@
     }
 
     .headerActions {
-      gap: 0.4rem;
+      gap: 0.5rem; /* Increased from 0.4rem for better button spacing */
       width: 100%;
       justify-content: center; /* Center buttons for better appearance */
       flex-wrap: wrap; /* Allow wrapping if needed on very small screens */
       
       .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
-        min-width: 40px;
+        min-width: 80px; /* Increased from 40px for better usability */
         max-width: none; /* Allow buttons to grow if space permits */
-        padding: 0.4rem;
-        font-size: 0;
+        padding: 0.6rem 0.8rem; /* Increased from 0.4rem for better touch targets */
+        font-size: 0.85rem; /* Restored text visibility instead of font-size: 0 */
         flex-shrink: 0; /* Prevent buttons from shrinking too much */
+        height: 40px; /* Set consistent height */
         
         i {
-          margin: 0;
+          margin-right: 0.3rem; /* Add space between icon and text */
         }
       }
     }
   }
-
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem; /* Reduced from 1rem */
+    padding-bottom: 0.4rem; /* Reduced from 0.5rem */
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
     cursor: grab;
 
@@ -64,10 +144,11 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      font-size: 1rem; /* Explicit size for consistency */
 
       &::before {
         content: "🎚️";
-        font-size: 1.2em;
+        font-size: 1.1em; /* Slightly reduced emoji size */
       }
     }
 
@@ -87,36 +168,35 @@
         }
       }
     }
-  }
-  .headerActions {
+  }  .headerActions {
     display: flex;
-    gap: 0.75rem; /* Reduced from 1.5rem for more compact layout */
+    gap: 0.6rem; /* Reduced from 0.75rem for slightly more compact layout */
     align-items: center;
     flex-wrap: wrap; /* Allow buttons to wrap if needed */
     justify-content: center; /* Center the buttons in the available space */
     width: 100%; /* Full width for better button distribution */
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem; /* Reduced from 1rem */
     
     /* Ensure buttons stay within container bounds */
     box-sizing: border-box;
     overflow: visible; /* Ensure buttons are always visible */
     min-height: 44px; /* Minimum height to prevent cramping */
 
-    // Button styles for all action buttons - Made more compact and colorful
+    // Button styles for all action buttons - Made more usable
     .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
-      padding: 0.5rem 0.8rem; /* Reduced from 0.8rem 1.2rem */
+      padding: 0.6rem 1rem; /* Increased from 0.5rem 0.8rem for better touch targets */
       color: #f0f0f0;
       border: none;
-      border-radius: 6px; /* Reduced from 8px */
+      border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 0.4rem; /* Reduced from 0.5rem */
-      font-size: 0.85rem; /* Reduced from 1rem */
-      min-width: 100px; /* Reduced from 140px */
-      height: 36px; /* Reduced from 48px */
+      gap: 0.4rem;
+      font-size: 0.9rem; /* Slightly increased from 0.85rem for better readability */
+      min-width: 110px; /* Increased from 100px for better usability */
+      height: 44px; /* Increased from 36px for better touch targets */
       position: relative;
       overflow: hidden;
       

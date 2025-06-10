@@ -30,9 +30,8 @@ const UnifiedControllerDemo: React.FC<UnifiedControllerDemoProps> = ({ onClose }
           </button>
         )}
       </div>
-      
-      <div className={styles.controllerContainer}>
-        <UnifiedFixtureController isDockable={false} />
+        <div className={styles.controllerContainer}>
+        <UnifiedFixtureController />
       </div>
       
       <div className={styles.instructions}>

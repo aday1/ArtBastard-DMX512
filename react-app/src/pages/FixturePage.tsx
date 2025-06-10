@@ -34,10 +34,9 @@ const FixturePage: React.FC = () => {
           </button>
         </div>
       </div>
-      
-      <div className={styles.pageContent}>
+        <div className={styles.pageContent}>
         {activeTab === 'control' && (
-          <div className={styles.controlSection}>
+          <div className={`${styles.controlSection} ${styles.fixtureController}`}>
             <UnifiedFixtureController />
           </div>
         )}
