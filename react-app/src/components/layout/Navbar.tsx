@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { useStore } from '../../store'
-import { NetworkStatus } from './NetworkStatus'
+import { useSocket } from '../../context/SocketContext'
+import { useBrowserMidi } from '../../hooks/useBrowserMidi'
 import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
@@ -90,6 +91,30 @@ export const Navbar: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('main')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navVisibility = useStore((state) => state.navVisibility)
+  const { connected } = useSocket()
+  const { activeBrowserInputs } = useBrowserMidi()
+  const midiMessages = useStore(state => state.midiMessages)
+  const toDmxValues = useStore(state => state.toDmxValues)
+  const [midiActivity, setMidiActivity] = useState(false)
+  const [dmxActivity, setDmxActivity] = useState(false)
+
+  // Flash MIDI indicator on new messages
+  useEffect(() => {
+    if (midiMessages && midiMessages.length > 0) {
+      setMidiActivity(true);
+      const timer = setTimeout(() => setMidiActivity(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [midiMessages]);
+
+  // Monitor DMX activity
+  useEffect(() => {
+    if (toDmxValues && Object.values(toDmxValues).some(value => value > 0)) {
+      setDmxActivity(true);
+      const timer = setTimeout(() => setDmxActivity(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [toDmxValues]);
 
   const handleViewChange = (view: ViewType) => {
     setActiveView(view)
@@ -141,6 +166,40 @@ export const Navbar: React.FC = () => {
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
             </button>          ))}        </div>
+        
+        {/* Status icons container - only visible when collapsed */}
+        {isCollapsed && (
+          <div className={styles.statusIcons}>
+            {/* Connection Status */}
+            <div 
+              className={`${styles.statusIcon} ${connected ? styles.statusOk : styles.statusError}`}
+              title={connected ? 'Connected to server' : 'Disconnected from server'}
+            >
+              <LucideIcon name={connected ? 'Wifi' : 'WifiOff'} />
+            </div>
+            
+            {/* MIDI Activity */}
+            <div 
+              className={`${styles.statusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
+              title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
+            >
+              <LucideIcon name="Music" />
+            </div>
+              {/* Scene/DMX Activity */}
+            <div 
+              className={`${styles.statusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
+              title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
+            >
+              <LucideIcon name="Lightbulb" />
+            </div>            {/* Audio Analysis */}
+            <div 
+              className={`${styles.statusIcon} ${styles.statusHighlight}`}
+              title={`Current View: ${navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}`}
+            >
+              <LucideIcon name={navItems.find(item => item.id === activeView)?.icon as keyof typeof Icons || 'Layout'} />
+            </div>
+          </div>
+        )}
       </div>
        {/* If Sparkles is meant to be fixed at the bottom or outside scroll, place it here, relative to navbarContainer */}
        <Sparkles />
