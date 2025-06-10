@@ -191,3 +191,34 @@
 .navBarCollapsedState .navContent > :global(.sparklesWrapper) svg {
   margin: 0 auto; /* Center icon */
 }
+
+.networkStatusContainer {
+  width: 100%;
+  margin-top: auto; // Push to bottom of navbar
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1));
+}
+
+.navBarCollapsedState {
+  .networkStatusContainer {
+    padding-top: 0.25rem;
+    
+    // Hide text in NetworkStatus compact items when navbar is collapsed
+    :global(.compactView) {
+      .compactItem span {
+        display: none !important;
+      }
+      
+      .compactItem {
+        justify-content: center;
+        min-width: 24px;
+        padding: 2px 4px;
+        gap: 0;
+      }
+      
+      // Stack items in a single column when collapsed
+      flex-direction: column;
+      gap: 0.125rem;
+    }
+  }
+}

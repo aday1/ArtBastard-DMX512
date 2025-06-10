@@ -141,11 +141,9 @@ export const Navbar: React.FC = () => {
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
             </button>
-          ))}
-        </div>
-        {/* NetworkStatus might be better outside navButtons if it has a different layout or needs to be sticky at the bottom */}
-        <div className={styles.networkStatusContainer}> {/* Added a wrapper for potential specific styling */}
-          <NetworkStatus compact={isCollapsed} /> {/* Corrected: compact when navbar is collapsed */}
+          ))}        </div>
+        {/* NetworkStatus with proper container styling */}        <div className={styles.networkStatusContainer}>
+          <NetworkStatus compact={isCollapsed} navbar={true} />
         </div>
       </div>
        {/* If Sparkles is meant to be fixed at the bottom or outside scroll, place it here, relative to navbarContainer */}

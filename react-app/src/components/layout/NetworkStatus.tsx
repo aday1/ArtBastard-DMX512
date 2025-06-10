@@ -24,9 +24,10 @@ interface Props {
   isModal?: boolean
   onClose?: () => void
   compact?: boolean // Add compact prop for top bar display
+  navbar?: boolean // Add navbar prop to indicate it's in the navbar
 }
 
-export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compact = false }) => {
+export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compact = false, navbar = false }) => {
   const { socket, connected } = useSocket()
   const { theme } = useTheme()
   const [health, setHealth] = useState<HealthStatus | null>(null)
@@ -130,16 +131,15 @@ export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compa
     }
     return { fullText, shortText, styleKey };
   }
-
   const content = (
-    <div className={styles.networkStatus}>
+    <div className={`${styles.networkStatus} ${navbar ? styles.navbarVersion : ''}`}>
       <div className={styles.header}>
         <h3>
-          {theme === 'artsnob' && 'Network Telemetry'}
-          {theme === 'standard' && 'Network Status'}
+          {theme === 'artsnob' && (navbar ? 'Telemetry' : 'Network Telemetry')}
+          {theme === 'standard' && (navbar ? 'Network' : 'Network Status')}
           {theme === 'minimal' && 'Status'}
         </h3>
-        {lastUpdate && (
+        {lastUpdate && !navbar && (
           <span className={styles.lastUpdate}>
             Updated: {lastUpdate.toLocaleTimeString()}
           </span>
@@ -151,21 +151,21 @@ export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compa
         )}
       </div>
 
-      <div className={styles.statusGrid}>
+      <div className={navbar ? styles.navbarStatusGrid : styles.statusGrid}>
         <div className={`${styles.statusItem} ${styles[health?.status || 'unknown']}`}>
           <i className="fas fa-server"></i>
           <div className={styles.statusInfo}>
-            <span className={styles.label}>Server</span>
-            <span className={styles.value}>{health?.serverStatus || 'Unknown'}</span>
+            <span className={styles.label}>{navbar ? 'Srv' : 'Server'}</span>
+            <span className={styles.value}>{navbar ? (health?.serverStatus === 'running' ? 'OK' : 'ERR') : (health?.serverStatus || 'Unknown')}</span>
           </div>
         </div>
 
         <div className={`${styles.statusItem} ${styles[connected ? 'ok' : 'degraded']}`}>
           <i className="fas fa-plug"></i>
           <div className={styles.statusInfo}>
-            <span className={styles.label}>WebSocket</span>
+            <span className={styles.label}>{navbar ? 'WS' : 'WebSocket'}</span>
             <span className={styles.value}>
-              {connected ? `Connected (${health?.socketConnections || 0} clients)` : 'Disconnected'}
+              {navbar ? (connected ? 'OK' : 'OFF') : (connected ? `Connected (${health?.socketConnections || 0} clients)` : 'Disconnected')}
             </span>
           </div>
         </div>
@@ -173,9 +173,9 @@ export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compa
         <div className={`${styles.statusItem} ${styles[health?.midiDevicesConnected ? 'ok' : 'unknown']}`}>
           <i className="fas fa-music"></i>
           <div className={styles.statusInfo}>
-            <span className={styles.label}>MIDI Devices</span>
+            <span className={styles.label}>MIDI</span>
             <span className={styles.value}>
-              Server: {health?.midiDevicesConnected || 0}, Browser: {activeBrowserInputs?.size || 0}
+              {navbar ? `${(health?.midiDevicesConnected || 0) + (activeBrowserInputs?.size || 0)}` : `Server: ${health?.midiDevicesConnected || 0}, Browser: ${activeBrowserInputs?.size || 0}`}
             </span>
           </div>
         </div>
@@ -184,38 +184,56 @@ export const NetworkStatus: React.FC<Props> = ({ isModal = false, onClose, compa
           <i className="fas fa-network-wired"></i>
           <div className={styles.statusInfo}>
             <span className={styles.label}>ArtNet</span>
-            <span className={styles.value}>{getArtNetDisplayDetails(health?.artnetStatus).fullText}</span>
+            <span className={styles.value}>{navbar ? getArtNetDisplayDetails(health?.artnetStatus).shortText : getArtNetDisplayDetails(health?.artnetStatus).fullText}</span>
           </div>
         </div>
 
-        <div className={styles.statsSection}>
-          <div className={styles.stat}>
-            <span className={styles.label}>Uptime</span>
-            <span className={styles.value}>{health ? formatUptime(health.uptime) : 'Unknown'}</span>
+        {!navbar && (
+          <div className={styles.statsSection}>
+            <div className={styles.stat}>
+              <span className={styles.label}>Uptime</span>
+              <span className={styles.value}>{health ? formatUptime(health.uptime) : 'Unknown'}</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.label}>Memory</span>
+              <span className={styles.value}>
+                {health?.memoryUsage ? formatMemory(health.memoryUsage.heapUsed) : 'Unknown'}
+              </span>
+            </div>
           </div>
-          <div className={styles.stat}>
-            <span className={styles.label}>Memory</span>
-            <span className={styles.value}>
-              {health?.memoryUsage ? formatMemory(health.memoryUsage.heapUsed) : 'Unknown'}
-            </span>
-          </div>        </div>
+        )}
       </div>
     </div>
-  );
-
-  if (compact) {
-    // Super compact - just an icon that shows overall status
-    const overallStatus = health?.status === 'ok' && connected ? 'ok' : 'degraded';
-    const statusIcon = overallStatus === 'ok' ? 'fa-wifi' : 'fa-exclamation-triangle';
+  );  if (compact) {
+    // Show compact view with essential telemetry data
+    const artNetDetails = getArtNetDisplayDetails(health?.artnetStatus);
+    const midiCount = (health?.midiDevicesConnected || 0) + (activeBrowserInputs?.size || 0);
     
     return (
-      <button 
-        className={`${styles.compactIcon} ${styles[overallStatus]}`}
-        title={`Network Status: ${overallStatus.toUpperCase()}\nServer: ${health?.serverStatus || 'Unknown'}\nSocket: ${connected ? 'Connected' : 'Disconnected'}\nMIDI: ${(health?.midiDevicesConnected || 0) + (activeBrowserInputs?.size || 0)} devices\nClick for details`}
-        onClick={() => setShowModal(true)}
-      >
-        <i className={`fas ${statusIcon}`}></i>
-      </button>
+      <div className={styles.compactView}>
+        <div className={`${styles.compactItem} ${styles.connectionIndicator} ${styles[connected ? 'statusOkBackground' : 'statusWarningBackground']}`}>
+          <i className={`fas fa-wifi ${styles[connected ? 'statusOk' : 'statusWarning']}`}></i>
+          <span>{connected ? 'Online' : 'Offline'}</span>
+        </div>
+        
+        <div className={`${styles.compactItem} ${styles.midiIndicator} ${styles[midiCount > 0 ? 'statusOkBackground' : 'statusUnknownBackground']}`}>
+          <i className={`fas fa-music ${midiActivity ? styles.midiActive : styles[midiCount > 0 ? 'statusOk' : 'statusUnknown']}`}></i>
+          <span>{midiCount}</span>
+        </div>
+        
+        <div className={`${styles.compactItem} ${styles.artnetIndicator} ${styles[artNetDetails.styleKey + 'Background']}`}>
+          <i className={`fas fa-network-wired ${styles[artNetDetails.styleKey]}`}></i>
+          <span>{artNetDetails.shortText}</span>
+        </div>
+        
+        <button 
+          className={`${styles.compactIcon} ${styles[health?.status === 'ok' && connected ? 'ok' : 'degraded']}`}
+          title={`Network Telemetry Details\nServer: ${health?.serverStatus || 'Unknown'}\nSocket: ${connected ? 'Connected' : 'Disconnected'}\nMIDI: ${midiCount} devices\nArtNet: ${artNetDetails.fullText}\nClick for full details`}
+          onClick={() => setShowModal(true)}
+        >
+          <i className="fas fa-chart-line"></i>
+        </button>
+      </div>
     )
   }
 
