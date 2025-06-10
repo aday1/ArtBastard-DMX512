@@ -46,20 +46,27 @@
   flex-grow: 1;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* May need opacity transition */
   overflow-y: auto; /* Allow scrolling if content exceeds height */
-  overflow-x: hidden; /* Hide horizontal overflow during transition */
-  &.navContentCollapsed {
+  overflow-x: hidden; /* Hide horizontal overflow during transition */  &.navContentCollapsed {
     /* display: none;  Replaced: Now controls content visibility within buttons */
     /* Instead of hiding the whole content, we hide text in buttons and center icons */
     .navButton {
       span {
-        display: none;
+        display: none !important;
       }
       svg {
-        margin: 0 auto; /* Center icon when text is hidden */
+        margin: 0 auto !important; /* Center icon when text is hidden */
+        width: 24px !important; /* Larger icon size when collapsed */
+        height: 24px !important;
+        opacity: 1 !important; /* Ensure full opacity when collapsed */
       }
-      justify-content: center; /* Center the icon */
-      padding: 0.5rem; /* Reduce padding for icon-only display */
-      min-height: 40px; /* Maintain minimum height */
+      justify-content: center !important; /* Center the icon */
+      padding: 0.75rem !important; /* Increase padding for better touch target */
+      min-height: 48px !important; /* Larger minimum height for better visibility */
+      width: 100% !important; /* Ensure button takes full width */
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 8px !important;
+      margin-bottom: 6px !important;
     }
     .networkStatusContainer { /* Example: if NetworkStatus has its own container */
       /* Potentially hide or change NetworkStatus rendering in collapsed state */
@@ -75,7 +82,7 @@
   color: var(--text-primary);
   font-size: 0.875rem;
   cursor: pointer;
-  padding: 0.375rem;
+  padding: 0.5rem;
   border-radius: 8px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1002; /* Ensure it's above navContent if overlapping */
@@ -83,15 +90,25 @@
   align-items: center;
   justify-content: center;
   width: 100%; /* Full width of the collapsed bar / or fixed size */
-  height: 32px; /* Keep height or adjust as needed */
+  height: 40px; /* Increased height for better visibility */
   margin-bottom: 0.5rem; /* Space between toggle and first button */
   /* backdrop-filter: blur(8px); */ /* Removed as container has blur */
   /* -webkit-backdrop-filter: blur(8px); */
+  
+  svg {
+    width: 20px; /* Ensure toggle icon is properly sized */
+    height: 20px;
+    opacity: 1;
+  }
 
   &:hover {
     background: var(--bg-tertiary); /* Slightly different hover for distinction */
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    
+    svg {
+      transform: scale(1.1);
+    }
   }
 
   &:active {
@@ -196,39 +213,39 @@
 // Enhanced styling for collapsed navbar menu items  
 .navBarCollapsedState {
   .navButton {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    margin-bottom: 6px !important;
+    border-radius: 8px !important;
+    
+    svg {
+      width: 24px !important; /* Force larger icon size */
+      height: 24px !important;
+      opacity: 1 !important; /* Ensure full visibility */
+      color: var(--text-primary, #ffffff) !important;
+    }
+    
     &:hover {
-      background: var(--bg-hover, rgba(255, 255, 255, 0.1));
-      transform: scale(1.05);
+      background: rgba(255, 255, 255, 0.2) !important;
+      border-color: rgba(255, 255, 255, 0.3) !important;
+      transform: scale(1.05) !important;
       
       svg {
-        transform: scale(1.2);
-        color: var(--color-primary, #4ecdc4);
+        transform: scale(1.2) !important;
+        color: var(--color-primary, #4ecdc4) !important;
       }
     }
     
     &.active {
-      background: var(--color-primary, #4ecdc4);
-      color: white;
+      background: var(--color-primary, #4ecdc4) !important;
+      border-color: var(--color-primary, #4ecdc4) !important;
+      color: white !important;
       
       svg {
-        color: white;
-        transform: scale(1.1);
+        color: white !important;
+        transform: scale(1.1) !important;
+        animation: subtlePulse 2s infinite ease-in-out;
       }
-    }
-  }
-}
-
-// Additional styling for better collapsed icon visibility
-.navBarCollapsedState {
-  .navButton {
-    // Add subtle background for better icon visibility
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 4px;
-    
-    &:not(.active):hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.2);
     }
   }
 }
@@ -240,14 +257,6 @@
   }
   50% {
     opacity: 0.8;
-  }
-}
-
-.navBarCollapsedState {
-  .navButton.active {
-    svg {
-      animation: subtlePulse 2s infinite ease-in-out;
-    }
   }
 }
 
@@ -324,13 +333,14 @@
 // Collapsed state: icon-only, centered, small
 .statusIconsCollapsed .statusIcon {
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px; /* Slightly larger for better visibility */
+  height: 36px;
   padding: 0;
   
   svg {
-    width: 16px;
-    height: 16px;
+    width: 18px; /* Slightly larger icons */
+    height: 18px;
+    opacity: 1; /* Ensure full opacity */
   }
 }
 
