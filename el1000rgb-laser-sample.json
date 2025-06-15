@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-06-15T12:25:00.000Z",
+  "fixtures": [
+    {
+      "name": "EL1000RGB Laser #1",
+      "type": "RGB Laser Projector",
+      "manufacturer": "Generic",
+      "model": "EL1000RGB",
+      "mode": "16-Channel",
+      "channels": [
+        { "name": "Laser On/Off", "type": "other" },
+        { "name": "Color Control", "type": "color_wheel" },
+        { "name": "Color Speed", "type": "speed" },
+        { "name": "Pattern Option", "type": "gobo_wheel" },
+        { "name": "Pattern Group", "type": "gobo_wheel" },
+        { "name": "Pattern Size", "type": "zoom" },
+        { "name": "Pattern Auto Zoom", "type": "zoom" },
+        { "name": "Center Rotation", "type": "gobo_rotation" },
+        { "name": "Horizontal Rotation", "type": "pan" },
+        { "name": "Vertical Rotation", "type": "tilt" },
+        { "name": "Horizontal Move", "type": "pan" },
+        { "name": "Vertical Move", "type": "tilt" },
+        { "name": "Wave Effect", "type": "effect" },
+        { "name": "Pattern Drawing", "type": "effect" },
+        { "name": "Inner Dynamic Effect", "type": "macro" },
+        { "name": "Inner Effect Speed", "type": "speed" }
+      ],
+      "notes": "EL1000RGB Professional RGB Laser Projector - 16-Channel DMX Control\n\nDMX Channel Specifications:\n\nCH1 - Laser On/Off:\n0-9: Laser Off\n10-255: Laser On\n\nCH2 - Color Control:\n0-69: Static colors (white-red-blue-pink-cyan-yellow-green)\n70-79: Color change (speed controlled by Ch. 3)\n80-89: Default color (speed controlled by Ch. 3)\n90-99: Rainbow color (speed controlled by Ch. 3)\n100-224: Segment color, 5 data stepping (speed controlled by Ch. 3)\n225-229: Dynamic color 1 (speed controlled by Ch. 3)\n230-234: Dynamic color 2 (speed controlled by Ch. 3)\n235-239: Dynamic color 3 (speed controlled by Ch. 3)\n240-244: Dynamic color 4 (speed controlled by Ch. 3)\n245-249: Dynamic color 5 (speed controlled by Ch. 3)\n250-255: Dynamic color 6 (speed controlled by Ch. 3)\n\nCH3 - Color Speed:\n0-9: No function\n10-127: Clockwise rotation, slow to fast\n128-255: Anticlockwise rotation, slow to fast\n\nCH4 - Pattern Option: 0-255 pattern selection within chosen group\n\nCH5 - Pattern Group Option:\n0-50: Inner patterns group 1\n51-101: Inner patterns group 2\n102-152: Inner patterns group 3\n153-203: Inner patterns group 4\n204-255: Inner patterns group 5\n\nCH6 - Pattern Size: 0-255 manual pattern size adjustment\n\nCH7 - Pattern Auto Zoom:\n0-15: Manual zoom\n16-55: Zoom small to large, speed slow to fast\n56-95: Zoom large to small, speed slow to fast\n96-135: Cycle zoom large to small, speed slow to fast\n136-175: Cycle zoom 1, speed slow to fast\n176-215: Cycle zoom 2, speed slow to fast\n216-255: Cycle zoom 3, speed slow to fast\n\nCH8 - Center Rotation:\n0-127: Rotation angle (static positioning)\n128-191: Clockwise rotation speed\n192-255: Anticlockwise rotation speed\n\nCH9 - Horizontal Rotation:\n0-127: Flip horizontal location (static)\n128-255: Flip horizontal speed (continuous)\n\nCH10 - Vertical Rotation:\n0-127: Flip vertical location (static)\n128-255: Flip vertical speed (continuous)\n\nCH11 - Horizontal Move:\n0-127: Horizontal location (manual positioning)\n128-255: Horizontal auto location, speed slow to fast\n\nCH12 - Vertical Move:\n0-127: Vertical rotation (manual positioning)\n128-255: Vertical auto location, speed slow to fast\n\nCH13 - Wave Effect:\n0-9: No function\n10-255: Wave range and speed (range small to large, speed slow to fast)\n\nCH14 - Pattern Drawing:\n0-1: No function\n2-63: Drawing by manual adjustment 1\n64-127: Drawing by manual adjustment 2\n128-153: Automatic drawing (increasing)\n154-179: Automatic drawing (decreasing)\n180-205: Automatic drawing (increasing to decreasing, reverse)\n206-255: Automatic drawing (increasing to decreasing)\n\nCH15 - Inner Dynamic Effect:\n0-2: No function\n3-229: Single group dynamic effect (speed and color controlled by Ch. 16)\n230-249: Random auto effect (speed and color controlled by Ch. 16)\n\nCH16 - Inner Effect Speed:\n0-127: Inner effect speed, fast to slow (color determined by inner program)\n128-255: Inner effect speed, fast to slow (color determined by DMX)\n\nKey Features:\n- Professional RGB laser projector with 16-channel DMX control\n- 5 pattern groups with extensive pattern libraries\n- Static colors plus 6 dynamic color modes\n- Advanced zoom effects with multiple cycle patterns\n- Multi-axis control: center, horizontal, and vertical rotation\n- Wave effects for organic pattern distortion\n- Drawing modes with automatic animation\n- Built-in dynamic effects with speed and color control\n- Manual and automatic positioning modes\n\nSafety Notes:\n- Always comply with laser safety regulations\n- Never aim directly at audiences without proper safety measures\n- Use qualified laser technicians for professional installations\n- Ensure adequate scan fail-safe systems\n- Check venue laser approval requirements\n\nApplications:\n- Concert and stage lighting\n- Architectural projection\n- Club and venue atmosphere\n- Corporate events and branding\n- Art installations and interactive displays"
+    }
+  ]
+}

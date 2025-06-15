@@ -16,6 +16,77 @@ interface ExtendedMidiRangeMapping extends MidiRangeMapping {
   inverted?: boolean;
 }
 
+interface FixtureChannelInfo {
+  fixtureName?: string;
+  channelFunction?: string;
+  channelType?: string;
+  shortFunction?: string;
+}
+
+// Helper function to get fixture information for a DMX channel
+const getFixtureInfoForChannel = (channelIndex: number, fixtures: any[]): FixtureChannelInfo => {
+  const dmxAddress = channelIndex + 1; // Convert 0-based index to 1-based address
+  
+  for (const fixture of fixtures) {
+    const fixtureStartAddress = fixture.startAddress;
+    const fixtureEndAddress = fixtureStartAddress + fixture.channels.length - 1;
+    
+    if (dmxAddress >= fixtureStartAddress && dmxAddress <= fixtureEndAddress) {
+      const channelOffset = dmxAddress - fixtureStartAddress;
+      const channel = fixture.channels[channelOffset];
+      
+      if (channel) {
+        // Generate short function name for display
+        const shortFunction = (() => {
+          switch (channel.type) {
+            case 'red': case 'green': case 'blue': case 'white': case 'amber': case 'uv': 
+              return channel.type.toUpperCase();
+            case 'pan': case 'tilt': return channel.type.toUpperCase();
+            case 'pan_fine': return 'PAN-F';
+            case 'tilt_fine': return 'TILT-F';
+            case 'dimmer': return 'DIM';
+            case 'shutter': return 'SHUT';
+            case 'strobe': return 'STRB';
+            case 'color_wheel': return 'CW';
+            case 'gobo_wheel': return 'GOBO';
+            case 'gobo_rotation': return 'G-ROT';
+            case 'zoom': return 'ZOOM';
+            case 'focus': return 'FOCUS';
+            case 'prism': return 'PRISM';
+            case 'iris': return 'IRIS';            case 'speed': return 'SPEED';
+            case 'macro': return 'MACRO';
+            case 'effect': return 'FX';
+            // NEW: Professional channel types
+            case 'frost': 
+            case 'diffusion': return 'FROST';
+            case 'animation': return 'ANIM';
+            case 'animation_speed': return 'A-SPD';
+            case 'cto': 
+            case 'color_temperature_orange': return 'CTO';
+            case 'ctb':
+            case 'color_temperature_blue': return 'CTB';
+            case 'reset': return 'RESET';
+            case 'lamp_control': return 'LAMP';
+            case 'fan_control': return 'FAN';
+            case 'display': return 'DISP';
+            case 'function': return 'FUNC';
+            default: return channel.type.toUpperCase();
+          }
+        })();
+        
+        return {
+          fixtureName: fixture.name,
+          channelFunction: channel.name || `${channel.type} Channel`,
+          channelType: channel.type,
+          shortFunction
+        };
+      }
+    }
+  }
+  
+  return {};
+};
+
 export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true, touchOptimized = false }) => {
   const {
     dmxChannels,
@@ -26,6 +97,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     oscAssignments,
     setOscAssignment,
     oscActivity,
+    fixtures
   } = useStore(state => ({
     dmxChannels: state.dmxChannels,
     channelNames: state.channelNames,
@@ -35,6 +107,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     oscAssignments: state.oscAssignments,
     setOscAssignment: state.setOscAssignment,
     oscActivity: state.oscActivity,
+    fixtures: state.fixtures
   }));
   const [showDetails, setShowDetails] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -139,10 +212,15 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
       window.removeEventListener('dmxChannelUpdate', handleDmxChannelUpdate);
     };
   }, [index, setDmxChannel]);
-
   const value = dmxChannels[index] || 0;
   const name = channelNames[index] || `CH ${index + 1}`;
   const isSelected = selectedChannels.includes(index);
+  
+  // Get fixture information for this channel
+  const fixtureInfo = getFixtureInfoForChannel(index, fixtures || []);
+  const displayName = fixtureInfo.fixtureName 
+    ? `${fixtureInfo.fixtureName} - ${fixtureInfo.shortFunction}` 
+    : name;
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value, 10);
@@ -245,7 +323,14 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     >
       <div className={styles.header}>
         <div className={styles.address}>{dmxAddress}</div>
-        <div className={styles.name}>{name}</div>
+        <div className={styles.name}>
+          <div className={styles.primaryName}>{displayName}</div>
+          {fixtureInfo.fixtureName && (
+            <div className={styles.channelFunction} title={fixtureInfo.channelFunction}>
+              {fixtureInfo.channelFunction}
+            </div>
+          )}
+        </div>
         <div className={styles.headerControls}>
           <button
             className={styles.detailsToggle}
@@ -258,10 +343,15 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
           </button>
         </div>
       </div>      {isFullscreen ? (
-        <>
-          <div className={styles.fullscreenHeader}>
+        <>          <div className={styles.fullscreenHeader}>
             <h2>DMX Channel {dmxAddress}</h2>
-            <p>{name}</p>
+            <p>{displayName}</p>
+            {fixtureInfo.fixtureName && (
+              <div className={styles.fullscreenFixtureInfo}>
+                <span className={styles.fixtureName}>{fixtureInfo.fixtureName}</span>
+                <span className={styles.channelFunction}>{fixtureInfo.channelFunction}</span>
+              </div>
+            )}
           </div>
           
           <div 

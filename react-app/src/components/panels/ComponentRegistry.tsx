@@ -9,7 +9,7 @@ import { OscMonitor } from '../osc/OscMonitor';
 import { SceneQuickLaunch } from '../scenes/SceneQuickLaunch';
 import { AutoSceneControlMini } from '../scenes/AutoSceneControlMini';
 import ChromaticEnergyManipulatorMini from '../fixtures/ChromaticEnergyManipulatorMini';
-import { ComprehensiveFixtureController } from '../fixtures/ComprehensiveFixtureController';
+
 import { AudioControlPanel } from '../audio/AudioControlPanel';
 import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
@@ -100,24 +100,13 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
   },  // Fixture Controls
   'chromatic-energy-manipulator': {
     type: 'chromatic-energy-manipulator',
-    title: 'Fixture Control',
-    description: 'Advanced color and effect control',
+    title: 'Advanced Fixture Controller',
+    description: 'Comprehensive fixture control with Color, Movement, Dimmer, GOBO, Strobe, and advanced effects',
     category: 'fixtures',
     icon: 'fas fa-palette',
     component: ChromaticEnergyManipulatorMini,
     defaultProps: { isDockable: false },
     minSize: { width: 280, height: 250 },
-  },
-  'comprehensive-fixture-controller': {
-    type: 'comprehensive-fixture-controller',
-    title: 'Comprehensive Fixture Control',
-    description: 'Complete fixture control with MIDI/OSC learning',
-    category: 'fixtures',
-    icon: 'fas fa-lightbulb',
-    component: ComprehensiveFixtureController,
-    defaultProps: { isDockable: false },
-    minSize: { width: 600, height: 500 },
-    maxSize: { width: 1200, height: 900 },
   },'fixture-canvas-2d': {
     type: 'fixture-canvas-2d',
     title: '2D Canvas',

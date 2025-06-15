@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-06-15T12:00:00.000Z",
+  "fixtures": [
+    {
+      "name": "Test Moving Head",
+      "type": "Moving Head",
+      "manufacturer": "Chauvet",
+      "model": "Intimidator Spot 355",
+      "mode": "16-Channel",
+      "channels": [
+        { "name": "Pan", "type": "pan" },
+        { "name": "Tilt", "type": "tilt" },
+        { "name": "Dimmer", "type": "dimmer" },
+        { "name": "Shutter", "type": "shutter" },
+        { "name": "Zoom", "type": "zoom" },
+        { "name": "Focus", "type": "focus" },
+        { "name": "Color Wheel", "type": "color_wheel" },
+        { "name": "Gobo Wheel", "type": "gobo_wheel" },
+        { "name": "Gobo Rotation", "type": "gobo_rotation" },
+        { "name": "Prism", "type": "prism" },
+        { "name": "Iris", "type": "iris" },
+        { "name": "Reset", "type": "reset" }
+      ],
+      "notes": "Professional moving head spot light with gobo wheels and prism effects. Use 16-channel mode for full control."
+    },
+    {
+      "name": "Test RGB Par",
+      "type": "LED Par",
+      "manufacturer": "Chauvet",
+      "model": "SlimPar Pro H USB",
+      "mode": "6-Channel",
+      "channels": [
+        { "name": "Red", "type": "red" },
+        { "name": "Green", "type": "green" },
+        { "name": "Blue", "type": "blue" },
+        { "name": "Amber", "type": "amber" },
+        { "name": "White", "type": "white" },
+        { "name": "UV", "type": "uv" }
+      ],
+      "notes": "RGBAW+UV LED par can with wireless DMX capability. Can be used for wash lighting and color mixing."
+    }
+  ]
+}

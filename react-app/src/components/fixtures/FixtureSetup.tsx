@@ -4,6 +4,7 @@ import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
 import { LucideIcon } from '../ui/LucideIcon'; // Added for icons
+import { NodeBasedFixtureEditor } from './NodeBasedFixtureEditor'; // Import Node Editor
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -11,13 +12,19 @@ import { MidiLearnButton } from '../midi/MidiLearnButton'; // Import MidiLearnBu
 
 interface FixtureChannel {
   name: string
-  type: 'dimmer' | 'red' | 'green' | 'blue' | 'pan' | 'tilt' | 'gobo' | 'other';
+  type: 'dimmer' | 'red' | 'green' | 'blue' | 'white' | 'amber' | 'uv' | 'pan' | 'pan_fine' | 'tilt' | 'tilt_fine' | 'shutter' | 'zoom' | 'focus' | 'color_wheel' | 'gobo_wheel' | 'gobo_rotation' | 'prism' | 'iris' | 'macro' | 'reset' | 'speed' | 'sound' | 'strobe' | 'effect' | 'other';
+  dmxAddress?: number; // Optional DMX address override
 }
 
 interface FixtureFormData {
   name: string;
+  type: string;
+  manufacturer: string;
+  model: string;
+  mode: string;
   startAddress: number;
   channels: FixtureChannel[];
+  notes: string;
 }
 
 const channelTypes = [
@@ -25,9 +32,27 @@ const channelTypes = [
   { value: 'red', label: 'Red' },
   { value: 'green', label: 'Green' },
   { value: 'blue', label: 'Blue' },
+  { value: 'white', label: 'White' },
+  { value: 'amber', label: 'Amber' },
+  { value: 'uv', label: 'UV' },
   { value: 'pan', label: 'Pan' },
+  { value: 'pan_fine', label: 'Pan Fine' },
   { value: 'tilt', label: 'Tilt' },
-  { value: 'gobo', label: 'Gobo' },
+  { value: 'tilt_fine', label: 'Tilt Fine' },
+  { value: 'shutter', label: 'Shutter' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'focus', label: 'Focus' },
+  { value: 'color_wheel', label: 'Color Wheel' },
+  { value: 'gobo_wheel', label: 'Gobo Wheel' },
+  { value: 'gobo_rotation', label: 'Gobo Rotation' },
+  { value: 'prism', label: 'Prism' },
+  { value: 'iris', label: 'Iris' },
+  { value: 'macro', label: 'Macro' },
+  { value: 'reset', label: 'Reset' },
+  { value: 'speed', label: 'Speed' },
+  { value: 'sound', label: 'Sound' },
+  { value: 'strobe', label: 'Strobe' },
+  { value: 'effect', label: 'Effect' },
   { value: 'other', label: 'Other' }
 ]
 
@@ -58,8 +83,8 @@ const fixtureTemplates: Array<{
       { name: 'Pan', type: 'pan' },
       { name: 'Tilt', type: 'tilt' },
       { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Gobo Wheel', type: 'gobo' },
-      { name: 'Color Wheel', type: 'other' },
+      { name: 'Gobo Wheel', type: 'gobo_wheel' },
+      { name: 'Color Wheel', type: 'color_wheel' },
     ],
   },
   {
@@ -73,9 +98,157 @@ const fixtureTemplates: Array<{
     channels: [
       { name: 'Red', type: 'red' },
       { name: 'Green', type: 'green' },
-      { name: 'Blue', type: 'blue' },
-      { name: 'White', type: 'other' }, 
+      { name: 'Blue', type: 'blue' },      { name: 'White', type: 'white' }, 
       { name: 'Dimmer', type: 'dimmer' },
+    ],  },  {
+    templateName: 'Professional Moving Head Spot',
+    defaultNamePrefix: 'Pro Spot',
+    channels: [
+      { name: 'Pan', type: 'pan' },
+      { name: 'Pan Fine', type: 'pan_fine' },
+      { name: 'Tilt', type: 'tilt' },
+      { name: 'Tilt Fine', type: 'tilt_fine' },
+      { name: 'Dimmer', type: 'dimmer' },
+      { name: 'Shutter/Strobe', type: 'shutter' },
+      { name: 'Zoom', type: 'zoom' },
+      { name: 'Focus', type: 'focus' },
+      { name: 'Color Wheel', type: 'color_wheel' },
+      { name: 'Gobo Wheel 1', type: 'gobo_wheel' },
+      { name: 'Gobo Wheel 2', type: 'gobo_wheel' },
+      { name: 'Gobo Rotation', type: 'gobo_rotation' },
+      { name: 'Prism', type: 'prism' },
+      { name: 'Iris', type: 'iris' },
+      { name: 'Macro', type: 'macro' },
+      { name: 'Reset', type: 'reset' },
+    ],
+  },
+  {
+    templateName: 'RGBAW+UV LED Par',
+    defaultNamePrefix: 'RGBAWUV Par',
+    channels: [
+      { name: 'Red', type: 'red' },
+      { name: 'Green', type: 'green' },
+      { name: 'Blue', type: 'blue' },
+      { name: 'Amber', type: 'amber' },
+      { name: 'White', type: 'white' },
+      { name: 'UV', type: 'uv' },
+      { name: 'Master Dimmer', type: 'dimmer' },
+      { name: 'Strobe', type: 'strobe' },
+      { name: 'Speed', type: 'speed' },
+      { name: 'Sound Active', type: 'sound' },
+      { name: 'Macro Effects', type: 'effect' },
+    ],
+  },  {
+    templateName: 'Moving Head Wash',
+    defaultNamePrefix: 'Moving Wash',
+    channels: [
+      { name: 'Pan', type: 'pan' },
+      { name: 'Pan Fine', type: 'pan_fine' },
+      { name: 'Tilt', type: 'tilt' },
+      { name: 'Tilt Fine', type: 'tilt_fine' },
+      { name: 'Red', type: 'red' },
+      { name: 'Green', type: 'green' },
+      { name: 'Blue', type: 'blue' },
+      { name: 'White', type: 'white' },
+      { name: 'Dimmer', type: 'dimmer' },
+      { name: 'Shutter', type: 'shutter' },
+      { name: 'Zoom', type: 'zoom' },
+      { name: 'Macro', type: 'macro' },
+      { name: 'Speed', type: 'speed' },
+    ],
+  },
+  {
+    templateName: 'Laser Projector',
+    defaultNamePrefix: 'Laser',
+    channels: [
+      { name: 'Mode', type: 'macro' },
+      { name: 'Pattern', type: 'gobo_wheel' },
+      { name: 'Zoom', type: 'zoom' },
+      { name: 'Y-Axis Rolling', type: 'pan' },
+      { name: 'X-Axis Rolling', type: 'tilt' },
+      { name: 'Speed', type: 'speed' },
+      { name: 'Strobe', type: 'strobe' },
+    ],
+  },
+  {
+    templateName: 'Fog Machine',
+    defaultNamePrefix: 'Fog',
+    channels: [
+      { name: 'Fog Output', type: 'dimmer' },
+      { name: 'Timer Mode', type: 'macro' },
+    ],
+  },
+  {
+    templateName: 'Strobe Light',
+    defaultNamePrefix: 'Strobe',
+    channels: [
+      { name: 'Strobe Rate', type: 'strobe' },
+      { name: 'Dimmer', type: 'dimmer' },
+      { name: 'Sound Active', type: 'sound' },
+    ],
+  },  {
+    templateName: 'MINI BEAM - Pan/Tilt Prism Mover',
+    defaultNamePrefix: 'MINI BEAM',
+    channels: [
+      { name: 'Color Wheel', type: 'color_wheel' },
+      { name: 'Flash/Strobe', type: 'strobe' },
+      { name: 'Dimmer', type: 'dimmer' },
+      { name: 'Gobo', type: 'gobo_wheel' },
+      { name: 'Prism 1', type: 'prism' },
+      { name: 'Prism Rotation', type: 'gobo_rotation' },
+      { name: 'Prism 2', type: 'prism' },
+      { name: 'Frost', type: 'other' },
+      { name: 'Focus', type: 'focus' },
+      { name: 'Pan', type: 'pan' },
+      { name: 'Pan Fine', type: 'pan_fine' },
+      { name: 'Tilt', type: 'tilt' },
+      { name: 'Tilt Fine', type: 'tilt_fine' },
+      { name: 'Function/Speed', type: 'macro' },
+      { name: 'Reset', type: 'reset' },
+      { name: 'Lamp', type: 'other' },
+    ],
+  },
+  {
+    templateName: 'LED Spider Light - Dual Motor RGBW',
+    defaultNamePrefix: 'LED Spider',
+    channels: [
+      { name: 'Motor 1 Rotate', type: 'pan' },
+      { name: 'Motor 2 Rotate', type: 'tilt' },
+      { name: 'Master Dimmer', type: 'dimmer' },
+      { name: 'Strobe', type: 'strobe' },
+      { name: 'Motor 1 Red', type: 'red' },
+      { name: 'Motor 1 Green', type: 'green' },
+      { name: 'Motor 1 Blue', type: 'blue' },
+      { name: 'Motor 1 White', type: 'white' },
+      { name: 'Motor 2 Red', type: 'red' },
+      { name: 'Motor 2 Green', type: 'green' },
+      { name: 'Motor 2 Blue', type: 'blue' },
+      { name: 'Motor 2 White', type: 'white' },
+      { name: 'Effect Programs', type: 'macro' },
+      { name: 'Effect Speed', type: 'speed' },
+      { name: 'Reset', type: 'reset' },
+    ],
+  },
+  {
+    templateName: 'EL1000RGB Laser Projector',
+    defaultNamePrefix: 'EL1000RGB',
+    channels: [
+      { name: 'Laser On/Off', type: 'other' },
+      { name: 'Color Control', type: 'color_wheel' },
+      { name: 'Color Speed', type: 'speed' },
+      { name: 'Pattern Option', type: 'gobo_wheel' },
+      { name: 'Pattern Group', type: 'gobo_wheel' },
+      { name: 'Pattern Size', type: 'zoom' },
+      { name: 'Pattern Auto Zoom', type: 'zoom' },
+      { name: 'Center Rotation', type: 'gobo_rotation' },
+      { name: 'Horizontal Rotation', type: 'pan' },
+      { name: 'Vertical Rotation', type: 'tilt' },
+      { name: 'Horizontal Move', type: 'pan' },
+      { name: 'Vertical Move', type: 'tilt' },
+      { name: 'Wave Effect', type: 'effect' },
+      { name: 'Pattern Drawing', type: 'effect' },
+      { name: 'Inner Dynamic Effect', type: 'macro' },
+      { name: 'Inner Effect Speed', type: 'speed' },
     ],
   },
 ];
@@ -107,8 +280,14 @@ export const FixtureSetup: React.FC = () => {
   const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null)
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [fixtureForm, setFixtureForm] = useState<FixtureFormData>({
-    name: '',    startAddress: 1,
-    channels: [{ name: 'Intensity', type: 'dimmer' }]
+    name: '',
+    type: '',
+    manufacturer: '',
+    model: '',
+    mode: '',
+    startAddress: 1,
+    channels: [{ name: 'Intensity', type: 'dimmer' }],
+    notes: ''
   });
     const [groupForm, setGroupForm] = useState<Partial<Group>>({
     name: '',
@@ -120,12 +299,13 @@ export const FixtureSetup: React.FC = () => {
   })
   // Multi-select functionality state
   const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');  const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
   const [showFlagPanel, setShowFlagPanel] = useState(false);
   const [newFlagName, setNewFlagName] = useState('');
   const [newFlagColor, setNewFlagColor] = useState('#ff6b6b');
   const [newFlagCategory, setNewFlagCategory] = useState('');
+  const [showNodeEditor, setShowNodeEditor] = useState(false);
+  const [nodeEditorFixtureId, setNodeEditorFixtureId] = useState<string | null>(null);
 
   // Filter fixtures based on search term
   const filteredFixtures = fixtures.filter(fixture =>
@@ -356,6 +536,75 @@ export const FixtureSetup: React.FC = () => {
     return null; // No conflict
   };
   
+  // Get the effective DMX address for a channel (either custom or calculated from start address)
+  const getEffectiveDmxAddress = (channelIndex: number): number => {
+    const channel = fixtureForm.channels[channelIndex];
+    if (channel.dmxAddress !== undefined && channel.dmxAddress >= 1 && channel.dmxAddress <= 512) {
+      return channel.dmxAddress;
+    }
+    return fixtureForm.startAddress + channelIndex;
+  };
+
+  // Validate individual DMX address
+  const validateDmxAddress = (channelIndex: number, newAddress: number): string | null => {
+    if (newAddress < 1 || newAddress > 512) {
+      return 'DMX address must be between 1 and 512';
+    }
+
+    // Check for conflicts with other channels in the same fixture
+    for (let i = 0; i < fixtureForm.channels.length; i++) {
+      if (i !== channelIndex) {
+        const otherAddress = getEffectiveDmxAddress(i);
+        if (otherAddress === newAddress) {
+          return `DMX address ${newAddress} is already used by channel "${fixtureForm.channels[i].name}"`;
+        }
+      }
+    }
+
+    // Check for conflicts with other fixtures
+    const conflict = fixtures.find(fixture => {
+      if (editingFixtureId && fixture.id === editingFixtureId) {
+        return false; // Skip the fixture being edited
+      }
+      
+      return fixture.channels.some((ch, idx) => {
+        const effectiveAddress = ch.dmxAddress || (fixture.startAddress + idx);
+        return effectiveAddress === newAddress;
+      });
+    });
+
+    if (conflict) {
+      return `DMX address ${newAddress} is already used by fixture "${conflict.name}"`;
+    }
+
+    return null; // No conflict
+  };
+
+  // Handle DMX address change for individual channels
+  const handleDmxAddressChange = (channelIndex: number, newAddress: string) => {
+    const addressNum = parseInt(newAddress);
+    if (isNaN(addressNum)) {
+      return; // Invalid input, don't update
+    }
+
+    const validationError = validateDmxAddress(channelIndex, addressNum);
+    if (validationError) {
+      useStoreUtils.getState().addNotification({
+        message: validationError,
+        type: 'warning',
+        priority: 'medium'
+      });
+      return;
+    }
+
+    handleChannelChange(channelIndex, 'dmxAddress', addressNum);
+  };
+
+  // Reset channel to use calculated address from start address
+  const resetChannelToCalculated = (channelIndex: number) => {
+    handleChannelChange(channelIndex, 'dmxAddress', undefined);
+  };
+
   // Handle fixture form changes
   const handleFixtureChange = (key: keyof FixtureFormData, value: any) => {
     setFixtureForm(prev => ({ ...prev, [key]: value }))
@@ -406,13 +655,16 @@ export const FixtureSetup: React.FC = () => {
         priority: 'high'
       });
       return;
-    }
-
-    const newFixture = {
+    }    const newFixture = {
       id: `fixture-${Date.now()}-${Math.random()}`,
       name: fixtureForm.name,
+      type: fixtureForm.type,
+      manufacturer: fixtureForm.manufacturer,
+      model: fixtureForm.model,
+      mode: fixtureForm.mode,
       startAddress: fixtureForm.startAddress,
-      channels: fixtureForm.channels
+      channels: fixtureForm.channels,
+      notes: fixtureForm.notes
     }
     
     useStoreUtils.setState(state => ({
@@ -442,13 +694,16 @@ export const FixtureSetup: React.FC = () => {
         priority: 'high'
       });
       return;
-    }
-
-    const updatedFixture = {
+    }    const updatedFixture = {
       id: editingFixtureId,
       name: fixtureForm.name,
+      type: fixtureForm.type,
+      manufacturer: fixtureForm.manufacturer,
+      model: fixtureForm.model,
+      mode: fixtureForm.mode,
       startAddress: fixtureForm.startAddress,
-      channels: fixtureForm.channels
+      channels: fixtureForm.channels,
+      notes: fixtureForm.notes
     }
     
     useStoreUtils.setState(state => ({
@@ -470,74 +725,264 @@ export const FixtureSetup: React.FC = () => {
     setEditingFixtureId(fixture.id)
     setFixtureForm({
       name: fixture.name,
+      type: fixture.type || '',
+      manufacturer: fixture.manufacturer || '',
+      model: fixture.model || '',
+      mode: fixture.mode || '',
       startAddress: fixture.startAddress,
-      channels: [...fixture.channels] // Create a copy to avoid direct mutation
+      channels: [...fixture.channels], // Create a copy to avoid direct mutation
+      notes: fixture.notes || ''
     })
     setShowCreateFixture(true)
   }
 
-  // Delete a fixture
-  const deleteFixture = (fixtureId: string) => {
-    const fixture = fixtures.find(f => f.id === fixtureId)
-    if (!fixture) return
-
-    if (window.confirm(`Are you sure you want to delete "${fixture.name}"?`)) {
-      useStoreUtils.setState(state => ({
-        fixtures: state.fixtures.filter(f => f.id !== fixtureId)
+  // Import/Export functionality
+  const exportAllFixtures = () => {
+    const exportData = {
+      version: "1.0",
+      timestamp: new Date().toISOString(),
+      fixtures: fixtures.map(fixture => ({
+        name: fixture.name,
+        type: fixture.type || '',
+        manufacturer: fixture.manufacturer || '',
+        model: fixture.model || '',
+        mode: fixture.mode || '',
+        channels: fixture.channels,
+        notes: fixture.notes || ''
       }))
-      
-      // Show success message
-      useStoreUtils.getState().addNotification({
-        message: `Fixture "${fixture.name}" deleted`,
-        type: 'success',
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `artbastard-fixtures-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);    // Show success notification
+    useStoreUtils.getState().addNotification({
+      message: `Exported ${fixtures.length} fixtures successfully`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  const exportSelectedFixtures = () => {
+    if (selectedFixtures.length === 0) {      useStoreUtils.getState().addNotification({
+        message: 'No fixtures selected for export',
+        type: 'warning',
         priority: 'normal'
-      })
+      });
+      return;
     }
+
+    const selectedFixtureData = fixtures.filter(f => selectedFixtures.includes(f.id));
+    const exportData = {
+      version: "1.0",
+      timestamp: new Date().toISOString(),
+      fixtures: selectedFixtureData.map(fixture => ({
+        name: fixture.name,
+        type: fixture.type || '',
+        manufacturer: fixture.manufacturer || '',
+        model: fixture.model || '',
+        mode: fixture.mode || '',
+        channels: fixture.channels,
+        notes: fixture.notes || ''
+      }))
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `artbastard-selected-fixtures-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);    // Show success notification
+    useStoreUtils.getState().addNotification({
+      message: `Exported ${selectedFixtures.length} selected fixtures successfully`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  const importFixtures = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importData = JSON.parse(e.target?.result as string);
+        
+        // Validate import data structure
+        if (!importData.fixtures || !Array.isArray(importData.fixtures)) {
+          throw new Error('Invalid file format: Missing fixtures array');
+        }
+
+        let importedCount = 0;
+        let conflictCount = 0;
+        const conflicts: string[] = [];
+
+        importData.fixtures.forEach((fixtureData: any, index: number) => {
+          // Validate required fields
+          if (!fixtureData.name || !fixtureData.channels || !Array.isArray(fixtureData.channels)) {
+            console.warn(`Skipping fixture ${index + 1}: Invalid data structure`);
+            return;
+          }
+
+          // Check for DMX address conflicts and auto-resolve
+          let startAddress = fixtureData.startAddress || calculateNextStartAddress();
+          let originalStartAddress = startAddress;
+          
+          // Keep incrementing until we find a free address space
+          while (checkDmxConflict(startAddress, fixtureData.channels.length)) {
+            startAddress++;
+            if (startAddress > 512 - fixtureData.channels.length) {
+              console.warn(`Cannot import "${fixtureData.name}": No available DMX addresses`);
+              return;
+            }
+          }
+
+          // Track if we had to change the address
+          if (startAddress !== originalStartAddress) {
+            conflictCount++;
+            conflicts.push(`"${fixtureData.name}" moved from DMX ${originalStartAddress} to ${startAddress}`);
+          }
+
+          // Create fixture with auto-resolved address
+          const newFixture = {
+            name: fixtureData.name,
+            type: fixtureData.type || '',
+            manufacturer: fixtureData.manufacturer || '',
+            model: fixtureData.model || '',
+            mode: fixtureData.mode || '',
+            startAddress: startAddress,
+            channels: fixtureData.channels.map((ch: any) => ({
+              name: ch.name || 'Unnamed Channel',
+              type: channelTypes.find(ct => ct.value === ch.type) ? ch.type : 'other'
+            })),
+            notes: fixtureData.notes || ''
+          };
+
+          // Add fixture to store
+          useStoreUtils.setState(state => ({
+            fixtures: [...state.fixtures, { ...newFixture, id: `fixture-${Date.now()}-${Math.random()}` }]
+          }));
+          importedCount++;
+        });        // Show import results
+        useStoreUtils.getState().addNotification({
+          message: importedCount > 0 ? `Successfully imported ${importedCount} fixtures${conflictCount > 0 ? ` (${conflictCount} addresses auto-resolved)` : ''}` : 'No fixtures were imported',
+          type: importedCount > 0 ? 'success' : 'warning',
+          priority: 'normal'
+        });
+
+        // Show conflict details if any
+        if (conflicts.length > 0 && conflicts.length <= 5) {
+          setTimeout(() => {
+            useStoreUtils.getState().addNotification({
+              message: `Address conflicts resolved: ${conflicts.join(', ')}`,
+              type: 'info',
+              priority: 'low'
+            });
+          }, 1500);
+        } else if (conflicts.length > 5) {
+          setTimeout(() => {
+            useStoreUtils.getState().addNotification({
+              message: `${conflicts.length} DMX address conflicts were automatically resolved`,
+              type: 'info',
+              priority: 'low'
+            });
+          }, 1500);
+        }      } catch (error) {
+        console.error('Import error:', error);
+        useStoreUtils.getState().addNotification({
+          message: `Import failed: ${error instanceof Error ? error.message : 'Invalid file format'}`,
+          type: 'error',
+          priority: 'high'
+        });
+      }
+    };
+
+    reader.readAsText(file);
+    // Reset the input so the same file can be imported again
+    event.target.value = '';
+  };
+
+  // Hidden file input ref for import functionality
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const triggerImport = () => {
+    fileInputRef.current?.click();
+  };
+  // Missing fixture and group management functions
+  const deleteFixture = (fixtureId: string) => {
+    useStoreUtils.setState(state => ({
+      fixtures: state.fixtures.filter(f => f.id !== fixtureId)
+    }));
+    useStoreUtils.getState().addNotification({
+      message: 'Fixture deleted successfully',
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  // Open node editor for fixture
+  const openNodeEditor = (fixtureId: string) => {
+    setNodeEditorFixtureId(fixtureId)
+    setShowNodeEditor(true)
   }
 
-  // Reset form and close it
+  // Close node editor
+  const closeNodeEditor = () => {
+    setShowNodeEditor(false)
+    setNodeEditorFixtureId(null)
+  }
+
   const resetForm = () => {
     setFixtureForm({
       name: '',
-      startAddress: fixtures.length > 0 
-        ? Math.max(...fixtures.map(f => f.startAddress + f.channels.length)) + 1 
-        : 1,
-      channels: [{ name: 'Intensity', type: 'dimmer' }]
-    })
-    setShowCreateFixture(false)
-    setEditingFixtureId(null)
-  }
+      type: '',
+      manufacturer: '',
+      model: '',
+      mode: '',
+      startAddress: calculateNextStartAddress(),
+      channels: [{ name: 'Channel 1', type: 'other' }],
+      notes: ''
+    });
+    setEditingFixtureId(null);
+    setShowCreateFixture(false);
+  };
 
-  // Toggle fixture selection for group
-  const toggleFixtureForGroup = (index: number) => {
-    setGroupForm(prev => {
-      const isSelected = prev.fixtureIndices.includes(index)
-      return {
-        ...prev,
-        fixtureIndices: isSelected
-          ? prev.fixtureIndices.filter(i => i !== index)
-          : [...prev.fixtureIndices, index]
-      }
-    })
-  }
-  
-  // Save group to store
   const saveGroup = () => {
-    const newGroup: Group = {
+    if (!groupForm.name || !groupForm.fixtureIndices || groupForm.fixtureIndices.length === 0) return;
+
+    const newGroup = {
       id: `group-${Date.now()}-${Math.random()}`,
-      name: groupForm.name!,
-      fixtureIndices: [...groupForm.fixtureIndices!],
+      name: groupForm.name,
+      fixtureIndices: groupForm.fixtureIndices,
       lastStates: new Array(512).fill(0),
       isMuted: false,
       isSolo: false,
-      masterValue: 255,
-      position: undefined
+      masterValue: 255
     };
 
     useStoreUtils.setState(state => ({
       groups: [...state.groups, newGroup]
     }));
-    
+
+    useStoreUtils.getState().addNotification({
+      message: 'Group created successfully',
+      type: 'success',
+      priority: 'normal'
+    });
+
     setGroupForm({
       name: '',
       fixtureIndices: [],
@@ -547,66 +992,71 @@ export const FixtureSetup: React.FC = () => {
       masterValue: 255
     });
     setShowCreateGroup(false);
-    
+  };
+
+  const updateGroup = () => {
+    if (!editingGroupId || !groupForm.name || !groupForm.fixtureIndices || groupForm.fixtureIndices.length === 0) return;
+
+    useStoreUtils.setState(state => ({
+      groups: state.groups.map(g => 
+        g.id === editingGroupId 
+          ? { ...g, name: groupForm.name, fixtureIndices: groupForm.fixtureIndices }
+          : g
+      )
+    }));
+
     useStoreUtils.getState().addNotification({
-      message: `Group "${newGroup.name}" created`,
+      message: 'Group updated successfully',
+      type: 'success',
+      priority: 'normal'
+    });
+
+    setGroupForm({
+      name: '',
+      fixtureIndices: [],
+      lastStates: new Array(512).fill(0),
+      isMuted: false,
+      isSolo: false,
+      masterValue: 255
+    });
+    setEditingGroupId(null);
+    setShowCreateGroup(false);
+  };
+
+  const deleteGroup = (group: any) => {
+    useStoreUtils.setState(state => ({
+      groups: state.groups.filter(g => g.id !== group.id)
+    }));
+    useStoreUtils.getState().addNotification({
+      message: 'Group deleted successfully',
       type: 'success',
       priority: 'normal'
     });
   };
 
-  // Delete a group
-  const deleteGroup = (group: Group) => {
-    if (window.confirm(`Are you sure you want to delete "${group.name}"?`)) {
-      useStoreUtils.setState(state => ({
-        groups: state.groups.filter(g => g.id !== group.id)
-      }));
-      
-      useStoreUtils.getState().addNotification({
-        message: `Group "${group.name}" deleted`,
-        type: 'success',
-        priority: 'normal'
-      });
-    }
-  };
-
-  // Start editing a group
-  const startEditGroup = (group: Group) => {
+  const startEditGroup = (group: any) => {
+    setEditingGroupId(group.id);
     setGroupForm({
       name: group.name,
       fixtureIndices: [...group.fixtureIndices],
-      lastStates: new Array(512).fill(0),
-      isMuted: false,
-      isSolo: false,
-      masterValue: 255
+      lastStates: group.lastStates,
+      isMuted: group.isMuted,
+      isSolo: group.isSolo,
+      masterValue: group.masterValue
     });
-    setEditingGroupId(group.id);
     setShowCreateGroup(true);
   };
 
-  // Update existing group
-  const updateGroup = () => {
-    if (!editingGroupId) return;
-
-    const updatedGroup = {
-      id: editingGroupId,
-      name: groupForm.name!,
-      fixtureIndices: [...groupForm.fixtureIndices!],
-      lastStates: new Array(512).fill(0),
-      isMuted: false,
-      isSolo: false,
-      masterValue: 255
-    };
-    setShowCreateGroup(false);
-    setEditingGroupId(null);
-
-    useStoreUtils.getState().addNotification({
-      message: `Group "${updatedGroup.name}" updated`,
-      type: 'success',
-      priority: 'normal'
-    });
+  const toggleFixtureForGroup = (fixtureIndex: number) => {
+    setGroupForm(prev => ({
+      ...prev,
+      fixtureIndices: prev.fixtureIndices.includes(fixtureIndex)
+        ? prev.fixtureIndices.filter(i => i !== fixtureIndex)
+        : [...prev.fixtureIndices, fixtureIndex]
+    }));
   };
-    return (
+
+  return (
     <div className={styles.fixtureSetup}>
       <h2 className={styles.sectionTitle}>
         {theme === 'artsnob' && 'Fixture Library: The Arsenal of Illumination'}
@@ -621,13 +1071,47 @@ export const FixtureSetup: React.FC = () => {
       
       <div className={styles.setupGrid}>
         {/* Fixture Management Section */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
+        <div className={styles.card}>          <div className={styles.cardHeader}>
             <h3>
               {theme === 'artsnob' && 'Existing Fixtures: The Gallery of Light Instruments'}
               {theme === 'standard' && 'Fixture Library'}
               {theme === 'minimal' && 'Library'}
-            </h3>
+            </h3>            <div className={styles.headerActions}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={importFixtures}
+                style={{ display: 'none' }}
+              />
+              <button
+                className={`${styles.actionButton} ${styles.importButton}`}
+                onClick={triggerImport}
+                title="Import fixtures from JSON file"
+              >
+                <i className="fas fa-upload"></i>
+                Import
+              </button>
+              <button
+                className={`${styles.actionButton} ${styles.exportButton}`}
+                onClick={exportAllFixtures}
+                disabled={fixtures.length === 0}
+                title="Export all fixtures to JSON file"
+              >
+                <i className="fas fa-download"></i>
+                Export All
+              </button>
+              {selectedFixtures.length > 0 && (
+                <button
+                  className={`${styles.actionButton} ${styles.exportSelectedButton}`}
+                  onClick={exportSelectedFixtures}
+                  title={`Export ${selectedFixtures.length} selected fixtures`}
+                >
+                  <i className="fas fa-download"></i>
+                  Export Selected ({selectedFixtures.length})
+                </button>
+              )}
+            </div>
           </div>
           <div className={styles.cardBody}>
             {fixtures.length === 0 ? (
@@ -879,8 +1363,7 @@ export const FixtureSetup: React.FC = () => {
                                   {hasRgb && <span className={styles.typeIndicator} title="RGB">🎨</span>}
                                   {hasMovement && <span className={styles.typeIndicator} title="Movement">↔️</span>}
                                   {hasDimmer && <span className={styles.typeIndicator} title="Dimmer">💡</span>}
-                                </div>
-                                <button
+                                </div>                                <button
                                   className={styles.editButton}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -889,6 +1372,16 @@ export const FixtureSetup: React.FC = () => {
                                   title="Edit fixture"
                                 >
                                   <i className="fas fa-edit"></i>
+                                </button>
+                                <button
+                                  className={styles.nodeEditorButton}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openNodeEditor(fixture.id);
+                                  }}
+                                  title="Open Node Editor"
+                                >
+                                  <i className="fas fa-project-diagram"></i>
                                 </button>
                                 <button
                                   className={styles.deleteButton}
@@ -951,8 +1444,7 @@ export const FixtureSetup: React.FC = () => {
                     </>
                   )}
                 </h4>
-                
-                <div className={styles.formGroup}>
+                  <div className={styles.formGroup}>
                   <label htmlFor="fixtureName">Name:</label>
                   <input
                     type="text"
@@ -961,6 +1453,54 @@ export const FixtureSetup: React.FC = () => {
                     onChange={(e) => handleFixtureChange('name', e.target.value)}
                     placeholder="Enter fixture name"
                   />
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="fixtureType">Type:</label>
+                    <input
+                      type="text"
+                      id="fixtureType"
+                      value={fixtureForm.type}
+                      onChange={(e) => handleFixtureChange('type', e.target.value)}
+                      placeholder="e.g., Moving Head, Par Can"
+                    />
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label htmlFor="fixtureManufacturer">Manufacturer:</label>
+                    <input
+                      type="text"
+                      id="fixtureManufacturer"
+                      value={fixtureForm.manufacturer}
+                      onChange={(e) => handleFixtureChange('manufacturer', e.target.value)}
+                      placeholder="e.g., Chauvet, Martin"
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="fixtureModel">Model:</label>
+                    <input
+                      type="text"
+                      id="fixtureModel"
+                      value={fixtureForm.model}
+                      onChange={(e) => handleFixtureChange('model', e.target.value)}
+                      placeholder="e.g., MAC 250, SlimPar Pro H"
+                    />
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label htmlFor="fixtureMode">Mode:</label>
+                    <input
+                      type="text"
+                      id="fixtureMode"
+                      value={fixtureForm.mode}
+                      onChange={(e) => handleFixtureChange('mode', e.target.value)}
+                      placeholder="e.g., 16-bit, Extended"
+                    />
+                  </div>
                 </div>
                 
                 <div className={styles.formGroup}>
@@ -972,6 +1512,15 @@ export const FixtureSetup: React.FC = () => {
                     onChange={(e) => handleFixtureChange('startAddress', parseInt(e.target.value) || 1)}
                     min="1"
                     max="512"
+                  />
+                </div>                <div className={`${styles.formGroup} ${styles.notesField}`}>
+                  <label htmlFor="fixtureNotes">Notes:</label>
+                  <textarea
+                    id="fixtureNotes"
+                    value={fixtureForm.notes}
+                    onChange={(e) => handleFixtureChange('notes', e.target.value)}
+                    placeholder="Optional notes about this fixture (DMX modes, special features, etc.)"
+                    rows={3}
                   />
                 </div>
                 
@@ -1065,11 +1614,15 @@ export const FixtureSetup: React.FC = () => {
               </div>
             ) : (              <button 
                 className={styles.createButton}
-                onClick={() => {
-                  setFixtureForm({ 
+                onClick={() => {                  setFixtureForm({ 
                     name: '',
+                    type: '',
+                    manufacturer: '',
+                    model: '',
+                    mode: '',
                     startAddress: calculateNextStartAddress(),
-                    channels: [{ name: 'Intensity', type: 'dimmer' }]
+                    channels: [{ name: 'Intensity', type: 'dimmer' }],
+                    notes: ''
                   });
                   setEditingFixtureId(null);
                   setShowCreateFixture(true);
@@ -1101,9 +1654,14 @@ export const FixtureSetup: React.FC = () => {
                           suggestedName = `${template.defaultNamePrefix} ${counter++}`;
                         }                        setFixtureForm({
                           name: suggestedName,
+                          type: '',
+                          manufacturer: '',
+                          model: '',
+                          mode: '',
                           startAddress: nextAddress,
                           // Deep copy channels to prevent modifying template array
-                          channels: JSON.parse(JSON.stringify(template.channels)) 
+                          channels: JSON.parse(JSON.stringify(template.channels)),
+                          notes: ''
                         });
                         setEditingFixtureId(null);
                         setShowCreateFixture(true);
@@ -1276,8 +1834,7 @@ export const FixtureSetup: React.FC = () => {
                 onClick={() => setShowCreateGroup(true)}
                 disabled={fixtures.length === 0}
               >
-                <i className="fas fa-plus"></i>
-                {theme === 'artsnob' && 'Create Fixture Group'}
+                <i className="fas fa-plus"></i>                {theme === 'artsnob' && 'Create Fixture Group'}
                 {theme === 'standard' && 'Add Group'}
                 {theme === 'minimal' && 'Add'}
               </button>
@@ -1285,6 +1842,14 @@ export const FixtureSetup: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Node-Based Fixture Editor */}
+      {showNodeEditor && nodeEditorFixtureId && (
+        <NodeBasedFixtureEditor
+          fixtureId={nodeEditorFixtureId}
+          onClose={closeNodeEditor}
+        />
+      )}
     </div>
   )
 }

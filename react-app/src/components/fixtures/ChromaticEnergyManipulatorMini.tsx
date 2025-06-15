@@ -9,6 +9,8 @@ interface ChromaticEnergyManipulatorMiniProps {
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   isDockable?: boolean;
+  initialControlMode?: ControlMode['type'];
+  showAllControlsInitially?: boolean;
 }
 
 // Enhanced color and movement interfaces
@@ -102,10 +104,95 @@ const kelvinToRgb = (kelvin: number): { r: number; g: number; b: number } => {
   };
 };
 
+// Enhanced interfaces for additional control types
+interface EnhancedChannels {
+  rgbChannels: {
+    redChannel?: number;
+    greenChannel?: number;
+    blueChannel?: number;
+    whiteChannel?: number;
+    amberChannel?: number;
+    uvChannel?: number;
+  };
+  movementChannels: {
+    panChannel?: number;
+    panFineChannel?: number;
+    tiltChannel?: number;
+    tiltFineChannel?: number;
+  };
+  enhancedChannels: {
+    dimmerChannel?: number;
+    shutterChannel?: number;
+    strobeChannel?: number;
+    colorWheelChannel?: number;
+    goboWheelChannel?: number;
+    goboRotationChannel?: number;
+    zoomChannel?: number;
+    focusChannel?: number;
+    prismChannel?: number;
+    irisChannel?: number;
+    speedChannel?: number;
+    macroChannel?: number;
+    effectChannel?: number;
+    // NEW: Additional professional channels
+    frostChannel?: number;
+    animationChannel?: number;
+    animationSpeedChannel?: number;
+    ctoChannel?: number; // Color Temperature Orange
+    ctbChannel?: number; // Color Temperature Blue
+    resetChannel?: number;
+    lampControlChannel?: number;
+    fanControlChannel?: number;
+    displayChannel?: number;
+    functionChannel?: number;
+  };
+}
+
+interface AdvancedFixtureControls {
+  dimmer: number;
+  shutter: number;
+  strobe: number;
+  colorWheel: number;
+  goboWheel: number;
+  goboRotation: number;
+  zoom: number;
+  focus: number;
+  prism: number;
+  iris: number;
+  speed: number;
+  macro: number;
+  effect: number;
+  // NEW: Additional controls
+  frost: number;
+  animation: number;
+  animationSpeed: number;
+  cto: number;
+  ctb: number;
+  reset: number;
+  lampControl: number;
+  fanControl: number;
+  display: number;
+  function: number;
+}
+
+interface GOBOPreset {
+  name: string;
+  value: number;
+  icon?: string;
+}
+
+interface ColorWheelPreset {
+  name: string;
+  value: number;
+  color: string;
+}
+
 const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniProps> = ({
   isCollapsed = false,
   onCollapsedChange,
   isDockable = true,
+  initialControlMode = 'basic',
+  showAllControlsInitially = false,
 }) => {
   // ...existing state...
   const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
@@ -119,9 +206,8 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);  const [searchTerm, setSearchTerm] = useState('');
   const [showAdvancedSelection, setShowAdvancedSelection] = useState(false);
-  
-  // Enhanced state for advanced controls
-  const [controlMode, setControlMode] = useState<ControlMode['type']>('basic');
+    // Enhanced state for advanced controls
+  const [controlMode, setControlMode] = useState<ControlMode['type']>(initialControlMode || 'advanced');
   const [showColorWheel, setShowColorWheel] = useState(false);
   const [showRGBSliders, setShowRGBSliders] = useState(false);
   const [showHSVControls, setShowHSVControls] = useState(false);
@@ -132,11 +218,43 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
   const [smoothMovement, setSmoothMovement] = useState(false);
   const [movementSpeed, setMovementSpeed] = useState(100); // 1-100%
   const [colorTemperature, setColorTemperature] = useState(5600); // Kelvin
-  
-  // Color and movement state with HSV support
+    // Color and movement state with HSV support
   const [color, setColor] = useState<{ r: number; g: number; b: number }>({ r: 255, g: 255, b: 255 });
   const [hsvColor, setHsvColor] = useState<HSVColor>({ h: 0, s: 0, v: 100 });
   const [movement, setMovement] = useState<{ pan: number; tilt: number }>({ pan: 127, tilt: 127 });
+  
+  // Enhanced controls state for additional channel types
+  const [advancedControls, setAdvancedControls] = useState<AdvancedFixtureControls>({
+    dimmer: 255,
+    shutter: 255,
+    strobe: 0,
+    colorWheel: 0,
+    goboWheel: 0,
+    goboRotation: 127,
+    zoom: 127,
+    focus: 127,
+    prism: 0,
+    iris: 255,
+    speed: 127,
+    macro: 0,
+    effect: 0,
+    // NEW: Additional controls
+    frost: 0,
+    animation: 0,
+    animationSpeed: 127,
+    cto: 127,
+    ctb: 127,
+    reset: 0,
+    lampControl: 0,
+    fanControl: 0,
+    display: 0,
+    function: 0
+  });
+  // State for showing enhanced controls
+  const [showDimmerControls, setShowDimmerControls] = useState(showAllControlsInitially);
+  const [showEffectControls, setShowEffectControls] = useState(showAllControlsInitially);
+  const [showBeamControls, setShowBeamControls] = useState(showAllControlsInitially);
+  const [showProfessionalControls, setShowProfessionalControls] = useState(showAllControlsInitially);
   
   // Enhanced canvas references
   const colorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -146,8 +264,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
   
   // Undo/Redo state
   const [undoStack, setUndoStack] = useState<Array<{ color: any; movement: any }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ color: any; movement: any }>>([]);
-  // Movement presets
+  const [redoStack, setRedoStack] = useState<Array<{ color: any; movement: any }>>([]);  // Movement presets
   const movementPresets: MovementPreset[] = [
     { name: 'Home', pan: 127, tilt: 127, icon: 'Home' },
     { name: 'Center', pan: 127, tilt: 127, icon: 'Target' },
@@ -159,6 +276,30 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     { name: 'Top Right', pan: 192, tilt: 192, icon: 'MoveUpRight' },
     { name: 'Bottom Left', pan: 64, tilt: 64, icon: 'MoveDownLeft' },
     { name: 'Bottom Right', pan: 192, tilt: 64, icon: 'MoveDownRight' },
+  ];
+
+  // GOBO Presets (common GOBO patterns)
+  const goboPresets: GOBOPreset[] = [
+    { name: 'Open', value: 0, icon: 'Circle' },
+    { name: 'Dots', value: 32, icon: 'MoreHorizontal' },
+    { name: 'Lines', value: 64, icon: 'AlignJustify' },
+    { name: 'Triangles', value: 96, icon: 'Triangle' },
+    { name: 'Stars', value: 128, icon: 'Star' },
+    { name: 'Breakup', value: 160, icon: 'Hash' },
+    { name: 'Leaves', value: 192, icon: 'Leaf' },
+    { name: 'Prism', value: 224, icon: 'Diamond' }
+  ];
+
+  // Color Wheel Presets (common color wheel positions)
+  const colorWheelPresets: ColorWheelPreset[] = [
+    { name: 'Open', value: 0, color: '#ffffff' },
+    { name: 'Red', value: 32, color: '#ff0000' },
+    { name: 'Orange', value: 64, color: '#ff8000' },
+    { name: 'Yellow', value: 96, color: '#ffff00' },
+    { name: 'Green', value: 128, color: '#00ff00' },
+    { name: 'Cyan', value: 160, color: '#00ffff' },
+    { name: 'Blue', value: 192, color: '#0000ff' },
+    { name: 'Magenta', value: 224, color: '#ff00ff' }
   ];
 
   // Control modes
@@ -192,49 +333,131 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     getFixturesByFlagCategory: state.getFixturesByFlagCategory
   }));
   const { settings } = useChromaticEnergyManipulatorSettings();
-
-  // Get fixture channels
-  const getFixtureChannels = (fixtureId: string) => {
+  // Get fixture channels - Enhanced version
+  const getFixtureChannels = (fixtureId: string): EnhancedChannels => {
     const fixture = fixtures.find(f => f.id === fixtureId);
-    if (!fixture) return { rgbChannels: {}, movementChannels: {} };
+    if (!fixture) return { 
+      rgbChannels: {}, 
+      movementChannels: {}, 
+      enhancedChannels: {} 
+    };
     
-    const rgbChannels: {
-      redChannel?: number;
-      greenChannel?: number;
-      blueChannel?: number;
-    } = {};
-    
-    const movementChannels: {
-      panChannel?: number;
-      tiltChannel?: number;
-    } = {};
+    const rgbChannels: EnhancedChannels['rgbChannels'] = {};
+    const movementChannels: EnhancedChannels['movementChannels'] = {};
+    const enhancedChannels: EnhancedChannels['enhancedChannels'] = {};
 
     fixture.channels.forEach((channel, index) => {
       const dmxAddress = fixture.startAddress + index;
       switch (channel.type) {
+        // RGB/Color channels
         case 'red':
+          rgbChannels.redChannel = dmxAddress - 1;
+          break;
         case 'green':
+          rgbChannels.greenChannel = dmxAddress - 1;
+          break;
         case 'blue':
-          // assign each color channel individually
-          if (channel.type === 'red') rgbChannels.redChannel = dmxAddress - 1;
-          if (channel.type === 'green') rgbChannels.greenChannel = dmxAddress - 1;
-          if (channel.type === 'blue') rgbChannels.blueChannel = dmxAddress - 1;
+          rgbChannels.blueChannel = dmxAddress - 1;
           break;
-        case 'dimmer':
-          // map single dimmer to all RGB channels for fixtures without separate colors
-          rgbChannels.redChannel = rgbChannels.greenChannel = rgbChannels.blueChannel = dmxAddress - 1;
+        case 'white':
+          rgbChannels.whiteChannel = dmxAddress - 1;
           break;
+        case 'amber':
+          rgbChannels.amberChannel = dmxAddress - 1;
+          break;
+        case 'uv':
+          rgbChannels.uvChannel = dmxAddress - 1;
+          break;
+        // Movement channels
         case 'pan':
           movementChannels.panChannel = dmxAddress - 1;
+          break;
+        case 'pan_fine':
+          movementChannels.panFineChannel = dmxAddress - 1;
           break;
         case 'tilt':
           movementChannels.tiltChannel = dmxAddress - 1;
           break;
-        // add other channel types if needed
+        case 'tilt_fine':
+          movementChannels.tiltFineChannel = dmxAddress - 1;
+          break;
+        // Enhanced channels
+        case 'dimmer':
+          enhancedChannels.dimmerChannel = dmxAddress - 1;
+          break;
+        case 'shutter':
+          enhancedChannels.shutterChannel = dmxAddress - 1;
+          break;
+        case 'strobe':
+          enhancedChannels.strobeChannel = dmxAddress - 1;
+          break;
+        case 'color_wheel':
+          enhancedChannels.colorWheelChannel = dmxAddress - 1;
+          break;
+        case 'gobo_wheel':
+          enhancedChannels.goboWheelChannel = dmxAddress - 1;
+          break;
+        case 'gobo_rotation':
+          enhancedChannels.goboRotationChannel = dmxAddress - 1;
+          break;
+        case 'zoom':
+          enhancedChannels.zoomChannel = dmxAddress - 1;
+          break;
+        case 'focus':
+          enhancedChannels.focusChannel = dmxAddress - 1;
+          break;
+        case 'prism':
+          enhancedChannels.prismChannel = dmxAddress - 1;
+          break;
+        case 'iris':
+          enhancedChannels.irisChannel = dmxAddress - 1;
+          break;
+        case 'speed':
+          enhancedChannels.speedChannel = dmxAddress - 1;
+          break;
+        case 'macro':
+          enhancedChannels.macroChannel = dmxAddress - 1;
+          break;        case 'effect':
+          enhancedChannels.effectChannel = dmxAddress - 1;
+          break;
+        // NEW: Additional professional channel types
+        case 'frost':
+        case 'diffusion':
+          enhancedChannels.frostChannel = dmxAddress - 1;
+          break;
+        case 'animation':
+          enhancedChannels.animationChannel = dmxAddress - 1;
+          break;
+        case 'animation_speed':
+          enhancedChannels.animationSpeedChannel = dmxAddress - 1;
+          break;
+        case 'cto':
+        case 'color_temperature_orange':
+          enhancedChannels.ctoChannel = dmxAddress - 1;
+          break;
+        case 'ctb':
+        case 'color_temperature_blue':
+          enhancedChannels.ctbChannel = dmxAddress - 1;
+          break;
+        case 'reset':
+          enhancedChannels.resetChannel = dmxAddress - 1;
+          break;
+        case 'lamp_control':
+          enhancedChannels.lampControlChannel = dmxAddress - 1;
+          break;
+        case 'fan_control':
+          enhancedChannels.fanControlChannel = dmxAddress - 1;
+          break;
+        case 'display':
+          enhancedChannels.displayChannel = dmxAddress - 1;
+          break;
+        case 'function':
+          enhancedChannels.functionChannel = dmxAddress - 1;
+          break;
       }
     });
     
-    return { rgbChannels, movementChannels };
+    return { rgbChannels, movementChannels, enhancedChannels };
   };
   // Helper functions for flagging
   const createAndApplyFlag = () => {
@@ -391,7 +614,6 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
       if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, nextState.movement.tilt);
     });
   };
-
   // Enhanced application functions with undo support
   const applyColorWithUndo = (newColor: { r: number; g: number; b: number }) => {
     saveToUndoStack();
@@ -407,6 +629,159 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
       if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, newMovement.pan);
       if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
     });
+  };
+
+  // Enhanced control application functions
+  const applyAdvancedControl = (controlType: keyof AdvancedFixtureControls, value: number) => {
+    setAdvancedControls(prev => ({ ...prev, [controlType]: value }));
+    
+    selectedFixtures.forEach(fixtureId => {
+      const { enhancedChannels } = getFixtureChannels(fixtureId);
+      
+      switch (controlType) {
+        case 'dimmer':
+          if (enhancedChannels.dimmerChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.dimmerChannel, value);
+          }
+          break;
+        case 'shutter':
+          if (enhancedChannels.shutterChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.shutterChannel, value);
+          }
+          break;
+        case 'strobe':
+          if (enhancedChannels.strobeChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.strobeChannel, value);
+          }
+          break;
+        case 'colorWheel':
+          if (enhancedChannels.colorWheelChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.colorWheelChannel, value);
+          }
+          break;
+        case 'goboWheel':
+          if (enhancedChannels.goboWheelChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.goboWheelChannel, value);
+          }
+          break;
+        case 'goboRotation':
+          if (enhancedChannels.goboRotationChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.goboRotationChannel, value);
+          }
+          break;
+        case 'zoom':
+          if (enhancedChannels.zoomChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.zoomChannel, value);
+          }
+          break;
+        case 'focus':
+          if (enhancedChannels.focusChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.focusChannel, value);
+          }
+          break;
+        case 'prism':
+          if (enhancedChannels.prismChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.prismChannel, value);
+          }
+          break;
+        case 'iris':
+          if (enhancedChannels.irisChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.irisChannel, value);
+          }
+          break;
+        case 'speed':
+          if (enhancedChannels.speedChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.speedChannel, value);
+          }
+          break;
+        case 'macro':
+          if (enhancedChannels.macroChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.macroChannel, value);
+          }
+          break;
+        case 'effect':
+          if (enhancedChannels.effectChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.effectChannel, value);
+          }
+          break;
+        // NEW: Additional professional controls
+        case 'frost':
+          if (enhancedChannels.frostChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.frostChannel, value);
+          }
+          break;
+        case 'animation':
+          if (enhancedChannels.animationChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.animationChannel, value);
+          }
+          break;
+        case 'animationSpeed':
+          if (enhancedChannels.animationSpeedChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.animationSpeedChannel, value);
+          }
+          break;
+        case 'cto':
+          if (enhancedChannels.ctoChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.ctoChannel, value);
+          }
+          break;
+        case 'ctb':
+          if (enhancedChannels.ctbChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.ctbChannel, value);
+          }
+          break;
+        case 'reset':
+          if (enhancedChannels.resetChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.resetChannel, value);
+          }
+          break;
+        case 'lampControl':
+          if (enhancedChannels.lampControlChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.lampControlChannel, value);
+          }
+          break;
+        case 'fanControl':
+          if (enhancedChannels.fanControlChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.fanControlChannel, value);
+          }
+          break;
+        case 'display':
+          if (enhancedChannels.displayChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.displayChannel, value);
+          }
+          break;
+        case 'function':
+          if (enhancedChannels.functionChannel !== undefined) {
+            setDmxChannelValue(enhancedChannels.functionChannel, value);
+          }
+          break;
+      }
+    });
+  };
+
+  // Quick preset functions
+  const applyGOBOPreset = (preset: GOBOPreset) => {
+    applyAdvancedControl('goboWheel', preset.value);
+  };
+
+  const applyColorWheelPreset = (preset: ColorWheelPreset) => {
+    applyAdvancedControl('colorWheel', preset.value);
+  };
+
+  const strobeStart = () => {
+    applyAdvancedControl('strobe', 200); // Fast strobe
+  };
+
+  const strobeStop = () => {
+    applyAdvancedControl('strobe', 0); // No strobe
+  };
+
+  const shutterOpen = () => {
+    applyAdvancedControl('shutter', 255); // Fully open
+  };
+
+  const shutterClose = () => {
+    applyAdvancedControl('shutter', 0); // Closed
   };
 
   // Enhanced color control functions
@@ -451,8 +826,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     const newSelection = allIds.filter(id => !selectedFixtures.includes(id));
     setSelectedFixtures(newSelection);
   };
-
-  const selectByType = (fixtureType: 'rgb' | 'movement' | 'dimmer') => {
+  const selectByType = (fixtureType: 'rgb' | 'movement' | 'dimmer' | 'gobo' | 'colorwheel' | 'strobe' | 'beam') => {
     const typeFixtures = filteredFixtures.filter(fixture => {
       switch (fixtureType) {
         case 'rgb':
@@ -461,6 +835,14 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
           return fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
         case 'dimmer':
           return fixture.channels.some(ch => ch.type === 'dimmer');
+        case 'gobo':
+          return fixture.channels.some(ch => ['gobo_wheel', 'gobo_rotation'].includes(ch.type));
+        case 'colorwheel':
+          return fixture.channels.some(ch => ch.type === 'color_wheel');
+        case 'strobe':
+          return fixture.channels.some(ch => ['strobe', 'shutter'].includes(ch.type));
+        case 'beam':
+          return fixture.channels.some(ch => ['zoom', 'focus', 'iris'].includes(ch.type));
         default:
           return false;
       }
@@ -695,12 +1077,11 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     };    window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [selectedFixtures, applyColorPreset, randomizeColor, centerMovement, undo, redo]);
-
   // Update color and movement when selection changes
   useEffect(() => {
     if (selectedFixtures.length > 0) {
       const firstFixtureId = selectedFixtures[0];
-      const { rgbChannels: firstRgbChannels, movementChannels: firstMovementChannels } = getFixtureChannels(firstFixtureId);
+      const { rgbChannels: firstRgbChannels, movementChannels: firstMovementChannels, enhancedChannels: firstEnhancedChannels } = getFixtureChannels(firstFixtureId);
       
       if (firstRgbChannels.redChannel !== undefined) {
         setColor({
@@ -716,6 +1097,34 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
           tilt: getDmxChannelValue(firstMovementChannels.tiltChannel)
         });
       }
+
+      // Update enhanced controls with current values
+      setAdvancedControls(prev => ({
+        ...prev,
+        dimmer: firstEnhancedChannels.dimmerChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.dimmerChannel) : prev.dimmer,
+        shutter: firstEnhancedChannels.shutterChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.shutterChannel) : prev.shutter,
+        strobe: firstEnhancedChannels.strobeChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.strobeChannel) : prev.strobe,
+        colorWheel: firstEnhancedChannels.colorWheelChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.colorWheelChannel) : prev.colorWheel,
+        goboWheel: firstEnhancedChannels.goboWheelChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.goboWheelChannel) : prev.goboWheel,
+        goboRotation: firstEnhancedChannels.goboRotationChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.goboRotationChannel) : prev.goboRotation,
+        zoom: firstEnhancedChannels.zoomChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.zoomChannel) : prev.zoom,
+        focus: firstEnhancedChannels.focusChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.focusChannel) : prev.focus,
+        prism: firstEnhancedChannels.prismChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.prismChannel) : prev.prism,
+        iris: firstEnhancedChannels.irisChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.irisChannel) : prev.iris,
+        speed: firstEnhancedChannels.speedChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.speedChannel) : prev.speed,
+        macro: firstEnhancedChannels.macroChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.macroChannel) : prev.macro,
+        effect: firstEnhancedChannels.effectChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.effectChannel) : prev.effect,
+        frost: firstEnhancedChannels.frostChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.frostChannel) : prev.frost,
+        animation: firstEnhancedChannels.animationChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.animationChannel) : prev.animation,
+        animationSpeed: firstEnhancedChannels.animationSpeedChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.animationSpeedChannel) : prev.animationSpeed,
+        cto: firstEnhancedChannels.ctoChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.ctoChannel) : prev.cto,
+        ctb: firstEnhancedChannels.ctbChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.ctbChannel) : prev.ctb,
+        reset: firstEnhancedChannels.resetChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.resetChannel) : prev.reset,
+        lampControl: firstEnhancedChannels.lampControlChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.lampControlChannel) : prev.lampControl,
+        fanControl: firstEnhancedChannels.fanControlChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.fanControlChannel) : prev.fanControl,
+        display: firstEnhancedChannels.displayChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.displayChannel) : prev.display,
+        function: firstEnhancedChannels.functionChannel !== undefined ? getDmxChannelValue(firstEnhancedChannels.functionChannel) : prev.function
+      }));
     }
   }, [selectedFixtures, getDmxChannelValue, fixtures]);
 
@@ -829,9 +1238,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
       if (movementChannels.panChannel !== undefined) setDmxChannelValue(movementChannels.panChannel, newMovement.pan);
       if (movementChannels.tiltChannel !== undefined) setDmxChannelValue(movementChannels.tiltChannel, newMovement.tilt);
     });
-  };
-  // Helper functions
-  const selectedFixtureName = () => {
+  };  const selectedFixtureName = () => {
     if (selectedFixtures.length === 0) return settings.enableErrorMessages ? 'No fixtures selected' : 'Select fixtures';
     if (selectedFixtures.length === 1) {
       const fixture = fixtures.find(f => f.id === selectedFixtures[0]);
@@ -840,11 +1247,12 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
     return `${selectedFixtures.length} fixtures selected`;
   };
 
-  const { rgbChannels: firstSelectedRgbChannels, movementChannels: firstSelectedMovementChannels } = 
-    selectedFixtures.length > 0 ? getFixtureChannels(selectedFixtures[0]) : { rgbChannels: {}, movementChannels: {} };
+  const { rgbChannels: firstSelectedRgbChannels, movementChannels: firstSelectedMovementChannels, enhancedChannels: firstSelectedEnhancedChannels } = 
+    selectedFixtures.length > 0 ? getFixtureChannels(selectedFixtures[0]) : { rgbChannels: {}, movementChannels: {}, enhancedChannels: {} };
 
   const hasRgbChannels = firstSelectedRgbChannels.redChannel !== undefined && firstSelectedRgbChannels.greenChannel !== undefined && firstSelectedRgbChannels.blueChannel !== undefined;
   const hasMovementChannels = firstSelectedMovementChannels.panChannel !== undefined && firstSelectedMovementChannels.tiltChannel !== undefined;
+  const hasEnhancedChannels = Object.values(firstSelectedEnhancedChannels).some(channel => channel !== undefined);
   if (!isDockable) {
     return (
       <div className={styles.chromaticEnergyManipulatorMini}>
@@ -1029,8 +1437,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                 <div className={styles.advancedSelection}>
                   <div className={styles.selectionByType}>
                     <h4>Select by Type:</h4>
-                    <div className={styles.typeButtons}>
-                      <button
+                    <div className={styles.typeButtons}>                      <button
                         onClick={() => selectByType('rgb')}
                         className={styles.typeButton}
                       >
@@ -1050,6 +1457,34 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                       >
                         <LucideIcon name="Sun" />
                         Dimmer
+                      </button>
+                      <button
+                        onClick={() => selectByType('gobo')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Circle" />
+                        GOBO
+                      </button>
+                      <button
+                        onClick={() => selectByType('colorwheel')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Disc" />
+                        Color Wheel
+                      </button>
+                      <button
+                        onClick={() => selectByType('strobe')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Zap" />
+                        Strobe
+                      </button>
+                      <button
+                        onClick={() => selectByType('beam')}
+                        className={styles.typeButton}
+                      >
+                        <LucideIcon name="Focus" />
+                        Beam
                       </button>
                     </div>
                   </div>
@@ -1157,11 +1592,51 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                     <span>No fixtures found</span>
                   </div>
                 ) : (
-                  filteredFixtures.map(fixture => {
-                    const isSelected = selectedFixtures.includes(fixture.id);
+                  filteredFixtures.map(fixture => {                    const isSelected = selectedFixtures.includes(fixture.id);
                     const hasRgb = fixture.channels.some(ch => ['red', 'green', 'blue'].includes(ch.type));
                     const hasMovement = fixture.channels.some(ch => ['pan', 'tilt'].includes(ch.type));
                     const hasDimmer = fixture.channels.some(ch => ch.type === 'dimmer');
+                    const hasGOBO = fixture.channels.some(ch => ch.type === 'gobo_wheel');
+                    const hasColorWheel = fixture.channels.some(ch => ch.type === 'color_wheel');
+                    const hasStrobe = fixture.channels.some(ch => ch.type === 'strobe');
+                    const hasBeam = fixture.channels.some(ch => ['zoom', 'focus', 'iris'].includes(ch.type));
+                    
+                    // Generate channel function list for display
+                    const channelFunctions = fixture.channels.map(ch => {
+                      switch (ch.type) {
+                        case 'red': case 'green': case 'blue': case 'white': case 'amber': case 'uv': 
+                          return `${ch.type.toUpperCase()}`;
+                        case 'pan': case 'tilt':
+                          return `${ch.type.toUpperCase()}`;
+                        case 'pan_fine': return 'PAN-F';
+                        case 'tilt_fine': return 'TILT-F';
+                        case 'dimmer': return 'DIM';
+                        case 'shutter': return 'SHUT';
+                        case 'strobe': return 'STRB';
+                        case 'color_wheel': return 'CW';
+                        case 'gobo_wheel': return 'GOBO';
+                        case 'gobo_rotation': return 'G-ROT';
+                        case 'zoom': return 'ZOOM';
+                        case 'focus': return 'FOCUS';
+                        case 'prism': return 'PRISM';
+                        case 'iris': return 'IRIS';
+                        case 'speed': return 'SPEED';
+                        case 'macro': return 'MACRO';
+                        case 'effect': return 'FX';
+                        // NEW: Additional professional channels
+                        case 'frost': return 'FROST';
+                        case 'animation': return 'ANIM';
+                        case 'animation_speed': return 'ANIM-SPD';
+                        case 'cto': return 'CTO';
+                        case 'ctb': return 'CTB';
+                        case 'reset': return 'RESET';
+                        case 'lamp_control': return 'LAMP CTRL';
+                        case 'fan_control': return 'FAN CTRL';
+                        case 'display': return 'DISPLAY';
+                        case 'function': return 'FUNC';
+                        default: return ch.type.toUpperCase();
+                      }
+                    }).join(' | ');
                     
                     return (
                       <div
@@ -1180,16 +1655,24 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                             {isSelected && <LucideIcon name="Check" />}
                           </div>
                         </div>
-                        
-                        <div className={styles.fixtureInfo}>
+                          <div className={styles.fixtureInfo}>
                           <div className={styles.fixtureName}>{fixture.name}</div>
                           <div className={styles.fixtureDetails}>
                             <div className={styles.fixtureCapabilities}>
                               {hasRgb && <span className={styles.capability} title="RGB Color"><LucideIcon name="Palette" /></span>}
                               {hasMovement && <span className={styles.capability} title="Pan/Tilt"><LucideIcon name="Move" /></span>}
                               {hasDimmer && <span className={styles.capability} title="Dimmer"><LucideIcon name="Sun" /></span>}
+                              {hasGOBO && <span className={styles.capability} title="GOBO Wheel"><LucideIcon name="Circle" /></span>}
+                              {hasColorWheel && <span className={styles.capability} title="Color Wheel"><LucideIcon name="Disc" /></span>}
+                              {hasStrobe && <span className={styles.capability} title="Strobe"><LucideIcon name="Zap" /></span>}
+                              {hasBeam && <span className={styles.capability} title="Beam Control"><LucideIcon name="Focus" /></span>}
                             </div>
                             <div className={styles.fixtureAddress}>Ch {fixture.startAddress}</div>
+                          </div>
+                          
+                          {/* Channel Functions Display */}
+                          <div className={styles.channelFunctions} title="Channel Functions">
+                            {channelFunctions}
                           </div>
                           
                           {fixture.flags && fixture.flags.length > 0 && (
@@ -1318,23 +1801,20 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                   onClick={handleMovementClick}
                 />
               </div>
-            )}
-
-            {/* Enhanced Controls - Color Wheel, Sliders, Movement Presets */}
-            {selectedFixtures.length > 0 && (
-              <div className={styles.enhancedControls}>
-                {/* Control Mode Selector */}
-                <div className={styles.controlMode}>
-                  {controlModes.map(mode => (
-                    <button
-                      key={mode.type}
-                      onClick={() => setControlMode(mode.type)}
-                      className={`${styles.modeButton} ${controlMode === mode.type ? styles.active : ''}`}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
+            )}            {/* Enhanced Controls - Color Wheel, Sliders, Movement Presets */}
+            <div className={styles.enhancedControls}>
+              {/* Control Mode Selector */}
+              <div className={styles.controlMode}>
+                {controlModes.map(mode => (
+                  <button
+                    key={mode.type}
+                    onClick={() => setControlMode(mode.type)}
+                    className={`${styles.modeButton} ${controlMode === mode.type ? styles.active : ''}`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
 
                 {/* Undo/Redo Controls */}
                 <div className={styles.undoRedoControls}>
@@ -1356,9 +1836,7 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                     <LucideIcon name="Redo2" />
                     Redo
                   </button>
-                </div>
-
-                {/* Toggle Controls for Advanced Features */}
+                </div>                {/* Toggle Controls for Advanced Features */}
                 {controlMode === 'advanced' && (
                   <div className={styles.toggleControls}>
                     <button
@@ -1396,8 +1874,35 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                     >
                       Pan/Tilt Sliders
                     </button>
+                    <button
+                      className={`${styles.toggleButton} ${showDimmerControls ? styles.active : ''}`}
+                      onClick={() => setShowDimmerControls(!showDimmerControls)}
+                      title="Toggle Dimmer & Strobe Controls"
+                    >
+                      Dimmer/Strobe
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showEffectControls ? styles.active : ''}`}
+                      onClick={() => setShowEffectControls(!showEffectControls)}
+                      title="Toggle Effect Controls"
+                    >
+                      GOBO/Color Wheel
+                    </button>                    <button
+                      className={`${styles.toggleButton} ${showBeamControls ? styles.active : ''}`}
+                      onClick={() => setShowBeamControls(!showBeamControls)}
+                      title="Toggle Beam Controls"
+                    >
+                      Beam/Focus
+                    </button>
+                    <button
+                      className={`${styles.toggleButton} ${showProfessionalControls ? styles.active : ''}`}
+                      onClick={() => setShowProfessionalControls(!showProfessionalControls)}
+                      title="Toggle Professional Controls"
+                    >
+                      Pro/Special
+                    </button>
                   </div>
-                )}
+                ) }
 
                 {/* Color Wheel Control */}
                 {controlMode === 'advanced' && showColorWheel && (
@@ -1736,6 +2241,380 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                   </div>
                 )}
 
+                {/* Dimmer and Strobe Controls */}
+                {controlMode === 'advanced' && showDimmerControls && (
+                  <div className={styles.dimmerControls}>
+                    <h4>Dimmer & Strobe</h4>                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Master Dimmer</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.dimmer}
+                        onChange={(e) => applyAdvancedControl('dimmer', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.dimmer}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Shutter</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.shutter}
+                        onChange={(e) => applyAdvancedControl('shutter', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.shutter}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Strobe Rate</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.strobe}
+                        onChange={(e) => applyAdvancedControl('strobe', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.strobe}</span>
+                    </div>
+                    <div className={styles.quickStrobeActions}>
+                      <button className={styles.actionButton} onClick={shutterOpen} disabled={selectedFixtures.length === 0}>Open</button>
+                      <button className={styles.actionButton} onClick={shutterClose} disabled={selectedFixtures.length === 0}>Close</button>
+                      <button className={styles.actionButton} onClick={strobeStart} disabled={selectedFixtures.length === 0}>Strobe</button>
+                      <button className={styles.actionButton} onClick={strobeStop} disabled={selectedFixtures.length === 0}>Stop</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* GOBO and Color Wheel Controls */}
+                {controlMode === 'advanced' && showEffectControls && (
+                  <div className={styles.effectControls}>
+                    <h4>GOBO & Color Wheel</h4>
+                    <div className={styles.goboSection}>
+                      <label className={styles.sectionLabel}>GOBO Wheel</label>                      <div className={styles.presetButtons}>
+                        {goboPresets.map(preset => (
+                          <button
+                            key={preset.name}
+                            onClick={() => applyGOBOPreset(preset)}
+                            className={styles.presetButton}
+                            title={preset.name}
+                            disabled={selectedFixtures.length === 0}
+                          >
+                            <LucideIcon name={preset.icon as keyof typeof import('lucide-react')} />
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div><div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>GOBO Position</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.goboWheel}
+                          onChange={(e) => applyAdvancedControl('goboWheel', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.goboWheel}</span>
+                      </div>
+                      <div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>GOBO Rotation</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.goboRotation}
+                          onChange={(e) => applyAdvancedControl('goboRotation', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.goboRotation}</span>
+                      </div>
+                    </div>
+                    
+                    <div className={styles.colorWheelSection}>
+                      <label className={styles.sectionLabel}>Color Wheel</label>                      <div className={styles.presetButtons}>
+                        {colorWheelPresets.map(preset => (
+                          <button
+                            key={preset.name}
+                            onClick={() => applyColorWheelPreset(preset)}
+                            className={styles.presetButton}
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.name}
+                            disabled={selectedFixtures.length === 0}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div><div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>Color Position</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.colorWheel}
+                          onChange={(e) => applyAdvancedControl('colorWheel', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.colorWheel}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Beam Controls (Zoom, Focus, Iris, Prism) */}
+                {controlMode === 'advanced' && showBeamControls && (
+                  <div className={styles.beamControls}>
+                    <h4>Beam Controls</h4>                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Zoom</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.zoom}
+                        onChange={(e) => applyAdvancedControl('zoom', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.zoom}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Focus</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.focus}
+                        onChange={(e) => applyAdvancedControl('focus', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.focus}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Iris</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.iris}
+                        onChange={(e) => applyAdvancedControl('iris', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.iris}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Prism</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.prism}
+                        onChange={(e) => applyAdvancedControl('prism', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.prism}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Speed</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.speed}
+                        onChange={(e) => applyAdvancedControl('speed', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.speed}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Macro</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.macro}
+                        onChange={(e) => applyAdvancedControl('macro', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.macro}</span>
+                    </div>
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Effect</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.effect}
+                        onChange={(e) => applyAdvancedControl('effect', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.effect}</span>
+                    </div>
+                  </div>                )}                {/* Professional Controls (Frost, Animation, CTO/CTB, etc.) */}
+                {controlMode === 'advanced' && showProfessionalControls && (
+                  <div className={styles.professionalControls}>
+                    <h4>Professional Controls</h4>
+                    <p className={styles.controlsNote}>
+                      {selectedFixtures.length === 0 
+                        ? 'Select fixtures to control professional features'
+                        : `Controlling ${selectedFixtures.length} fixture(s)`
+                      }
+                    </p>
+                      {/* Frost/Diffusion */}
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Frost/Diffusion</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.frost}
+                        onChange={(e) => applyAdvancedControl('frost', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.frost}</span>
+                    </div>
+
+                    {/* Animation Controls */}
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Animation</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.animation}
+                        onChange={(e) => applyAdvancedControl('animation', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.animation}</span>
+                    </div>
+
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>Animation Speed</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.animationSpeed}
+                        onChange={(e) => applyAdvancedControl('animationSpeed', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.animationSpeed}</span>
+                    </div>
+
+                    {/* Color Temperature Controls */}
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>CTO (Color Temp Orange)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.cto}
+                        onChange={(e) => applyAdvancedControl('cto', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.cto}</span>
+                    </div>
+
+                    <div className={styles.sliderGroup}>
+                      <label className={styles.sliderLabel}>CTB (Color Temp Blue)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={advancedControls.ctb}
+                        onChange={(e) => applyAdvancedControl('ctb', parseInt(e.target.value))}
+                        className={styles.slider}
+                        disabled={selectedFixtures.length === 0}
+                      />
+                      <span className={styles.value}>{advancedControls.ctb}</span>
+                    </div>
+
+                    {/* Fixture Control Functions */}
+                    <div className={styles.functionControls}>
+                      <h5>Fixture Functions</h5>                      <div className={styles.functionButtons}>
+                        <button
+                          className={styles.functionButton}
+                          onClick={() => applyAdvancedControl('reset', 255)}
+                          onMouseUp={() => setTimeout(() => applyAdvancedControl('reset', 0), 100)}
+                          title="Send Reset Command to Fixture"
+                          disabled={selectedFixtures.length === 0}
+                        >
+                          <LucideIcon name="RotateCcw" />
+                          Reset
+                        </button>
+                        <button
+                          className={`${styles.functionButton} ${advancedControls.lampControl > 127 ? styles.active : ''}`}
+                          onClick={() => applyAdvancedControl('lampControl', advancedControls.lampControl > 127 ? 0 : 255)}
+                          title="Toggle Lamp On/Off"
+                          disabled={selectedFixtures.length === 0}
+                        >
+                          <LucideIcon name="Lightbulb" />
+                          Lamp {advancedControls.lampControl > 127 ? 'ON' : 'OFF'}
+                        </button>
+                      </div>
+                      
+                      <div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>Fan Control</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.fanControl}
+                          onChange={(e) => applyAdvancedControl('fanControl', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.fanControl}</span>
+                      </div>
+
+                      <div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>Display Brightness</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.display}
+                          onChange={(e) => applyAdvancedControl('display', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.display}</span>
+                      </div>
+
+                      <div className={styles.sliderGroup}>
+                        <label className={styles.sliderLabel}>Function Channel</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          value={advancedControls.function}
+                          onChange={(e) => applyAdvancedControl('function', parseInt(e.target.value))}
+                          className={styles.slider}
+                          disabled={selectedFixtures.length === 0}
+                        />
+                        <span className={styles.value}>{advancedControls.function}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Performance Mode Controls */}
                 {controlMode === 'performance' && (
                   <div className={styles.performanceControls}>
@@ -1765,11 +2644,9 @@ const ChromaticEnergyManipulatorMini: React.FC<ChromaticEnergyManipulatorMiniPro
                         <LucideIcon name="Power" />
                         Blackout
                       </button>
-                    </div>
-                  </div>
+                    </div>                  </div>
                 )}
               </div>
-            )}
           </div>
         )}
       </div>

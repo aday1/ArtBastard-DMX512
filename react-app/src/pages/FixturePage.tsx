@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
-import UnifiedFixtureController from '../components/fixtures/UnifiedFixtureController'
+import SuperControl from '../components/fixtures/SuperControl'
 import { useTheme } from '../context/ThemeContext'
 import styles from './Pages.module.scss'
 
@@ -22,15 +22,14 @@ const FixturePage: React.FC = () => {
         </p>
         
         {/* Tab Navigation */}
-        <div className={styles.tabNavigation}>
-          <button
+        <div className={styles.tabNavigation}>          <button
             className={`${styles.tabButton} ${activeTab === 'control' ? styles.active : ''}`}
             onClick={() => setActiveTab('control')}
           >
-            {theme === 'artsnob' && 'Luminous Control Interface'}
-            {theme === 'standard' && 'Fixture Control'}
+            {theme === 'artsnob' && 'Chromatic Energy Control'}
+            {theme === 'standard' && 'Advanced Fixture Control'}
             {theme === 'minimal' && 'Control'}
-          </button>          <button
+          </button><button
             className={`${styles.tabButton} ${activeTab === 'setup' ? styles.active : ''}`}
             onClick={() => setActiveTab('setup')}
           >
@@ -40,10 +39,9 @@ const FixturePage: React.FC = () => {
           </button>
         </div>
       </div>
-        <div className={styles.pageContent}>
-        {activeTab === 'control' && (
+        <div className={styles.pageContent}>        {activeTab === 'control' && (
           <div className={`${styles.controlSection} ${styles.fixtureController}`}>
-            <UnifiedFixtureController />
+            <SuperControl isDockable={false} />
           </div>
         )}
         

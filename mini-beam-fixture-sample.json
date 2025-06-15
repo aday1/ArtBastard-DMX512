@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-06-15T12:15:00.000Z",
+  "fixtures": [
+    {
+      "name": "MINI BEAM #1",
+      "type": "Moving Head Beam",
+      "manufacturer": "Generic",
+      "model": "MINI 250W",
+      "mode": "16-Channel",
+      "channels": [
+        { "name": "Color Wheel", "type": "color_wheel" },
+        { "name": "Flash/Strobe", "type": "strobe" },
+        { "name": "Dimmer", "type": "dimmer" },
+        { "name": "Gobo", "type": "gobo_wheel" },
+        { "name": "Prism 1", "type": "prism" },
+        { "name": "Prism Rotation", "type": "gobo_rotation" },
+        { "name": "Prism 2", "type": "prism" },
+        { "name": "Frost", "type": "other" },
+        { "name": "Focus", "type": "focus" },
+        { "name": "Pan", "type": "pan" },
+        { "name": "Pan Fine", "type": "pan" },
+        { "name": "Tilt", "type": "tilt" },
+        { "name": "Tilt Fine", "type": "tilt" },
+        { "name": "Function/Speed", "type": "macro" },
+        { "name": "Reset", "type": "reset" },
+        { "name": "Lamp", "type": "other" }
+      ],
+      "notes": "MINI BEAM 250W Moving Head Light - Professional beam fixture with dual prism system\n\nDMX Channel Specifications:\nCH1 - Color Wheel: White (0-4), Red (5-19), Orange (20-34), Aquamarine (35-49), Green (50-64), Light Green (65-79), Yellow (80-94), Pink (95-109), Blue (110-124), Warm White (125-139), Cyan (140-154), CTO variations (155-189), Rotation (200-255)\n\nCH2 - Flash/Strobe: Full Off (0-5), Full On (6-11), Strobe slow-fast (12-107), Pulse open (108-149), Pulse close (150-191), Random strobe (192-251), Full On (252-255)\n\nCH3 - Dimmer: 0-255 Linear dimming from dark to bright\n\nCH4 - Gobo: 17 static gobos (0-53), Rotation forward/backward (54-95), Gobo shake effects (96-245)\n\nCH5 - Prism 1: No prism (0-127), Prism active (128-255)\nCH6 - Prism Rotation: Stop (0-10), Forward (11-120), Backward (121-255)\nCH7 - Prism 2: Secondary prism system\n\nCH8 - Frost: Linear frost effect 0-255\nCH9 - Focus: Pattern clarity adjustment 0-255\n\nCH10 - Pan: 540° horizontal movement (0-255)\nCH11 - Pan Fine: 1.2° fine adjustment\nCH12 - Tilt: 270° vertical movement (0-255) \nCH13 - Tilt Fine: 1.2° fine adjustment\n\nCH14 - Function/Speed: Pan/Tilt speed macro (0-255)\nCH15 - Reset: No effect (0-239), Reset (240-255)\nCH16 - Lamp: Lamp Off (100-105), Lamp On (200-205), Reset (250-255)\n\nPhysical Specs:\n- Pan: 540° range\n- Tilt: 270° range \n- Dual prism system for advanced beam effects\n- 17 rotating gobos with shake effects\n- Color wheel with 20+ colors including CTOs\n- Professional frost and focus control"
+    }
+  ]
+}

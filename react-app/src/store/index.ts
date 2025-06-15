@@ -13,8 +13,12 @@ export interface Fixture {
   id: string
   name: string
   type: string
+  manufacturer?: string
+  model?: string
+  mode?: string
   startAddress: number
-  channels: { name: string; type: string }[]
+  channels: { name: string; type: string; dmxAddress?: number }[]
+  notes?: string // Notes section for fixture documentation
   // Flagging system for organizing fixtures
   flags?: FixtureFlag[]
   isFlagged?: boolean
