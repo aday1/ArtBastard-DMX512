@@ -342,12 +342,30 @@ try {
 
   // Set up additional Socket.IO handlers from API
   setupSocketHandlers(io);
-
   // Start the server
   const port = 3030;  // Changed to 3030 to match the expected port in vite.config.ts
-  server.listen(port, () => {
-    log(`Server running at http://localhost:${port}`, 'SERVER');
-    log(`React app available at http://localhost:${port}`, 'SERVER');
+  server.listen(port, '0.0.0.0', () => {
+    log(`Server running at http://0.0.0.0:${port}`, 'SERVER');
+    log(`Server accessible on local network at http://[YOUR_IP]:${port}`, 'SERVER');
+    log(`React app available at http://0.0.0.0:${port}`, 'SERVER');
+    
+    // Get and log the actual network IP for convenience
+    const networkInterfaces = require('os').networkInterfaces();
+    const networkIPs = [];
+    
+    Object.keys(networkInterfaces).forEach(key => {
+      networkInterfaces[key].forEach(details => {
+        if (details.family === 'IPv4' && !details.internal) {
+          networkIPs.push(details.address);
+        }
+      });
+    });
+    
+    if (networkIPs.length > 0) {
+      networkIPs.forEach(ip => {
+        log(`Network access: http://${ip}:${port}`, 'SERVER');
+      });
+    }
     
     // Initialize application with Socket.IO instance
     try {

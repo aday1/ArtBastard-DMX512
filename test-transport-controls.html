@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransportControls Test - ArtBastard DMX512</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.pending { background: #ff9800; color: #000; }
+        .status.pass { background: #4caf50; color: #fff; }
+        .status.fail { background: #f44336; color: #fff; }
+        .instructions {
+            background: #1e3a8a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .app-link {
+            display: inline-block;
+            background: #007acc;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .app-link:hover {
+            background: #005999;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎛️ TransportControls & Panel Reordering Test Suite</h1>
+        
+        <div class="instructions">
+            <h3>📋 Test Instructions</h3>
+            <p>Open the ArtBastard DMX512 application and follow these test steps:</p>
+            <a href="http://localhost:3001" target="_blank" class="app-link">🚀 Open Application</a>
+        </div>
+
+        <div class="test-section">
+            <h3>🎮 TransportControls Functionality Tests</h3>
+            
+            <div class="test-item">
+                <strong>1. TransportControls Visibility</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Verify that TransportControls panel is visible in bottom-right corner</p>
+                <p>✅ Check that transport controls show play, pause, stop, and record buttons</p>
+            </div>
+
+            <div class="test-item">
+                <strong>2. Dragging Functionality</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Drag the TransportControls panel around the screen</p>
+                <p>✅ Verify smooth dragging without performance issues</p>
+                <p>✅ Check that panel can be moved to different areas of the screen</p>
+            </div>
+
+            <div class="test-item">
+                <strong>3. Docking/Undocking</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Click dock/undock button to toggle docking state</p>
+                <p>✅ When docked: panel should snap to bottom-right corner</p>
+                <p>✅ When undocked: panel should be freely movable</p>
+            </div>
+
+            <div class="test-item">
+                <strong>4. Minimize/Expand</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Click minimize button to collapse the panel</p>
+                <p>✅ Click expand button to restore the panel</p>
+                <p>✅ Verify smooth transition animations</p>
+            </div>
+
+            <div class="test-item">
+                <strong>5. Transport Button Functionality</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Click Play button - check console for "Transport: Play" message</p>
+                <p>✅ Click Pause button - check console for "Transport: Pause" message</p>
+                <p>✅ Click Stop button - check console for "Transport: Stop" message</p>
+                <p>✅ Click Record button - check console for "Transport: Record" message</p>
+                <p>✅ Verify button states update correctly (active/inactive)</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 Panel Reordering Tests</h3>
+            
+            <div class="test-item">
+                <strong>6. Component Reordering in Panels</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Navigate to a page with resizable panels (TouchOSC, Master Fader, etc.)</p>
+                <p>✅ Look for reorder buttons (up/down arrows) in panel components</p>
+                <p>✅ Test moving components up and down within panels</p>
+                <p>✅ Verify component order changes persist</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📱 Touch Optimization Tests</h3>
+            
+            <div class="test-item">
+                <strong>7. Touch Interface</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Test on touch device or simulate touch events</p>
+                <p>✅ Verify touch targets are appropriately sized (44px minimum)</p>
+                <p>✅ Check touch dragging works smoothly</p>
+                <p>✅ Verify touch feedback and hover states</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🖥️ External Monitor Integration</h3>
+            
+            <div class="test-item">
+                <strong>8. Multi-Monitor Support</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ If available, test dragging TransportControls to external monitor</p>
+                <p>✅ Verify positioning and docking behavior on external display</p>
+                <p>✅ Check that controls remain functional across monitors</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🐛 Browser Console Monitoring</h3>
+            
+            <div class="test-item">
+                <strong>9. Console Output</strong>
+                <span class="status pending">PENDING</span>
+                <p>✅ Open browser DevTools console (F12)</p>
+                <p>✅ Watch for transport control messages when buttons are clicked</p>
+                <p>✅ Check for any error messages or warnings</p>
+                <p>✅ Verify no React errors or compilation issues</p>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>📝 Test Results</h3>
+            <p>Update the status indicators above as you complete each test:</p>
+            <ul>
+                <li><span class="status pending">PENDING</span> - Not yet tested</li>
+                <li><span class="status pass">PASS</span> - Test completed successfully</li>
+                <li><span class="status fail">FAIL</span> - Test failed or issues found</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Allow clicking status indicators to cycle through states
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('status')) {
+                const current = e.target.classList.contains('pending') ? 'pending' :
+                               e.target.classList.contains('pass') ? 'pass' : 'fail';
+                
+                e.target.classList.remove('pending', 'pass', 'fail');
+                
+                if (current === 'pending') {
+                    e.target.classList.add('pass');
+                    e.target.textContent = 'PASS';
+                } else if (current === 'pass') {
+                    e.target.classList.add('fail');
+                    e.target.textContent = 'FAIL';
+                } else {
+                    e.target.classList.add('pending');
+                    e.target.textContent = 'PENDING';
+                }
+            }
+        });
+
+        console.log('🎛️ TransportControls Test Suite Loaded');
+        console.log('📍 Application should be running at: http://localhost:3001');
+        console.log('🔧 Click status indicators to update test results');
+    </script>
+</body>
+</html>

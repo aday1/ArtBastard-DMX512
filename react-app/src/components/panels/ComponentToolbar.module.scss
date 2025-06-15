@@ -18,6 +18,41 @@
     max-height: 60px;
   }
 
+  &.docked {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 300px;
+    max-height: 100vh;
+    border-radius: 0;
+    border-right: none;
+    border-top: none;
+    z-index: 999;
+  }
+
+  &.minimized {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    right: 20px;
+    top: 20px;
+
+    .toolbarHeader {
+      padding: 0;
+      justify-content: center;
+      border-bottom: none;
+
+      .toolbarTitle {
+        font-size: 1.2rem;
+        margin: 0;
+      }
+
+      .toolbarControls {
+        display: none;
+      }
+    }
+  }
+
   .toolbarHeader {
     display: flex;
     align-items: center;
@@ -38,9 +73,27 @@
       i {
         font-size: 0.9em;
       }
-    }
+    }    .toolbarControls {
+      display: flex;
+      gap: 0.25rem;
 
-    .toolbarControls {
+      .controlButton {
+        background: transparent;
+        border: 1px solid rgba(78, 205, 196, 0.2);
+        border-radius: 4px;
+        color: rgba(78, 205, 196, 0.7);
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+
+        &:hover {
+          color: #4ecdc4;
+          border-color: rgba(78, 205, 196, 0.5);
+          background: rgba(78, 205, 196, 0.1);
+        }
+      }
+
       .collapseButton {
         background: transparent;
         border: 1px solid rgba(78, 205, 196, 0.3);
@@ -48,9 +101,7 @@
         color: #4ecdc4;
         cursor: pointer;
         padding: 0.25rem 0.5rem;
-        transition: all 0.2s ease;
-
-        &:hover {
+        transition: all 0.2s ease;        &:hover {
           background: rgba(78, 205, 196, 0.1);
           border-color: rgba(78, 205, 196, 0.5);
         }

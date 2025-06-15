@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { RouterProvider } from '../../context/RouterContext'
 import { StatusBar } from './StatusBar'
@@ -11,6 +11,7 @@ import { Sparkles } from './Sparkles'
 import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
 import PageRouter from '../router/PageRouter'
+import TransportControls from '../panels/TransportControls'
 import styles from './Layout.module.scss'
 
 interface LayoutProps {
@@ -19,6 +20,34 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, darkMode, toggleDarkMode } = useTheme()
+  const [transportVisible, setTransportVisible] = useState(true)
+  const [transportDocked, setTransportDocked] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+
+  const handlePlay = () => {
+    setIsPlaying(true)
+    setIsPaused(false)
+    console.log('Transport: Play')
+  }
+
+  const handlePause = () => {
+    setIsPaused(true)
+    setIsPlaying(false)
+    console.log('Transport: Pause')
+  }
+
+  const handleStop = () => {
+    setIsPlaying(false)
+    setIsPaused(false)
+    console.log('Transport: Stop')
+  }
+
+  const handleRecord = () => {
+    setIsRecording(!isRecording)
+    console.log('Transport: Record', !isRecording)
+  }
 
   return (
     <RouterProvider>
@@ -54,6 +83,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
         
         <StatusBar />
+
+        {/* Transport Controls for TouchBad Panel functionality */}
+        <TransportControls
+          isVisible={transportVisible}
+          isDocked={transportDocked}
+          onToggleVisibility={() => setTransportVisible(!transportVisible)}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onStop={handleStop}
+          onRecord={handleRecord}
+          isPlaying={isPlaying}
+          isPaused={isPaused}
+          isRecording={isRecording}
+        />
       </div>
     </RouterProvider>
   )

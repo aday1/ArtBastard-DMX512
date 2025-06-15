@@ -14,6 +14,25 @@
     box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
   }
 
+  &.touchOptimized {
+    border-radius: 12px;
+    border-width: 2px;
+    
+    .panelHeader {
+      min-height: 60px;
+      padding: 1rem 1.5rem;
+    }
+    
+    .componentWrapper {
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
   .panelHeader {
     display: flex;
     align-items: center;
@@ -36,9 +55,7 @@
         font-size: 0.9em;
         opacity: 0.8;
       }
-    }
-
-    .panelControls {
+    }    .panelControls {
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -47,6 +64,66 @@
         font-size: 0.85rem;
         color: rgba(255, 255, 255, 0.6);
         font-style: italic;
+      }
+
+      .panelManagement {
+        position: relative;
+
+        .panelControlButton {
+          background: transparent;
+          border: 1px solid rgba(78, 205, 196, 0.3);
+          border-radius: 4px;
+          color: rgba(78, 205, 196, 0.8);
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          transition: all 0.2s ease;
+          font-size: 0.8rem;
+
+          &:hover {
+            color: #4ecdc4;
+            border-color: rgba(78, 205, 196, 0.6);
+            background: rgba(78, 205, 196, 0.1);
+          }
+        }
+
+        .panelControlsDropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          background: rgba(0, 0, 0, 0.95);
+          border: 1px solid rgba(78, 205, 196, 0.3);
+          border-radius: 6px;
+          padding: 0.5rem;
+          min-width: 150px;
+          z-index: 1000;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+          .controlAction {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            text-align: left;
+
+            &:hover {
+              background: rgba(78, 205, 196, 0.1);
+              color: #4ecdc4;
+            }
+
+            i {
+              font-size: 0.7rem;
+              width: 12px;
+            }
+          }
+        }
       }
     }
   }
@@ -110,7 +187,6 @@
     flex-direction: column;
     gap: 1rem;
   }
-
   .componentWrapper {
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(78, 205, 196, 0.2);
@@ -121,6 +197,42 @@
     &:hover {
       border-color: rgba(78, 205, 196, 0.4);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    &.expanded {
+      border-color: rgba(78, 205, 196, 0.6);
+      box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);
+      
+      .componentContent {
+        min-height: 300px;
+      }
+    }
+
+    &.touchOptimized {
+      border-radius: 10px;
+      border-width: 2px;
+      
+      .componentHeader {
+        padding: 1rem;
+        min-height: 50px;
+      }
+      
+      .componentContent {
+        padding: 1rem;
+      }
+
+      .actionButton,
+      .removeButton {
+        min-width: 40px;
+        min-height: 40px;
+        border-radius: 8px;
+        
+        &.touchButton {
+          min-width: 50px;
+          min-height: 50px;
+          font-size: 1rem;
+        }
+      }
     }
 
     .componentHeader {
@@ -135,27 +247,94 @@
         font-size: 0.9rem;
         font-weight: 500;
         color: #4ecdc4;
+        flex: 1;
       }
 
-      .removeButton {
-        background: transparent;
-        border: none;
-        color: rgba(255, 255, 255, 0.5);
-        cursor: pointer;
-        padding: 0.25rem;
-        border-radius: 3px;
-        transition: all 0.2s ease;
-        font-size: 0.8rem;
+      .componentActions {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
 
-        &:hover {
-          color: #ff6b6b;
-          background: rgba(255, 107, 107, 0.1);
+        .actionButton {
+          background: transparent;
+          border: 1px solid rgba(78, 205, 196, 0.2);
+          border-radius: 3px;
+          color: rgba(78, 205, 196, 0.6);
+          cursor: pointer;
+          padding: 0.25rem;
+          transition: all 0.2s ease;
+          font-size: 0.7rem;
+          min-width: 28px;
+          min-height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &:hover {
+            color: #4ecdc4;
+            border-color: rgba(78, 205, 196, 0.4);
+            background: rgba(78, 205, 196, 0.1);
+          }
+        }        .removeButton {
+          background: transparent;
+          border: 1px solid rgba(255, 107, 107, 0.2);
+          border-radius: 3px;
+          color: rgba(255, 255, 255, 0.5);
+          cursor: pointer;
+          padding: 0.25rem;
+          transition: all 0.2s ease;
+          font-size: 0.7rem;
+          min-width: 28px;
+          min-height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          touch-action: manipulation;
+          user-select: none;
+          -webkit-user-select: none;
+          -webkit-tap-highlight-color: transparent;
+          z-index: 100;
+
+          &:hover {
+            color: #ff6b6b;
+            border-color: rgba(255, 107, 107, 0.6);
+            background: rgba(255, 107, 107, 0.1);
+          }
+
+          &:active {
+            transform: scale(0.95);
+            background: rgba(255, 107, 107, 0.2);
+          }
+
+          &.touchButton {
+            min-width: 50px;
+            min-height: 50px;
+            border-radius: 8px;
+            border-width: 2px;
+            font-size: 1rem;
+            
+            &:hover {
+              transform: scale(1.05);
+            }
+            
+            &:active {
+              transform: scale(0.95);
+              background: rgba(255, 107, 107, 0.3);
+            }
+          }
         }
       }
     }
 
     .componentContent {
       padding: 0.75rem;
+      transition: all 0.3s ease;
+      
+      &.expandedContent {
+        min-height: 200px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
       
       // Reset any fixed positioning from components
       * {
@@ -164,6 +343,23 @@
         z-index: auto !important;
       }
     }
+  }
+}
+
+.panelFullScreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 10000 !important;
+  border-radius: 0 !important;
+  border: none !important;
+
+  // Ensure content is scrollable if it overflows
+  .panelContent {
+    height: calc(100vh - 60px); // Adjust 60px if header height is different
+    overflow-y: auto;
   }
 }
 

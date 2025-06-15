@@ -540,8 +540,27 @@ function createServer() {
 const { server } = createServer();
 const port = 3001; // Changed from 3000 to avoid conflict
 
-server.listen(port, () => {
-    log(`🚀 Server running at http://localhost:${port}`, 'SERVER'); // Changed from INFO to SERVER for more specific type
+server.listen(port, '0.0.0.0', () => {
+    log(`🚀 Server running at http://0.0.0.0:${port}`, 'SERVER');
+    log(`🌐 Server accessible on local network at http://[YOUR_IP]:${port}`, 'SERVER');
+    
+    // Get and log the actual network IP for convenience
+    const networkInterfaces = os.networkInterfaces();
+    const networkIPs: string[] = [];
+    
+    Object.keys(networkInterfaces).forEach(key => {
+        networkInterfaces[key]?.forEach(details => {
+            if (details.family === 'IPv4' && !details.internal) {
+                networkIPs.push(details.address);
+            }
+        });
+    });
+    
+    if (networkIPs.length > 0) {
+        networkIPs.forEach(ip => {
+            log(`📱 Network access: http://${ip}:${port}`, 'SERVER');
+        });
+    }
 });
 
 server.on('error', (error: any) => {

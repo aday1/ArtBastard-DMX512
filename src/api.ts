@@ -234,6 +234,56 @@ const dmxHandler: RequestHandler = (req: Request, res: Response) => {
 
 apiRouter.post('/dmx', dmxHandler);
 
+// Batch DMX update endpoint
+const batchDmxHandler: RequestHandler = (req: Request, res: Response) => {
+  try {
+    const updates = req.body;
+    
+    if (!updates || typeof updates !== 'object') {
+      res.status(400).json({ error: 'Invalid batch update payload' });
+      return;
+    }
+    
+    let updateCount = 0;
+    const errors: string[] = [];
+    
+    for (const [channelStr, value] of Object.entries(updates)) {
+      const channel = parseInt(channelStr, 10);
+      
+      if (isNaN(channel) || typeof value !== 'number') {
+        errors.push(`Invalid channel ${channelStr} or value ${value}`);
+        continue;
+      }
+      
+      if (channel < 0 || channel >= 512) {
+        errors.push(`Channel ${channel} out of range (0-511)`);
+        continue;
+      }
+      
+      if (value < 0 || value > 255) {
+        errors.push(`Value ${value} for channel ${channel} out of range (0-255)`);
+        continue;
+      }
+      
+      setDmxChannel(channel, value);
+      updateCount++;
+    }
+    
+    if (errors.length > 0) {
+      log('Batch DMX update completed with errors', 'WARN', { updateCount, errors });
+      res.status(207).json({ success: true, updateCount, errors }); // 207 Multi-Status
+    } else {
+      log('Batch DMX update completed successfully', 'INFO', { updateCount });
+      res.json({ success: true, updateCount });
+    }
+  } catch (error) {
+    log('Error in batch DMX update', 'ERROR', { error, body: req.body });
+    res.status(500).json({ error: `Failed to update DMX channels in batch: ${error}` });
+  }
+};
+
+apiRouter.post('/dmx/batch', batchDmxHandler);
+
 // MIDI Learn endpoints
 const midiLearnHandler: RequestHandler = (req: Request, res: Response) => {
   try {

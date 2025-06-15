@@ -9,8 +9,8 @@
   },
   "midiMappings": {
     "0": {
-      "channel": 0,
-      "controller": 10
+      "channel": 1,
+      "controller": 74
     },
     "2": {
       "channel": 0,
@@ -550,5 +550,12 @@
     "/dmx/510",
     "/dmx/511",
     "/dmx/512"
-  ]
+  ],
+  "oscConfig": {
+    "host": "127.0.0.1",
+    "port": 57121,
+    "sendEnabled": true,
+    "sendHost": "127.0.0.1",
+    "sendPort": 57120
+  }
 }

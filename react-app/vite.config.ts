@@ -100,9 +100,9 @@ export default defineConfig({
     // Suppress warnings about unresolved public assets
     assetsInlineLimit: 0, // Don't inline any assets
     copyPublicDir: true, // Ensure public directory is copied
-  },
-  server: {
+  },  server: {
     port: 3001,
+    host: '0.0.0.0', // Allow network access
     strictPort: false,
     // Add error handling for the dev server
     hmr: {

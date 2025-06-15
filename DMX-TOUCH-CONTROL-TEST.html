@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMX Touch Control - External Monitor Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .test-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+        }
+        .test-link {
+            display: inline-block;
+            background: rgba(78, 205, 196, 0.3);
+            color: #4ecdc4;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px;
+            border: 2px solid rgba(78, 205, 196, 0.5);
+            transition: all 0.2s ease;
+        }
+        .test-link:hover {
+            background: rgba(78, 205, 196, 0.5);
+            color: white;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .feature-list li:before {
+            content: "✅ ";
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-header">
+        <h1>🎛️ DMX Touch Control - External Monitor Test</h1>
+        <p>Testing the new simplified TouchDmxControlPanel implementation</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 New Features Implemented</h2>
+        <ul class="feature-list">
+            <li>Simplified channel filtering with dropdown selection</li>
+            <li>Flexible page sizing from 1 to 256 channels per page</li>
+            <li>Touch-optimized navigation (prev/next/first/last)</li>
+            <li>Responsive grid layout (max 4 columns for touch screens)</li>
+            <li>44px minimum touch targets for all interactive elements</li>
+            <li>Collapsible controls to maximize channel display space</li>
+            <li>Clear channel range display in page info</li>
+            <li>Proper touchAction: 'manipulation' for responsive touch</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 Test the New Touch Interface</h2>
+        <p>Open the main application in external monitor mode to test the touch interface:</p>
+        <a href="http://localhost:3001" class="test-link" target="_blank">Open Main Application</a>
+        <p><strong>Test Steps:</strong></p>
+        <ol>
+            <li>Open the main application above</li>
+            <li>Navigate to the External Monitor section</li>
+            <li>Select "DMX Touch Control" as the content type</li>
+            <li>Click "Open External Monitor" to open in a new window</li>
+            <li>Test the new channel filtering dropdowns</li>
+            <li>Try different page sizes (1, 4, 8, 16, 32, 64, 128, 256 channels)</li>
+            <li>Use the touch-optimized navigation buttons</li>
+            <li>Verify that touch controls are responsive and properly sized</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Channel Filter Options</h2>
+        <p>The new implementation includes these channel range filters:</p>
+        <ul>
+            <li><strong>All Channels:</strong> 1-512 (full DMX universe)</li>
+            <li><strong>Channels 1-16:</strong> First 16 channels</li>
+            <li><strong>Channels 17-32:</strong> Second block</li>
+            <li><strong>Channels 33-64:</strong> Extended range</li>
+            <li><strong>Channels 65-128:</strong> Mid-range block</li>
+            <li><strong>Channels 129-256:</strong> Upper mid-range</li>
+            <li><strong>Channels 257-512:</strong> High-end channels</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📏 Page Size Options</h2>
+        <p>Flexible page sizing options for different use cases:</p>
+        <ul>
+            <li><strong>1 channel:</strong> Individual channel focus</li>
+            <li><strong>4 channels:</strong> Default touch-optimized view</li>
+            <li><strong>8 channels:</strong> Small groups</li>
+            <li><strong>16 channels:</strong> Standard fixture groups</li>
+            <li><strong>32 channels:</strong> Medium groups</li>
+            <li><strong>64 channels:</strong> Large fixture setups</li>
+            <li><strong>128 channels:</strong> Quarter universe</li>
+            <li><strong>256 channels:</strong> Half universe</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Issues Fixed</h2>
+        <ul class="feature-list">
+            <li>Non-functioning filters replaced with working dropdown selection</li>
+            <li>Fixed limited page sizing (was 1-16 pages, now 1-512 channels flexible)</li>
+            <li>Improved touch responsiveness with proper touch events</li>
+            <li>Added missing navigation controls (first/last page buttons)</li>
+            <li>Enhanced visual feedback and transitions</li>
+            <li>Simplified complex custom page system</li>
+            <li>Better grid layout adaptation for touch screens</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('DMX Touch Control External Monitor Test Page Loaded');
+        console.log('Backend server should be running on http://localhost:3030');
+        console.log('Frontend should be running on http://localhost:3001');
+        
+        // Test if both servers are accessible
+        fetch('http://localhost:3030/api/state')
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Backend server is running and responsive');
+                console.log('DMX Channels available:', data.dmxChannels ? data.dmxChannels.length : 'Unknown');
+            })
+            .catch(error => {
+                console.error('❌ Backend server not accessible:', error);
+            });
+    </script>
+</body>
+</html>

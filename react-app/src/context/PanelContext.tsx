@@ -32,6 +32,8 @@ interface PanelContextType {
   removeComponentFromPanel: (panelId: PanelId, componentId: string) => void;
   moveComponent: (fromPanel: PanelId, toPanel: PanelId, componentId: string) => void;
   updateComponent: (panelId: PanelId, componentId: string, updates: Partial<PanelComponent>) => void;
+  reorderComponent: (panelId: PanelId, componentId: string, direction: 'up' | 'down') => void;
+  moveComponentToIndex: (panelId: PanelId, componentId: string, newIndex: number) => void;
   updateSplitterPosition: (type: 'horizontal' | 'vertical', position: number) => void;
   saveLayout: (name: string) => void;
   loadLayout: (name: string) => void;
@@ -39,6 +41,7 @@ interface PanelContextType {
   deleteLayout: (name: string) => void;
   resetLayout: () => void;
   loadBlankLayout: () => void;
+  clearPanel: (panelId: PanelId) => void; // Added clearPanel
 }
 
 const PanelContext = createContext<PanelContextType | undefined>(undefined);
@@ -182,7 +185,6 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
       };
     });
   }, []);
-
   const updateComponent = useCallback((panelId: PanelId, componentId: string, updates: Partial<PanelComponent>) => {
     setLayout(prev => ({
       ...prev,
@@ -193,6 +195,54 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
         )
       }
     }));
+  }, []);
+
+  const reorderComponent = useCallback((panelId: PanelId, componentId: string, direction: 'up' | 'down') => {
+    setLayout(prev => {
+      const components = [...prev[panelId].components];
+      const currentIndex = components.findIndex(c => c.id === componentId);
+      
+      if (currentIndex === -1) return prev;
+      
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      
+      // Check bounds
+      if (newIndex < 0 || newIndex >= components.length) return prev;
+      
+      // Swap components
+      [components[currentIndex], components[newIndex]] = [components[newIndex], components[currentIndex]];
+      
+      return {
+        ...prev,
+        [panelId]: {
+          ...prev[panelId],
+          components
+        }
+      };
+    });
+  }, []);
+
+  const moveComponentToIndex = useCallback((panelId: PanelId, componentId: string, newIndex: number) => {
+    setLayout(prev => {
+      const components = [...prev[panelId].components];
+      const currentIndex = components.findIndex(c => c.id === componentId);
+      
+      if (currentIndex === -1 || newIndex < 0 || newIndex >= components.length) return prev;
+      
+      // Remove component from current position
+      const [component] = components.splice(currentIndex, 1);
+      
+      // Insert at new position
+      components.splice(newIndex, 0, component);
+      
+      return {
+        ...prev,
+        [panelId]: {
+          ...prev[panelId],
+          components
+        }
+      };
+    });
   }, []);
 
   const updateSplitterPosition = useCallback((type: 'horizontal' | 'vertical', position: number) => {
@@ -246,12 +296,25 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
   const loadBlankLayout = useCallback(() => {
     setLayout(getBlankLayout());
   }, []);
+
+  const clearPanel = useCallback((panelId: PanelId) => {
+    setLayout(prev => ({
+      ...prev,
+      [panelId]: {
+        ...prev[panelId],
+        components: []
+      }
+    }));
+  }, []);
+
   const contextValue: PanelContextType = {
     layout,
     addComponentToPanel,
     removeComponentFromPanel,
     moveComponent,
     updateComponent,
+    reorderComponent,
+    moveComponentToIndex,
     updateSplitterPosition,
     saveLayout,
     loadLayout,
@@ -259,6 +322,7 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
     deleteLayout,
     resetLayout,
     loadBlankLayout,
+    clearPanel, // Added clearPanel
   };
 
   return (

@@ -42,6 +42,8 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) =
 export const ComponentToolbar: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('dmx');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDocked, setIsDocked] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const { saveLayout, loadLayout, getSavedLayouts, deleteLayout, resetLayout, loadBlankLayout } = usePanels();
   const [layoutName, setLayoutName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -119,15 +121,28 @@ export const ComponentToolbar: React.FC = () => {
   const handleLoadBlankLayout = () => {
     loadBlankLayout();
   };
-
   return (
-    <div className={`${styles.componentToolbar} ${isCollapsed ? styles.collapsed : ''}`}>
+    <div className={`${styles.componentToolbar} ${isCollapsed ? styles.collapsed : ''} ${isDocked ? styles.docked : ''} ${isMinimized ? styles.minimized : ''}`}>
       <div className={styles.toolbarHeader}>
         <h3 className={styles.toolbarTitle}>
           <i className="fas fa-toolbox"></i>
-          Component Toolbar
+          {!isMinimized && 'Component Toolbar'}
         </h3>
         <div className={styles.toolbarControls}>
+          <button
+            className={styles.controlButton}
+            onClick={() => setIsDocked(!isDocked)}
+            title={isDocked ? 'Undock toolbar' : 'Dock toolbar'}
+          >
+            <i className={`fas fa-${isDocked ? 'expand-arrows-alt' : 'compress-arrows-alt'}`}></i>
+          </button>
+          <button
+            className={styles.controlButton}
+            onClick={() => setIsMinimized(!isMinimized)}
+            title={isMinimized ? 'Restore toolbar' : 'Minimize toolbar'}
+          >
+            <i className={`fas fa-${isMinimized ? 'window-restore' : 'window-minimize'}`}></i>
+          </button>
           <button
             className={styles.collapseButton}
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -138,7 +153,7 @@ export const ComponentToolbar: React.FC = () => {
         </div>
       </div>
 
-      {!isCollapsed && (
+      {!isCollapsed && !isMinimized && (
         <div className={styles.toolbarContent}>
           {/* Layout Controls */}
           <div className={styles.layoutControls}>

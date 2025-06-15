@@ -1,8 +1,9 @@
 import React from 'react';
 import { DmxControlPanel } from '../dmx/DmxControlPanel';
+import { TouchDmxControlPanel } from '../dmx/TouchDmxControlPanel';
 import { MasterFader } from '../dmx/MasterFader';
 import { DmxWebglVisualizer } from '../dmx/DmxWebglVisualizer';
-import { DMXChannelGrid } from '../dmx/DMXChannelGrid';
+// Removed DMXChannelGrid and TouchDmxChannelGrid components
 import { MidiMonitor } from '../midi/MidiMonitor';
 import { OscMonitor } from '../osc/OscMonitor';
 import { SceneQuickLaunch } from '../scenes/SceneQuickLaunch';
@@ -38,25 +39,25 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     component: MasterFader,
     defaultProps: { isDockable: false },
     minSize: { width: 200, height: 100 },
-  },
-  'dmx-control-panel': {
+  },  'dmx-control-panel': {
     type: 'dmx-control-panel',
     title: 'DMX Control Panel',
     description: 'Main DMX channel controls and faders',
     category: 'dmx',
     icon: 'fas fa-sliders-h',
     component: DmxControlPanel,
-    minSize: { width: 400, height: 300 },
-  },
-  'dmx-channels': {
-    type: 'dmx-channels',
-    title: 'DMX Channels',
-    description: 'Grid view of all DMX channels',
+    minSize: { width: 400, height: 300 },  },
+  'touch-dmx-control': {
+    type: 'touch-dmx-control',
+    title: 'Touch DMX Control',
+    description: 'Touch-optimized DMX control with selected channels mode',
     category: 'dmx',
-    icon: 'fas fa-th',
-    component: DMXChannelGrid,
-    minSize: { width: 600, height: 400 },
+    icon: 'fas fa-hand-pointer',
+    component: TouchDmxControlPanel,
+    defaultProps: { touchOptimized: true },
+    minSize: { width: 300, height: 400 },
   },
+  // Removed 'dmx-channels' component - use DMX Control Panel instead
   'dmx-visualizer': {
     type: 'dmx-visualizer',
     title: 'DMX Visual Display',
@@ -192,7 +193,11 @@ export const renderComponent = (type: string, props: Record<string, any> = {}): 
     return null;
   }
 
-  const Component = definition.component;
+  let Component = definition.component;
+  if (props.touchOptimized && type === 'dmx-control-panel') {
+    Component = TouchDmxControlPanel;
+  }
+
   const finalProps = { ...definition.defaultProps, ...props };
   
   return <Component {...finalProps} />;

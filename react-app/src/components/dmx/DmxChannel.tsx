@@ -8,6 +8,7 @@ interface DmxChannelProps {
   key?: number | string;
   allowFullscreen?: boolean;
   allowDetach?: boolean;
+  touchOptimized?: boolean;
 }
 
 interface ExtendedMidiRangeMapping extends MidiRangeMapping {
@@ -15,7 +16,7 @@ interface ExtendedMidiRangeMapping extends MidiRangeMapping {
   inverted?: boolean;
 }
 
-export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true }) => {
+export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true, touchOptimized = false }) => {
   const {
     dmxChannels,
     channelNames,
@@ -237,10 +238,9 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isFullscreen]);
-
   return (    <div
       ref={channelRef}
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${isFullscreen ? styles.fullscreen : ''}`}
+      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${isFullscreen ? styles.fullscreen : ''} ${touchOptimized ? styles.touchOptimized : ''}`}
       onClick={() => !isFullscreen && !isDetached && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
