@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useStore, PlacedFixture, Group } from '../../store' // Import PlacedFixture and Group
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
-// import { FixtureVisualizer3D } from './FixtureVisualizer3D' // Removed
-import { FixtureCanvas2D } from './FixtureCanvas2D'; // Added
-import { CanvasImageUpload } from './CanvasImageUpload'; // Added
 import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
 import { LucideIcon } from '../ui/LucideIcon'; // Added for icons
 import styles from './FixtureSetup.module.scss'
@@ -87,10 +84,6 @@ export const FixtureSetup: React.FC = () => {
   const { theme } = useTheme();
   const { 
     fixtures, 
-    fixtureLayout, 
-    setFixtureLayout, 
-    canvasBackgroundImage, 
-    setCanvasBackgroundImage,
     addFixtureFlag,
     removeFixtureFlag,
     bulkAddFlag,
@@ -100,10 +93,6 @@ export const FixtureSetup: React.FC = () => {
     getFixturesByFlagCategory
   } = useStore(state => ({
     fixtures: state.fixtures,
-    fixtureLayout: state.fixtureLayout,
-    setFixtureLayout: state.setFixtureLayout,
-    canvasBackgroundImage: state.canvasBackgroundImage,
-    setCanvasBackgroundImage: state.setCanvasBackgroundImage,
     addFixtureFlag: state.addFixtureFlag,
     removeFixtureFlag: state.removeFixtureFlag,
     bulkAddFlag: state.bulkAddFlag,
@@ -617,38 +606,27 @@ export const FixtureSetup: React.FC = () => {
       priority: 'normal'
     });
   };
-  
-  return (
+    return (
     <div className={styles.fixtureSetup}>
       <h2 className={styles.sectionTitle}>
-        {theme === 'artsnob' && 'Fixture Composition: The Architecture of Light'}
-        {theme === 'standard' && 'Fixture Setup'}
-        {theme === 'minimal' && 'Fixtures'}      </h2>
+        {theme === 'artsnob' && 'Fixture Library: The Arsenal of Illumination'}
+        {theme === 'standard' && 'Fixture Management'}
+        {theme === 'minimal' && 'Fixtures'}
+      </h2>
       
-      {/* Canvas Background Image Upload */}
-      <CanvasImageUpload 
-        onImageUploaded={setCanvasBackgroundImage}
-        currentImage={canvasBackgroundImage}
-      />
-      
-      {/* 2D Fixture Canvas */}
-      <FixtureCanvas2D
-        fixtures={fixtures} 
-        placedFixturesData={fixtureLayout} // Use data from store
-        onUpdatePlacedFixtures={setFixtureLayout} // Use store action to update
-      />
-        {/* Color Picker Panel Section */}
+      {/* Color Picker Panel Section */}
       <div className={styles.colorPickerContainer}>
         <ColorPickerPanel />
       </div>
       
       <div className={styles.setupGrid}>
-        {/* Fixture Management Section */}        <div className={styles.card}>
+        {/* Fixture Management Section */}
+        <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h3>
               {theme === 'artsnob' && 'Existing Fixtures: The Gallery of Light Instruments'}
-              {theme === 'standard' && 'Fixtures'}
-              {theme === 'minimal' && 'Fixtures'}
+              {theme === 'standard' && 'Fixture Library'}
+              {theme === 'minimal' && 'Library'}
             </h3>
           </div>
           <div className={styles.cardBody}>

@@ -518,13 +518,13 @@
   display: flex;
   flex-direction: column;
   min-width: 0; // Allow shrinking below content width
-  overflow: visible; // Changed from hidden to allow canvas to display fully
-  min-height: 400px; // Ensure minimum height for canvas
+  overflow: visible; // Allow canvas to display fully without being cut off
+  min-height: 500px; // Increased minimum height for better canvas display
   
   // In fullscreen, maximize canvas space
   .fixtureCanvasContainer.fullscreen & {
     flex: 1;
-    min-height: calc(100vh - 200px); // Account for controls and padding
+    min-height: calc(100vh - 150px); // Reduced offset for more canvas space
     overflow: visible; // Ensure overflow is visible in fullscreen too
   }
 }
@@ -534,7 +534,7 @@
   gap: 1rem;
   align-items: flex-start; // Align canvas and config panel at the top
   flex-wrap: wrap; // Allow wrapping on smaller screens
-  min-height: 400px; // Reduced from 500px to allow better fitting
+  min-height: 500px; // Increased from 400px for better canvas display
   flex: 1; // Allow wrapper to grow and fill available space
   
   // Responsive behavior for fullscreen and smaller viewports
@@ -542,11 +542,13 @@
     flex-direction: column; // Stack vertically on smaller screens
     align-items: stretch;
   }
-    // In fullscreen, prioritize canvas space
+  
+  // In fullscreen, prioritize canvas space
   .fixtureCanvasContainer.fullscreen & {
     flex-direction: row;
     align-items: flex-start;
-    min-height: calc(100vh - 200px); // Maximize space in fullscreen
+    min-height: calc(100vh - 150px); // Maximize space in fullscreen with reduced offset
+    gap: 0.5rem; // Reduce gap in fullscreen for more canvas space
   }
 }
 

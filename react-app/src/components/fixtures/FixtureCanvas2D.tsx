@@ -628,8 +628,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     selectedFixtures,
     selectionBox,    isSelecting
   ]);
-  
-  // Handle responsive canvas sizing
+    // Handle responsive canvas sizing - Fixed to maintain maximum size
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
@@ -640,23 +639,31 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       
       // Get container dimensions
       const containerRect = container.getBoundingClientRect();
-      const availableWidth = containerRect.width - 32; // Account for padding/borders
-      const availableHeight = Math.max(400, containerRect.height - 32);
       
-      // Maintain aspect ratio while fitting in available space
-      const aspectRatio = canvasSize.width / canvasSize.height;
-      let newWidth = availableWidth;
-      let newHeight = newWidth / aspectRatio;
+      // For touchscreen compatibility, always use maximum available space
+      // Don't subtract padding to ensure maximum canvas size
+      const availableWidth = Math.max(containerRect.width, canvasSize.width);
+      const availableHeight = Math.max(containerRect.height, canvasSize.height);
       
-      // If height is too large, constrain by height instead
-      if (newHeight > availableHeight) {
-        newHeight = availableHeight;
-        newWidth = newHeight * aspectRatio;
+      // In fullscreen or when container is large enough, use native canvas size
+      if (isFullscreen || (availableWidth >= canvasSize.width && availableHeight >= canvasSize.height)) {
+        canvas.style.width = `${canvasSize.width}px`;
+        canvas.style.height = `${canvasSize.height}px`;
+      } else {
+        // Only scale down if absolutely necessary, maintaining aspect ratio
+        const aspectRatio = canvasSize.width / canvasSize.height;
+        let newWidth = Math.max(availableWidth - 16, canvasSize.width * 0.8); // Minimum 80% of original size
+        let newHeight = newWidth / aspectRatio;
+        
+        // If height is too large, constrain by height instead
+        if (newHeight > availableHeight - 16) {
+          newHeight = Math.max(availableHeight - 16, canvasSize.height * 0.8);
+          newWidth = newHeight * aspectRatio;
+        }
+        
+        canvas.style.width = `${newWidth}px`;
+        canvas.style.height = `${newHeight}px`;
       }
-      
-      // Update canvas display size
-      canvas.style.width = `${newWidth}px`;
-      canvas.style.height = `${newHeight}px`;
       
       // Redraw canvas with new display size
       drawCanvas();
@@ -665,14 +672,21 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     // Initial sizing
     handleResize();
     
-    // Add resize listener
-    window.addEventListener('resize', handleResize);
+    // Add resize listener with debouncing to prevent constant resizing during interaction
+    let resizeTimeout: NodeJS.Timeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 100);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
     
     // Cleanup
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
     };
-  }, [canvasSize, drawCanvas]);
+  }, [canvasSize, drawCanvas, isFullscreen]);
   
   useEffect(() => {
     const canvas = canvasRef.current;

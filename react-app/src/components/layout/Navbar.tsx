@@ -9,7 +9,7 @@ import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
 import * as Icons from 'lucide-react'
 
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenes' | 'audio' | 'touchosc' | 'misc'
+type ViewType = 'main' | 'midiOsc' | 'fixture' | 'canvas' | 'scenes' | 'audio' | 'touchosc' | 'misc'
 
 // Updated navigation items with Lucide icon names
 const navItems: Array<{
@@ -38,14 +38,22 @@ const navItems: Array<{
       standard: 'MIDI & OSC',
       minimal: 'I/O'
     }
-  },
-  {
+  },  {
     id: 'fixture',
     icon: 'LampDesk',
     title: {
-      artsnob: 'Fixtures',
+      artsnob: 'Fixture Library',
       standard: 'Fixtures',
       minimal: 'Fix'
+    }
+  },
+  {
+    id: 'canvas',
+    icon: 'PaintBucket',
+    title: {
+      artsnob: 'Luminous Canvas',
+      standard: '2D Canvas',
+      minimal: '2D'
     }
   },
   {

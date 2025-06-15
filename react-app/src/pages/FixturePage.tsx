@@ -9,10 +9,17 @@ const FixturePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'setup' | 'control'>('control')
 
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.pageHeader}>
-        <h2>Fixture Management</h2>
-        <p>Configure and control DMX fixtures and lighting equipment</p>
+    <div className={styles.pageContainer}>      <div className={styles.pageHeader}>
+        <h2>
+          {theme === 'artsnob' && 'Fixture Orchestration: The Instruments of Light'}
+          {theme === 'standard' && 'Fixture Management'}
+          {theme === 'minimal' && 'Fixtures'}
+        </h2>
+        <p>
+          {theme === 'artsnob' && 'Define, configure, and control your luminous instruments'}
+          {theme === 'standard' && 'Configure fixture definitions and control lighting equipment'}
+          {theme === 'minimal' && 'Configure and control fixtures'}
+        </p>
         
         {/* Tab Navigation */}
         <div className={styles.tabNavigation}>
@@ -23,13 +30,12 @@ const FixturePage: React.FC = () => {
             {theme === 'artsnob' && 'Luminous Control Interface'}
             {theme === 'standard' && 'Fixture Control'}
             {theme === 'minimal' && 'Control'}
-          </button>
-          <button
+          </button>          <button
             className={`${styles.tabButton} ${activeTab === 'setup' ? styles.active : ''}`}
             onClick={() => setActiveTab('setup')}
           >
-            {theme === 'artsnob' && 'Configuration Sanctuary'}
-            {theme === 'standard' && 'Setup & Configuration'}
+            {theme === 'artsnob' && 'Definition Sanctuary'}
+            {theme === 'standard' && 'Fixture Definitions'}
             {theme === 'minimal' && 'Setup'}
           </button>
         </div>

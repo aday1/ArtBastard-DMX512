@@ -26,7 +26,7 @@ export interface PanelLayout {
   };
 }
 
-interface PanelContextType {
+export interface PanelContextType {
   layout: PanelLayout;
   addComponentToPanel: (panelId: PanelId, component: PanelComponent) => void;
   removeComponentFromPanel: (panelId: PanelId, componentId: string) => void;

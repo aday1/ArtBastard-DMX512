@@ -70,17 +70,74 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
   const [currentPage, setCurrentPage] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [showPanelManager, setShowPanelManager] = useState(false);
+  
+  // Scene management state
+  const [showSceneControls, setShowSceneControls] = useState(false);
+  const [newSceneName, setNewSceneName] = useState('');
+  const [selectedSceneToLoad, setSelectedSceneToLoad] = useState('');
+  const [showAutoSceneControls, setShowAutoSceneControls] = useState(false);
 
   const {
     dmxChannels,
     selectedChannels,
     toggleChannelSelection,
     setDmxChannel,
+    // Scene management methods
+    scenes,
+    saveScene,
+    loadScene,
+    deleteScene,
+    transitionDuration,
+    setTransitionDuration,
+    // Auto-scene methods
+    autoSceneEnabled,
+    autoSceneList,
+    autoSceneMode,
+    autoSceneTempoSource,
+    autoSceneManualBpm,
+    autoSceneTapTempoBpm,
+    autoSceneBeatDivision,
+    setAutoSceneEnabled,
+    setAutoSceneList,
+    setAutoSceneMode,
+    setAutoSceneTempoSource,
+    setAutoSceneBeatDivision,
+    setManualBpm,
+    recordTapTempo,
+    requestToggleMasterClockPlayPause,
+    midiClockIsPlaying,
+    // Notifications
+    addNotification,
   } = useStore((state) => ({
     dmxChannels: state.dmxChannels,
     selectedChannels: state.selectedChannels,
     toggleChannelSelection: state.toggleChannelSelection,
     setDmxChannel: state.setDmxChannel,
+    // Scene management
+    scenes: state.scenes,
+    saveScene: state.saveScene,
+    loadScene: state.loadScene,
+    deleteScene: state.deleteScene,
+    transitionDuration: state.transitionDuration,
+    setTransitionDuration: state.setTransitionDuration,
+    // Auto-scene
+    autoSceneEnabled: state.autoSceneEnabled,
+    autoSceneList: state.autoSceneList,
+    autoSceneMode: state.autoSceneMode,
+    autoSceneTempoSource: state.autoSceneTempoSource,
+    autoSceneManualBpm: state.autoSceneManualBpm,
+    autoSceneTapTempoBpm: state.autoSceneTapTempoBpm,
+    autoSceneBeatDivision: state.autoSceneBeatDivision,
+    setAutoSceneEnabled: state.setAutoSceneEnabled,
+    setAutoSceneList: state.setAutoSceneList,
+    setAutoSceneMode: state.setAutoSceneMode,
+    setAutoSceneTempoSource: state.setAutoSceneTempoSource,
+    setAutoSceneBeatDivision: state.setAutoSceneBeatDivision,
+    setManualBpm: state.setManualBpm,
+    recordTapTempo: state.recordTapTempo,
+    requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause,
+    midiClockIsPlaying: state.midiClockIsPlaying,
+    addNotification: state.addNotification,
   }));  // Get current filter and calculate displayed channels
   const currentFilter = CHANNEL_FILTERS[selectedFilter];
   let totalChannelsInFilter, displayedChannels, totalPages;
@@ -121,6 +178,97 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
 
   // Calculate active channels
   const activeChannels = dmxChannels.filter(val => val > 0).length;
+
+  // Scene management functions
+  const handleQuickSave = () => {
+    const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-');
+    const quickName = `Touch_${timestamp}`;
+    saveScene(quickName, `/scene/${quickName.toLowerCase()}`);
+    addNotification({
+      message: `Quick saved as "${quickName}"`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  const handleSaveScene = () => {
+    if (!newSceneName.trim()) {
+      addNotification({
+        message: 'Scene name cannot be empty',
+        type: 'error',
+        priority: 'high'
+      });
+      return;
+    }
+
+    // Check for duplicate names
+    if (scenes.some(s => s.name === newSceneName)) {
+      if (!window.confirm(`Scene "${newSceneName}" already exists. Overwrite?`)) {
+        return;
+      }
+    }
+
+    saveScene(newSceneName, `/scene/${newSceneName.toLowerCase()}`);
+    setNewSceneName('');
+    addNotification({
+      message: `Scene "${newSceneName}" saved`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
+
+  const handleLoadScene = () => {
+    if (!selectedSceneToLoad) {
+      addNotification({
+        message: 'Please select a scene to load',
+        type: 'error',
+        priority: 'high'
+      });
+      return;
+    }
+
+    loadScene(selectedSceneToLoad);
+    addNotification({
+      message: `Loading scene "${selectedSceneToLoad}"`,
+      type: 'info',
+      priority: 'normal'
+    });
+  };
+
+  const handleDeleteScene = (sceneName: string) => {
+    if (window.confirm(`Delete scene "${sceneName}"?`)) {
+      deleteScene(sceneName);
+      if (selectedSceneToLoad === sceneName) {
+        setSelectedSceneToLoad('');
+      }
+      addNotification({
+        message: `Scene "${sceneName}" deleted`,
+        type: 'success',
+        priority: 'normal'
+      });
+    }
+  };
+
+  const handleAutoSceneToggle = () => {
+    setAutoSceneEnabled(!autoSceneEnabled);
+    if (!autoSceneEnabled && autoSceneTempoSource === 'internal_clock') {
+      requestToggleMasterClockPlayPause();
+    }
+  };
+
+  const toggleSceneInAutoList = (sceneName: string) => {
+    const isInList = autoSceneList.includes(sceneName);
+    const newList = isInList 
+      ? autoSceneList.filter(name => name !== sceneName)
+      : [...autoSceneList, sceneName];
+    
+    setAutoSceneList(newList);
+    addNotification({
+      message: `Scene "${sceneName}" ${isInList ? 'removed from' : 'added to'} auto-play list`,
+      type: 'success',
+      priority: 'normal'
+    });
+  };
 
   const handleValueChange = (index: number, value: number) => {
     setDmxChannel(index, value);
@@ -303,6 +451,474 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
                 ))}
               </select>
             </div>
+          </div>
+        )}        {/* Scene Controls Section */}        {showControls && (
+          <div style={{
+            marginBottom: '0.4rem'
+          }}>
+            {/* Scene Controls Toggle */}
+            <button
+              onClick={() => setShowSceneControls(!showSceneControls)}
+              style={{
+                background: showSceneControls ? 'rgba(255, 165, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 165, 0, 0.5)',
+                color: '#ffffff',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                fontWeight: '500',
+                touchAction: 'manipulation',
+                transition: 'all 0.2s ease',
+                width: '100%',
+                marginBottom: showSceneControls ? '0.4rem' : '0'
+              }}
+            >
+              🎭 {showSceneControls ? '▼ Hide Scenes' : '▶ Show Scenes'} ({scenes.length})
+            </button>
+
+            {/* Scene Management Controls */}
+            {showSceneControls && (
+              <div style={{
+                background: 'rgba(0, 0, 0, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 165, 0, 0.3)'
+              }}>
+                {/* Quick Actions Row */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.3rem',
+                  marginBottom: '0.4rem'
+                }}>
+                  <button
+                    onClick={handleQuickSave}
+                    style={{
+                      background: 'rgba(255, 165, 0, 0.8)',
+                      border: '1px solid rgba(255, 165, 0, 0.9)',
+                      color: '#ffffff',
+                      padding: '0.4rem',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      touchAction: 'manipulation',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    ⚡ Quick Save
+                  </button>
+                  
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    fontSize: '0.65rem',
+                    color: '#cccccc'
+                  }}>
+                    <span>Transition:</span>
+                    <input
+                      type="number"
+                      value={Math.round(transitionDuration)}
+                      onChange={(e) => setTransitionDuration(Math.max(0, parseInt(e.target.value) || 0))}
+                      style={{
+                        width: '50px',
+                        padding: '0.2rem',
+                        borderRadius: '3px',
+                        border: '1px solid rgba(78, 205, 196, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.65rem',
+                        textAlign: 'center'
+                      }}
+                      min="0"
+                      max="10000"
+                    />
+                    <span>ms</span>
+                  </div>
+                </div>
+
+                {/* Save New Scene */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: '0.3rem',
+                  marginBottom: '0.4rem'
+                }}>
+                  <input
+                    type="text"
+                    value={newSceneName}
+                    onChange={(e) => setNewSceneName(e.target.value)}
+                    placeholder="Scene name..."
+                    style={{
+                      padding: '0.4rem',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(78, 205, 196, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      color: '#ffffff',
+                      fontSize: '0.7rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={handleSaveScene}
+                    disabled={!newSceneName.trim()}
+                    style={{
+                      background: newSceneName.trim() ? 'rgba(0, 150, 0, 0.8)' : 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(0, 150, 0, 0.5)',
+                      color: '#ffffff',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '4px',
+                      cursor: newSceneName.trim() ? 'pointer' : 'not-allowed',
+                      fontSize: '0.7rem',
+                      touchAction: 'manipulation',
+                      opacity: newSceneName.trim() ? 1 : 0.5
+                    }}
+                  >
+                    💾 Save
+                  </button>
+                </div>
+
+                {/* Load Scene */}
+                {scenes.length > 0 && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto auto',
+                    gap: '0.3rem',
+                    marginBottom: '0.4rem'
+                  }}>
+                    <select
+                      value={selectedSceneToLoad}
+                      onChange={(e) => setSelectedSceneToLoad(e.target.value)}
+                      style={{
+                        padding: '0.4rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(78, 205, 196, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="" style={{ background: '#2d2d2d' }}>Select scene...</option>
+                      {scenes.map((scene) => (
+                        <option key={scene.name} value={scene.name} style={{ background: '#2d2d2d' }}>
+                          {scene.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleLoadScene}
+                      disabled={!selectedSceneToLoad}
+                      style={{
+                        background: selectedSceneToLoad ? 'rgba(0, 150, 255, 0.8)' : 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(0, 150, 255, 0.5)',
+                        color: '#ffffff',
+                        padding: '0.4rem 0.8rem',
+                        borderRadius: '4px',
+                        cursor: selectedSceneToLoad ? 'pointer' : 'not-allowed',
+                        fontSize: '0.7rem',
+                        touchAction: 'manipulation',
+                        opacity: selectedSceneToLoad ? 1 : 0.5
+                      }}
+                    >
+                      ▶️ Load
+                    </button>
+                    {selectedSceneToLoad && (
+                      <button
+                        onClick={() => handleDeleteScene(selectedSceneToLoad)}
+                        style={{
+                          background: 'rgba(255, 0, 0, 0.8)',
+                          border: '1px solid rgba(255, 0, 0, 0.5)',
+                          color: '#ffffff',
+                          padding: '0.4rem 0.6rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem',
+                          touchAction: 'manipulation'
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Auto Scene Controls Toggle */}
+            <button
+              onClick={() => setShowAutoSceneControls(!showAutoSceneControls)}
+              style={{
+                background: showAutoSceneControls ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(168, 85, 247, 0.5)',
+                color: '#ffffff',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                fontWeight: '500',
+                touchAction: 'manipulation',
+                transition: 'all 0.2s ease',
+                width: '100%',
+                marginTop: '0.3rem',
+                marginBottom: showAutoSceneControls ? '0.4rem' : '0'
+              }}
+            >
+              🎪 {showAutoSceneControls ? '▼ Hide Auto' : '▶ Show Auto'} ({autoSceneList.length})
+            </button>
+
+            {/* Auto Scene Controls */}
+            {showAutoSceneControls && (
+              <div style={{
+                background: 'rgba(0, 0, 0, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(168, 85, 247, 0.3)'
+              }}>
+                {/* Auto Scene Status and Control */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: '0.3rem',
+                  marginBottom: '0.4rem',
+                  alignItems: 'center'
+                }}>
+                  <div style={{
+                    fontSize: '0.7rem',
+                    color: autoSceneEnabled ? '#00ff00' : '#cccccc'
+                  }}>
+                    Status: {autoSceneEnabled ? '▶️ Playing' : '⏸️ Stopped'}
+                    {autoSceneEnabled && (
+                      <div style={{ fontSize: '0.6rem', marginTop: '0.2rem' }}>
+                        Mode: {autoSceneMode}, {autoSceneBeatDivision} beats
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleAutoSceneToggle}
+                    style={{
+                      background: autoSceneEnabled ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 255, 0, 0.8)',
+                      border: `1px solid ${autoSceneEnabled ? 'rgba(255, 0, 0, 0.9)' : 'rgba(0, 255, 0, 0.9)'}`,
+                      color: '#ffffff',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      touchAction: 'manipulation'
+                    }}
+                  >
+                    {autoSceneEnabled ? '⏹️ STOP' : '▶️ START'}
+                  </button>
+                </div>
+
+                {/* Auto Scene Configuration */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.3rem',
+                  marginBottom: '0.4rem'
+                }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.65rem',
+                      color: '#cccccc',
+                      marginBottom: '0.2rem'
+                    }}>
+                      Mode:
+                    </label>
+                    <select
+                      value={autoSceneMode}
+                      onChange={(e) => setAutoSceneMode(e.target.value as 'forward' | 'ping-pong' | 'random')}
+                      style={{
+                        width: '100%',
+                        padding: '0.3rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.65rem'
+                      }}
+                    >
+                      <option value="forward" style={{ background: '#2d2d2d' }}>Forward</option>
+                      <option value="ping-pong" style={{ background: '#2d2d2d' }}>Ping-Pong</option>
+                      <option value="random" style={{ background: '#2d2d2d' }}>Random</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.65rem',
+                      color: '#cccccc',
+                      marginBottom: '0.2rem'
+                    }}>
+                      Every (beats):
+                    </label>
+                    <input
+                      type="number"
+                      value={autoSceneBeatDivision}
+                      onChange={(e) => setAutoSceneBeatDivision(Math.max(1, parseInt(e.target.value) || 1))}
+                      style={{
+                        width: '100%',
+                        padding: '0.3rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.65rem',
+                        textAlign: 'center'
+                      }}
+                      min="1"
+                      max="32"
+                    />
+                  </div>
+                </div>
+
+                {/* Tempo Source */}
+                <div style={{
+                  marginBottom: '0.4rem'
+                }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.65rem',
+                    color: '#cccccc',
+                    marginBottom: '0.2rem'
+                  }}>
+                    Tempo Source:
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '0.3rem',
+                    alignItems: 'center'
+                  }}>
+                    <select
+                      value={autoSceneTempoSource}
+                      onChange={(e) => setAutoSceneTempoSource(e.target.value as 'internal_clock' | 'manual_bpm' | 'tap_tempo')}
+                      style={{
+                        padding: '0.3rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.65rem'
+                      }}
+                    >
+                      <option value="internal_clock" style={{ background: '#2d2d2d' }}>Internal Clock</option>
+                      <option value="manual_bpm" style={{ background: '#2d2d2d' }}>Manual BPM</option>
+                      <option value="tap_tempo" style={{ background: '#2d2d2d' }}>Tap Tempo</option>
+                    </select>
+
+                    {autoSceneTempoSource === 'manual_bpm' && (
+                      <input
+                        type="number"
+                        value={Math.round(autoSceneManualBpm)}
+                        onChange={(e) => setManualBpm(parseInt(e.target.value) || 120)}
+                        style={{
+                          width: '60px',
+                          padding: '0.3rem',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: '#ffffff',
+                          fontSize: '0.65rem',
+                          textAlign: 'center'
+                        }}
+                        min="20"
+                        max="300"
+                      />
+                    )}
+
+                    {autoSceneTempoSource === 'tap_tempo' && (
+                      <button
+                        onClick={recordTapTempo}
+                        style={{
+                          background: 'rgba(168, 85, 247, 0.8)',
+                          border: '1px solid rgba(168, 85, 247, 0.9)',
+                          color: '#ffffff',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.65rem',
+                          touchAction: 'manipulation'
+                        }}
+                      >
+                        TAP ({Math.round(autoSceneTapTempoBpm)})
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scene Selection for Auto Play */}
+                {scenes.length > 0 && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.65rem',
+                      color: '#cccccc',
+                      marginBottom: '0.3rem'
+                    }}>
+                      Auto-Play Scenes:
+                    </label>
+                    <div style={{
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      background: 'rgba(0, 0, 0, 0.2)',
+                      padding: '0.3rem',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(168, 85, 247, 0.2)'
+                    }}>
+                      {scenes.map((scene) => (
+                        <div
+                          key={scene.name}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.2rem',
+                            marginBottom: '0.2rem',
+                            background: autoSceneList.includes(scene.name) ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onClick={() => toggleSceneInAutoList(scene.name)}
+                        >
+                          <div style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '2px',
+                            background: autoSceneList.includes(scene.name) ? '#a855f7' : 'transparent',
+                            border: '1px solid #a855f7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {autoSceneList.includes(scene.name) && (
+                              <span style={{ color: '#ffffff', fontSize: '8px' }}>✓</span>
+                            )}
+                          </div>
+                          <span style={{
+                            fontSize: '0.65rem',
+                            color: '#ffffff',
+                            flex: 1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {scene.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}        {/* Page Navigation - Compact */}
         {showControls && (
