@@ -20,7 +20,24 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     groups,
     selectedChannels,
     getDmxChannelValue, 
-    setDmxChannelValue
+    setDmxChannelValue,
+    // Autopilot Track System
+    autopilotTrackEnabled,
+    autopilotTrackType,
+    autopilotTrackPosition,
+    autopilotTrackSize,
+    autopilotTrackSpeed,
+    autopilotTrackCenterX,
+    autopilotTrackCenterY,
+    autopilotTrackAutoPlay,
+    setAutopilotTrackEnabled,
+    setAutopilotTrackType,
+    setAutopilotTrackPosition,
+    setAutopilotTrackSize,
+    setAutopilotTrackSpeed,
+    setAutopilotTrackCenter,
+    setAutopilotTrackAutoPlay,
+    updatePanTiltFromTrack
   } = useStore();
 
   // Selection state
@@ -1506,10 +1523,114 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               Reset to Center
             </button>
           </div>
-          
-          <div style={{ display: 'flex', gap: '10px', fontSize: '0.9rem', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', fontSize: '0.9rem', justifyContent: 'center' }}>
             <span>Pan: {panValue}</span>
             <span>Tilt: {tiltValue}</span>
+          </div>
+
+          {/* Autopilot Track System */}
+          <h5>Autopilot Track Control</h5>
+          
+          <div className={styles.autopilotSection}>
+            <div className={styles.autopilotHeader}>
+              <label className={styles.autopilotToggle}>
+                <input
+                  type="checkbox"
+                  checked={autopilotTrackEnabled}
+                  onChange={(e) => setAutopilotTrackEnabled(e.target.checked)}
+                />
+                <span>Enable Autopilot Track</span>
+              </label>
+            </div>
+
+            {autopilotTrackEnabled && (
+              <div className={styles.autopilotControls}>
+                <div className={styles.controlRow}>
+                  <label>Track Type</label>
+                  <select
+                    value={autopilotTrackType}
+                    onChange={(e) => setAutopilotTrackType(e.target.value as any)}
+                    className={styles.trackSelect}
+                  >
+                    <option value="circle">Circle</option>
+                    <option value="figure8">Figure 8</option>
+                    <option value="square">Square</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="linear">Linear</option>
+                    <option value="random">Random</option>
+                  </select>
+                </div>
+
+                <div className={styles.controlRow}>
+                  <label>Track Position</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={autopilotTrackPosition}
+                    onChange={(e) => setAutopilotTrackPosition(parseInt(e.target.value))}
+                    className={styles.trackSlider}
+                  />
+                  <span>{autopilotTrackPosition}%</span>
+                </div>
+
+                <div className={styles.controlRow}>
+                  <label>Track Size</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={autopilotTrackSize}
+                    onChange={(e) => setAutopilotTrackSize(parseInt(e.target.value))}
+                  />
+                  <span>{autopilotTrackSize}%</span>
+                </div>
+
+                <div className={styles.controlRow}>
+                  <label>Center Pan</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={autopilotTrackCenterX}
+                    onChange={(e) => setAutopilotTrackCenter(parseInt(e.target.value), autopilotTrackCenterY)}
+                  />
+                  <span>{autopilotTrackCenterX}</span>
+                </div>
+
+                <div className={styles.controlRow}>
+                  <label>Center Tilt</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={autopilotTrackCenterY}
+                    onChange={(e) => setAutopilotTrackCenter(autopilotTrackCenterX, parseInt(e.target.value))}
+                  />
+                  <span>{autopilotTrackCenterY}</span>
+                </div>
+
+                <div className={styles.autopilotActions}>
+                  <button
+                    className={styles.trackPreviewBtn}
+                    onClick={() => updatePanTiltFromTrack()}
+                    title="Apply current track position to fixtures"
+                  >
+                    <LucideIcon name="Play" />
+                    Apply Position
+                  </button>
+                  
+                  <button
+                    className={styles.trackCenterBtn}
+                    onClick={() => setAutopilotTrackCenter(127, 127)}
+                    title="Center the track"
+                  >
+                    <LucideIcon name="Target" />
+                    Center Track
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

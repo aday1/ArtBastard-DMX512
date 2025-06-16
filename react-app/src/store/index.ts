@@ -312,6 +312,17 @@ interface State {
   autoSceneTapTimes: number[]; // Stores recent tap intervals
   autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
   autoSceneIsFlashing: boolean; // Shared flashing state for downbeat border flash
+
+  // Autopilot Track System State
+  autopilotTrackEnabled: boolean;
+  autopilotTrackType: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'random' | 'custom';
+  autopilotTrackPosition: number; // 0-100, position along the track
+  autopilotTrackSize: number; // 0-100, size/scale of the track
+  autopilotTrackSpeed: number; // 0-100, speed of automatic movement (when auto-playing)
+  autopilotTrackCenterX: number; // 0-255, center point X for the track
+  autopilotTrackCenterY: number; // 0-255, center point Y for the track
+  autopilotTrackAutoPlay: boolean; // Auto-advance along track
+  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -385,29 +396,20 @@ interface State {
   setAutoSceneTempoSource: (source: 'internal_clock' | 'manual_bpm' | 'tap_tempo') => void;
   setNextAutoSceneIndex: () => void; // Calculates and updates autoSceneCurrentIndex
   resetAutoSceneIndex: () => void;
-  setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
-  recordTapTempo: () => void;         // For auto-scene tap tempo
+  setManualBpm: (bpm: number) => void; // For auto-scene manual tempo  recordTapTempo: () => void;         // For auto-scene tap tempo
   triggerAutoSceneFlash: () => void;  // Triggers the shared flashing state
 
-  // Enhanced Group State
-  updateGroup: (groupId: string, groupData: Partial<Group>) => void;  
-  addGroupToCanvas: (group: Group, position: { x: number; y: number }) => void;
-  updateGroupPosition: (groupId: string, position: { x: number; y: number }) => void;
-  saveGroupLastStates: (groupId: string) => void; // Moved up
+  // Group Actions
+  updateGroup: (groupId: string, groupData: Partial<Group>) => void;
+  saveGroupLastStates: (groupId: string) => void;
   setGroupMasterValue: (groupId: string, value: number) => void;
-  setGroupMute: (groupId: string, isMuted: boolean) => void;
-  setGroupSolo: (groupId: string, isSolo: boolean) => void;
-
-  // Group positioning and offset actions
-  setGroupPanOffset: (groupId: string, panOffset: number) => void;
-  setGroupTiltOffset: (groupId: string, tiltOffset: number) => void;
-  setGroupZoomValue: (groupId: string, zoomValue: number) => void;
-
-  // Group MIDI actions
+  setGroupMute: (groupId: string, muted: boolean) => void;
+  setGroupSolo: (groupId: string, solo: boolean) => void;
+  setGroupPanOffset: (groupId: string, offset: number) => void;
+  setGroupTiltOffset: (groupId: string, offset: number) => void;
+  setGroupZoomValue: (groupId: string, value: number) => void;
   startGroupMidiLearn: (groupId: string) => void;
-  cancelGroupMidiLearn: () => void;
-  setGroupMidiMapping: (groupId: string, mapping: MidiMapping | undefined) => void;
-  handleMidiForGroups: (message: any) => void;
+  setGroupMidiMapping: (groupId: string, mapping?: MidiMapping) => void;
 
   // Fixture Flagging Actions
   addFixtureFlag: (fixtureId: string, flag: FixtureFlag) => void;
@@ -417,9 +419,23 @@ interface State {
   clearFixtureFlags: (fixtureId: string) => void;
   getFixturesByFlag: (flagId: string) => Fixture[];
   getFixturesByFlagCategory: (category: string) => Fixture[];
-  createQuickFlag: (name: string, color: string, category?: string) => FixtureFlag;
+  createQuickFlag: (name: string, color: string, category: string) => FixtureFlag;
   bulkAddFlag: (fixtureIds: string[], flag: FixtureFlag) => void;
   bulkRemoveFlag: (fixtureIds: string[], flagId: string) => void;
+
+  // Autopilot Track Actions
+  setAutopilotTrackEnabled: (enabled: boolean) => void;
+  setAutopilotTrackType: (type: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'random' | 'custom') => void;
+  setAutopilotTrackPosition: (position: number) => void;
+  setAutopilotTrackSize: (size: number) => void;
+  setAutopilotTrackSpeed: (speed: number) => void;
+  setAutopilotTrackCenter: (centerX: number, centerY: number) => void;
+  setAutopilotTrackAutoPlay: (autoPlay: boolean) => void;
+  setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;
+  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
+  updatePanTiltFromTrack: () => void;
+
+  // ...existing code...
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -562,10 +578,20 @@ export const useStore = create<State>()(
           autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
           autoSceneLastTapTime: 0, // Don't persist timing state
           autoSceneTapTimes: [], // Don't persist timing state
-          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',
-          autoSceneIsFlashing: false, // Initial flashing state
+          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',          autoSceneIsFlashing: false, // Initial flashing state
         };
       })(),
+
+      // Autopilot Track System Initial State
+      autopilotTrackEnabled: false,
+      autopilotTrackType: 'circle',
+      autopilotTrackPosition: 0,
+      autopilotTrackSize: 50,
+      autopilotTrackSpeed: 50,
+      autopilotTrackCenterX: 127,
+      autopilotTrackCenterY: 127,
+      autopilotTrackAutoPlay: false,
+      autopilotTrackCustomPoints: [],
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
@@ -1460,8 +1486,7 @@ export const useStore = create<State>()(
         // Auto-clear the flashing state after 200ms
         setTimeout(() => {
           set({ autoSceneIsFlashing: false });
-        }, 200);
-      },
+        }, 200);      },
 
       // Enhanced Group State Actions Implementations
       updateGroup: (groupId, groupData) => {
@@ -1599,6 +1624,218 @@ export const useStore = create<State>()(
         get().addNotification({ message: `MIDI mapped for Group: ${groupId}`, type: 'success' });
       },      handleMidiForGroups: (message) => {
         // Placeholder for MIDI handling logic for groups
+      },      // Autopilot Track Actions
+      setAutopilotTrackEnabled: (enabled) => {
+        set({ autopilotTrackEnabled: enabled });
+      },
+
+      setAutopilotTrackType: (type) => {
+        set({ autopilotTrackType: type });
+      },
+
+      setAutopilotTrackPosition: (position) => {
+        set({ autopilotTrackPosition: position });
+        // Automatically update pan/tilt when position changes
+        get().updatePanTiltFromTrack();
+      },
+
+      setAutopilotTrackSize: (size) => {
+        set({ autopilotTrackSize: size });
+      },
+
+      setAutopilotTrackSpeed: (speed) => {
+        set({ autopilotTrackSpeed: speed });
+      },
+
+      setAutopilotTrackCenter: (centerX, centerY) => {
+        set({ 
+          autopilotTrackCenterX: centerX,
+          autopilotTrackCenterY: centerY 
+        });
+      },
+
+      setAutopilotTrackAutoPlay: (autoPlay) => {
+        set({ autopilotTrackAutoPlay: autoPlay });
+      },
+
+      setAutopilotTrackCustomPoints: (points) => {
+        set({ autopilotTrackCustomPoints: points });
+      },
+
+      calculateTrackPosition: (trackType, position, size, centerX, centerY) => {
+        const normalizedPosition = position / 100; // Convert 0-100 to 0-1
+        const radius = size / 100 * 127; // Convert size percentage to DMX range
+        
+        let x = centerX;
+        let y = centerY;
+        
+        switch (trackType) {
+          case 'circle':
+            const angle = normalizedPosition * 2 * Math.PI;
+            x = centerX + radius * Math.cos(angle);
+            y = centerY + radius * Math.sin(angle);
+            break;
+            
+          case 'figure8':
+            const t = normalizedPosition * 2 * Math.PI;
+            x = centerX + radius * Math.sin(t);
+            y = centerY + radius * Math.sin(t) * Math.cos(t);
+            break;
+            
+          case 'square':
+            const side = Math.floor(normalizedPosition * 4);
+            const sidePosition = (normalizedPosition * 4) % 1;
+            
+            switch (side) {
+              case 0: // Top
+                x = centerX - radius + sidePosition * 2 * radius;
+                y = centerY + radius;
+                break;
+              case 1: // Right
+                x = centerX + radius;
+                y = centerY + radius - sidePosition * 2 * radius;
+                break;
+              case 2: // Bottom
+                x = centerX + radius - sidePosition * 2 * radius;
+                y = centerY - radius;
+                break;
+              case 3: // Left
+                x = centerX - radius;
+                y = centerY - radius + sidePosition * 2 * radius;
+                break;
+            }
+            break;
+            
+          case 'triangle':
+            const triSide = Math.floor(normalizedPosition * 3);
+            const triPosition = (normalizedPosition * 3) % 1;
+            const triRadius = radius * 1.15; // Slightly larger for better triangle shape
+            
+            switch (triSide) {
+              case 0: // Bottom to top-right
+                x = centerX - triRadius * 0.5 + triPosition * triRadius;
+                y = centerY - triRadius * 0.3 + triPosition * triRadius * 0.866;
+                break;
+              case 1: // Top-right to top-left
+                x = centerX + triRadius * 0.5 - triPosition * triRadius;
+                y = centerY + triRadius * 0.6;
+                break;
+              case 2: // Top-left to bottom
+                x = centerX - triRadius * 0.5 + triPosition * triRadius * 0.5;
+                y = centerY + triRadius * 0.6 - triPosition * triRadius * 0.9;
+                break;
+            }
+            break;
+            
+          case 'linear':
+            x = centerX - radius + normalizedPosition * 2 * radius;
+            y = centerY;
+            break;
+            
+          case 'random':
+            // Generate consistent random values based on position
+            const seed = Math.floor(normalizedPosition * 100);
+            const randomX = ((seed * 9301 + 49297) % 233280) / 233280;
+            const randomY = ((seed * 9301 + 49297 + 1000) % 233280) / 233280;
+            
+            x = centerX + (randomX - 0.5) * 2 * radius;
+            y = centerY + (randomY - 0.5) * 2 * radius;
+            break;
+            
+          case 'custom':
+            const { autopilotTrackCustomPoints } = get();
+            if (autopilotTrackCustomPoints.length >= 2) {
+              const totalSegments = autopilotTrackCustomPoints.length;
+              const segmentIndex = Math.floor(normalizedPosition * totalSegments);
+              const segmentPosition = (normalizedPosition * totalSegments) % 1;
+              
+              const startPoint = autopilotTrackCustomPoints[segmentIndex];
+              const endPoint = autopilotTrackCustomPoints[(segmentIndex + 1) % totalSegments];
+              
+              x = startPoint.x + (endPoint.x - startPoint.x) * segmentPosition;
+              y = startPoint.y + (endPoint.y - startPoint.y) * segmentPosition;
+            }
+            break;
+        }
+        
+        // Clamp values to DMX range (0-255)
+        return {
+          pan: Math.max(0, Math.min(255, Math.round(x))),
+          tilt: Math.max(0, Math.min(255, Math.round(y)))
+        };
+      },
+
+      updatePanTiltFromTrack: () => {
+        const { 
+          autopilotTrackEnabled,
+          autopilotTrackType, 
+          autopilotTrackPosition, 
+          autopilotTrackSize, 
+          autopilotTrackCenterX, 
+          autopilotTrackCenterY,
+          selectedChannels,
+          fixtures,
+          groups
+        } = get();
+        
+        if (!autopilotTrackEnabled) return;
+        
+        const { pan, tilt } = get().calculateTrackPosition(
+          autopilotTrackType,
+          autopilotTrackPosition,
+          autopilotTrackSize,
+          autopilotTrackCenterX,
+          autopilotTrackCenterY
+        );
+        
+        // Update Pan/Tilt values for selected channels or fixtures
+        const updates: { [key: number]: number } = {};
+        
+        // If we have selected channels, try to identify Pan/Tilt channels
+        if (selectedChannels.length > 0) {
+          selectedChannels.forEach(channelIndex => {
+            // Try to find fixtures that contain this channel
+            fixtures.forEach(fixture => {
+              const localChannelIndex = channelIndex - fixture.startAddress + 1;
+              if (localChannelIndex >= 0 && localChannelIndex < fixture.channels.length) {
+                const channel = fixture.channels[localChannelIndex];
+                if (channel.type.toLowerCase() === 'pan') {
+                  updates[channelIndex] = pan;
+                } else if (channel.type.toLowerCase() === 'tilt') {
+                  updates[channelIndex] = tilt;
+                }
+              }
+            });
+          });
+        } else {
+          // No specific channels selected, update all fixtures in active groups or all fixtures
+          const activeFixtures = fixtures.filter(fixture => {
+            const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtures.indexOf(fixture)));
+            const activeSoloGroups = groups.filter(g => g.isSolo);
+            
+            if (activeSoloGroups.length > 0) {
+              return fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
+            }
+            
+            return true; // If no solo groups, all fixtures are active
+          });
+          
+          activeFixtures.forEach(fixture => {
+            fixture.channels.forEach((channel, localIndex) => {
+              const dmxIndex = fixture.startAddress + localIndex - 1;
+              if (channel.type.toLowerCase() === 'pan') {
+                updates[dmxIndex] = pan;
+              } else if (channel.type.toLowerCase() === 'tilt') {
+                updates[dmxIndex] = tilt;
+              }
+            });
+          });
+        }
+        
+        // Apply the updates
+        if (Object.keys(updates).length > 0) {
+          get().setMultipleDmxChannels(updates);
+        }
       },
 
       // Fixture Flagging Actions
@@ -1645,7 +1882,7 @@ export const useStore = create<State>()(
         get().addNotification({ 
           message: `Flag removed from fixture`, 
           type: 'success' 
-        });
+ });
       },
 
       toggleFixtureFlag: (fixtureId, flagId) => {
@@ -1666,6 +1903,8 @@ export const useStore = create<State>()(
       },
 
       updateFixtureFlag: (fixtureId, flagId, updates) => {
+       
+
         set(state => ({
           fixtures: state.fixtures.map(f => {
             if (f.id === fixtureId) {

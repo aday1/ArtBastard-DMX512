@@ -1422,43 +1422,127 @@
   margin: 10px 0;
 }
 
-.debugSection {
-  background: rgba(255, 193, 7, 0.1);
-  border: 1px solid rgba(255, 193, 7, 0.3);
-  border-radius: 8px;
-  padding: 12px;
-  margin: 10px 0;
+// Autopilot Track System Styles
+.autopilotSection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.autopilotHeader {
+  margin-bottom: 16px;
+}
+
+.autopilotToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
   
-  h5 {
-    margin: 0 0 10px 0;
-    color: #ffc107;
-    font-size: 0.9rem;
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #00d4ff;
+    cursor: pointer;
+  }
+  
+  span {
+    color: #00d4ff;
+    font-size: 0.95rem;
   }
 }
 
-.debugControls {
+.autopilotControls {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(0, 212, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.trackSelect {
+  flex: 1;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+  }
+  
+  option {
+    background: #1a1a2e;
+    color: #fff;
+  }
+}
+
+.trackSlider {
+  background: linear-gradient(90deg, #00d4ff 0%, #0099cc 100%) !important;
+  
+  &::-webkit-slider-thumb {
+    background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%) !important;
+    border: 2px solid #00d4ff !important;
+  }
+}
+
+.autopilotActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 12px;
   flex-wrap: wrap;
 }
 
-.debugBtn {
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+.trackPreviewBtn,
+.trackCenterBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
   border: none;
   border-radius: 6px;
-  color: #000;
-  font-size: 0.8rem;
+  color: #fff;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: linear-gradient(135deg, #ffca28 0%, #e6ac00 100%);
+    background: linear-gradient(135deg, #00b8e6 0%, #0088bb 100%);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
   }
   
   &:active {
     transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
+
+.trackCenterBtn {
+  background: linear-gradient(135deg, #666 0%, #555 100%);
+  
+  &:hover {
+    background: linear-gradient(135deg, #777 0%, #666 100%);
   }
 }

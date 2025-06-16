@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autopilot Track Feature Test Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            background-color: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #2196F3;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 10px;
+        }
+        h3 {
+            color: #FF9800;
+            margin-top: 25px;
+        }
+        .step {
+            background-color: #3a3a3a;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #4CAF50;
+            border-radius: 5px;
+        }
+        .code {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #444;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #1b5e20;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        ul {
+            padding-left: 25px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .feature-list {
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .track-patterns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .pattern {
+            background-color: #3d3d3d;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .pattern h4 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Autopilot Track Feature Test Guide</h1>
+        
+        <div class="success">
+            <strong>✅ Status:</strong> The Autopilot Track feature has been fully implemented and is ready for testing!
+        </div>
+
+        <h2>🚀 Quick Start</h2>
+        <div class="step">
+            <strong>Step 1:</strong> Open the application at <code>http://localhost:3001</code>
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Navigate to the <strong>SuperControl</strong> panel (Fixtures tab)
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Find the <strong>"Pan/Tilt Control"</strong> section
+        </div>
+        <div class="step">
+            <strong>Step 4:</strong> Locate the new <strong>"Autopilot Track Control"</strong> subsection
+        </div>
+
+        <h2>📋 Pre-Test Setup</h2>
+        <div class="feature-list">
+            <h3>Required Setup:</h3>
+            <ul>
+                <li>Ensure you have fixtures configured with Pan and Tilt channels</li>
+                <li>Create at least one fixture group or select individual fixtures</li>
+                <li>Verify DMX output is working (ArtNet enabled)</li>
+                <li>Have a fixture with moving head capabilities for best results</li>
+            </ul>
+        </div>
+
+        <h2>🧪 Test Procedures</h2>
+        
+        <h3>Test 1: Basic Enable/Disable</h3>
+        <div class="step">
+            <ol>
+                <li>Locate the <strong>"Enable Autopilot Track"</strong> checkbox</li>
+                <li>Click the checkbox to enable autopilot mode</li>
+                <li>Verify the autopilot controls become visible</li>
+                <li>Uncheck the box to ensure controls hide properly</li>
+                <li>Re-enable for further testing</li>
+            </ol>
+        </div>
+
+        <h3>Test 2: Track Pattern Selection</h3>
+        <div class="track-patterns">
+            <div class="pattern">
+                <h4>Circle</h4>
+                <p>Circular movement pattern</p>
+            </div>
+            <div class="pattern">
+                <h4>Figure 8</h4>
+                <p>Infinity/figure-eight path</p>
+            </div>
+            <div class="pattern">
+                <h4>Square</h4>
+                <p>Four-sided rectangular path</p>
+            </div>
+            <div class="pattern">
+                <h4>Triangle</h4>
+                <p>Three-sided triangular path</p>
+            </div>
+            <div class="pattern">
+                <h4>Linear</h4>
+                <p>Straight horizontal line</p>
+            </div>
+            <div class="pattern">
+                <h4>Random</h4>
+                <p>Pseudo-random positions</p>
+            </div>
+        </div>
+        <div class="step">
+            <ol>
+                <li>Use the <strong>"Track Type"</strong> dropdown to select each pattern</li>
+                <li>For each pattern, move the <strong>"Track Position"</strong> slider</li>
+                <li>Click <strong>"Apply Position"</strong> to update fixture positions</li>
+                <li>Observe how fixtures move according to the selected pattern</li>
+            </ol>
+        </div>
+
+        <h3>Test 3: Position Control</h3>
+        <div class="step">
+            <ol>
+                <li>Set track type to <strong>"Circle"</strong></li>
+                <li>Slowly move the <strong>"Track Position"</strong> slider from 0% to 100%</li>
+                <li>Verify fixtures move smoothly along the circular path</li>
+                <li>Note that position updates happen in real-time as you drag</li>
+                <li>Test with other track patterns</li>
+            </ol>
+        </div>
+
+        <h3>Test 4: Size and Center Controls</h3>
+        <div class="step">
+            <ol>
+                <li>Set track size to different values (25%, 50%, 75%, 100%)</li>
+                <li>Observe how the movement radius changes</li>
+                <li>Adjust <strong>"Center Pan"</strong> and <strong>"Center Tilt"</strong> sliders</li>
+                <li>Verify the track center moves to the new position</li>
+                <li>Click <strong>"Center Track"</strong> button to reset to center (127, 127)</li>
+            </ol>
+        </div>
+
+        <h3>Test 5: Multi-Fixture Testing</h3>
+        <div class="step">
+            <ol>
+                <li>Select multiple fixtures or a group</li>
+                <li>Enable autopilot and test movement</li>
+                <li>Verify all selected fixtures move in sync</li>
+                <li>Test with different selection modes (channels, fixtures, groups)</li>
+            </ol>
+        </div>
+
+        <h2>🔧 Expected Behavior</h2>
+        <div class="feature-list">
+            <h3>What Should Work:</h3>
+            <ul>
+                <li><strong>Enable Checkbox:</strong> Shows/hides autopilot controls</li>
+                <li><strong>Track Type Selection:</strong> Changes movement pattern immediately</li>
+                <li><strong>Position Slider:</strong> Real-time position updates as you drag</li>
+                <li><strong>Size Control:</strong> Scales the movement radius</li>
+                <li><strong>Center Controls:</strong> Moves the track center point</li>
+                <li><strong>Apply Position Button:</strong> Forces an immediate position update</li>
+                <li><strong>Center Track Button:</strong> Resets center to 127, 127</li>
+                <li><strong>DMX Output:</strong> Pan/Tilt channels update in real-time</li>
+            </ul>
+        </div>
+
+        <h2>🐛 Known Issues & Limitations</h2>
+        <div class="warning">
+            <ul>
+                <li>Custom track pattern is implemented but requires additional UI for point definition</li>
+                <li>Auto-play mode is in the store but not yet connected to the UI</li>
+                <li>Speed control is available in store but not exposed in UI</li>
+                <li>Only works with fixtures that have Pan and Tilt channels</li>
+            </ul>
+        </div>
+
+        <h2>📊 Test Results Checklist</h2>
+        <div class="feature-list">
+            <h3>Mark as ✅ when confirmed working:</h3>
+            <ul>
+                <li>☐ Enable/Disable autopilot checkbox</li>
+                <li>☐ Track type dropdown selection</li>
+                <li>☐ Position slider real-time updates</li>
+                <li>☐ Size slider affects movement radius</li>
+                <li>☐ Center Pan/Tilt controls work</li>
+                <li>☐ Apply Position button triggers update</li>
+                <li>☐ Center Track button resets position</li>
+                <li>☐ Circle pattern works correctly</li>
+                <li>☐ Figure 8 pattern works correctly</li>
+                <li>☐ Square pattern works correctly</li>
+                <li>☐ Triangle pattern works correctly</li>
+                <li>☐ Linear pattern works correctly</li>
+                <li>☐ Random pattern works correctly</li>
+                <li>☐ Multi-fixture synchronization</li>
+                <li>☐ DMX values update correctly</li>
+            </ul>
+        </div>
+
+        <h2>🔍 Troubleshooting</h2>
+        <div class="warning">
+            <h3>If the autopilot isn't working:</h3>
+            <ul>
+                <li>Check that fixtures have Pan and Tilt channels defined</li>
+                <li>Verify ArtNet is connected and working</li>
+                <li>Ensure fixtures or groups are properly selected</li>
+                <li>Check browser console for any JavaScript errors</li>
+                <li>Try refreshing the page and re-testing</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <h3>🎉 Success Criteria</h3>
+            <p>The autopilot feature is working correctly if:</p>
+            <ul>
+                <li>The checkbox enables/disables the feature</li>
+                <li>Position slider updates fixture positions in real-time</li>
+                <li>Different track patterns create distinct movement shapes</li>
+                <li>Size and center controls modify the movement appropriately</li>
+                <li>Multiple fixtures move in synchronization</li>
+            </ul>
+        </div>
+
+        <div class="code">
+            Build Status: ✅ SUCCESSFUL<br>
+            TypeScript Errors: 3 remaining (unrelated to autopilot)<br>
+            Feature Status: 🎯 READY FOR TESTING
+        </div>
+    </div>
+</body>
+</html>
