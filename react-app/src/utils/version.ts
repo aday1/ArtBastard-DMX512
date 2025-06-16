@@ -13,30 +13,30 @@ export interface VersionInfo {
 
 // Current version info - update this for each release
 export const CURRENT_VERSION: VersionInfo = {
-  version: '5.1.2',
-  buildDate: '2025-06-10',
+  version: '5.1.3',
+  buildDate: '2025-06-16',
   releaseType: 'stable',
   features: [
-    'Enhanced DebugMenu System Tab with comprehensive system monitoring',
-    'Advanced MIDI debugging and testing capabilities',
-    'Professional debug interface design with enhanced CSS styling',
-    '2D Canvas Layout System overhaul with fullscreen support',
-    'Responsive layout architecture for all viewport sizes',
-    'Dynamic canvas resizing system with intelligent size management',
-    'Component integration & architecture improvements',
-    'Performance & user experience enhancements',
-    'Comprehensive error handling and robust error management'
+    'Touch-Friendly Manual Resize Handles for External Monitor Components',
+    'Native React-Grid-Layout Manual Corner Drag Resizing',
+    'Large, Visible Touch-Optimized Resize Handles with Custom CSS',
+    'Eliminated Button-Based Resizing for Better Touch Experience',
+    'Enhanced Visual Feedback with Prominent Corner Handles',
+    'Improved Touch Interaction on Professional Touch Screens',
+    'Cross-Platform Touch Compatibility for Desktop and Tablet Use',
+    'Streamlined UI with Intuitive Drag-to-Resize Functionality',
+    'Professional-Grade Touch Interface for External Monitor Setups'
   ],
   changelog: [
-    'Quantum Resonance Edition - Enhanced Debug System Integration',
-    'Fixed fullscreen canvas overflow issue with proper page fitting',
-    'Enhanced DebugMenu MIDI Tab with advanced debugging capabilities',
-    'Added professional debug interface with CSS styling system',
-    'Implemented responsive layout architecture for all viewports',
-    'Merged DebugInfo functionality into consolidated DebugMenu',
-    'Improved canvas rendering performance and memory management',
-    'Enhanced TypeScript integration with better type safety',
-    'Added comprehensive error handling with detailed reporting'
+    'Luminous Mastery Edition - Touch-Friendly Manual Resize Implementation',
+    'Replaced button-based resizing with native manual corner drag resizing',
+    'Added large, touch-optimized resize handles using custom CSS styling',
+    'Enhanced .react-resizable-handle-se with 20px size and visual prominence',
+    'Improved touch interaction for professional touchscreen external monitors',
+    'Eliminated redundant resize buttons for cleaner, more intuitive interface',
+    'Enhanced visual feedback with contrasting colors and hover effects',
+    'Optimized for cross-platform touch compatibility (desktop + tablet)',
+    'Implemented professional-grade touch interface standards for external displays'
   ]
 };
 
@@ -44,6 +44,33 @@ export const CURRENT_VERSION: VersionInfo = {
  * Version history for tracking releases
  */
 export const VERSION_HISTORY: VersionInfo[] = [
+  {
+    version: '5.1.3',
+    buildDate: '2025-06-16',
+    releaseType: 'stable',
+    features: [
+      'Touch-Friendly Manual Resize Handles for External Monitor Components',
+      'Native React-Grid-Layout Manual Corner Drag Resizing',
+      'Large, Visible Touch-Optimized Resize Handles with Custom CSS',
+      'Eliminated Button-Based Resizing for Better Touch Experience',
+      'Enhanced Visual Feedback with Prominent Corner Handles',
+      'Improved Touch Interaction on Professional Touch Screens',
+      'Cross-Platform Touch Compatibility for Desktop and Tablet Use',
+      'Streamlined UI with Intuitive Drag-to-Resize Functionality',
+      'Professional-Grade Touch Interface for External Monitor Setups'
+    ],
+    changelog: [
+      'Luminous Mastery Edition - Touch-Friendly Manual Resize Implementation',
+      'Replaced button-based resizing with native manual corner drag resizing',
+      'Added large, touch-optimized resize handles using custom CSS styling',
+      'Enhanced .react-resizable-handle-se with 20px size and visual prominence',
+      'Improved touch interaction for professional touchscreen external monitors',
+      'Eliminated redundant resize buttons for cleaner, more intuitive interface',
+      'Enhanced visual feedback with contrasting colors and hover effects',
+      'Optimized for cross-platform touch compatibility (desktop + tablet)',
+      'Implemented professional-grade touch interface standards for external displays'
+    ]
+  },
   {
     version: '5.1.2',
     buildDate: '2025-06-10',

@@ -16,8 +16,14 @@ const DMX_CHANGE_COOLDOWN = 50; // ms, reduced cooldown for more responsive spar
 export const Sparkles: React.FC = () => {
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
   const dmxChannels = useStore(state => state.dmxChannels);
+  const uiSettings = useStore(state => state.uiSettings);
   const lastDmxActivityTimeRef = useRef<number>(0);
   const prevDmxChannelsRef = useRef<number[]>(dmxChannels);
+
+  // Early return if sparkles are disabled
+  if (!uiSettings?.sparklesEnabled) {
+    return null;
+  }
 
   const addSparkle = useCallback(() => {
     setSparkles(currentSparkles => {

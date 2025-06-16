@@ -1,16 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
-import { Responsive, WidthProvider, Layout, Layouts } from 'react-grid-layout';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { PanelContextType, PanelComponent, usePanels, PanelProvider } from './PanelContext';
-import { 
-  COMPONENT_REGISTRY, 
-  getAllCategories, 
-  getComponentsByCategory, 
-  ComponentDefinition,
-  renderComponent 
-} from '../components/panels/ComponentRegistry';
+import { PanelComponent, usePanels, PanelProvider } from './PanelContext';
+import { COMPONENT_REGISTRY, ComponentDefinition, getAllCategories, getComponentsByCategory } from '../components/panels/ComponentRegistry';
+import { renderComponent } from '../components/panels/ComponentRegistry';
 
 interface ExternalWindowState {
   isOpen: boolean;
@@ -23,17 +15,6 @@ interface ExternalWindowContextType {
   externalWindow: ExternalWindowState;
   openExternalWindow: () => void;
   closeExternalWindow: () => void;
-  sendMessageToExternal: (message: any) => void;
-  selectedComponentId: string | null;
-  setSelectedComponentId: (id: string | null) => void;
-}
-
-interface ExternalWindowContextTypeExtended extends PanelContextType {
-  // Additional fields specific to ExternalWindowContext
-  externalWindow: ExternalWindowState; // Use the full state object instead of just Window
-  openExternalWindow: () => void;
-  closeExternalWindow: () => void;
-  isExternalWindowOpen: boolean;
   addComponentToExternal: (component: PanelComponent) => void;
   removeComponentFromExternal: (componentId: string) => void;
   sendMessageToExternal: (message: any) => void;
@@ -41,18 +22,7 @@ interface ExternalWindowContextTypeExtended extends PanelContextType {
   setSelectedComponentId: (id: string | null) => void;
 }
 
-const ExternalWindowContext = createContext<ExternalWindowContextTypeExtended | undefined>(undefined);
-
-export const useExternalWindow = () => {
-  const context = useContext(ExternalWindowContext);
-  if (context === undefined) { 
-    throw new Error('useExternalWindow must be used within an ExternalWindowProvider');
-  }
-  return context;
-};
-
-// Use Responsive from react-grid-layout with proper typing
-const ResponsiveGridLayoutWithWidth = WidthProvider(Responsive) as any; // Type assertion to avoid TS errors
+const ExternalWindowContext = createContext<ExternalWindowContextType | undefined>(undefined);
 
 // Touch-Optimized Component Library as Top Dock
 const TouchComponentLibrary: React.FC<{ 
@@ -308,47 +278,21 @@ const TouchQuickActions: React.FC<{ onHide: () => void, isVisible: boolean }> = 
 
 // Enhanced Touch-Optimized External Window Content Component
 const ExternalWindowContent: React.FC = () => {
-  const panelContext = usePanels(); 
-  const { addComponentToPanel, removeComponentFromPanel, layout, clearPanel } = panelContext;
+  const { addComponentToPanel, removeComponentFromPanel, layout, clearPanel } = usePanels();
   const [dragOver, setDragOver] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [componentLayouts, setComponentLayouts] = useState<Layout[]>([]); // Changed to Layout[]
+  const [componentSizes, setComponentSizes] = useState<Record<string, {cols: number, rows: number}>>({});
   const externalWindowRef = useRef<HTMLDivElement>(null);
   const [isQuickActionsVisible, setIsQuickActionsVisible] = useState(true);
-  const [isComponentLibraryExpanded, setIsComponentLibraryExpanded] = useState(false);
+  const [isComponentLibraryExpanded, setIsComponentLibraryExpanded] = useState(false); // New state
 
   const externalComponents = layout.external?.components || [];
-
-  // Convert externalComponents to react-grid-layout items and initialize if not present
-  useEffect(() => {
-    setComponentLayouts(prevLayouts => {
-      const existingLayoutIds = new Set(prevLayouts.map(l => l.i));
-      const newLayouts = externalComponents
-        .filter(comp => !existingLayoutIds.has(comp.id))
-        .map((component, index) => ({
-          i: component.id,
-          x: (index % 6), 
-          y: Math.floor(index / 6),          w: 1, 
-          h: 1, 
-          minW: 1,
-          maxW: 6,
-          minH: 1,
-          maxH: 4,
-        }));
-      
-      const currentComponentIds = new Set(externalComponents.map(c => c.id));
-      const filteredPrevLayouts = prevLayouts.filter(l => currentComponentIds.has(l.i));
-
-      return [...filteredPrevLayouts, ...newLayouts];
-    });
-  }, [externalComponents]);
-
 
   // Handle adding components from the component list
   const handleComponentAdd = (componentDef: ComponentDefinition) => {
     const componentId = `${componentDef.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    const newComponentToAdd: PanelComponent = { // Renamed to avoid conflict with component var in map
+    const newComponent: PanelComponent = {
       id: componentId,
       type: componentDef.type,
       title: componentDef.title,
@@ -359,29 +303,49 @@ const ExternalWindowContent: React.FC = () => {
       },
     };
 
-    addComponentToPanel('external', newComponentToAdd);
-    setComponentLayouts(prev => [...prev, { 
-      i: componentId, 
-      x: (prev.length % 6),      y: Math.floor(prev.length / 6), 
-      w: 1, 
-      h: 1,
-      minW: 1,
-      maxW: 6,
-      minH: 1,
-      maxH: 4,
-    }]);
-    console.log('Touch-optimized component added to external monitor:', newComponentToAdd);
-  };  
+    addComponentToPanel('external', newComponent);
+    console.log('Touch-optimized component added to external monitor:', newComponent);
+  };  // Handle removing components without confirmation for touch
   const handleRemoveComponent = (componentId: string, componentTitle: string) => {
     removeComponentFromPanel('external', componentId);
-    setComponentLayouts(prev => prev.filter(l => l.i !== componentId)); // Changed layout to l
+    // Clean up size state
+    setComponentSizes(prev => {
+      const newSizes = { ...prev };
+      delete newSizes[componentId];
+      return newSizes;
+    });
   };
-  
-  const onLayoutChange = (newLayout: Layout[], allLayouts: Layouts) => { // Changed types to Layout[] and Layouts
-    const currentBreakpointLayout = allLayouts.lg || newLayout;
-    setComponentLayouts(currentBreakpointLayout);
-  };
+  // Handle component resizing - Updated for 6-column grid layout
+  const handleComponentResize = (componentId: string, action: 'expand' | 'shrink' | 'fullscreen' | 'reset') => {
+    setComponentSizes(prev => {
+      const current = prev[componentId] || { cols: 1, rows: 1 };
+      let newSize = { ...current };
 
+      switch (action) {
+        case 'expand':
+          newSize.cols = Math.min(current.cols + 1, 6); // Updated to support 6 columns
+          newSize.rows = Math.min(current.rows + 1, 2);
+          break;
+        case 'shrink':
+          newSize.cols = Math.max(current.cols - 1, 1);
+          newSize.rows = Math.max(current.rows - 1, 1);
+          break;
+        case 'fullscreen':
+          newSize.cols = 6; // Updated to use all 6 columns for fullscreen
+          newSize.rows = 2;
+          break;
+        case 'reset':
+          newSize.cols = 1;
+          newSize.rows = 1;
+          break;
+      }
+
+      return {
+        ...prev,
+        [componentId]: newSize
+      };
+    });
+  };
 
   // Enhanced drop handling for cross-window drag and drop
   const handleDrop = (e: React.DragEvent) => {
@@ -407,16 +371,6 @@ const ExternalWindowContent: React.FC = () => {
 
       // Add component to the external panel using PanelContext
       addComponentToPanel('external', newComponent);
-      setComponentLayouts(prev => [...prev, {
-        i: newComponent.id,
-        x: (prev.length % 6), 
-        y: Math.floor(prev.length / 6),
-        w: 1,
-        h: 1,        minW: 1,
-        maxW: 6,
-        minH: 1,
-        maxH: 4,
-      }]);
       console.log('Component dropped on touch-optimized external monitor:', newComponent);
     } catch (error) {
       console.error('Failed to parse dropped component data:', error);
@@ -660,46 +614,39 @@ const ExternalWindowContent: React.FC = () => {
         WebkitOverflowScrolling: 'touch',
         height: '100vh', // Full screen height without header/footer
         paddingTop: isComponentLibraryExpanded ? '360px' : '0px', // Only library overlay padding when expanded
-      }}>        
-        {/* Touch-Optimized Components Display - Optimized for 1920x515 resolution */}
+      }}>        {/* Touch-Optimized Components Display - Optimized for 1920x515 resolution */}
         {externalComponents.length > 0 ? (
-          <ResponsiveGridLayoutWithWidth // Use the HOC here
-            className="layout"
-            layouts={{ lg: componentLayouts }} 
-            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-            cols={{ lg: 6, md: 5, sm: 4, xs: 2, xxs: 1 }} 
-            rowHeight={180} 
-            containerPadding={[2, 2]} 
-            margin={[3, 3]} 
-            isDraggable
-            isResizable
-            onLayoutChange={onLayoutChange}
-            draggableHandle=".component-drag-handle" 
-            preventCollision={false} 
-            style={{
-              height: '100%',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              scrollBehavior: 'smooth'
-            }}
-          >
-            {externalComponents.map((componentItem) => { // Renamed component to componentItem to avoid conflict
-              const layoutItem = componentLayouts.find(l => l.i === componentItem.id);
-              const componentSize = layoutItem ? { cols: layoutItem.w, rows: layoutItem.h } : { cols: 1, rows: 1 };
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, 1fr)', // 6 columns for wide 1920px screen
+            gridTemplateRows: 'repeat(auto-fit, minmax(180px, 1fr))', // Shorter rows for 515px height
+            gap: '0.3rem', // Minimal gap for maximum space usage
+            height: '100%',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: '0.2rem', // Minimal padding for maximum screen real estate
+            scrollBehavior: 'smooth'
+          }}>
+            {externalComponents.map((component) => {
+              const componentSize = componentSizes[component.id] || { cols: 1, rows: 1 };
               
               return (
                 <div
-                  key={componentItem.id}
-                  data-grid={layoutItem || {i: componentItem.id, x:0,y:0,w:1,h:1, minW:1, maxW:6, minH:1, maxH:4}} 
-                  style={{                    
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.12))',
-                    border: '1px solid rgba(255, 255, 255, 0.15)', 
-                    borderRadius: '8px', 
-                    position: 'relative', 
+                  key={component.id}
+                  style={{                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.12))',
+                    border: '1px solid rgba(255, 255, 255, 0.15)', // Thinner border for space saving
+                    borderRadius: '8px', // Smaller border radius for compact design
+                    padding: '0.5rem', // Minimal padding for maximum content space
+                    position: 'relative',
+                    minHeight: '160px', // Reduced for 515px height constraint
                     display: 'flex',
                     flexDirection: 'column',
                     backdropFilter: 'blur(10px)',
                     transition: 'all 0.3s ease',
+                    // Dynamic grid sizing optimized for 6-column layout
+                    gridColumn: `span ${Math.min(componentSize.cols, 6)}`, // Max 6 columns
+                    gridRow: `span ${Math.min(componentSize.rows, 2)}`, // Max 2 rows for height constraint
+                    // Visual feedback for different sizes
                     transform: componentSize.cols > 1 || componentSize.rows > 1 ? 'scale(1.01)' : 'scale(1)',
                     boxShadow: componentSize.cols > 1 || componentSize.rows > 1
                       ? '0 8px 32px rgba(78, 205, 196, 0.3)' 
@@ -707,34 +654,30 @@ const ExternalWindowContent: React.FC = () => {
                   }}
                 >
                   {/* Touch-Optimized Component Header with Resize Controls */}
-                  <div 
-                    className="component-drag-handle" 
-                    style={{                    
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.25rem', // Reduced from 0.75rem
-                      padding: '0.25rem 0.5rem', // Reduced vertical padding
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)', // Reduced border
-                      cursor: 'move' // Indicate draggable area
+                  <div style={{                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.75rem', // Reduced margin
+                    paddingBottom: '0.5rem', // Reduced padding
+                    borderBottom: '2px solid rgba(255, 255, 255, 0.15)'
                   }}>
                     <h3 style={{
                       margin: 0,
-                      fontSize: '1.1rem', // Reduced from 1.2rem
-                      fontWeight: '600', // Slightly less bold
+                      fontSize: '1.2rem',
+                      fontWeight: '700',
                       color: '#4ecdc4',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.3rem', // Reduced gap
+                      gap: '0.5rem',
                       flex: 1
                     }}>
-                      <span style={{ fontSize: '1.3rem' }}> {/* Reduced from 1.5rem */}
+                      <span style={{ fontSize: '1.5rem' }}>
                         {/* More specific icons based on component type */}
-                        {COMPONENT_REGISTRY[componentItem.type]?.icon ? 
-                          <i className={`${COMPONENT_REGISTRY[componentItem.type]?.icon} fa-fw`}></i> : 
+                        {COMPONENT_REGISTRY[component.type]?.icon ? 
+                          <i className={`${COMPONENT_REGISTRY[component.type]?.icon} fa-fw`}></i> : 
                           '⚙️'}
                       </span>
-                      {componentItem.title}
+                      {component.title}
                       <span style={{
                         fontSize: '0.7rem',
                         color: 'rgba(255, 255, 255, 0.5)',
@@ -742,16 +685,145 @@ const ExternalWindowContent: React.FC = () => {
                       }}>
                         ({componentSize.cols}×{componentSize.rows})
                       </span>
-                    </h3>                    <div style={{
+                    </h3>
+
+                    {/* Resize Control Buttons */}
+                    <div style={{
                       display: 'flex',
                       gap: '0.5rem',
-                      alignItems: 'center'                    }}>
+                      alignItems: 'center'
+                    }}>
+                      {/* Expand Button */}
+                      <button
+                        onClick={() => handleComponentResize(component.id, 'expand')}
+                        onTouchStart={(e) => e.preventDefault()}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          handleComponentResize(component.id, 'expand');
+                        }}
+                        disabled={componentSize.cols >= 6 && componentSize.rows >= 2} // Updated for 6-column grid
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(78, 205, 196, 0.5))',
+                          border: '2px solid rgba(78, 205, 196, 0.5)',
+                          color: '#4ecdc4',
+                          padding: '0.8rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          minWidth: '50px',
+                          minHeight: '50px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none',
+                          opacity: (componentSize.cols >= 6 && componentSize.rows >= 2) ? 0.5 : 1 // Updated for 6-column grid
+                        }}
+                        title="Expand Component"
+                      >
+                        <i className="fas fa-expand-arrows-alt"></i>
+                      </button>
+
+                      {/* Shrink Button */}
+                      <button
+                        onClick={() => handleComponentResize(component.id, 'shrink')}
+                        onTouchStart={(e) => e.preventDefault()}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          handleComponentResize(component.id, 'shrink');
+                        }}
+                        disabled={componentSize.cols <= 1 && componentSize.rows <= 1}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.5))',
+                          border: '2px solid rgba(255, 193, 7, 0.5)',
+                          color: '#ffc107',
+                          padding: '0.8rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          minWidth: '50px',
+                          minHeight: '50px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none',
+                          opacity: (componentSize.cols <= 1 && componentSize.rows <= 1) ? 0.5 : 1
+                        }}
+                        title="Shrink Component"
+                      >
+                        <i className="fas fa-compress-arrows-alt"></i>
+                      </button>
+
+                      {/* Fullscreen Button */}
+                      <button
+                        onClick={() => handleComponentResize(component.id, 'fullscreen')}
+                        onTouchStart={(e) => e.preventDefault()}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          handleComponentResize(component.id, 'fullscreen');
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(156, 39, 176, 0.5))',
+                          border: '2px solid rgba(156, 39, 176, 0.5)',
+                          color: '#9c27b0',
+                          padding: '0.8rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          minWidth: '50px',
+                          minHeight: '50px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none'
+                        }}
+                        title="Maximize Component"
+                      >
+                        <i className="fas fa-arrows-alt"></i>
+                      </button>
+
+                      {/* Reset Button */}
+                      <button
+                        onClick={() => handleComponentResize(component.id, 'reset')}
+                        onTouchStart={(e) => e.preventDefault()}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          handleComponentResize(component.id, 'reset');
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(76, 175, 80, 0.5))',
+                          border: '2px solid rgba(76, 175, 80, 0.5)',
+                          color: '#4caf50',
+                          padding: '0.8rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          minWidth: '50px',
+                          minHeight: '50px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none'
+                        }}
+                        title="Reset Size"
+                      >
+                        <i className="fas fa-undo"></i>
+                      </button>
+
                       {/* Remove Button */}
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          handleRemoveComponent(componentItem.id, componentItem.title);
+                          console.log('Remove button clicked for component:', component.id, component.title);
+                          handleRemoveComponent(component.id, component.title);
                         }}
                         onTouchStart={(e) => {
                           e.preventDefault();
@@ -760,18 +832,19 @@ const ExternalWindowContent: React.FC = () => {
                         onTouchEnd={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          handleRemoveComponent(componentItem.id, componentItem.title);
+                          console.log('Remove button touched for component:', component.id, component.title);
+                          handleRemoveComponent(component.id, component.title);
                         }}
                         style={{
-                          background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.3), rgba(244, 67, 54, 0.5))',
-                          border: '2px solid rgba(244, 67, 54, 0.5)',
-                          color: '#f44336',
-                          padding: '0.6rem',
+                          background: 'linear-gradient(135deg, rgba(255, 0, 0, 0.3), rgba(255, 0, 0, 0.5))',
+                          border: '2px solid rgba(255, 0, 0, 0.5)',
+                          color: '#ff6b6b',
+                          padding: '0.8rem',
                           borderRadius: '8px',
                           cursor: 'pointer',
-                          fontSize: '0.9rem',
-                          minWidth: '44px',
-                          minHeight: '44px',
+                          fontSize: '1rem',
+                          minWidth: '50px',
+                          minHeight: '50px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -779,15 +852,16 @@ const ExternalWindowContent: React.FC = () => {
                           transition: 'all 0.2s ease',
                           userSelect: 'none',
                           WebkitUserSelect: 'none',
-                          WebkitTapHighlightColor: 'transparent'
+                          WebkitTapHighlightColor: 'transparent',
+                          zIndex: 100
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'scale(1.1)';
-                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(244, 67, 54, 0.5), rgba(244, 67, 54, 0.7))';
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 0, 0, 0.5), rgba(255, 0, 0, 0.7))';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(244, 67, 54, 0.3), rgba(244, 67, 54, 0.5))';
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 0, 0, 0.3), rgba(255, 0, 0, 0.5))';
                         }}
                         title="Remove Component"
                       >
@@ -796,25 +870,28 @@ const ExternalWindowContent: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Touch-Optimized Component Content */}                  
-                  <div style={{ 
+                  {/* Touch-Optimized Component Content */}                  <div style={{ 
                     flex: 1, 
                     overflowY: 'auto',
-                    overflowX: 'hidden', // Prevent horizontal scroll within component
                     WebkitOverflowScrolling: 'touch',
-                    fontSize: componentSize.cols > 1 ? '1.0rem' : '0.9rem', // Adjusted font size based on component width
-                    padding: '0.25rem 0.5rem', // Reduced padding for content
-                    minHeight: '0' 
+                    fontSize: componentSize.cols > 1 ? '1.2rem' : '1.1rem', // Scale text with component size
+                    padding: '0.25rem', // Reduced padding for maximum content space
+                    minHeight: '120px' // Reduced min height for more content space
                   }}>
-                    {renderComponent(componentItem.type, { // Used componentItem
-                      ...componentItem.props,
+                    {renderComponent(component.type, {
+                      ...component.props,
                       touchOptimized: true,
+                      style: {
+                        transform: `scale(${componentSize.cols > 1 || componentSize.rows > 1 ? 1.1 : 1.05})`, // Scale content with component size
+                        ...component.props?.style
+                      }
                     })}
                   </div>
                 </div>
               );
             })}
-          </ResponsiveGridLayoutWithWidth> 
+
+          </div>
         ) : (
           <div style={{
             display: 'flex',
@@ -1163,116 +1240,13 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
               cursor: pointer;
               border-radius: 10px;
               border: 2px solid rgba(255,255,255,0.3);
-            }            .touch-target {
+            }
+            .touch-target {
               min-height: 48px;
               min-width: 48px;
               display: flex;
               align-items: center;
               justify-content: center;
-            }
-            
-            /* Touch-friendly React-Grid-Layout resize handles */
-            .react-resizable-handle {
-              position: absolute;
-              width: 20px;
-              height: 20px;
-              bottom: 0;
-              right: 0;
-              background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxnIGZpbGw9IiM0ZWNkYzQiPjxjaXJjbGUgY3g9IjEiIGN5PSIxIiByPSIxIi8+PGNpcmNsZSBjeD0iNSIgY3k9IjEiIHI9IjEiLz48Y2lyY2xlIGN4PSIxIiBjeT0iNSIgcj0iMSIvPjxjaXJjbGUgY3g9IjUiIGN5PSI1IiByPSIxIi8+PC9nPjwvc3ZnPg==');
-              background-position: bottom right;
-              padding: 0 3px 3px 0;
-              background-repeat: no-repeat;
-              background-origin: content-box;
-              box-sizing: border-box;
-              cursor: se-resize;
-              z-index: 100;
-            }
-            
-            /* Enhanced touch-friendly resize handle */
-            .react-resizable-handle-se {
-              width: 50px !important;
-              height: 50px !important;
-              bottom: -2px !important;
-              right: -2px !important;
-              background: linear-gradient(135deg, transparent 30%, rgba(78, 205, 196, 0.3) 50%, rgba(78, 205, 196, 0.6) 100%) !important;
-              border: 2px solid rgba(78, 205, 196, 0.4) !important;
-              border-radius: 0 0 8px 0 !important;
-              cursor: se-resize !important;
-              touch-action: none !important;
-              transition: all 0.2s ease !important;
-              z-index: 200 !important;
-            }
-            
-            .react-resizable-handle-se::before {
-              content: '';
-              position: absolute;
-              bottom: 4px;
-              right: 4px;
-              width: 0;
-              height: 0;
-              border-left: 12px solid transparent;
-              border-bottom: 12px solid rgba(78, 205, 196, 0.8);
-              pointer-events: none;
-            }
-            
-            .react-resizable-handle-se::after {
-              content: '⤡';
-              position: absolute;
-              bottom: 2px;
-              right: 2px;
-              font-size: 16px;
-              color: rgba(78, 205, 196, 0.9);
-              pointer-events: none;
-              font-weight: bold;
-              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-            }
-            
-            .react-resizable-handle-se:hover {
-              background: linear-gradient(135deg, transparent 20%, rgba(78, 205, 196, 0.5) 40%, rgba(78, 205, 196, 0.8) 100%) !important;
-              border-color: rgba(78, 205, 196, 0.8) !important;
-              transform: scale(1.1) !important;
-              box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4) !important;
-            }
-            
-            .react-resizable-handle-se:active {
-              background: linear-gradient(135deg, transparent 10%, rgba(78, 205, 196, 0.7) 30%, rgba(78, 205, 196, 1) 100%) !important;
-              border-color: rgba(78, 205, 196, 1) !important;
-              transform: scale(1.05) !important;
-              box-shadow: 0 2px 8px rgba(78, 205, 196, 0.6) !important;
-            }
-            
-            /* Touch-optimized hover states for components with resize handles */
-            .layout .react-grid-item:hover .react-resizable-handle-se {
-              opacity: 1;
-              visibility: visible;
-            }
-            
-            .layout .react-grid-item .react-resizable-handle-se {
-              opacity: 0.7;
-              visibility: visible;
-              transition: opacity 0.2s ease, visibility 0.2s ease;
-            }
-            
-            /* Ensure resize handles appear above other elements */
-            .react-grid-item.react-grid-placeholder {
-              background: rgba(78, 205, 196, 0.2) !important;
-              border: 2px dashed rgba(78, 205, 196, 0.6) !important;
-              border-radius: 8px !important;
-              z-index: 2 !important;
-            }
-            
-            /* Mobile/tablet optimizations */
-            @media (max-width: 1024px) {
-              .react-resizable-handle-se {
-                width: 60px !important;
-                height: 60px !important;
-              }
-              
-              .react-resizable-handle-se::after {
-                font-size: 20px !important;
-                bottom: 4px !important;
-                right: 4px !important;
-              }
             }
           </style>
         </head>
@@ -1350,18 +1324,11 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
       }
     };
   }, []);
-  // Create a dummy PanelContextType object to extend
-  const panelContext = usePanels();
-    // Complete context value with all required properties
-  const contextValue: ExternalWindowContextTypeExtended = {
-    // Include panel context properties
-    ...panelContext,
-    
-    // External window specific properties - provide the full state object
-    externalWindow: externalWindow,
+
+  const contextValue: ExternalWindowContextType = {
+    externalWindow,
     openExternalWindow,
     closeExternalWindow,
-    isExternalWindowOpen: externalWindow.isOpen,
     addComponentToExternal,
     removeComponentFromExternal,
     sendMessageToExternal,
@@ -1374,6 +1341,14 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
       {children}
     </ExternalWindowContext.Provider>
   );
+};
+
+export const useExternalWindow = (): ExternalWindowContextType => {
+  const context = useContext(ExternalWindowContext);
+  if (context === undefined) {
+    throw new Error('useExternalWindow must be used within an ExternalWindowProvider');
+  }
+  return context;
 };
 
 export default ExternalWindowProvider;

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Controller DMX Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .test-card {
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success { background-color: #2ecc71; }
+        .status-warning { background-color: #f39c12; }
+        .status-error { background-color: #e74c3c; }
+        .status-unknown { background-color: #95a5a6; }
+        
+        .test-button {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+        }
+        
+        .results {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .checklist li {
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border-left: 3px solid #4ecdc4;
+        }
+        
+        .issue-item {
+            background: rgba(231, 76, 60, 0.1);
+            border-left: 3px solid #e74c3c;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        
+        .solution-item {
+            background: rgba(46, 204, 113, 0.1);
+            border-left: 3px solid #2ecc71;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎛️ Super Controller DMX Test & Diagnostics</h1>
+            <p>Comprehensive testing and troubleshooting for Super Controller DMX issues</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Current Issue Analysis</h2>
+            <div class="issue-item">
+                <strong>Reported Problem:</strong> When moving controllers from Super Controller, none of the DMX addresses corresponding to those controllers are moving. The user suspects this is because it's using OSC to send messages instead of DMX updates.
+            </div>
+            
+            <div class="solution-item">
+                <strong>Actual Behavior:</strong> The Super Controller should send BOTH DMX and OSC messages (if OSC is enabled). The DMX messages should update the actual lighting equipment via ArtNet, while OSC is an additional output protocol.
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Live System Tests</h2>
+            <p>These tests will help identify the root cause of the Super Controller issue:</p>
+            
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>Backend Connectivity</h3>
+                    <div id="backend-status">
+                        <span class="status-indicator status-unknown"></span>Not tested
+                    </div>
+                    <button class="test-button" onclick="testBackendConnection()">Test Backend</button>
+                </div>
+                
+                <div class="test-card">
+                    <h3>DMX Channel Updates</h3>
+                    <div id="dmx-status">
+                        <span class="status-indicator status-unknown"></span>Not tested
+                    </div>
+                    <button class="test-button" onclick="testDMXChannel()">Test DMX Update</button>
+                </div>
+                
+                <div class="test-card">
+                    <h3>ArtNet Configuration</h3>
+                    <div id="artnet-status">
+                        <span class="status-indicator status-unknown"></span>Not tested
+                    </div>
+                    <button class="test-button" onclick="checkArtNetConfig()">Check ArtNet</button>
+                </div>
+                
+                <div class="test-card">
+                    <h3>Super Controller Flow</h3>
+                    <div id="supercontroller-status">
+                        <span class="status-indicator status-unknown"></span>Manual test required
+                    </div>
+                    <button class="test-button" onclick="testSuperControllerFlow()">Guide Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Test Results</h2>
+            <div id="test-results" class="results">
+                Click the test buttons above to run diagnostics...
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Common Issues & Solutions</h2>
+            
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>🚨 Issue #1: ArtNet Not Enabled</h3>
+                    <p><strong>Symptoms:</strong> No DMX output to lighting equipment</p>
+                    <p><strong>Solution:</strong></p>
+                    <ul>
+                        <li>Go to Settings → ArtNet Configuration</li>
+                        <li>Enable ArtNet</li>
+                        <li>Set correct IP address (lighting interface IP)</li>
+                        <li>Set Universe to 0 (or your target universe)</li>
+                        <li>Save and restart application</li>
+                    </ul>
+                </div>
+                
+                <div class="test-card">
+                    <h3>⚠️ Issue #2: Nothing Selected</h3>
+                    <p><strong>Symptoms:</strong> Super Controller moves but nothing happens</p>
+                    <p><strong>Solution:</strong></p>
+                    <ul>
+                        <li>Check Super Controller selection mode</li>
+                        <li>In "channels" mode: Select DMX channels first</li>
+                        <li>In "fixtures" mode: Select fixtures from list</li>
+                        <li>In "groups" mode: Select fixture groups</li>
+                        <li>Super Controller only affects SELECTED items</li>
+                    </ul>
+                </div>
+                
+                <div class="test-card">
+                    <h3>🔧 Issue #3: No Fixtures Configured</h3>
+                    <p><strong>Symptoms:</strong> No fixtures available to select</p>
+                    <p><strong>Solution:</strong></p>
+                    <ul>
+                        <li>Go to Fixtures page</li>
+                        <li>Add fixtures with proper DMX addresses</li>
+                        <li>Ensure channel types match Super Controller controls</li>
+                        <li>Verify no address conflicts between fixtures</li>
+                    </ul>
+                </div>
+                
+                <div class="test-card">
+                    <h3>🌐 Issue #4: Network/API Problems</h3>
+                    <p><strong>Symptoms:</strong> Browser console shows errors</p>
+                    <p><strong>Solution:</strong></p>
+                    <ul>
+                        <li>Check browser console (F12) for errors</li>
+                        <li>Ensure backend server is running</li>
+                        <li>Test with basic DMX channel sliders</li>
+                        <li>Check network requests in dev tools</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Manual Testing Checklist</h2>
+            <ul class="checklist">
+                <li>✓ Verify the main application loads without errors</li>
+                <li>✓ Check that basic DMX channel sliders work (test channels 1-5)</li>
+                <li>✓ Confirm ArtNet is enabled in Settings</li>
+                <li>✓ Add a simple fixture (RGB Light) starting at address 1</li>
+                <li>✓ Open Super Controller panel</li>
+                <li>✓ Switch to "fixtures" mode and select your RGB fixture</li>
+                <li>✓ Try moving RGB color controls in Super Controller</li>
+                <li>✓ Check if channels 1-3 respond (red, green, blue)</li>
+                <li>✓ Monitor browser console for error messages</li>
+                <li>✓ Check backend terminal for DMX update logs</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let testLog = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            testLog.push(`[${timestamp}] ${message}`);
+            updateResults();
+            
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+
+        function updateResults() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = testLog.join('\n');
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function updateStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            const indicator = element.querySelector('.status-indicator');
+            
+            // Remove all status classes
+            indicator.classList.remove('status-success', 'status-warning', 'status-error', 'status-unknown');
+            
+            // Add new status
+            indicator.classList.add(`status-${status}`);
+            
+            // Update text
+            element.innerHTML = `<span class="status-indicator status-${status}"></span>${message}`;
+        }
+
+        async function testBackendConnection() {
+            log('Testing backend connection...');
+            updateStatus('backend-status', 'warning', 'Testing...');
+            
+            try {
+                const response = await fetch('/api/state');
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Backend connection successful');
+                    log(`Found ${data.fixtures ? data.fixtures.length : 0} fixtures`);
+                    log(`ArtNet enabled: ${data.artNetConfig ? data.artNetConfig.enabled : 'Unknown'}`);
+                    log(`OSC send enabled: ${data.oscConfig ? data.oscConfig.sendEnabled : 'Unknown'}`);
+                    updateStatus('backend-status', 'success', 'Connected');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                log(`❌ Backend connection failed: ${error.message}`, 'error');
+                updateStatus('backend-status', 'error', 'Failed');
+            }
+        }
+
+        async function testDMXChannel() {
+            log('Testing DMX channel update...');
+            updateStatus('dmx-status', 'warning', 'Testing...');
+            
+            const testChannel = 10;
+            const testValue = 128;
+            
+            try {
+                // Send DMX update
+                const response = await fetch('/api/dmx', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        channel: testChannel,
+                        value: testValue
+                    })
+                });
+                
+                if (response.ok) {
+                    log(`✅ DMX update sent successfully (Channel ${testChannel} = ${testValue})`);
+                    
+                    // Verify the update
+                    const stateResponse = await fetch('/api/state');
+                    if (stateResponse.ok) {
+                        const state = await stateResponse.json();
+                        const actualValue = state.dmxChannels[testChannel];
+                        
+                        if (actualValue === testValue) {
+                            log(`✅ DMX channel ${testChannel} updated correctly: ${actualValue}`);
+                            updateStatus('dmx-status', 'success', 'Working');
+                        } else {
+                            log(`⚠️ DMX channel ${testChannel} value mismatch. Expected: ${testValue}, Got: ${actualValue}`, 'error');
+                            updateStatus('dmx-status', 'warning', 'Partial');
+                        }
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                log(`❌ DMX test failed: ${error.message}`, 'error');
+                updateStatus('dmx-status', 'error', 'Failed');
+            }
+        }
+
+        async function checkArtNetConfig() {
+            log('Checking ArtNet configuration...');
+            updateStatus('artnet-status', 'warning', 'Checking...');
+            
+            try {
+                const response = await fetch('/api/state');
+                if (response.ok) {
+                    const state = await response.json();
+                    const artNet = state.artNetConfig;
+                    
+                    if (artNet) {
+                        log(`ArtNet Status: ${artNet.enabled ? 'Enabled' : 'Disabled'}`);
+                        log(`Universe: ${artNet.universe || 'Not set'}`);
+                        log(`IP Address: ${artNet.ip || 'Not set'}`);
+                        log(`Port: ${artNet.port || 'Not set'}`);
+                        
+                        if (artNet.enabled) {
+                            updateStatus('artnet-status', 'success', 'Enabled');
+                            log('✅ ArtNet is properly configured');
+                        } else {
+                            updateStatus('artnet-status', 'error', 'Disabled');
+                            log('❌ ArtNet is DISABLED - this is likely the problem!');
+                            log('💡 Go to Settings → ArtNet Configuration and enable ArtNet');
+                        }
+                    } else {
+                        updateStatus('artnet-status', 'error', 'Not configured');
+                        log('❌ No ArtNet configuration found');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                log(`❌ Failed to check ArtNet config: ${error.message}`, 'error');
+                updateStatus('artnet-status', 'error', 'Error');
+            }
+        }
+
+        function testSuperControllerFlow() {
+            log('Starting Super Controller flow test guide...');
+            updateStatus('supercontroller-status', 'warning', 'Testing...');
+            
+            log('📋 MANUAL SUPER CONTROLLER TEST:');
+            log('1. Open Super Controller panel in the main application');
+            log('2. Check the selection mode (channels/fixtures/groups/capabilities)');
+            log('3. If in "channels" mode: Select channels 1-5 by clicking them');
+            log('4. If in "fixtures" mode: Select a fixture from the dropdown');
+            log('5. Try moving the dimmer slider');
+            log('6. Try moving the RGB color controls');
+            log('7. Watch this console and the main app for updates');
+            log('8. Check if the selected channels respond');
+            log('');
+            log('Expected behavior:');
+            log('• Browser should send POST requests to /api/dmx');
+            log('• Backend should log "DMX channel X: Y → Z"');
+            log('• Selected channels should update in the UI');
+            log('• Lighting equipment should respond (if ArtNet enabled)');
+            
+            updateStatus('supercontroller-status', 'success', 'Guide provided');
+        }
+
+        // Auto-run backend test on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🔍 Super Controller DMX Diagnostics loaded');
+            log('Click the test buttons to check each component...');
+            
+            // Auto-test backend connection
+            setTimeout(testBackendConnection, 1000);
+        });
+    </script>
+</body>
+</html>

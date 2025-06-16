@@ -35,6 +35,8 @@ interface ChannelFilter {
   startChannel: number;
   endChannel: number;
   isSelectedOnly?: boolean;
+  isActiveFixtures?: boolean;
+  groupId?: string;
 }
 
 interface PageSize {
@@ -44,6 +46,7 @@ interface PageSize {
 
 const CHANNEL_FILTERS: ChannelFilter[] = [
   { name: "Selected Channels Only", startChannel: 1, endChannel: 512, isSelectedOnly: true },
+  { name: "Active Fixtures Only", startChannel: 1, endChannel: 512, isActiveFixtures: true },
   { name: "All Channels", startChannel: 1, endChannel: 512 },
   { name: "Channels 1-16", startChannel: 1, endChannel: 16 },
   { name: "Channels 17-32", startChannel: 17, endChannel: 32 },
@@ -76,12 +79,14 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
   const [newSceneName, setNewSceneName] = useState('');
   const [selectedSceneToLoad, setSelectedSceneToLoad] = useState('');
   const [showAutoSceneControls, setShowAutoSceneControls] = useState(false);
-
   const {
     dmxChannels,
     selectedChannels,
     toggleChannelSelection,
     setDmxChannel,
+    // Fixtures and groups for filtering
+    fixtures,
+    groups,
     // Scene management methods
     scenes,
     saveScene,
@@ -113,6 +118,9 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
     selectedChannels: state.selectedChannels,
     toggleChannelSelection: state.toggleChannelSelection,
     setDmxChannel: state.setDmxChannel,
+    // Fixtures and groups
+    fixtures: state.fixtures,
+    groups: state.groups,
     // Scene management
     scenes: state.scenes,
     saveScene: state.saveScene,
@@ -136,10 +144,82 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
     setManualBpm: state.setManualBpm,
     recordTapTempo: state.recordTapTempo,
     requestToggleMasterClockPlayPause: state.requestToggleMasterClockPlayPause,
-    midiClockIsPlaying: state.midiClockIsPlaying,
-    addNotification: state.addNotification,
-  }));  // Get current filter and calculate displayed channels
-  const currentFilter = CHANNEL_FILTERS[selectedFilter];
+    midiClockIsPlaying: state.midiClockIsPlaying,    addNotification: state.addNotification,
+  }));
+
+  // Helper function to get active fixture channels (fixtures with non-zero DMX values)
+  const getActiveFixtureChannels = (): number[] => {
+    const activeChannels: number[] = [];
+    
+    fixtures.forEach(fixture => {
+      let hasActiveChannel = false;
+      
+      // Check if any channels in this fixture have non-zero values
+      fixture.channels.forEach((channel, index) => {
+        const dmxAddress = fixture.startAddress + index - 1; // 0-based
+        if (dmxAddress >= 0 && dmxAddress < 512 && dmxChannels[dmxAddress] > 0) {
+          hasActiveChannel = true;
+        }
+      });
+      
+      // If fixture has any active channels, add all its channels to the list
+      if (hasActiveChannel) {
+        fixture.channels.forEach((channel, index) => {
+          const dmxAddress = fixture.startAddress + index - 1; // 0-based
+          if (dmxAddress >= 0 && dmxAddress < 512) {
+            activeChannels.push(dmxAddress);
+          }
+        });
+      }
+    });
+    
+    return [...new Set(activeChannels)].sort((a, b) => a - b); // Remove duplicates and sort
+  };
+
+  // Helper function to get channels for a specific group
+  const getGroupChannels = (groupId: string): number[] => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return [];
+    
+    const groupChannels: number[] = [];
+    
+    group.fixtureIndices.forEach(fixtureIndex => {
+      const fixture = fixtures[fixtureIndex];
+      if (fixture) {
+        fixture.channels.forEach((channel, channelIndex) => {
+          const dmxAddress = fixture.startAddress + channelIndex - 1; // 0-based
+          if (dmxAddress >= 0 && dmxAddress < 512) {
+            groupChannels.push(dmxAddress);
+          }
+        });
+      }
+    });
+    
+    return [...new Set(groupChannels)].sort((a, b) => a - b); // Remove duplicates and sort
+  };
+
+  // Create dynamic filters that include groups
+  const getDynamicChannelFilters = (): ChannelFilter[] => {
+    const baseFilters = [...CHANNEL_FILTERS];
+    
+    // Add group filters if groups exist
+    if (groups && groups.length > 0) {
+      const groupFilters: ChannelFilter[] = groups.map(group => ({
+        name: `Group: ${group.name}`,
+        startChannel: 1,
+        endChannel: 512,
+        groupId: group.id
+      }));
+      
+      // Insert group filters after "Active Fixtures Only" but before "All Channels"
+      baseFilters.splice(2, 0, ...groupFilters);
+    }
+    
+    return baseFilters;
+  };
+
+  const dynamicChannelFilters = getDynamicChannelFilters();// Get current filter and calculate displayed channels
+  const currentFilter = dynamicChannelFilters[selectedFilter];
   let totalChannelsInFilter, displayedChannels, totalPages;
   
   if (currentFilter.isSelectedOnly) {
@@ -153,6 +233,28 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
     const pageEndIdx = Math.min(pageStartIdx + channelsPerPage, totalChannelsInFilter);
     
     displayedChannels = sortedSelectedChannels.slice(pageStartIdx, pageEndIdx);
+  } else if (currentFilter.isActiveFixtures) {
+    // Use active fixture channels only
+    const activeFixtureChannels = getActiveFixtureChannels();
+    totalChannelsInFilter = activeFixtureChannels.length;
+    totalPages = Math.ceil(totalChannelsInFilter / channelsPerPage);
+    
+    // Calculate pagination for active fixture channels
+    const pageStartIdx = currentPage * channelsPerPage;
+    const pageEndIdx = Math.min(pageStartIdx + channelsPerPage, totalChannelsInFilter);
+    
+    displayedChannels = activeFixtureChannels.slice(pageStartIdx, pageEndIdx);
+  } else if (currentFilter.groupId) {
+    // Use specific group channels
+    const groupChannels = getGroupChannels(currentFilter.groupId);
+    totalChannelsInFilter = groupChannels.length;
+    totalPages = Math.ceil(totalChannelsInFilter / channelsPerPage);
+    
+    // Calculate pagination for group channels
+    const pageStartIdx = currentPage * channelsPerPage;
+    const pageEndIdx = Math.min(pageStartIdx + channelsPerPage, totalChannelsInFilter);
+    
+    displayedChannels = groupChannels.slice(pageStartIdx, pageEndIdx);
   } else {
     // Use channel range filter
     const startIdx = currentFilter.startChannel - 1; // Convert to 0-based
@@ -175,7 +277,6 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
   useEffect(() => {
     setCurrentPage(0);
   }, [selectedFilter, channelsPerPage]);
-
   // Calculate active channels
   const activeChannels = dmxChannels.filter(val => val > 0).length;
 
@@ -411,7 +512,7 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
                   cursor: 'pointer'
                 }}
               >
-                {CHANNEL_FILTERS.map((filter, index) => (
+                {dynamicChannelFilters.map((filter, index) => (
                   <option key={index} value={index} style={{ background: '#2d2d2d', color: '#ffffff' }}>
                     {filter.name}
                   </option>

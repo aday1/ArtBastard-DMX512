@@ -155,10 +155,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
 
         fixtures.forEach(fixture => {
           const fixtureChannels: { [key: string]: number } = {};
-          let hasSelectedChannel = false;
-
-          fixture.channels.forEach((channel, index) => {
-            const dmxAddress = fixture.startAddress + index;
+          let hasSelectedChannel = false;          fixture.channels.forEach((channel, index) => {
+            const dmxAddress = fixture.startAddress + index - 1;
             if (selectedChannels.includes(dmxAddress)) {
               hasSelectedChannel = true;
               fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
@@ -197,11 +195,9 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
 
     return targetFixtures.map(fixtureId => {
       const fixture = fixtures.find(f => f.id === fixtureId);
-      if (!fixture) return null;
-
-      const fixtureChannels: { [key: string]: number } = {};
+      if (!fixture) return null;      const fixtureChannels: { [key: string]: number } = {};
       fixture.channels.forEach((channel, index) => {
-        const dmxAddress = fixture.startAddress + index;
+        const dmxAddress = fixture.startAddress + index - 1;
         fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
       });
 
@@ -556,11 +552,28 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
             Quick Actions
           </button>
         </div>
-        
-        <div className={styles.statusInfo}>
-          <span className={styles.selectionCount}>
-            {hasSelection ? `${getAffectedFixtures().length} fixtures selected` : 'No selection'}
-          </span>
+          <div className={styles.statusInfo}>
+          <div className={styles.statusDetails}>
+            <span className={styles.selectionCount}>
+              {hasSelection ? `${getAffectedFixtures().length} fixtures selected` : 'No selection'}
+            </span>
+            {hasSelection && (
+              <div className={styles.activeChannelsSummary}>
+                <span className={styles.channelCount}>
+                  <LucideIcon name="Radio" size={14} />
+                  {getAffectedFixtures().reduce((total, { channels }) => total + Object.keys(channels).length, 0)} channels
+                </span>
+                <span className={styles.controlMode}>
+                  <LucideIcon name={
+                    selectionMode === 'fixtures' ? "Lightbulb" :
+                    selectionMode === 'groups' ? "Users" :
+                    selectionMode === 'capabilities' ? "Zap" : "Radio"
+                  } size={14} />
+                  {selectionMode}
+                </span>
+              </div>
+            )}
+          </div>
           <button 
             className={`${styles.expandToggle} ${showAllControls ? styles.expanded : ''}`}
             onClick={() => setShowAllControls(!showAllControls)}

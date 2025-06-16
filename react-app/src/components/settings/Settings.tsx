@@ -82,6 +82,8 @@ export const Settings: React.FC = () => {
       midiMonitor: true,
       oscMonitor: true
     },
+    uiSettings,
+    toggleSparkles,
     addNotification
   } = useStore(state => ({
     artNetConfig: state.artNetConfig,
@@ -90,6 +92,8 @@ export const Settings: React.FC = () => {
     midiMappings: state.midiMappings,
     navVisibility: state.navVisibility,
     debugTools: state.debugTools,
+    uiSettings: state.uiSettings,
+    toggleSparkles: state.toggleSparkles,
     addNotification: state.addNotification
   }))
 
@@ -567,6 +571,35 @@ export const Settings: React.FC = () => {
                     }</span>
                   </div>
                 </div>              ))}
+            </div>
+          </div>        </div>
+
+        {/* UI Settings Card */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h3>UI Settings</h3>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.toggleGrid}>
+              <div className={styles.toggleItem}>
+                <div className={styles.toggleSwitch}>
+                  <input
+                    type="checkbox"
+                    id="ui-sparkles-enabled"
+                    checked={uiSettings?.sparklesEnabled ?? true}
+                    onChange={() => toggleSparkles()}
+                  />
+                  <label htmlFor="ui-sparkles-enabled" className={styles.toggleLabel}>
+                    <span className={styles.toggleDot}>
+                      <i className={`fas ${uiSettings?.sparklesEnabled ? 'fa-sparkles' : 'fa-times'}`}></i>
+                    </span>
+                  </label>
+                  <span className={styles.toggleText}>Sparkles Effect</span>
+                </div>
+                <div className={styles.toggleDescription}>
+                  Enable or disable the animated sparkles background effect for improved performance
+                </div>
+              </div>
             </div>
           </div>
         </div>

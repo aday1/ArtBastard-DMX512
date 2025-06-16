@@ -262,13 +262,18 @@ interface State {
     // ArtNet
   artNetConfig: ArtNetConfig
   oscConfig: OscConfig
-  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'
-  // UI State
+  artNetStatus: 'connected' | 'disconnected' | 'error' | 'timeout'  // UI State
   theme: 'artsnob' | 'standard' | 'minimal';
   darkMode: boolean;
   // statusMessage: { text: string; type: 'success' | 'error' | 'info' | 'warning' } | null; // Deprecated
   notifications: Notification[]; // Use the new Notification interface
-  oscActivity: Record<number, OscActivity> 
+  
+  // UI Settings
+  uiSettings: {
+    sparklesEnabled: boolean;
+  };
+  
+  oscActivity: Record<number, OscActivity>
   exampleSliderValue: number;
   fixtureLayout: PlacedFixture[]; 
   placedFixtures: PlacedFixture[]; 
@@ -342,10 +347,14 @@ interface State {
     // Config Actions
   updateArtNetConfig: (config: Partial<ArtNetConfig>) => void
   updateDebugModules: (debugSettings: {midi?: boolean; osc?: boolean; artnet?: boolean; button?: boolean}) => void
-  testArtNetConnection: () => void  
-  // UI Actions
+  testArtNetConnection: () => void    // UI Actions
   setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => void;
   toggleDarkMode: () => void;
+  
+  // UI Settings Actions
+  updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => void;
+  toggleSparkles: () => void;
+  
   // showStatusMessage: (text: string, type: 'success' | 'error' | 'info' | 'warning') => void; // Deprecated
   // clearStatusMessage: () => void; // Deprecated
   addNotification: (notification: AddNotificationInput) => void; // Use AddNotificationInput
@@ -430,6 +439,24 @@ const initializeDarkMode = (): boolean => {
   }
 };
 
+// Helper function to initialize UI settings from localStorage
+const initializeUiSettings = (): { sparklesEnabled: boolean } => {
+  try {
+    const stored = localStorage.getItem('uiSettings');
+    const defaultSettings = { sparklesEnabled: true };
+    
+    if (stored) {
+      const parsedSettings = JSON.parse(stored);
+      return { ...defaultSettings, ...parsedSettings };
+    }
+    
+    return defaultSettings;
+  } catch (error) {
+    console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
+    return { sparklesEnabled: true };
+  }
+};
+
 export const useStore = create<State>()(
   devtools(
     (set, get) => ({
@@ -482,11 +509,13 @@ export const useStore = create<State>()(
         port: 6454,
         base_refresh_interval: 1000
       },      
-      artNetStatus: 'disconnected',
-      theme: 'artsnob',
+      artNetStatus: 'disconnected',      theme: 'artsnob',
       darkMode: initializeDarkMode(),
       // statusMessage: null, // Deprecated
       notifications: [], 
+        // UI Settings
+      uiSettings: initializeUiSettings(),
+      
       oscActivity: {},
       debugModules: {
         midi: false,
@@ -1127,6 +1156,33 @@ export const useStore = create<State>()(
         document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
         get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
       },
+
+      // UI Settings Actions
+      updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => {
+        const currentUiSettings = get().uiSettings;
+        const updatedUiSettings = { ...currentUiSettings, ...settings };
+        set({ uiSettings: updatedUiSettings });
+        
+        // Save to localStorage for persistence
+        localStorage.setItem('uiSettings', JSON.stringify(updatedUiSettings));
+        
+        get().addNotification({ 
+          message: `UI settings updated`, 
+          type: 'success' 
+        });
+      },
+
+      toggleSparkles: () => {
+        const currentEnabled = get().uiSettings.sparklesEnabled;
+        const newEnabled = !currentEnabled;
+        
+        get().updateUiSettings({ sparklesEnabled: newEnabled });
+        
+        get().addNotification({ 
+          message: `Sparkles effect ${newEnabled ? 'enabled' : 'disabled'}`, 
+          type: 'info' 
+        });
+      },
       
       // Deprecated actions - can be removed later
       // showStatusMessage: (text, type) => { 
@@ -1339,15 +1395,12 @@ export const useStore = create<State>()(
 
         if (lastTapTime > 0) {
           const interval = now - lastTapTime;
-          if (interval > 0 && interval < 2000) { // Ignore taps too close or too far apart (2s = 30 BPM)
+          if (interval > 0 && interval < 2000) // Ignore taps too close or too far apart (2s = 30 BPM)
             newTapTimes.push(interval);
-            if (newTapTimes.length > 5) { // Keep last 5 intervals for averaging
-              newTapTimes.shift();
-            }
-          } else { // If interval is too long, reset taps
-            newTapTimes = [];
-          }
-        }
+          if (newTapTimes.length > 5) // Keep last 5 intervals for averaging
+            newTapTimes.shift();
+        } else // If interval is too long, reset taps
+          newTapTimes = [];
 
         set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
 
@@ -1639,6 +1692,7 @@ export const useStore = create<State>()(
             f.id === fixtureId 
               ? { ...f, flags: [], isFlagged: false }
               : f
+
           )
         }));
         

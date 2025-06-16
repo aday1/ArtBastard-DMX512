@@ -89,6 +89,42 @@
       color: #00d4ff;
     }
   }
+
+  .activeStats {
+    margin: 12px 0;
+    padding: 12px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    
+    .statsRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .statLabel {
+        font-size: 0.8rem;
+        color: #ccc;
+        font-weight: 500;
+      }
+      
+      .statValue {
+        font-size: 0.85rem;
+        color: #00d4ff;
+        font-weight: bold;
+        text-align: right;
+        max-width: 60%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
 }
 
 // Override SuperControl styles when dockable

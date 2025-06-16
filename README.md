@@ -8,6 +8,7 @@
 ### 🎯 **What's New in Version 5.1.3 "Luminous Mastery"**
 - **🎛️ Professional Fixture Control Suite**: Complete professional lighting controls with Frost/Diffusion, Animation, CTO/CTB, Lamp/Fan/Display functions
 - **📱 Touch-Optimized External Monitor**: Advanced touch interface with custom DMX pages and responsive design for professional touch screens
+- **✋ Touch-Friendly Manual Resize Handles**: Native drag-to-resize with large, visible corner handles optimized for touchscreen interaction
 - **🎨 Chromatic Energy Manipulator Enhanced**: Comprehensive advanced controls always visible with disabled states for better UX
 - **🔧 Streamlined Component Architecture**: Removed redundant controllers, unified interface through enhanced Chromatic Energy Manipulator
 - **⚡ Enhanced Touch Interaction**: Optimized for professional touch consoles with 44px+ touch targets and smooth interaction
@@ -16,6 +17,7 @@
 ### 🎪 **Luminous Mastery Breakthrough Features**
 - **Professional fixture control suite** with comprehensive advanced lighting functions
 - **Touch-optimized external monitor** with custom DMX page configuration and responsive design
+- **Touch-friendly manual resize handles** with large, visible corner drag controls for intuitive component resizing
 - **Always-visible professional controls** that educate users about available features
 - **Streamlined component architecture** eliminating redundant controllers for better performance
 - **Enhanced touch interaction** optimized for professional lighting consoles and touch screens
@@ -33,6 +35,7 @@
 ### 📱 **Touch-Optimized Interface**
 - **External Monitor Support**: Dedicated 1400x900 touch-optimized interface
 - **Custom DMX Pages**: User-configurable channel ranges (Main Lights, Moving Lights, Effects)
+- **Touch-Friendly Manual Resize**: Large, visible corner drag handles for intuitive component resizing
 - **Touch-Friendly Controls**: 44px+ touch targets with enhanced visual feedback
 - **Component Library**: Touch-optimized component browser with category filtering
 - **Responsive Design**: Adapts seamlessly to various screen sizes and orientations

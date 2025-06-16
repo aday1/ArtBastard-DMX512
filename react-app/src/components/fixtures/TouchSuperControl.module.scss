@@ -123,19 +123,49 @@
       }
     }
   }
-
   .statusInfo {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex: 1;
 
-    .selectionCount {
-      font-size: 0.9rem;
-      opacity: 0.8;
-      padding: 8px 12px;
-      background: rgba(0, 212, 255, 0.1);
-      border-radius: 6px;
-      border: 1px solid rgba(0, 212, 255, 0.3);
+    .statusDetails {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+
+      .selectionCount {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        padding: 8px 12px;
+        background: rgba(0, 212, 255, 0.1);
+        border-radius: 6px;
+        border: 1px solid rgba(0, 212, 255, 0.3);
+      }
+
+      .activeChannelsSummary {
+        display: flex;
+        gap: 12px;
+        
+        .channelCount,
+        .controlMode {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.8rem;
+          color: #00d4ff;
+          background: rgba(0, 212, 255, 0.15);
+          padding: 4px 8px;
+          border-radius: 4px;
+          border: 1px solid rgba(0, 212, 255, 0.3);
+          
+          svg {
+            width: 14px;
+            height: 14px;
+          }
+        }
+      }
     }
 
     .expandToggle {

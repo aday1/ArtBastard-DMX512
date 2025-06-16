@@ -8,7 +8,8 @@ import { MidiMonitor } from '../midi/MidiMonitor';
 import { OscMonitor } from '../osc/OscMonitor';
 import { SceneQuickLaunch } from '../scenes/SceneQuickLaunch';
 import { AutoSceneControlMini } from '../scenes/AutoSceneControlMini';
-import ChromaticEnergyManipulatorMini from '../fixtures/ChromaticEnergyManipulatorMini';
+import DockableSuperControl from '../fixtures/DockableSuperControl';
+import TouchSuperControl from '../fixtures/TouchSuperControl';
 
 import { AudioControlPanel } from '../audio/AudioControlPanel';
 import { SceneGallery } from '../scenes/SceneGallery';
@@ -98,15 +99,25 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     component: SceneGallery,
     minSize: { width: 400, height: 300 },
   },  // Fixture Controls
-  'chromatic-energy-manipulator': {
-    type: 'chromatic-energy-manipulator',
-    title: 'Advanced Fixture Controller',
-    description: 'Comprehensive fixture control with Color, Movement, Dimmer, GOBO, Strobe, and advanced effects',
+  'professional-fixture-controller': {
+    type: 'professional-fixture-controller',
+    title: 'Super Control',
+    description: 'Advanced fixture control with channel monitoring, color wheels, XY controls, and real-time DMX feedback',
     category: 'fixtures',
     icon: 'fas fa-palette',
-    component: ChromaticEnergyManipulatorMini,
-    defaultProps: { isDockable: false },
-    minSize: { width: 280, height: 250 },
+    component: DockableSuperControl,
+    defaultProps: { isDockable: true },
+    minSize: { width: 800, height: 600 },
+  },
+  'touch-fixture-controller': {
+    type: 'touch-fixture-controller',
+    title: 'Touch Super Control',
+    description: 'Touch-optimized fixture control with haptic feedback and large controls for external monitors',
+    category: 'fixtures',
+    icon: 'fas fa-hand-pointer',
+    component: TouchSuperControl,
+    defaultProps: { isFullscreen: false, enableHapticFeedback: true },
+    minSize: { width: 600, height: 800 },
   },'fixture-canvas-2d': {
     type: 'fixture-canvas-2d',
     title: '2D Canvas',

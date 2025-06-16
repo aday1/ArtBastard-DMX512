@@ -49,13 +49,35 @@ const DockableSuperControl: React.FC<DockableSuperControlProps> = ({
     setMinimized(newMinimized);
     onMinimizedChange?.(newMinimized);
   };
-
   // Get selection info for collapsed state
   const getSelectionSummary = () => {
     if (selectedChannels.length > 0) {
       return `${selectedChannels.length} channels selected`;
     }
     return 'No selection';
+  };
+
+  // Get active fixture count and total channels being controlled
+  const getActiveStats = () => {
+    const activeFixtures = fixtures.filter(fixture => {
+      return fixture.channels.some((_, index) => {
+        const dmxAddress = fixture.startAddress + index;
+        return selectedChannels.includes(dmxAddress);
+      });
+    });
+
+    const totalChannels = activeFixtures.reduce((sum, fixture) => {
+      return sum + fixture.channels.filter((_, index) => {
+        const dmxAddress = fixture.startAddress + index;
+        return selectedChannels.includes(dmxAddress);
+      }).length;
+    }, 0);
+
+    return {
+      activeFixtures: activeFixtures.length,
+      totalChannels,
+      fixtureNames: activeFixtures.slice(0, 2).map(f => f.name)
+    };
   };
   return (
     <DockableComponent
@@ -79,8 +101,7 @@ const DockableSuperControl: React.FC<DockableSuperControlProps> = ({
           <div className={styles.fullContent}>
             <SuperControl isDockable={true} />
           </div>
-        )}
-        {collapsed && !minimized && (
+        )}        {collapsed && !minimized && (
           <div className={styles.collapsedContent}>
             <div className={styles.collapsedHeader}>
               <LucideIcon name="Settings" />
@@ -89,6 +110,32 @@ const DockableSuperControl: React.FC<DockableSuperControlProps> = ({
                 <span className={styles.collapsedSummary}>{getSelectionSummary()}</span>
               </div>
             </div>
+            
+            {selectedChannels.length > 0 && (() => {
+              const stats = getActiveStats();
+              return (
+                <div className={styles.activeStats}>
+                  <div className={styles.statsRow}>
+                    <span className={styles.statLabel}>Active Fixtures:</span>
+                    <span className={styles.statValue}>{stats.activeFixtures}</span>
+                  </div>
+                  <div className={styles.statsRow}>
+                    <span className={styles.statLabel}>Controlled Channels:</span>
+                    <span className={styles.statValue}>{stats.totalChannels}</span>
+                  </div>
+                  {stats.fixtureNames.length > 0 && (
+                    <div className={styles.statsRow}>
+                      <span className={styles.statLabel}>Fixtures:</span>
+                      <span className={styles.statValue}>
+                        {stats.fixtureNames.join(', ')}
+                        {stats.activeFixtures > 2 && ` +${stats.activeFixtures - 2} more`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            
             <div className={styles.collapsedStats}>
               <div className={styles.stat}>
                 <LucideIcon name="Lightbulb" size={16} />

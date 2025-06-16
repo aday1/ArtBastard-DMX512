@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Learning & Scene Management - Test Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #e74c3c;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #3498db;
+            margin-top: 25px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        .feature-card h3 {
+            margin-top: 0;
+            color: #fff;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            background: #e8f4f8;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+            position: relative;
+            padding-left: 45px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .checklist li::before {
+            content: "☐";
+            position: absolute;
+            left: 15px;
+            font-size: 1.3rem;
+            color: #3498db;
+        }
+        .checklist li:hover {
+            background: #d5edfa;
+            transform: translateX(5px);
+        }
+        .checklist li.completed {
+            background: #d4edda;
+            border-left-color: #28a745;
+            text-decoration: line-through;
+            opacity: 0.8;
+        }
+        .checklist li.completed::before {
+            content: "☑";
+            color: #28a745;
+        }
+        .midi-demo {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .midi-demo h4 {
+            color: #f39c12;
+            margin-top: 0;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .navigation {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .navigation a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        .navigation a:hover {
+            text-decoration: underline;
+        }
+        .control-example {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #ecf0f1;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .control-label {
+            font-weight: bold;
+            min-width: 100px;
+            color: #2c3e50;
+        }
+        .midi-config {
+            background: #e8f4f8;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .scene-example {
+            background: #f8f9fa;
+            border: 2px dashed #6c757d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .requirements {
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎹 MIDI Learning & Scene Management Testing Guide</h1>
+        
+        <div class="navigation">
+            <strong>Quick Navigation:</strong>
+            <a href="#midi-range">MIDI Range Learning</a>
+            <a href="#fixture-nav">Fixture Navigation</a>
+            <a href="#group-nav">Group Navigation</a>
+            <a href="#scene-mgmt">Scene Management</a>
+            <a href="#osc-integration">OSC Integration</a>
+        </div>
+
+        <div class="requirements">
+            <h3>🎛️ Testing Requirements</h3>
+            <ul>
+                <li><strong>MIDI Controller</strong>: Physical MIDI controller or virtual MIDI device</li>
+                <li><strong>Browser Support</strong>: Chrome/Chromium with Web MIDI API support</li>
+                <li><strong>Fixtures</strong>: At least 2-3 configured fixtures for navigation testing</li>
+                <li><strong>Groups</strong>: At least 1-2 fixture groups for group navigation testing</li>
+                <li><strong>DMX Values</strong>: Active DMX channels for scene capture testing</li>
+            </ul>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>🎚️ MIDI Range Learning</h3>
+                <p>Enhanced MIDI learning with customizable value ranges for precise control mapping</p>
+            </div>
+            <div class="feature-card">
+                <h3>🎯 Fixture Navigation</h3>
+                <p>MIDI-controlled fixture selection with previous/next navigation</p>
+            </div>
+            <div class="feature-card">
+                <h3>👥 Group Navigation</h3>
+                <p>Navigate through fixture groups using MIDI notes or controllers</p>
+            </div>
+            <div class="feature-card">
+                <h3>📸 Scene Management</h3>
+                <p>Complete scene capture, storage, and recall system with MIDI control</p>
+            </div>
+        </div>
+
+        <section id="midi-range">
+            <h2>1. MIDI Range Learning Testing</h2>
+            <div class="test-section">
+                <h3>Enhanced MIDI Learning with Range Support</h3>
+                <p>Test the new MIDI learning system that supports custom value ranges and improved mapping capabilities.</p>
+                
+                <div class="midi-demo">
+                    <h4>Example MIDI Configuration</h4>
+                    <div class="control-example">
+                        <span class="control-label">Dimmer:</span>
+                        <span class="midi-config">MIDI CH1 CC7 → Range: 0-255</span>
+                    </div>
+                    <div class="control-example">
+                        <span class="control-label">Lamp:</span>
+                        <span class="midi-config">MIDI CH1 CC8 → Range: 100-255 (no full off)</span>
+                    </div>
+                </div>
+                
+                <h4>Test Steps - Dimmer Control</h4>
+                <ul class="checklist">
+                    <li>Navigate to Super Control panel</li>
+                    <li>Select fixtures in any selection mode</li>
+                    <li>Locate "Dimmer" control in Basic Controls section</li>
+                    <li>Click "MIDI Learn" button - should enter learning mode</li>
+                    <li>Set range values: Min=0, Max=255 (or custom range)</li>
+                    <li>Move a fader/knob on your MIDI controller</li>
+                    <li>Verify MIDI mapping appears (e.g., "CH1 CC7")</li>
+                    <li>Test that MIDI controller now controls dimmer value</li>
+                    <li>Verify range mapping works correctly</li>
+                    <li>Test clear mapping functionality</li>
+                </ul>
+
+                <h4>Test Steps - Lamp Control with Custom Range</h4>
+                <ul class="checklist">
+                    <li>Locate "Lamp Control" in Effects section</li>
+                    <li>Click "MIDI Learn" button</li>
+                    <li>Set custom range: Min=100, Max=255 (prevents full lamp off)</li>
+                    <li>Assign to different MIDI CC than dimmer</li>
+                    <li>Test that MIDI input maps to 100-255 range only</li>
+                    <li>Verify lamp never goes below value 100</li>
+                    <li>Check MIDI info display shows correct mapping</li>
+                </ul>
+
+                <div class="instructions">
+                    <strong>Expected Behavior:</strong>
+                    <ul>
+                        <li>MIDI Learn button should highlight when in learning mode</li>
+                        <li>Range inputs should accept values 0-255</li>
+                        <li>MIDI mapping should appear after successful learning</li>
+                        <li>Controller input should map to specified range</li>
+                        <li>Clear button should remove mapping</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="fixture-nav">
+            <h2>2. Fixture Navigation Testing</h2>
+            <div class="test-section">
+                <h3>MIDI-Controlled Fixture Selection</h3>
+                <p>Test the fixture navigation system that allows rapid fixture selection using MIDI controllers.</p>
+                
+                <div class="midi-demo">
+                    <h4>Navigation Controls</h4>
+                    <div class="control-example">
+                        <span class="control-label">Previous:</span>
+                        <span class="midi-config">MIDI Note C2 (36) → Select previous fixture</span>
+                    </div>
+                    <div class="control-example">
+                        <span class="control-label">Next:</span>
+                        <span class="midi-config">MIDI Note C#2 (37) → Select next fixture</span>
+                    </div>
+                </div>
+                
+                <h4>Test Steps</h4>
+                <ul class="checklist">
+                    <li>Navigate to MIDI/OSC Control & Navigation section</li>
+                    <li>Verify fixture navigation controls are visible</li>
+                    <li>Check current fixture display shows first fixture</li>
+                    <li>Test "Previous Fixture" button manually</li>
+                    <li>Test "Next Fixture" button manually</li>
+                    <li>Verify fixture selection changes to "fixtures" mode</li>
+                    <li>Click "MIDI Prev" learn button</li>
+                    <li>Press a MIDI button/pad for previous navigation</li>
+                    <li>Click "MIDI Next" learn button</li>
+                    <li>Press a different MIDI button/pad for next navigation</li>
+                    <li>Test MIDI navigation - should cycle through fixtures</li>
+                    <li>Verify current fixture display updates correctly</li>
+                    <li>Test circular navigation (wraps around at end/beginning)</li>
+                </ul>
+
+                <div class="instructions">
+                    <strong>Navigation Behavior:</strong>
+                    <ul>
+                        <li>Navigation should automatically switch to "fixtures" selection mode</li>
+                        <li>Current fixture name and index should update in real-time</li>
+                        <li>Navigation should wrap around (after last fixture, go to first)</li>
+                        <li>Selected fixture should immediately become active for control</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="group-nav">
+            <h2>3. Group Navigation Testing</h2>
+            <div class="test-section">
+                <h3>MIDI-Controlled Group Selection</h3>
+                <p>Test the group navigation system for selecting and controlling fixture groups via MIDI.</p>
+                
+                <h4>Test Steps</h4>
+                <ul class="checklist">
+                    <li>Ensure at least 2 fixture groups are configured</li>
+                    <li>Locate "Group Navigation" in MIDI/OSC section</li>
+                    <li>Test manual "Previous Group" button</li>
+                    <li>Test manual "Next Group" button</li>
+                    <li>Verify group selection mode activates</li>
+                    <li>Check that all fixtures in group are selected</li>
+                    <li>Set up MIDI learning for "MIDI Prev" group button</li>
+                    <li>Set up MIDI learning for "MIDI Next" group button</li>
+                    <li>Use different MIDI notes than fixture navigation</li>
+                    <li>Test MIDI group navigation functionality</li>
+                    <li>Verify current group display shows group name and fixture count</li>
+                    <li>Test that group controls affect all fixtures in the group</li>
+                </ul>
+
+                <div class="success">
+                    <strong>✅ Expected Results:</strong>
+                    <ul>
+                        <li>Group navigation switches to "groups" selection mode</li>
+                        <li>All fixtures in selected group become active</li>
+                        <li>Group name and fixture count display correctly</li>
+                        <li>Controls affect entire group simultaneously</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="scene-mgmt">
+            <h2>4. Scene Management Testing</h2>
+            <div class="test-section">
+                <h3>Complete Scene System with MIDI Control</h3>
+                <p>Test the comprehensive scene management system including capture, storage, recall, and MIDI control.</p>
+                
+                <div class="scene-example">
+                    <h4>📸 Scene Workflow Example</h4>
+                    <p><strong>1. Set Lighting State</strong> → <strong>2. Save Scene</strong> → <strong>3. Change Lighting</strong> → <strong>4. Recall Scene</strong></p>
+                </div>
+                
+                <h4>Test Steps - Scene Capture and Storage</h4>
+                <ul class="checklist">
+                    <li>Set up a lighting state with multiple fixtures</li>
+                    <li>Adjust dimmer, colors, and effects to create a scene</li>
+                    <li>Locate "Scene Management" section</li>
+                    <li>Click "Save Scene" button</li>
+                    <li>Verify scene appears in "Saved Scenes" list</li>
+                    <li>Check scene shows channel count and timestamp</li>
+                    <li>Create 2-3 different scenes with different lighting states</li>
+                    <li>Verify each scene is stored with unique name</li>
+                </ul>
+
+                <h4>Test Steps - Scene Recall and Navigation</h4>
+                <ul class="checklist">
+                    <li>Change current lighting to different values</li>
+                    <li>Click "Load Scene" on a saved scene</li>
+                    <li>Verify lighting state returns to saved values</li>
+                    <li>Test "Previous" scene navigation button</li>
+                    <li>Test "Next" scene navigation button</li>
+                    <li>Verify current scene indicator updates</li>
+                    <li>Test scene deletion functionality</li>
+                    <li>Enable "Auto-save scenes" option</li>
+                    <li>Make lighting changes and verify auto-save works</li>
+                </ul>
+
+                <h4>Test Steps - MIDI Scene Control</h4>
+                <ul class="checklist">
+                    <li>Click "MIDI Save" learn button</li>
+                    <li>Assign to a MIDI button/pad for scene capture</li>
+                    <li>Click "MIDI Prev" learn button for scene navigation</li>
+                    <li>Click "MIDI Next" learn button for scene navigation</li>
+                    <li>Test MIDI scene save - should capture current state</li>
+                    <li>Test MIDI scene navigation - should cycle through scenes</li>
+                    <li>Verify scene recall happens instantly with MIDI</li>
+                    <li>Test with multiple scenes to verify navigation works</li>
+                </ul>
+
+                <div class="midi-demo">
+                    <h4>Recommended MIDI Scene Setup</h4>
+                    <div class="control-example">
+                        <span class="control-label">Save Scene:</span>
+                        <span class="midi-config">MIDI Note D2 (38) → Capture current state</span>
+                    </div>
+                    <div class="control-example">
+                        <span class="control-label">Previous Scene:</span>
+                        <span class="midi-config">MIDI Note F2 (41) → Load previous scene</span>
+                    </div>
+                    <div class="control-example">
+                        <span class="control-label">Next Scene:</span>
+                        <span class="midi-config">MIDI Note F#2 (42) → Load next scene</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="osc-integration">
+            <h2>5. OSC Integration Testing</h2>
+            <div class="test-section">
+                <h3>Open Sound Control Protocol Support</h3>
+                <p>Test the OSC integration for professional lighting software and external application control.</p>
+                
+                <h4>Test Steps - OSC Address Configuration</h4>
+                <ul class="checklist">
+                    <li>Locate OSC input fields in each control section</li>
+                    <li>Verify default OSC addresses are populated</li>
+                    <li>Test custom OSC address entry</li>
+                    <li>Verify addresses follow OSC format (starting with /)</li>
+                    <li>Check OSC addresses for: /dimmer, /lamp, /fixture/nav, /group/nav, /scene/control</li>
+                    <li>Test that OSC addresses can be customized</li>
+                </ul>
+
+                <h4>Test Steps - OSC Message Testing (if OSC software available)</h4>
+                <ul class="checklist">
+                    <li>Configure OSC client software (TouchOSC, QLab, etc.)</li>
+                    <li>Send OSC messages to configured addresses</li>
+                    <li>Verify controls respond to OSC input</li>
+                    <li>Test float values for continuous controls</li>
+                    <li>Test integer/bang messages for discrete controls</li>
+                    <li>Verify bidirectional OSC communication if supported</li>
+                </ul>
+
+                <div class="instructions">
+                    <strong>OSC Address Examples:</strong>
+                    <ul>
+                        <li><code>/dimmer 0.5</code> - Set dimmer to 50%</li>
+                        <li><code>/fixture/nav 1</code> - Select next fixture</li>
+                        <li><code>/scene/control 0</code> - Load previous scene</li>
+                        <li><code>/lamp 1.0</code> - Set lamp to maximum</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <div class="test-section">
+            <h2>🎯 Integration Testing Scenarios</h2>
+            
+            <h3>Scenario 1: Live Performance Setup</h3>
+            <ul class="checklist">
+                <li>Map main dimmer to MIDI fader</li>
+                <li>Assign fixture navigation to MIDI buttons</li>
+                <li>Set up scene recall on drum pads</li>
+                <li>Test rapid scene changes during "performance"</li>
+                <li>Verify smooth transitions and no conflicts</li>
+            </ul>
+
+            <h3>Scenario 2: Complex Lighting Control</h3>
+            <ul class="checklist">
+                <li>Set up multiple controls with different ranges</li>
+                <li>Use group navigation for section control</li>
+                <li>Create and recall complex multi-fixture scenes</li>
+                <li>Test simultaneous MIDI and manual control</li>
+                <li>Verify no interference between control methods</li>
+            </ul>
+
+            <h3>Scenario 3: External Software Integration</h3>
+            <ul class="checklist">
+                <li>Configure OSC addresses for external software</li>
+                <li>Test scene triggers from external application</li>
+                <li>Verify fixture navigation via OSC</li>
+                <li>Test continuous control via OSC messages</li>
+                <li>Confirm stable operation with external control</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ Troubleshooting Common Issues</h3>
+            <ul>
+                <li><strong>MIDI Not Detected:</strong> Check browser MIDI permissions and device connection</li>
+                <li><strong>Learning Not Working:</strong> Ensure MIDI device is sending data and browser supports Web MIDI</li>
+                <li><strong>Range Issues:</strong> Verify min/max values are within 0-255 range</li>
+                <li><strong>Navigation Not Working:</strong> Check that fixtures/groups are properly configured</li>
+                <li><strong>Scenes Not Saving:</strong> Ensure DMX values are active (greater than 0)</li>
+                <li><strong>OSC Not Responding:</strong> Verify network configuration and OSC software setup</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <h3>🎉 Testing Complete</h3>
+            <p>Once all tests pass, the MIDI learning and scene management system is ready for production use. The system provides professional-grade lighting control capabilities with the flexibility to integrate with a wide range of MIDI controllers and OSC-compatible software.</p>
+            
+            <p>This implementation transforms the ArtBastard DMX512 system into a comprehensive lighting control solution suitable for live performance, theater production, club installations, and professional lighting applications.</p>
+        </div>
+
+        <div class="navigation">
+            <strong>Documentation Files:</strong>
+            <a href="MIDI-LEARNING-ENHANCEMENT-COMPLETE.md">Complete Documentation</a>
+            <a href="SUPER-CONTROL-ENHANCEMENTS-COMPLETE.md">Super Control Enhancements</a>
+            <a href="README.md">Project README</a>
+        </div>
+    </div>
+
+    <script>
+        // Add click handlers for checklist items
+        document.querySelectorAll('.checklist li').forEach(item => {
+            item.addEventListener('click', function() {
+                this.classList.toggle('completed');
+            });
+        });
+
+        // Scene example animation
+        setInterval(() => {
+            const sceneExample = document.querySelector('.scene-example');
+            if (sceneExample) {
+                sceneExample.style.backgroundColor = 
+                    sceneExample.style.backgroundColor === 'rgb(248, 249, 250)' ? '#e8f4f8' : '#f8f9fa';
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

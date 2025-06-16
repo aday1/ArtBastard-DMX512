@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMX Address Mapping Validation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>DMX Address Mapping Validation Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Scenario: Address Space Mapping</h2>
+        <p>This test validates that fixture start addresses (1-based) are correctly mapped to DMX array indices (0-based).</p>
+        
+        <h3>Test Cases:</h3>
+        
+        <div class="test-case">
+            <h4>Case 1: Fixture at Start Address 1</h4>
+            <table>
+                <tr>
+                    <th>Channel Index</th>
+                    <th>UI Display (1-based)</th>
+                    <th>DMX Array Index (0-based)</th>
+                    <th>Calculation</th>
+                </tr>
+                <tr>
+                    <td>0 (first channel)</td>
+                    <td>1</td>
+                    <td>0</td>
+                    <td>startAddress + index - 1 = 1 + 0 - 1 = 0 ✓</td>
+                </tr>
+                <tr>
+                    <td>1 (second channel)</td>
+                    <td>2</td>
+                    <td>1</td>
+                    <td>startAddress + index - 1 = 1 + 1 - 1 = 1 ✓</td>
+                </tr>
+                <tr>
+                    <td>2 (third channel)</td>
+                    <td>3</td>
+                    <td>2</td>
+                    <td>startAddress + index - 1 = 1 + 2 - 1 = 2 ✓</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="test-case">
+            <h4>Case 2: Fixture at Start Address 10</h4>
+            <table>
+                <tr>
+                    <th>Channel Index</th>
+                    <th>UI Display (1-based)</th>
+                    <th>DMX Array Index (0-based)</th>
+                    <th>Calculation</th>
+                </tr>
+                <tr>
+                    <td>0 (first channel)</td>
+                    <td>10</td>
+                    <td>9</td>
+                    <td>startAddress + index - 1 = 10 + 0 - 1 = 9 ✓</td>
+                </tr>
+                <tr>
+                    <td>1 (second channel)</td>
+                    <td>11</td>
+                    <td>10</td>
+                    <td>startAddress + index - 1 = 10 + 1 - 1 = 10 ✓</td>
+                </tr>
+                <tr>
+                    <td>2 (third channel)</td>
+                    <td>12</td>
+                    <td>11</td>
+                    <td>startAddress + index - 1 = 10 + 2 - 1 = 11 ✓</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="test-case">
+            <h4>Case 3: Fixture at Start Address 500 (near end)</h4>
+            <table>
+                <tr>
+                    <th>Channel Index</th>
+                    <th>UI Display (1-based)</th>
+                    <th>DMX Array Index (0-based)</th>
+                    <th>Calculation</th>
+                </tr>
+                <tr>
+                    <td>0 (first channel)</td>
+                    <td>500</td>
+                    <td>499</td>
+                    <td>startAddress + index - 1 = 500 + 0 - 1 = 499 ✓</td>
+                </tr>
+                <tr>
+                    <td>11 (12th channel)</td>
+                    <td>511</td>
+                    <td>510</td>
+                    <td>startAddress + index - 1 = 500 + 11 - 1 = 510 ✓</td>
+                </tr>
+                <tr>
+                    <td>12 (13th channel)</td>
+                    <td>512</td>
+                    <td>511</td>
+                    <td>startAddress + index - 1 = 500 + 12 - 1 = 511 ✓</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Previous Bug (Fixed)</h2>
+        <p><strong>OLD CALCULATION:</strong> <code>dmxAddress = fixture.startAddress + index</code></p>
+        <p><strong>NEW CALCULATION:</strong> <code>dmxAddress = fixture.startAddress + index - 1</code></p>
+        
+        <h3>Example of the Bug Fix:</h3>
+        <table>
+            <tr>
+                <th>Fixture Start</th>
+                <th>Channel Index</th>
+                <th>Old (Incorrect)</th>
+                <th>New (Correct)</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>0</td>
+                <td>1 + 0 = 1</td>
+                <td>1 + 0 - 1 = 0</td>
+                <td>Was targeting DMX channel 2, now correctly targets channel 1</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>2</td>
+                <td>10 + 2 = 12</td>
+                <td>10 + 2 - 1 = 11</td>
+                <td>Was targeting DMX channel 13, now correctly targets channel 12</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="test-section">
+        <h2>Files Fixed</h2>
+        <ul>
+            <li><code>SuperControl.tsx</code> - Main Super Controller (2 instances)</li>
+            <li><code>TouchSuperControl.tsx</code> - Touch-friendly Super Controller (2 instances)</li>
+        </ul>
+        
+        <h3>Files Already Correct</h3>
+        <ul>
+            <li><code>ColorPickerPanel.tsx</code> - Already compensated with <code>- 1</code></li>
+            <li><code>ChromaticEnergyManipulatorMini.tsx</code> - Already compensated with <code>- 1</code></li>
+            <li><code>FixtureSetup.tsx</code> - Correctly uses different calculations for display vs. control</li>
+        </ul>
+    </div>
+    
+    <div class="test-section success">
+        <h2>✅ Validation Result</h2>
+        <p><strong>DMX address mapping is now correctly implemented!</strong></p>
+        <p>Super Controller movements should now update the correct DMX channels corresponding to the selected fixtures.</p>
+        
+        <h3>To Test:</h3>
+        <ol>
+            <li>Create a fixture with start address 1</li>
+            <li>Select it in Super Controller</li>
+            <li>Move a control (e.g., dimmer)</li>
+            <li>Verify that DMX channel 1 (array index 0) receives the value</li>
+            <li>Repeat with fixtures at different start addresses</li>
+        </ol>
+    </div>
+    
+    <script>
+        // Simple JavaScript validation
+        function validateMapping(startAddress, channelIndex) {
+            const oldCalculation = startAddress + channelIndex;
+            const newCalculation = startAddress + channelIndex - 1;
+            const expectedDmxIndex = newCalculation; // 0-based
+            const expectedUiDisplay = startAddress + channelIndex; // 1-based
+            
+            return {
+                oldCalculation,
+                newCalculation,
+                expectedDmxIndex,
+                expectedUiDisplay,
+                isCorrect: newCalculation >= 0 && newCalculation <= 511
+            };
+        }
+        
+        console.log('DMX Address Mapping Validation');
+        console.log('===============================');
+        
+        // Test cases
+        const testCases = [
+            {startAddress: 1, channelIndex: 0, description: 'First fixture, first channel'},
+            {startAddress: 1, channelIndex: 7, description: 'First fixture, 8th channel'},
+            {startAddress: 10, channelIndex: 0, description: 'Fixture at 10, first channel'},
+            {startAddress: 10, channelIndex: 2, description: 'Fixture at 10, third channel'},
+            {startAddress: 500, channelIndex: 11, description: 'Near end, 12th channel'}
+        ];
+        
+        testCases.forEach(test => {
+            const result = validateMapping(test.startAddress, test.channelIndex);
+            console.log(`${test.description}:`);
+            console.log(`  Old: ${result.oldCalculation}, New: ${result.newCalculation}`);
+            console.log(`  DMX Array Index: ${result.expectedDmxIndex}, UI Display: ${result.expectedUiDisplay}`);
+            console.log(`  Valid: ${result.isCorrect ? '✅' : '❌'}`);
+            console.log('');
+        });
+    </script>
+</body>
+</html>

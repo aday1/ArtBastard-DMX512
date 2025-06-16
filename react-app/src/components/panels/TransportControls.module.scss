@@ -5,8 +5,8 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
-  min-width: 300px;
-  max-width: 320px;
+  min-width: 350px;
+  max-width: 400px;
   z-index: 1000;
   user-select: none;
   transition: all 0.3s ease;
@@ -15,15 +15,16 @@
 .transportControls.docked {
   position: fixed !important;
   bottom: 20px;
-  right: 20px;
-  left: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  right: auto !important;
   top: auto !important;
 }
 
 .transportControls.dragging {
   z-index: 1001;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  transform: scale(1.02);
+  transform: translateX(-50%) scale(1.02);
 }
 
 /* Transport Header */
@@ -226,6 +227,17 @@
   }
 }
 
+@keyframes midiLearnPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
 /* Touch Optimizations */
 @media (pointer: coarse) {
   .transportButton {
@@ -254,8 +266,8 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .transportControls {
-    min-width: 280px;
-    max-width: 300px;
+    min-width: 320px;
+    max-width: 360px;
   }
   
   .transportControls.docked {
@@ -267,4 +279,516 @@
     bottom: 10px;
     right: 10px;
   }
+
+  .tabContent {
+    min-height: 150px;
+  }
+
+  .pathControls,
+  .sceneControls {
+    gap: 8px;
+  }
+
+  .controlRow {
+    gap: 6px;
+  }
+
+  .controlRow label {
+    min-width: 45px;
+    font-size: 9px;
+  }
+
+  .valueDisplay,
+  .progressValue {
+    min-width: 30px;
+    font-size: 9px;
+  }
+}
+
+/* Tab Navigation */
+.tabContainer {
+  display: flex;
+  border-bottom: 1px solid #555;
+  margin-bottom: 12px;
+}
+
+.tab {
+  background: rgba(40, 40, 40, 0.8);
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #ccc;
+  cursor: pointer;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 8px 12px;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: rgba(60, 60, 60, 0.8);
+  color: #fff;
+}
+
+.tab.activeTab {
+  background: rgba(76, 175, 80, 0.2);
+  border-bottom-color: #4CAF50;
+  color: #4CAF50;
+}
+
+.tabContent {
+  min-height: 200px;
+}
+
+/* Autopilot Controls */
+.autopilotControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.autopilotHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.autopilotHeader h4 {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.autopilotButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.autopilotButton {
+  background: linear-gradient(135deg, #333, #222);
+  border: 2px solid #555;
+  border-radius: 50%;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.autopilotButton:hover {
+  background: linear-gradient(135deg, #444, #333);
+  border-color: #777;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.autopilotButton.active {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border-color: #66BB6A;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+.pathSelection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pathSelection label {
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.pathSelect {
+  background: rgba(40, 40, 40, 0.9);
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.pathSelect:focus {
+  border-color: #4CAF50;
+  outline: none;
+}
+
+.pathControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlRow label {
+  color: #ccc;
+  font-size: 10px;
+  font-weight: 500;
+  min-width: 50px;
+  text-align: right;
+}
+
+.pathSlider {
+  background: rgba(40, 40, 40, 0.9);
+  border: none;
+  border-radius: 2px;
+  flex: 1;
+  height: 4px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pathSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: #4CAF50;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 12px;
+  width: 12px;
+}
+
+.pathSlider::-moz-range-thumb {
+  background: #4CAF50;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 12px;
+  width: 12px;
+}
+
+.valueDisplay {
+  color: #4CAF50;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 35px;
+  text-align: center;
+}
+
+.pathProgress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pathProgress label {
+  color: #ccc;
+  font-size: 10px;
+  font-weight: 500;
+  min-width: 50px;
+}
+
+.progressBar {
+  background: rgba(40, 40, 40, 0.9);
+  border: 1px solid #555;
+  border-radius: 2px;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progressFill {
+  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+  height: 100%;
+  transition: width 0.1s ease;
+}
+
+.progressValue {
+  color: #4CAF50;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 35px;
+  text-align: center;
+}
+
+/* Scene Controls */
+.sceneControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sceneHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sceneHeader h4 {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sceneButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.sceneButton {
+  background: linear-gradient(135deg, #333, #222);
+  border: 2px solid #555;
+  border-radius: 50%;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sceneButton:hover {
+  background: linear-gradient(135deg, #444, #333);
+  border-color: #777;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.sceneButton:disabled {
+  background: linear-gradient(135deg, #222, #111);
+  border-color: #333;
+  color: #555;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.sceneButton.active {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  border-color: #FFB74D;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
+}
+
+.autoSceneSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sceneList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.noScenes {
+  color: #666;
+  font-size: 11px;
+  font-style: italic;
+  padding: 12px;
+  text-align: center;
+}
+
+.sceneItem {
+  background: rgba(40, 40, 40, 0.6);
+  border: 1px solid #555;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
+.sceneItem:hover {
+  background: rgba(60, 60, 60, 0.8);
+  border-color: #777;
+}
+
+.sceneItem.currentScene {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: #4CAF50;
+}
+
+.sceneInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sceneName {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sceneDescription {
+  color: #ccc;
+  font-size: 9px;
+}
+
+.sceneActions {
+  display: flex;
+  gap: 4px;
+}
+
+.sceneActionButton {
+  background: rgba(60, 60, 60, 0.8);
+  border: 1px solid #666;
+  border-radius: 3px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  transition: all 0.2s ease;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sceneActionButton:hover {
+  background: rgba(80, 80, 80, 0.9);
+  border-color: #888;
+  color: #fff;
+}
+
+/* Additional Status Indicators */
+.autopilotIndicator {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid #4CAF50;
+  color: #4CAF50;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sceneIndicator {
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid #FF9800;
+  color: #FF9800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* MIDI Learn Buttons */
+.midiLearnButton {
+  background: linear-gradient(135deg, #333, #222);
+  border: 2px solid #555;
+  border-radius: 3px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.midiLearnButton:hover {
+  background: linear-gradient(135deg, #444, #333);
+  border-color: #777;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.midiLearnButton.learning {
+  background: linear-gradient(135deg, #FF5722, #D84315);
+  border-color: #FF7043;
+  color: #fff;
+  animation: midiLearnPulse 1s infinite;
+}
+
+/* Transport MIDI Learn */
+.transportMidiLearn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 8px;
+  background: rgba(40, 40, 40, 0.6);
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+
+.midiLearnRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.midiLearnRow span {
+  color: #ccc;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Scene Navigation */
+.sceneNavigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.sceneNavButton {
+  background: linear-gradient(135deg, #333, #222);
+  border: 2px solid #555;
+  border-radius: 50%;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 12px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sceneNavButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #444, #333);
+  border-color: #777;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.sceneNavButton:disabled {
+  background: linear-gradient(135deg, #222, #111);
+  border-color: #333;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.sceneCounter {
+  color: #ccc;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 35px;
+  text-align: center;
 }
