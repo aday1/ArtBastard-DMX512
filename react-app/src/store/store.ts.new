@@ -1,0 +1,281 @@
+import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
+import axios from 'axios'
+import { Socket } from 'socket.io-client'
+import { v4 as uuidv4 } from 'uuid'
+
+export interface MidiMapping {
+  channel: number
+  note?: number
+  controller?: number
+}
+
+export interface Fixture {
+  id: string
+  name: string
+  type: string
+  manufacturer?: string
+  model?: string
+  mode?: string
+  startAddress: number
+  channels: { name: string; type: string; dmxAddress?: number }[]
+  notes?: string // Notes section for fixture documentation
+  // Flagging system for organizing fixtures
+  flags?: FixtureFlag[]
+  isFlagged?: boolean
+}
+
+export interface FixtureFlag {
+  id: string
+  name: string
+  color: string
+  priority?: number // Higher numbers = higher priority
+  category?: string // Optional grouping
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  fixtureIndices: number[];
+  // New fields for enhanced functionality
+  lastStates: number[]; // Last known DMX values for each fixture in the group
+  position?: { x: number; y: number }; // Position on 2D canvas
+  isMuted: boolean;
+  isSolo: boolean;
+  masterValue: number; // Current master value (0-255)
+  midiMapping?: MidiMapping;
+  oscAddress?: string;
+  ignoreSceneChanges?: boolean; // Whether this group ignores scene changes
+  ignoreMasterFader?: boolean;
+  panOffset?: number;
+  tiltOffset?: number;
+  zoomValue?: number;
+}
+
+export interface Scene {
+  id: string;
+  name: string;
+  oscAddress?: string;
+  dmxValues: number[]; // Array of 512 values
+  createdAt: number;
+  updatedAt: number;
+  tags?: string[];
+  notes?: string;
+}
+
+export interface ArtNetConfig {
+  enabled: boolean;
+  host: string; // Target IP address
+  port: number; // Usually 6454
+  universe: number; // Art-Net universe number
+  broadcast: boolean; // Whether to use broadcast
+}
+
+export interface OscConfig {
+  enabled: boolean;
+  receivePort: number; // Port to listen for incoming OSC messages
+  sendHost: string; // Host to send OSC messages to
+  sendPort: number; // Port to send OSC messages to
+}
+
+export interface OscMessage {
+  id: string;
+  address: string;
+  args: Array<{ type: string; value: any }>;
+  timestamp: number;
+}
+
+export interface OscActivity {
+  value: number;
+  lastUpdate: number;
+}
+
+export interface PlacedFixture {
+  id: string;
+  fixtureStoreId: string; // References the fixture ID in the store fixtures array
+  name: string; // Optional custom name for this instance
+  x: number;
+  y: number;
+  color: string;
+  radius: number;
+  startAddress: number; // DMX start address for this fixture
+  controls?: PlacedControl[]; // Optional array for controls associated with this fixture
+}
+
+// Definition for PlacedControl on the 2D canvas, associated with a PlacedFixture
+export interface PlacedControl {
+  id: string;                     // Unique ID for this control instance
+  channelNameInFixture: string; // Name of the channel within the fixture's definition (e.g., "Dimmer", "Pan")
+  type: 'slider' | 'xypad';       // Control type: slider for single channel, xypad for pan/tilt combined
+  label: string;                  // Display label for the control (e.g., could be same as channelNameInFixture or custom)
+  xOffset: number;                // X position relative to the fixture icon's center
+  yOffset: number;                // Y position relative to the fixture icon's center
+  currentValue: number;           // Current value of this control (0-255), for sliders only
+  // XY Pad specific fields
+  panValue?: number;              // Pan value (0-255) for xypad controls
+  tiltValue?: number;             // Tilt value (0-255) for xypad controls
+  panChannelName?: string;        // Name of the pan channel (e.g., "Pan")
+  tiltChannelName?: string;       // Name of the tilt channel (e.g., "Tilt")
+}
+
+// Define MasterSlider related types
+export interface MasterSliderTarget {
+  placedFixtureId: string;        // ID of the PlacedFixture instance on the canvas
+  channelIndex: number;           // Index of the channel within that fixture's definition (0-based)
+  channelNameInFixture: string;   // Name of the channel (e.g., "Dimmer", "Pan") for display and easier association
+  minRange: number;               // Min value for the target channel (e.g., 0)
+  maxRange: number;               // Max value for the target channel (e.g., 255)
+}
+
+export interface MasterSlider {
+  id: string;
+  name: string;
+  value: number; // Current value (0-255, or 0-1, let's use 0-255 for consistency with DMX)
+  targets: MasterSliderTarget[];
+  position: { x: number; y: number }; // Position on the 2D canvas
+  midiMapping?: MidiMapping; // Re-use existing MidiMapping type
+}
+
+// Timeline Sequence Management (Enhanced)
+export interface TimelineKeyframe {
+  time: number; // milliseconds from start
+  value: number; // 0-255
+  curve: 'linear' | 'smooth' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'bezier';
+  // For bezier curves
+  controlPoint1?: { x: number; y: number };
+  controlPoint2?: { x: number; y: number };
+}
+
+export interface TimelineSequence {
+  id: string;
+  name: string;
+  description?: string;
+  duration: number; // Total duration in milliseconds
+  channels: Array<{
+    channel: number;
+    keyframes: TimelineKeyframe[];
+  }>;
+  tags?: string[];
+  createdAt: number;
+  modifiedAt: number;
+}
+
+export interface TimelinePreset {
+  id: string;
+  name: string;
+  description: string;
+  generator: (duration: number, amplitude?: number, frequency?: number, phase?: number) => TimelineKeyframe[];
+}
+
+// Notification type definition (used in State and actions)
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  priority?: 'low' | 'normal' | 'high';
+  persistent?: boolean;
+  dismissible?: boolean;
+  timestamp: number;
+}
+
+// Input type for addNotification action
+export type AddNotificationInput = Omit<Notification, 'id' | 'timestamp'>;
+
+// Type for batch DMX channel updates
+export type DmxChannelBatchUpdate = Record<number, number>;
+
+// Helper function for value interpolation (enhanced from timeline slice)
+export function interpolateValue(keyframes: TimelineKeyframe[], time: number): number | undefined {
+  if (keyframes.length === 0) return undefined;
+  if (keyframes.length === 1) return keyframes[0].value;
+
+  // Find surrounding keyframes
+  let prevFrame = keyframes[0];
+  let nextFrame = keyframes[keyframes.length - 1];
+
+  for (let i = 0; i < keyframes.length - 1; i++) {
+    if (keyframes[i].time <= time && keyframes[i + 1].time > time) {
+      prevFrame = keyframes[i];
+      nextFrame = keyframes[i + 1];
+      break;
+    }
+  }
+
+  if (prevFrame === nextFrame) return prevFrame.value;
+
+  const progress = (time - prevFrame.time) / (nextFrame.time - prevFrame.time);
+
+  switch (prevFrame.curve) {
+    case 'step':
+      return prevFrame.value;
+    
+    case 'linear':
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+    
+    case 'smooth':
+      const t = progress * progress * (3 - 2 * progress);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * t;
+    
+    case 'ease-in':
+      const ti = progress * progress;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * ti;
+    
+    case 'ease-out':
+      const to = 1 - Math.pow(1 - progress, 2);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * to;
+    
+    case 'ease-in-out':
+      const tio = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * tio;
+    
+    default:
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+  }
+}
+
+// Initial timeline sequences
+const initialTimelineSequences: TimelineSequence[] = [
+  {
+    id: 'moving-head-example',
+    name: 'Example: Moving Head Pan/Tilt',
+    description: 'A smooth figure-eight pattern using pan and tilt channels',
+    duration: 10000, // 10 seconds
+    channels: [
+      {
+        channel: 1, // Pan channel
+        keyframes: [
+          { time: 0, value: 0, curve: 'ease-in-out' },
+          { time: 2500, value: 255, curve: 'ease-in-out' },
+          { time: 5000, value: 0, curve: 'ease-in-out' },
+          { time: 7500, value: 255, curve: 'ease-in-out' },
+          { time: 10000, value: 0, curve: 'ease-in-out' }
+        ]
+      },
+      {
+        channel: 2, // Tilt channel
+        keyframes: [
+          { time: 0, value: 127, curve: 'ease-in-out' },
+          { time: 2500, value: 255, curve: 'ease-in-out' },
+          { time: 5000, value: 127, curve: 'ease-in-out' },
+          { time: 7500, value: 0, curve: 'ease-in-out' },
+          { time: 10000, value: 127, curve: 'ease-in-out' }
+        ]
+      }
+    ],
+    tags: ['example', 'moving head', 'pan/tilt'],
+    createdAt: Date.now(),
+    modifiedAt: Date.now()
+  },
+  {
+    id: 'blank-timeline',
+    name: 'Blank Timeline',
+    description: 'A fresh timeline ready for your creativity',
+    duration: 5000, // 5 seconds
+    channels: [], // No channels initially
+    tags: ['template'],
+    createdAt: Date.now(),
+    modifiedAt: Date.now()
+  }
+];

@@ -1,0 +1,6 @@
+// Re-export everything from the complete store backup
+export * from '../temp_store_backup';
+
+// Also export the interpolateValue function and timeline types for convenience
+export { interpolateValue } from './slices/timeline';
+export type { TimelineState, TimelineActions } from './types/timeline';

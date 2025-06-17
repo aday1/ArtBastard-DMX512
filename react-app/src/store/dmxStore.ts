@@ -30,12 +30,14 @@ export const useDMXStore = create<DmxState>()((set) => ({
       newValues[channel] = value;
     }
     return { dmxValues: newValues };
-  }),
-  updateMultipleDMXValues: (valuesToUpdate) => set(state => {
+  }),  updateMultipleDMXValues: (valuesToUpdate) => set(state => {
     const newValues = [...state.dmxValues];
     valuesToUpdate.forEach(({ channel, value }) => {
       if (channel >= 0 && channel < newValues.length) {
-        newValues[channel] = value;
+        if (!state.blackout) {
+          const scaledValue = Math.round(value * state.masterIntensity);
+          newValues[channel] = Math.max(0, Math.min(255, scaledValue));
+        }
       }
     });
     return { dmxValues: newValues };

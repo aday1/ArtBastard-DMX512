@@ -1,0 +1,80 @@
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { Socket } from 'socket.io-client';
+import { createTimelineSlice } from './slices/timeline';
+import { TimelineState, TimelineActions } from './types/timeline';
+import { useDMXStore } from './dmxStore';
+import { DMXValue } from '../types/dmxTypes';
+
+// Base state interface
+interface BaseState {
+  socket: Socket | null;
+  setSocket: (socket: Socket | null) => void;
+  fetchInitialState: () => Promise<void>;
+}
+
+// Combine all state types
+type State = BaseState & TimelineState & TimelineActions;
+
+// Create the store
+export const useStore = create<State>()(
+  devtools(
+    (...args) => ({
+      ...createTimelineSlice(...args),
+      socket: null,      setSocket: (socket: Socket | null) => {
+        args[0]({ socket });
+      },
+      
+      fetchInitialState: async () => {
+        try {
+          // Try to fetch state from server
+          const response = await fetch('/api/state', {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (response.ok) {
+            const serverState = await response.json();
+            console.log('Fetched initial state from server:', serverState);
+            
+            // Update DMX store with server state if available
+            if (serverState.dmxChannels) {
+              const dmxStore = useDMXStore.getState();
+              serverState.dmxChannels.forEach((value: number, index: number) => {
+                if (value !== 0) {
+                  dmxStore.updateDMXValue(index, value);
+                }
+              });
+            }
+            
+            // Update other state as needed
+            if (serverState.socket) {
+              args[0]({ socket: serverState.socket });
+            }
+          } else {
+            console.log('Server state not available, using default state');
+          }
+        } catch (error) {
+          console.warn('Failed to fetch initial state from server:', error);
+          console.log('Using default initial state');
+        }      },
+      
+      // Add any additional base state or actions here
+    }),
+    {
+      name: 'artbastard-store'
+    }
+  )
+);
+
+// Export types
+export type { TimelineState, TimelineActions };
+export type { DMXValue, Fixture } from '../types/dmxTypes';
+export type { BaseState, State };
+
+// Export stores and actions
+export { useDMXStore };
+export { interpolateValue } from './slices/timeline';

@@ -21,17 +21,16 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ className }) => {  cons
     activeTimelineSequence,
     timelinePresets,
     timelinePlayback,
-    // TODO: Implement missing timeline functions
-    // loadTimelineSequence,
-    // deleteTimelineSequence,
-    // updateTimelineSequence,
-    // exportTimelineSequence,
-    // importTimelineSequence,
-    // smoothTimelineSequence,
-    // playTimelineSequence,
-    // stopTimelinePlayback,
-    // generateTimelinePresets,
-    // createTimelineFromPreset
+    loadTimelineSequence,
+    deleteTimelineSequence,
+    updateTimelineSequence,
+    exportTimelineSequence,
+    importTimelineSequence,
+    smoothTimelineSequence,
+    playTimelineSequence,
+    stopTimelinePlayback,
+    generateTimelinePresets,
+    createTimelineFromPreset
   } = useStore();
 
   const [editorState, setEditorState] = useState<KeyframeEditorState>({
