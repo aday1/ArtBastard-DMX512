@@ -7,7 +7,7 @@ interface SuperControlProps {
 // Try to import the main SuperControl component
 let SuperControlMain: React.FC<SuperControlProps>;
 let SuperControlFallback: React.FC<SuperControlProps>;
-let hasMainComponentError = true; // Temporarily forced while fixing syntax errors
+let hasMainComponentError = false; // Main component is now working
 
 try {
   SuperControlMain = require('./SuperControl').default;
