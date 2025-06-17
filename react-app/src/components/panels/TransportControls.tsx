@@ -52,8 +52,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   const { 
     fixtures, 
     getDmxChannelValue, 
-    setDmxChannelValue,
-    // Recording and Automation
+    setDmxChannelValue,    // Recording and Automation
     recordingActive,
     recordingData,
     automationTracks,
@@ -70,7 +69,13 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     startAutomationPlayback,
     stopAutomationPlayback,
     setAutomationPosition,
-    applyAutomationPreset
+    applyAutomationPreset,
+    // Advanced Playback Modes
+    setAutomationPlaybackMode,
+    setAutomationLoop,
+    setAutomationSpeed,
+    reverseAutomationDirection,
+    playRecordingTimeline
   } = useStore();
 
   const [isMinimized, setIsMinimized] = useState(false);
@@ -257,25 +262,27 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     if (sceneIndex < 0 || sceneIndex >= scenes.length) return;
     
     const scene = scenes[sceneIndex];
-    
-    // Clear all channels first
-    for (let i = 1; i <= 512; i++) {
-      setDmxChannelValue(i, 0);
-    }
-    
-    // Apply scene values
+    // Apply scene values to DMX channels
     Object.entries(scene.values).forEach(([channel, value]) => {
       setDmxChannelValue(parseInt(channel), value);
     });
     
     setCurrentSceneIndex(sceneIndex);
+    console.log(`Loaded scene: ${scene.name}`);
   };
 
   const deleteScene = (sceneIndex: number) => {
+    if (sceneIndex < 0 || sceneIndex >= scenes.length) return;
+    
+    const scene = scenes[sceneIndex];
     setScenes(prev => prev.filter((_, index) => index !== sceneIndex));
+    
+    // Adjust current scene index if necessary
     if (currentSceneIndex >= sceneIndex && currentSceneIndex > 0) {
       setCurrentSceneIndex(currentSceneIndex - 1);
     }
+    
+    console.log(`Deleted scene: ${scene.name}`);
   };
 
   const startAutoScene = () => {
@@ -869,8 +876,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                         <div className={styles.sceneName}>{scene.name}</div>
                         <div className={styles.sceneDescription}>{scene.description}</div>
                       </div>
-                      <div className={styles.sceneActions}>
-                        <button
+                      <div className={styles.sceneActions}>                        <button
                           className={styles.sceneActionButton}
                           onClick={() => loadScene(index)}
                           title="Load Scene"
@@ -882,11 +888,12 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                           onClick={() => deleteScene(index)}
                           title="Delete Scene"
                         >
-                          🗑
-                        </button>
-                      </div>                    </div>
+                          🗑                        </button>
+                      </div>
+                    </div>
                   ))
-                )}              </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -984,7 +991,95 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                       {(automationPlayback.position * 100).toFixed(1)}%
                     </span>
                   </div>
+                    {/* Recording Timeline Playback */}
+                  <button
+                    className={styles.playRecordingButton}
+                    onClick={playRecordingTimeline}
+                    disabled={recordingData.length === 0}
+                    title="Play recorded timeline"
+                  >
+                    🎬 Play Recording
+                  </button>
                 </div>
+
+                {/* TODO: Re-enable advanced playback controls after fixing syntax issues */}
+                {/* Advanced Playback Mode Controls */}
+                {/*
+                <div className={styles.playbackModeControls}>
+                  <h5>Playback Modes</h5>
+                  <div className={styles.playbackModeButtons}>
+                    <button
+                      className={`${styles.modeButton} ${automationPlayback.mode === 'forward' ? styles.active : ''}`}
+                      onClick={() => setAutomationPlaybackMode('forward')}
+                      title="Normal forward playback"
+                    >
+                      ▶ Forward
+                    </button>
+                    <button
+                      className={`${styles.modeButton} ${automationPlayback.mode === 'reverse' ? styles.active : ''}`}
+                      onClick={() => setAutomationPlaybackMode('reverse')}
+                      title="Reverse playback"
+                    >
+                      ◀ Reverse
+                    </button>
+                    <button
+                      className={`${styles.modeButton} ${automationPlayback.mode === 'ping-pong' ? styles.active : ''}`}
+                      onClick={() => setAutomationPlaybackMode('ping-pong')}
+                      title="Ping-pong (forward then reverse)"
+                    >
+                      ⟷ Ping-Pong
+                    </button>
+                    <button
+                      className={`${styles.modeButton} ${automationPlayback.mode === 'loop' ? styles.active : ''}`}
+                      onClick={() => setAutomationPlaybackMode('loop')}
+                      title="Loop playback"
+                    >
+                      🔄 Loop
+                    </button>
+                  </div>
+                  
+                  <div className={styles.playbackOptions}>
+                    <label className={styles.playbackOption}>
+                      <input
+                        type="checkbox"
+                        checked={automationPlayback.loop}
+                        onChange={(e) => setAutomationLoop(e.target.checked)}
+                      />
+                      Loop Timeline
+                    </label>
+                    
+                    <div className={styles.speedControl}>
+                      <label>Speed: {automationPlayback.speed?.toFixed(1)}x</label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="3.0"
+                        step="0.1"
+                        value={automationPlayback.speed || 1.0}
+                        onChange={(e) => setAutomationSpeed(parseFloat(e.target.value))}
+                        className={styles.speedSlider}
+                      />
+                    </div>
+                    
+                    <button
+                      className={styles.reverseButton}
+                      onClick={reverseAutomationDirection}
+                      title="Reverse current direction"
+                      disabled={!automationPlayback.active}
+                    >
+                      🔄 Reverse Direction
+                    </button>
+                  </div>
+                  
+                  <div className={styles.playbackStatus}>
+                    <span className={styles.statusInfo}>
+                      Mode: {automationPlayback.mode} | 
+                      Direction: {automationPlayback.direction} |
+                      Speed: {automationPlayback.speed?.toFixed(1)}x
+                    </span>
+                  </div>
+                </div>
+                */}
               </div>
 
               {/* Automation Tracks Section */}
@@ -1072,8 +1167,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                                 title={`Time: ${(kf.time / 1000).toFixed(1)}s, Value: ${kf.value}`}
                               />
                             ))}
-                          </div>
-                        </div>
+                          </div>                        </div>
                       </div>
                     ))
                   )}

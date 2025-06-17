@@ -317,11 +317,26 @@ interface State {
   transitionDuration: number; // in ms
   fromDmxValues: number[] | null;
   toDmxValues: number[] | null;
-  currentTransitionFrame: number | null; // requestAnimationFrame ID
-  
-  // Socket state
-  socket: Socket | null
-  setSocket: (socket: Socket | null) => void
+  currentTransitionFrame: number | null; // requestAnimationFrame ID      // Socket state
+      socket: Socket | null
+      setSocket: (socket: Socket | null) => void
+
+      // Timeline Sequence Management Actions
+      loadTimelineSequence: (sequenceId: string) => void
+      deleteTimelineSequence: (sequenceId: string) => void
+      updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => void
+      exportTimelineSequence: (sequenceId: string) => void
+      importTimelineSequence: (file: File) => void
+      smoothTimelineSequence: (sequenceId: string, smoothingFactor?: number) => void
+      playTimelineSequence: (sequenceId: string) => void
+      stopTimelinePlayback: () => void
+      generateTimelinePresets: () => void
+      createTimelineFromPreset: (presetId: string, name: string, channels: number[], config: {
+        duration: number;
+        amplitude?: number;
+        frequency?: number;
+        phase?: number;
+      }) => string | null
 
   // MIDI Clock Sync State
   availableMidiClockHosts: Array<{ id: string; name: string }>;
@@ -380,6 +395,10 @@ interface State {
     startTime: number | null;
     duration: number; // Total duration in milliseconds
     position: number; // Current position 0-1
+    mode: 'forward' | 'reverse' | 'ping-pong' | 'loop';
+    direction: 'forward' | 'reverse'; // Current direction for ping-pong mode
+    loop: boolean; // Whether to loop the entire timeline
+    speed: number; // Playback speed multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)
   };
   // Smooth DMX Output System
   smoothDmxEnabled: boolean;
@@ -526,254 +545,212 @@ interface State {
   stopAutomationPlayback: () => void;
   setAutomationPosition: (position: number) => void; // 0-1
   applyAutomationPreset: (trackId: string, preset: 'sine' | 'triangle' | 'sawtooth' | 'square' | 'random') => void;
+  // Advanced Playback Mode Actions
+  setAutomationPlaybackMode: (mode: 'forward' | 'reverse' | 'ping-pong' | 'loop') => void;
+  setAutomationLoop: (loop: boolean) => void;
+  setAutomationSpeed: (speed: number) => void;
+  reverseAutomationDirection: () => void;
+  playRecordingTimeline: () => void;
 
-  // Smooth DMX Actions
-  setSmoothDmxEnabled: (enabled: boolean) => void;
-  setSmoothDmxUpdateRate: (rate: number) => void;
-  setSmoothDmxThreshold: (threshold: number) => void;
-  setSmoothDmxChannelValue: (channel: number, value: number) => void;  flushSmoothDmxUpdates: () => void;
-  enableSmoothDmxMode: () => void;
-  disableSmoothDmxMode: () => void;
-  // Timeline Sequence Management
-  saveTimelineSequence: (name: string, description?: string) => string; // Returns sequence ID
-  loadTimelineSequence: (sequenceId: string) => void;
-  deleteTimelineSequence: (sequenceId: string) => void;
-  updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => void;
-  exportTimelineSequence: (sequenceId: string) => void;
-  importTimelineSequence: (sequenceData: TimelineSequence) => void;
-  smoothTimelineSequence: (sequenceId: string, smoothingFactor: number) => void;
-  playTimelineSequence: (sequenceId: string, loop?: boolean) => void;
-  stopTimelinePlayback: () => void;
-  generateTimelinePresets: () => void;
-  createTimelineFromPreset: (presetId: string, channels: number[], duration: number, amplitude?: number, frequency?: number, phase?: number) => void;
+  // Timeline Sequence Management Actions
+  loadTimelineSequence: (sequenceId: string) => {
+    const timelineSequences = get().timelineSequences;
+    const sequence = timelineSequences.find(s => s.id === sequenceId);
+    if (!sequence) {
+      console.warn(`Timeline sequence ${sequenceId} not found`);
+      return;
+    }
+
+    set({
+      activeTimelineSequence: sequenceId,
+      timelinePlayback: {
+        ...get().timelinePlayback,
+        sequenceId,
+        position: 0,
+        startTime: null,        active: false,
+      }
 }
 
-// Helper function to initialize darkMode from localStorage with fallback to true
-const initializeDarkMode = (): boolean => {
-  try {
-    const stored = localStorage.getItem('darkMode');
-    const darkMode = stored !== null ? stored === 'true' : true; // Default to true if not found
-    
-    // Apply theme immediately on initialization
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    
-    return darkMode;
-  } catch (error) {
-    console.warn('Failed to read darkMode from localStorage, using default (true):', error);
-    document.documentElement.setAttribute('data-theme', 'dark');
-    return true;
-  }
-};
-
-// Helper function to initialize UI settings from localStorage
-const initializeUiSettings = (): { sparklesEnabled: boolean } => {
-  try {
-    const stored = localStorage.getItem('uiSettings');
-    const defaultSettings = { sparklesEnabled: true };
-    
-    if (stored) {
-      const parsedSettings = JSON.parse(stored);
-      return { ...defaultSettings, ...parsedSettings };
-    }
-    
-    return defaultSettings;
-  } catch (error) {
-    console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
-    return { sparklesEnabled: true };  }
-};
-
-// Helper function to interpolate between keyframes
-const interpolateKeyframes = (keyframes: Array<{ time: number; value: number; curve: string }>, currentTime: number): number | null => {
-  if (keyframes.length === 0) return null;
+// Helper function for timeline value interpolation
+function interpolateChannelValue(keyframes: TimelineKeyframe[], time: number): number | undefined {
+  if (keyframes.length === 0) return undefined;
   if (keyframes.length === 1) return keyframes[0].value;
-  
-  // Find surrounding keyframes
-  let prevKeyframe = keyframes[0];
-  let nextKeyframe = keyframes[keyframes.length - 1];
-  
+
+  // Find the keyframes before and after the current time
+  let prevFrame = keyframes[0];
+  let nextFrame = keyframes[keyframes.length - 1];
+
   for (let i = 0; i < keyframes.length - 1; i++) {
-    if (currentTime >= keyframes[i].time && currentTime <= keyframes[i + 1].time) {
-      prevKeyframe = keyframes[i];
-      nextKeyframe = keyframes[i + 1];
+    if (keyframes[i].time <= time && keyframes[i + 1].time > time) {
+      prevFrame = keyframes[i];
+      nextFrame = keyframes[i + 1];
       break;
     }
   }
-  
-  // Handle edge cases
-  if (currentTime <= prevKeyframe.time) return prevKeyframe.value;
-  if (currentTime >= nextKeyframe.time) return nextKeyframe.value;
-  
-  // Calculate interpolation factor
-  const timeDiff = nextKeyframe.time - prevKeyframe.time;
-  if (timeDiff === 0) return prevKeyframe.value;
-  
-  const t = (currentTime - prevKeyframe.time) / timeDiff;
-  const valueDiff = nextKeyframe.value - prevKeyframe.value;
-  
-  // Apply curve
-  let easedT = t;
-  switch (prevKeyframe.curve) {
-    case 'step':
-      easedT = 0; // Use previous value until next keyframe
-      break;
-    case 'ease-in':
-      easedT = t * t;
-      break;
-    case 'ease-out':
-      easedT = 1 - (1 - t) * (1 - t);
-      break;
-    case 'ease-in-out':
-      easedT = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
-      break;
-    case 'smooth':
-      easedT = t * t * (3 - 2 * t); // Smoothstep
-      break;
-    case 'linear':
-    default:
-      easedT = t;
-      break;
+
+  if (prevFrame === nextFrame) {
+    return prevFrame.value;
   }
-  
-  return prevKeyframe.value + valueDiff * easedT;
-};
 
-export const useStore = create<State>()(
+  const progress = (time - prevFrame.time) / (nextFrame.time - prevFrame.time);
+
+  switch (prevFrame.curve) {
+    case 'step':
+      return prevFrame.value;
+    
+    case 'linear':
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+    
+    case 'smooth':
+      // Use smoothstep interpolation
+      const t = progress * progress * (3 - 2 * progress);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * t;
+    
+    case 'ease-in':
+      const ti = progress * progress;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * ti;
+    
+    case 'ease-out':
+      const to = 1 - Math.pow(1 - progress, 2);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * to;
+    
+    case 'ease-in-out':
+      const tio = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * tio;
+    
+    case 'bezier':
+      if (prevFrame.controlPoint1 && prevFrame.controlPoint2) {
+        // Cubic Bezier interpolation
+        const t = progress;
+        const u = 1 - t;
+        const tt = t * t;
+        const uu = u * u;
+        const uuu = uu * u;
+        const ttt = tt * t;
+        
+        const p0 = prevFrame.value;
+        const p1 = prevFrame.controlPoint1.y;
+        const p2 = prevFrame.controlPoint2.y;
+        const p3 = nextFrame.value;
+        
+        return uuu * p0 + 3 * uu * t * p1 + 3 * u * tt * p2 + ttt * p3;
+      }
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+    
+    default:
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+  }
+}
+
+export const useStore = create(
   devtools(
-    (set, get) => ({
-      // Initial state
-      dmxChannels: new Array(512).fill(0),
-      oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-      channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-      selectedChannels: [],
-      
-      // Navigation State
-      navVisibility: {
-        main: true,
-        midiOsc: true,
-        fixture: true,
-        scenes: true,
-        audio: true,
-        touchosc: true,
-        misc: true
-      },
-      
-      // Debug Tools
-      debugTools: {
-        debugButton: true,
-        midiMonitor: true,
-        oscMonitor: true
-      },
-        midiInterfaces: [],
-      activeInterfaces: [],
-      midiMappings: {},
-      midiLearnTarget: null,
-      midiLearnScene: null,
-      midiMessages: [],
-      oscMessages: [], // Initialized oscMessages
-      midiActivity: 0, // Default MIDI activity level
-      
-      // Audio/BPM State defaults
-      bpm: 120, // Default BPM
-      isPlaying: false, // Default not playing
-
-      fixtures: [],
-      groups: [],
-      
-      scenes: [],
-      
-      artNetConfig: {
-        ip: "192.168.1.199",
-        subnet: 0,
-        universe: 0,
-        net: 0,
-        port: 6454,
-        base_refresh_interval: 1000
-      },      
-      artNetStatus: 'disconnected',      theme: 'artsnob',
-      darkMode: initializeDarkMode(),
-      // statusMessage: null, // Deprecated
-      notifications: [], 
-        // UI Settings
-      uiSettings: initializeUiSettings(),
-      
-      oscActivity: {},
-      debugModules: {
-        midi: false,
-        osc: false,
-        artnet: false,
-        button: true
-      },
-      exampleSliderValue: 0,
-      fixtureLayout: [], 
-      placedFixtures: [], 
-      masterSliders: [], 
-      canvasBackgroundImage: null, 
-
-      // Scene Transition State Init
-      isTransitioning: false,
-      transitionStartTime: null,
-      transitionDuration: 1000, // Default 1 second
-      fromDmxValues: null,
-      toDmxValues: null,
-      currentTransitionFrame: null,
-        socket: null,
-      setSocket: (socket) => set({ socket }),
-      
-      // MIDI Clock Sync State Init
-      availableMidiClockHosts: [
-        { id: 'internal', name: 'Internal Clock' },
-        // Other hosts would be populated dynamically
-      ],
-      selectedMidiClockHostId: 'internal',
-      midiClockBpm: 120.0,
-      midiClockIsPlaying: false,
-      midiClockCurrentBeat: 1,
-      midiClockCurrentBar: 1,      // Auto-Scene Feature State Init - Load from localStorage if available
-      ...((): any => {
-        const savedSettings = loadAutoSceneSettings();
-        return {
-          autoSceneEnabled: savedSettings.autoSceneEnabled ?? false,
-          autoSceneList: savedSettings.autoSceneList ?? [],
-          autoSceneMode: savedSettings.autoSceneMode ?? 'forward',
-          autoSceneCurrentIndex: -1, // Always start fresh, don't persist current index
-          autoScenePingPongDirection: 'forward', // Always start fresh
-          autoSceneBeatDivision: savedSettings.autoSceneBeatDivision ?? 4,
-          autoSceneManualBpm: savedSettings.autoSceneManualBpm ?? 120,
-          autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
-          autoSceneLastTapTime: 0, // Don't persist timing state
-          autoSceneTapTimes: [], // Don't persist timing state
-          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',          autoSceneIsFlashing: false, // Initial flashing state
-        };
-      })(),
-
-      // Autopilot Track System Initial State
-      autopilotTrackEnabled: false,
-      autopilotTrackType: 'circle',
-      autopilotTrackPosition: 0,
-      autopilotTrackSize: 50,
-      autopilotTrackSpeed: 50,
-      autopilotTrackCenterX: 127,
-      autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
-      autopilotTrackCustomPoints: [],
-
-      // Recording and Automation System Initial State
-      recordingActive: false,
-      recordingStartTime: null,
-      recordingData: [],
-      automationTracks: [],
-      automationPlayback: {
+    (set, get): State => ({
+      // Timeline Management State
+      timelineSequences: [
+        {
+          id: 'example-moving-light' as string,
+          name: 'Example: Moving Head Pan/Tilt' as string,
+          description: 'A figure-8 pattern with smooth dimming' as string,
+          duration: 10000, // 10 seconds
+          channels: [
+            {
+              channel: 1, // Pan
+              keyframes: [
+                { time: 0, value: 0, curve: 'smooth' as const },
+                { time: 2500, value: 255, curve: 'smooth' as const },
+                { time: 5000, value: 0, curve: 'smooth' as const },
+                { time: 7500, value: 255, curve: 'smooth' as const },
+                { time: 10000, value: 0, curve: 'smooth' as const }
+              ]
+            },
+            {
+              channel: 2, // Tilt
+              keyframes: [
+                { time: 0, value: 127, curve: 'smooth' as const },
+                { time: 2500, value: 255, curve: 'smooth' as const },
+                { time: 5000, value: 127, curve: 'smooth' as const },
+                { time: 7500, value: 0, curve: 'smooth' as const },
+                { time: 10000, value: 127, curve: 'smooth' as const }
+              ]
+            },
+            {
+              channel: 3, // Dimmer
+              keyframes: [
+                { time: 0, value: 255, curve: 'smooth' as const },
+                { time: 5000, value: 127, curve: 'smooth' as const },
+                { time: 10000, value: 255, curve: 'smooth' as const }
+              ]
+            }
+          ],
+          tags: ['example', 'moving-head', 'pan-tilt'] as string[],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        } as TimelineSequence,
+        // Blank timeline template
+        {
+          id: 'blank-template' as string,
+          name: 'Blank Timeline' as string,
+          description: 'A blank timeline ready for your creativity' as string,
+          duration: 5000, // 5 seconds
+          channels: [] as Array<{
+            channel: number;
+            keyframes: Array<{ time: number; value: number; curve: 'smooth' | 'linear' | 'step' }>;
+          }>,
+          tags: ['template'] as string[],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        } as TimelineSequence
+      ] as TimelineSequence[],
+      activeTimelineSequence: null as string | null,
+      timelineEditMode: false,
+      timelinePresets: [] as TimelinePreset[],
+      timelinePlayback: {
         active: false,
-        startTime: null,
-        duration: 10000, // Default 10 seconds        position: 0
-      },      // Smooth DMX Output System Initial State  
-      smoothDmxEnabled: true, // Enable by default for better performance
-      smoothDmxUpdateRate: 30, // 30 FPS update rate
-      smoothDmxThreshold: 1, // Minimum change of 1 DMX unit
-      pendingSmoothUpdates: {},
-      lastSmoothUpdateTime: 0,
-
-      // Timeline Sequence Management Initial State
-      timelineSequences: [],
+        sequenceId: null as string | null,
+        startTime: null as number | null,
+        position: 0,
+        loop: false,
+      },
+                { time: 10000, value: 0, curve: 'smooth' }
+              ]
+            },
+            {
+              channel: 2, // Tilt
+              keyframes: [
+                { time: 0, value: 127, curve: 'smooth' },
+                { time: 2500, value: 255, curve: 'smooth' },
+                { time: 5000, value: 127, curve: 'smooth' },
+                { time: 7500, value: 0, curve: 'smooth' },
+                { time: 10000, value: 127, curve: 'smooth' }
+              ]
+            },
+            {
+              channel: 3, // Dimmer
+              keyframes: [
+                { time: 0, value: 255, curve: 'smooth' },
+                { time: 5000, value: 127, curve: 'smooth' },
+                { time: 10000, value: 255, curve: 'smooth' }
+              ]
+            }
+          ],
+          tags: ['example', 'moving-head', 'pan-tilt'],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        },
+        // Blank timeline template
+        {
+          id: 'blank-template',
+          name: 'Blank Timeline',
+          description: 'A blank timeline ready for your creativity',
+          duration: 5000, // 5 seconds
+          channels: [],
+          tags: ['template'],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        }
+      ],
       activeTimelineSequence: null,
       timelineEditMode: false,
       timelinePresets: [],
@@ -784,2088 +761,967 @@ export const useStore = create<State>()(
         position: 0,
         loop: false,
       },
-      
-      _recalculateDmxOutput: () => {
-        const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
-        const newDmxValuesArray = [...dmxChannels]; // Base DMX state for this calculation run
-        const newDmxValuesBatch: DmxChannelBatchUpdate = {};
-
-        const activeSoloGroups = groups.filter(g => g.isSolo);
-
-        fixtures.forEach((fixture, fixtureIdx) => {
-          const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtureIdx));
-
-          let isFixtureSoloActive = true;
-          if (activeSoloGroups.length > 0) {
-            isFixtureSoloActive = fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
-          }
-
-          fixture.channels.forEach((channel, channelIdx) => {
-            const dmxAddress = fixture.startAddress + channelIdx - 1; // 0-indexed
-            if (dmxAddress < 0 || dmxAddress >= 512) return;
-
-            let baseValueForGroupEffects = newDmxValuesArray[dmxAddress];
-            let currentChannelValue = baseValueForGroupEffects; // Initialize with base
-
-            if (fixtureGroups.length > 0) {
-              const firstGroup = fixtureGroups[0]; // Prioritize the first group for P/T/Z, Master, Mute logic
-
-              // Determine base value for intensity effects if lastStates is available
-              const channelTypeUpper = channel.type.toUpperCase();
-              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-                if (firstGroup.masterValue > 0 && firstGroup.lastStates && firstGroup.lastStates.length === 512) {
-                  baseValueForGroupEffects = firstGroup.lastStates[dmxAddress];
-                }
-                // If masterValue is 0, or lastStates isn't valid, baseValueForGroupEffects remains newDmxValuesArray[dmxAddress]
-                // which will correctly become 0 if muted or master is 0.
-                currentChannelValue = baseValueForGroupEffects; // Re-initialize for intensity channel based on lastStates logic
-              }
-
-              // Apply Group P/T/Z (operates on currentChannelValue, which is from newDmxValuesArray unless it's an intensity channel using lastStates)
-              // For PAN/TILT/ZOOM, they typically operate on whatever the current DMX value is (e.g. from a scene or manual override).
-              // If P/T/Z channels are also intensity, the baseValueForGroupEffects logic for intensity above would apply.
-              // However, typically P/T/Z are separate or combined with intensity where master/mute applies to intensity part.
-              // Let's assume P/T/Z apply to the initial `newDmxValuesArray[dmxAddress]` value.
-              let ptzModifiedValue = newDmxValuesArray[dmxAddress]; // Use initial DMX for P/T/Z base
-
-              if (firstGroup.panOffset !== undefined && channel.type.toUpperCase() === 'PAN') {
-                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.panOffset));
-              }
-              if (firstGroup.tiltOffset !== undefined && channel.type.toUpperCase() === 'TILT') {
-                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.tiltOffset));
-              }
-              if (firstGroup.zoomValue !== undefined && channel.type.toUpperCase() === 'ZOOM') {
-                ptzModifiedValue = Math.max(0, Math.min(255, firstGroup.zoomValue)); // Zoom is absolute
-              }
-
-              // If the channel is NOT intensity/dimmer, P/T/Z applies directly.
-              // If it IS intensity/dimmer, P/T/Z effect is on the non-intensity aspect (which we assume is separate here).
-              // The `currentChannelValue` for intensity is based on `baseValueForGroupEffects`.
-              // This logic assumes P/T/Z are not the *same* channels as master/mute sensitive intensity.
-              // If they are (e.g. a moving head's dimmer channel), this logic needs refinement.
-              // For now, if it's PAN/TILT/ZOOM, we take that value. If it's DIMMER/INTENSITY, we proceed with its own base.
-              if (channelTypeUpper === 'PAN' || channelTypeUpper === 'TILT' || channelTypeUpper === 'ZOOM') {
-                currentChannelValue = ptzModifiedValue;
-              }
-
-
-              // Apply Group Master/Mute for intensity/dimmer channels
-              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-                if (firstGroup.isMuted) {
-                  currentChannelValue = 0;
-                } else {
-                  // Master value scales the chosen base (either from lastStates or current DMX)
-                  currentChannelValue = Math.round(baseValueForGroupEffects * (firstGroup.masterValue / 255));
-                }
-              }
-            }
-
-            // Apply Solo Logic for intensity/dimmer channels
-            const channelTypeUpper = channel.type.toUpperCase(); // Re-check for safety, though already have it
-            if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-              if (!isFixtureSoloActive) {
-                currentChannelValue = 0;
-              }
-            }
-
-            const finalValue = Math.max(0, Math.min(255, Math.round(currentChannelValue)));
-            if (newDmxValuesArray[dmxAddress] !== finalValue || !(dmxAddress in newDmxValuesBatch)) {
-              // Update batch if value changed OR if it wasn't set by a prior fixture but needs to be included
-              newDmxValuesBatch[dmxAddress] = finalValue;
-            }
-            // We don't write to newDmxValuesArray here because each fixture's calculation should start from the original dmxChannels snapshot
-            // or its group's lastStates, not be influenced by other groups' calculations in the same pass, to avoid order dependency issues.
-            // The batch update will apply all final values at the end.
-          });
-        });
-
-        // Create a full batch if any calculation path could have missed setting a value
-        // For safety, ensure all 512 channels are in the batch if any processing happened.
-        // A more optimized way would be to only send changed values, but _recalculateDmxOutput implies a full refresh.
-        // The current logic for newDmxValuesBatch only includes changed values.
-        // Let's ensure that if we started with dmxChannels, and applied group logic, the result is what we send.
-        // The `setMultipleDmxChannels` expects a DmxChannelBatchUpdate (Record<number, number>).
-        // We need to convert the `newDmxValuesArray` (which has been implicitly modified if we were writing to it)
-        // or build up the `newDmxValuesBatch` correctly.
-
-        // Correct approach: newDmxValuesArray is the "scratchpad" that gets modified to final values.
-        // Then compare newDmxValuesArray to original dmxChannels to build the minimal batch.
-        const finalBatch: DmxChannelBatchUpdate = {};
-        let hasChanges = false;
-        for (let i = 0; i < 512; i++) {
-          // The loop above calculates final values and puts them into newDmxValuesBatch if they changed from original newDmxValuesArray[i]
-          // However, the newDmxValuesArray itself was NOT updated inside the loop.
-          // This means the `baseValueForGroupEffects` was always from the original dmxChannels or lastStates.
-          // This is correct to avoid inter-group calculation order dependencies.
-          // The `newDmxValuesBatch` should correctly contain all intended changes.
-        }
-        // The current newDmxValuesBatch logic seems correct: it only adds if finalValue is different from the original state of newDmxValuesArray[dmxAddress]
-
-        if (Object.keys(newDmxValuesBatch).length > 0) {
-          // Before setting, update the local dmxChannels state completely with the results of this calculation pass
-          // This ensures that `get().dmxChannels` is the new calculated state *before* `setMultipleDmxChannels` (which might be async for backend)
-          const fullyCalculatedDmxState = [...get().dmxChannels];
-          for (const addr in newDmxValuesBatch) {
-            fullyCalculatedDmxState[parseInt(addr)] = newDmxValuesBatch[addr];
-          }
-          set({ dmxChannels: fullyCalculatedDmxState });
-
-          // Now send the batch to backend
-          axios.post('/api/dmx/batch', newDmxValuesBatch)
-            .catch(error => {
-              console.error('Failed to update DMX channels in batch from _recalculateDmxOutput:', error);
-              get().addNotification({ message: 'Failed to apply group DMX calculations', type: 'error', priority: 'high' });
-            });
-        }
-      },
-
-      // Actions
-      fetchInitialState: async () => {
-        try {
-          const response = await axios.get('/api/state', {
-            timeout: 5000,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          })
-          
-          if (response.status === 200 && response.data) {
-            const state = response.data
-            
-            set({
-              dmxChannels: state.dmxChannels || new Array(512).fill(0),
-              oscAssignments: state.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: state.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              fixtures: state.fixtures || [],
-              groups: state.groups || [],
-              midiMappings: state.midiMappings || {},
-              artNetConfig: state.artNetConfig || get().artNetConfig,
-              scenes: state.scenes || [],
-              fixtureLayout: state.fixtureLayout || [], 
-              masterSliders: state.masterSliders || [] 
-            })
-
-            if (state.settings && typeof state.settings.transitionDuration === 'number') {
-                set({ transitionDuration: state.settings.transitionDuration });
-            }
-            // No explicit success notification here, to avoid clutter on normal startup
-            return 
-          }
-          throw new Error('Invalid response from server')        } catch (error: any) {
-          console.error('Failed to fetch initial state:', error)
-          get().addNotification({ 
-            message:
-              error.code === 'ECONNABORTED'
-                ? 'Connection timeout - please check server status'
-                : 'Failed to fetch initial state - using default values',
-            type: 'error',
-            priority: 'high',
-            persistent: true
-          })
-          
-          // Only set default values if we don't have existing data
-          // This prevents clearing fixtures during navigation when server is unavailable
-          const currentState = get()
-          const hasExistingFixtures = currentState.fixtures && currentState.fixtures.length > 0
-          
-          if (!hasExistingFixtures) {
-            set({
-              dmxChannels: new Array(512).fill(0),
-              oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              fixtures: [],
-              groups: [],
-              midiMappings: {},
-              scenes: [],
-              fixtureLayout: [], 
-              masterSliders: [], 
-              transitionDuration: 1000, 
-            })
-          } else {
-            // If we have existing fixtures, only set essential defaults for missing data
-            set({
-              dmxChannels: currentState.dmxChannels || new Array(512).fill(0),
-              oscAssignments: currentState.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: currentState.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              // Keep existing fixtures, groups, etc.
-              midiMappings: currentState.midiMappings || {},
-              scenes: currentState.scenes || [],
-              masterSliders: currentState.masterSliders || [], 
-              transitionDuration: currentState.transitionDuration || 1000, 
-            })
-          }
-        }
-      },
-      
-      getDmxChannelValue: (channel) => {
-        const dmxChannels = get().dmxChannels;
-        if (channel >= 0 && channel < dmxChannels.length) {
-          return dmxChannels[channel] || 0;
-        }
-        return 0;
-      },
-      
-      setDmxChannel: (channel, value) => {
-        const dmxChannels = [...get().dmxChannels]
-        dmxChannels[channel] = value
-        set({ dmxChannels })
-        
-        axios.post('/api/dmx', { channel, value })
-          .catch(error => {
-            console.error('Failed to update DMX channel:', error)
-            get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
-          })
-      },
-
-      setMultipleDmxChannels: (updates) => {
-        const currentDmxChannels = get().dmxChannels;
-        const newDmxChannels = [...currentDmxChannels];
-        for (const channelStr in updates) {
-          const channel = parseInt(channelStr, 10);
-          if (channel >= 0 && channel < newDmxChannels.length) {
-            newDmxChannels[channel] = updates[channel];
-          }
-        }
-        set({ dmxChannels: newDmxChannels });
-
-        axios.post('/api/dmx/batch', updates)
-          .catch(error => {
-            console.error('Failed to update DMX channels in batch:', error);
-            get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
-          });
-      },      setDmxChannelValue: (channel, value) => { 
-        get().setDmxChannel(channel, value);
-        
-        // Record the change if recording is active
-        const { recordingActive } = get();
-        if (recordingActive) {
-          get().addRecordingEvent({
-            type: 'dmx',
-            channel,
-            value
-          });
-        }
-      },
-
-      setDmxChannelsForTransition: (values) => { 
-        set({ dmxChannels: values });
-      },
-
-      setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
-
-      clearTransitionState: () => set({
-        isTransitioning: false,
-        transitionStartTime: null,
-        fromDmxValues: null,
-        toDmxValues: null,
-        currentTransitionFrame: null,
-      }),
-
-      setTransitionDuration: (duration) => {
-        if (duration >= 0) { 
-          set({ transitionDuration: duration });
-        }
-      },
-      
-      selectChannel: (channel) => {
-        const selectedChannels = [...get().selectedChannels]
-        if (!selectedChannels.includes(channel)) {
-          selectedChannels.push(channel)
-          set({ selectedChannels })
-        }
-      },
-      
-      deselectChannel: (channel) => {
-        const selectedChannels = get().selectedChannels.filter(ch => ch !== channel)
-        set({ selectedChannels })
-      },
-      
-      toggleChannelSelection: (channel) => {
-        const selectedChannels = [...get().selectedChannels]
-        const index = selectedChannels.indexOf(channel)
-        
-        if (index === -1) {
-          selectedChannels.push(channel)
-        } else {
-          selectedChannels.splice(index, 1)
-        }
-        
-        set({ selectedChannels })
-      },
-      
-      selectAllChannels: () => {
-        const selectedChannels = Array.from({ length: 512 }, (_, i) => i)
-        set({ selectedChannels })
-      },
-      
-      deselectAllChannels: () => {
-        set({ selectedChannels: [] })
-      },
-      
-      invertChannelSelection: () => {
-        const currentSelection = get().selectedChannels
-        const allChannels = Array.from({ length: 512 }, (_, i) => i)
-        const newSelection = allChannels.filter(ch => !currentSelection.includes(ch))
-        set({ selectedChannels: newSelection })
-      },
-      
-      setOscAssignment: (channelIndex, address) => {
-        const oscAssignments = [...get().oscAssignments];
-        oscAssignments[channelIndex] = address;
-        set({ oscAssignments });
-        axios.post('/api/osc/assign', { channelIndex, address })
-          .catch(error => {
-            console.error('Failed to set OSC assignment:', error);
-            get().addNotification({ message: 'Failed to set OSC assignment', type: 'error' });
-          });
-      },
-
-      reportOscActivity: (channelIndex, value) => {
-        set(state => ({
-          oscActivity: {
-            ...state.oscActivity,
-            [channelIndex]: { value, timestamp: Date.now() }
-          }
-        }));
-      },
-      
-      addOscMessage: (message) => { // Implemented addOscMessage
-        const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
-        set({ oscMessages: messages });
-        // console.log('OSC message received in store:', message); // Optional: for debugging
-      },
-
-      // MIDI Actions
-      startMidiLearn: (target) => {
-        set({ midiLearnTarget: target });
-        get().addNotification({ 
-          message: `MIDI Learn started for ${target.type === 'dmxChannel' ? 'DMX Ch: ' + (target.channelIndex + 1) : 'Master Slider: ' + target.id }`, 
-          type: 'info', 
-          priority: 'low' 
-        });
-        if (target.type === 'dmxChannel') {
-            axios.post('/api/midi/learn', { channel: target.channelIndex })
-              .catch(error => {
-                console.error('Failed to start MIDI learn for DMX channel:', error);
-                get().addNotification({ message: 'Failed to start MIDI learn for DMX channel', type: 'error' });
-              });
-        }
-      },
-      
-      cancelMidiLearn: () => {
-        const currentTarget = get().midiLearnTarget;
-        set({ midiLearnTarget: null });
-        get().addNotification({ message: 'MIDI Learn cancelled', type: 'info', priority: 'low' });
-        
-        if (currentTarget && currentTarget.type === 'dmxChannel') {
-          axios.post('/api/midi/cancel-learn', { channel: currentTarget.channelIndex })
-            .catch(error => {
-              console.error('Failed to cancel MIDI learn for DMX channel:', error);
-            });
-        }
-      },
-      
-      addMidiMessage: (message) => {
-        const messages = [...get().midiMessages, message].slice(-20)
-        set({ midiMessages: messages })
-        console.log('MIDI message received:', message)
-      },
-      
-      addMidiMapping: (dmxChannel, mapping) => {
-        const midiMappings = { ...get().midiMappings }
-        midiMappings[dmxChannel] = mapping
-        set({ midiMappings, midiLearnTarget: null }) 
-        
-        axios.post('/api/midi/mapping', { dmxChannel, mapping })
-          .then(() => {
-            get().addNotification({ message: `MIDI mapped to DMX Ch: ${dmxChannel + 1}`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to add MIDI mapping:', error)
-            get().addNotification({ message: 'Failed to add MIDI mapping', type: 'error', priority: 'high' }) 
-          })
-      },
-      
-      removeMidiMapping: (dmxChannel) => {
-        const midiMappings = { ...get().midiMappings }
-        delete midiMappings[dmxChannel]
-        set({ midiMappings })
-        
-        axios.delete(`/api/midi/mapping/${dmxChannel}`)
-          .then(() => {
-            get().addNotification({ message: `MIDI mapping removed for DMX Ch: ${dmxChannel + 1}`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to remove MIDI mapping:', error)
-            get().addNotification({ message: 'Failed to remove MIDI mapping', type: 'error' }) 
-          })
-      },
-      
-      clearAllMidiMappings: () => {
-        set({ midiMappings: {} })
-        
-        axios.delete('/api/midi/mappings')
-          .then(() => {
-            get().addNotification({ message: 'All MIDI mappings cleared', type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to clear all MIDI mappings:', error)
-            get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
-          })
-      },
-      
-      // Scene Actions
-      saveScene: (name, oscAddress) => {
-        const dmxChannels = get().dmxChannels
-        const newScene: Scene = {
-          name,
-          channelValues: [...dmxChannels],
-          oscAddress
-        }
-        
-        const scenes = [...get().scenes]
-        const existingIndex = scenes.findIndex(s => s.name === name)
-        
-        if (existingIndex !== -1) {
-          scenes[existingIndex] = newScene
-        } else {
-          scenes.push(newScene
-          )
-        }
-        
-        set({ scenes })
-        
-        axios.post('/api/scenes', newScene)
-          .then(() => {
-            get().addNotification({ message: `Scene '${name}' saved`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to save scene:', error)
-            get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
-          })
-      },
-        loadScene: (name) => { 
-        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
-        const scene = scenes.find(s => s.name === name);
-        
-        if (scene) {
-          if (isTransitioning && currentTransitionFrame) {
-            cancelAnimationFrame(currentTransitionFrame);
-            set({ currentTransitionFrame: null }); 
-          }
-
-          // Create a copy of scene values that we can modify
-          const targetDmxValues = [...scene.channelValues];
-
-          // For each group that ignores scene changes, restore their current DMX values
-          groups.forEach(group => {
-            if (group.ignoreSceneChanges) {
-              group.fixtureIndices.forEach(fixtureIndex => {
-                const fixture = fixtures[fixtureIndex];
-                if (fixture) {
-                  // Calculate the DMX range for this fixture
-                  const startAddr = fixture.startAddress - 1; // Convert to 0-based
-                  const endAddr = startAddr + fixture.channels.length;
-                  
-                  // Copy current values for these channels
-                  for (let i = startAddr; i < endAddr; i++) {
-                    targetDmxValues[i] = currentDmxState[i];
-                  }
-                }
-              });
-            }
-          });
-
-          set({
-            isTransitioning: true,
-            fromDmxValues: [...currentDmxState], 
-            toDmxValues: targetDmxValues,
-            transitionStartTime: Date.now(),
-          });
-          
-          get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
-          axios.post('/api/scenes/load', { name }) 
-            .catch(error => {
-              console.error('Failed to load scene:', error)
-              get().addNotification({ message: `Failed to load scene '${name}'`, type: 'error', priority: 'high' }) 
-            })
-        } else {
-          get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
-        }
-      },
-      
-      updateScene: (originalName, updates) => {
-        const scenes = [...get().scenes]
-        const sceneIndex = scenes.findIndex(s => s.name === originalName)
-        
-        if (sceneIndex !== -1) {
-          scenes[sceneIndex] = { ...scenes[sceneIndex], ...updates }
-          set({ scenes })
-          
-          axios.put(`/api/scenes/${encodeURIComponent(originalName)}`, updates)
-            .then(() => {
-              get().addNotification({ message: `Scene '${originalName}' updated`, type: 'success' });
-            })
-            .catch(error => {
-              console.error('Failed to update scene:', error)
-              get().addNotification({ message: `Failed to update scene '${originalName}'`, type: 'error' }) 
-            })
-        } else {
-          get().addNotification({ message: `Scene "${originalName}" not found`, type: 'error' }) 
-        }
-      },
-      
-      deleteScene: (name) => {
-        const scenes = get().scenes.filter(s => s.name !== name)
-        set({ scenes })
-        
-        axios.delete(`/api/scenes/${encodeURIComponent(name)}`)
-          .then(() => {
-            get().addNotification({ message: `Scene '${name}' deleted`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to delete scene:', error)
-            get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
-          })
-      },
-      
-      // Config Actions
-      updateArtNetConfig: (config) => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('updateArtNetConfig', config)
-          set({ artNetConfig: { ...get().artNetConfig, ...config } })
-          get().addNotification({ message: 'ArtNet config updated. Restart may be required.', type: 'info' });
-        } else {
-          get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-      
-      updateDebugModules: (debugSettings) => {
-        const currentDebugModules = get().debugModules || { midi: false, osc: false, artnet: false, button: true };
-        const updatedDebugModules = { ...currentDebugModules, ...debugSettings };
-        
-        set({ debugModules: updatedDebugModules });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('debugModules', JSON.stringify(updatedDebugModules));
-        
-        // Socket emit if needed
-        const socket = get().socket;
-        if (socket?.connected) {
-          socket.emit('updateDebugSettings', updatedDebugModules);
-        }
-      },
-
-      testArtNetConnection: () => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('testArtNetConnection')
-          get().addNotification({ message: 'Testing ArtNet connection...', type: 'info' }) 
-        } else {
-          get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-
-      // Theme Actions
-      setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
-        set({ theme })
-        localStorage.setItem('theme', theme)
-        get().addNotification({ message: `Theme changed to ${theme}`, type: 'info' })
-      },
-
-      toggleDarkMode: () => {
-        const newDarkMode = !get().darkMode
-        set({ darkMode: newDarkMode })
-        localStorage.setItem('darkMode', newDarkMode.toString())
-        document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
-        get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
-      },
-
-      // UI Settings Actions
-      updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => {
-        const currentUiSettings = get().uiSettings;
-        const updatedUiSettings = { ...currentUiSettings, ...settings };
-        set({ uiSettings: updatedUiSettings });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('uiSettings', JSON.stringify(updatedUiSettings));
-        
-        get().addNotification({ 
-          message: `UI settings updated`, 
-          type: 'success' 
-        });
-      },
-
-      toggleSparkles: () => {
-        const currentEnabled = get().uiSettings.sparklesEnabled;
-        const newEnabled = !currentEnabled;
-        
-        get().updateUiSettings({ sparklesEnabled: newEnabled });
-        
-        get().addNotification({ 
-          message: `Sparkles effect ${newEnabled ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-      
-      // Deprecated actions - can be removed later
-      // showStatusMessage: (text, type) => { 
-      //   get().addNotification({ message: text, type });
-      // },
-      // clearStatusMessage: () => {},
-
-      // Notification Actions
-      addNotification: (notificationInput: AddNotificationInput) => {
-        const newNotification: Notification = {
-          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-          timestamp: Date.now(),
-          message: notificationInput.message,
-          type: notificationInput.type,
-          priority: notificationInput.priority || 'normal',
-          persistent: notificationInput.persistent || false,
-          dismissible: notificationInput.dismissible !== undefined ? notificationInput.dismissible : true,
-        };
-        set((state) => {
-          const updatedNotifications = [...state.notifications, newNotification];
-          updatedNotifications.sort((a, b) => {
-            const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
-            const priorityA = priorityOrder[a.priority || 'normal'];
-            const priorityB = priorityOrder[b.priority || 'normal'];
-            if (priorityA !== priorityB) {
-              return priorityA - priorityB;
-            }
-            return b.timestamp - a.timestamp; // Newest first for same priority
-          });
-          return { notifications: updatedNotifications };
-        });
-      },
-      removeNotification: (id: string) =>
-        set((state) => ({
-          notifications: state.notifications.filter((n) => n.id !== id),
-        })),
-      clearAllNotifications: () => {
-        set({ notifications: [] });
-      },
-
-      setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
-      setBpm: (bpm: number) => set({ bpm }),
-      setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
-      setMidiActivity: (activity: number) => set({ midiActivity: activity }),
-      setFixtureLayout: (layout: PlacedFixture[]) => {
-        set({ fixtureLayout: layout });
-      },
-
-      setCanvasBackgroundImage: (image: HTMLImageElement | null) => {
-        set({ canvasBackgroundImage: image });
-      },
-
-      addMasterSlider: (slider: MasterSlider) => {
-        set(state => ({ masterSliders: [...state.masterSliders, slider] }));
-        get().addNotification({ message: `Master slider '${slider.name}' added`, type: 'success' });
-      },
-      
-      updateMasterSliderValue: (sliderId, value) => {
-        const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
-        const updatedSliders = masterSliders.map(s => 
-          s.id === sliderId ? { ...s, value } : s
-        );
-        set({ masterSliders: updatedSliders });
-
-        const activeSlider = updatedSliders.find(s => s.id === sliderId);
-        if (activeSlider && activeSlider.targets) {
-          activeSlider.targets.forEach(target => {            
-            const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
-            if (!pFixture) return;
-
-            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId); 
-            if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
-            
-            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; 
-
-            if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
-              const masterValueNormalized = value / 255;
-              let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
-              targetDmxValue = Math.round(targetDmxValue);
-              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); 
-              
-              dmxSetter(actualDmxAddress, targetDmxValue);
-            }
-          });
-        }
-      },
-      
-      updateMasterSlider: (sliderId, updatedSliderData) => {
-        set(state => ({
-          masterSliders: state.masterSliders.map(s => 
-            s.id === sliderId ? { ...s, ...updatedSliderData } : s
-          )
-        }));
-        get().addNotification({ message: `Master slider '${updatedSliderData.name || sliderId}' updated`, type: 'info' });
-      },
-      removeMasterSlider: (sliderId) => {
-        set(state => ({
-          masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
-        }));
-        get().addNotification({ message: `Master slider removed`, type: 'success' });
-      },
-      setMasterSliders: (sliders) => {
-        set({ masterSliders: sliders });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a source change (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setSelectedMidiClockHostId: (hostId) => {
-        const { socket, addNotification, availableMidiClockHosts, selectedMidiClockHostId: currentSelectedHostId } = get();
-
-        // If called by UI (or to reflect a change initiated elsewhere that needs to be sent to backend)
-        // Check if it's a request to change the source via UI, not just a state update from backend
-        // A simple heuristic: if the hostId is different from current state and socket is connected, it's likely a user request.
-        // This distinction might need refinement if the action is purely for backend updates in some contexts.
-        // For now, assume if socket is present, it's a request path. If not, it's a direct state update (e.g. from WS handler).
-
-        if (socket?.connected && hostId !== currentSelectedHostId) { // Primary path for UI-initiated change
-          socket.emit('setMasterClockSource', hostId);
-          addNotification({
-            message: `Requesting Master Clock source change to ${availableMidiClockHosts.find(h => h.id === hostId)?.name || 'Unknown'}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ selectedMidiClockHostId: hostId });
-        } else if (!socket?.connected && hostId !== currentSelectedHostId) { // UI tried to change but not connected
-           addNotification({
-            message: 'Cannot change Master Clock: Not connected to server.',
-            type: 'error',
-          });
-        } else { // This path handles direct state update (e.g., from WebSocket handler)
-          set({ selectedMidiClockHostId: hostId });
-          // Avoid sending notification if it's just reflecting a state update from backend
-        }
-      },
-      setAvailableMidiClockHosts: (hosts) => { // Called by WS handler
-        set({ availableMidiClockHosts: hosts });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a BPM change for internal clock (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setMidiClockBpm: (bpm) => { // Renamed in spirit to `requestOrSetMidiClockBpm`
-        const { socket, addNotification, selectedMidiClockHostId, midiClockBpm: currentBpm } = get();
-
-        // If called by UI to change BPM (heuristic: for internal clock, different BPM, socket connected)
-        if (socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) { // Path for UI-initiated change for internal clock
-          socket.emit('setInternalClockBPM', bpm);
-          addNotification({
-            message: `Requesting Internal Clock BPM change to ${bpm}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ midiClockBpm: bpm });
-        } else if (!socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) {
-          addNotification({
-            message: 'Cannot change Internal Clock BPM: Not connected to server.',
-            type: 'error',
-          });
-        }
-        // This will always update the local state, either optimistically (if UI call fails to send) or from backend broadcast
-        set({ midiClockBpm: bpm });
-      },
-      setMidiClockIsPlaying: (isPlaying) => { // Called by WS handler
-        set({ midiClockIsPlaying: isPlaying });
-      },
-      setMidiClockBeatBar: (beat, bar) => { // Called by WS handler
-        set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar });
-      },
-      requestToggleMasterClockPlayPause: () => { // Renamed from toggleInternalMidiClockPlayState
-        const { socket, addNotification } = get();
-        if (socket?.connected) {
-          socket.emit('toggleMasterClockPlayPause');
-          // Notification can be added if desired, e.g., "Play/pause request sent"
-          // The actual state (isPlaying, beat, bar) will update via 'masterClockUpdate'
-        } else {
-          addNotification({
-            message: 'Cannot toggle play/pause: Not connected to server.',
-            type: 'error',
-          });
-        }
-      },      // Auto-Scene Actions
-  setAutoSceneEnabled: (enabled) => {
-    set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneList: (sceneNames) => {
-    set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }); // Reset index
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneMode: (mode) => {
-    set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }); // Reset index and direction
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneBeatDivision: (division) => {
-    set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure division is at least 1
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneTempoSource: (source) => {
-    set({ autoSceneTempoSource: source });
-    saveCurrentAutoSceneSettings(get());
-  },
-  resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),      setManualBpm: (bpm) => {
-    const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
-    set({ autoSceneManualBpm: newBpm });
-    if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
-      get().setMidiClockBpm(newBpm); // Also update main internal clock
-    }
-    saveCurrentAutoSceneSettings(get());
-  },      recordTapTempo: () => {
-    const now = Date.now();
-    const lastTapTime = get().autoSceneLastTapTime;
-    let newTapTimes = [...get().autoSceneTapTimes];
-
-    if (lastTapTime > 0) {
-      const interval = now - lastTapTime;
-      if (interval > 0 && interval < 2000) // Ignore taps too close or too far apart (2s = 30 BPM)
-        newTapTimes.push(interval);
-      if (newTapTimes.length > 5) // Keep last 5 intervals for averaging
-        newTapTimes.shift();
-    } else // If interval is too long, reset taps
-      newTapTimes = [];
-
-    set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
-
-    if (newTapTimes.length >= 2) { // Need at least 2 taps (1 interval) to calculate BPM
-      const averageInterval = newTapTimes.reduce((sum, t) => sum + t, 0) / newTapTimes.length;
-      if (averageInterval > 0) {
-        const newBpm = Math.max(20, Math.min(300, 60000 / averageInterval)); // Clamp BPM
-        set({ autoSceneTapTempoBpm: newBpm });
-        if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
-          get().setMidiClockBpm(newBpm); // Also update main internal clock
-        }
-        saveCurrentAutoSceneSettings(get()); // Save when BPM changes
-      }
-    }
-  },      setNextAutoSceneIndex: () => {
-        const { autoSceneList, autoSceneMode, autoSceneCurrentIndex, autoScenePingPongDirection } = get();
-        if (!autoSceneList || autoSceneList.length === 0) {
-          set({ autoSceneCurrentIndex: -1 });
-          return;
-        }
-
-        let nextIndex = autoSceneCurrentIndex;
-        let nextPingPongDirection = autoScenePingPongDirection;
-        const listLength = autoSceneList.length;
-
-        // If this is the first time (currentIndex is -1), start with index 0
-        if (autoSceneCurrentIndex === -1) {
-          nextIndex = 0;
-          nextPingPongDirection = 'forward';
-        } else if (autoSceneMode === 'forward') {
-          nextIndex = (autoSceneCurrentIndex + 1) % listLength;
-        } else if (autoSceneMode === 'ping-pong') {
-          if (nextPingPongDirection === 'forward') {
-            nextIndex = autoSceneCurrentIndex + 1;
-            if (nextIndex >= listLength) {
-              nextIndex = Math.max(0, listLength - 2); // Go to second-to-last
-              nextPingPongDirection = 'backward';
-            }
-          } else {
-            nextIndex = autoSceneCurrentIndex - 1;
-            if (nextIndex < 0) {
-              nextIndex = Math.min(1, listLength - 1); // Go to second item
-              nextPingPongDirection = 'forward';
-            }
-          }
-        } else if (autoSceneMode === 'random') {
-          // Random selection
-          do {
-            nextIndex = Math.floor(Math.random() * listLength);
-          } while (nextIndex === autoSceneCurrentIndex && listLength > 1);
-        }
-
-        set({ autoSceneCurrentIndex: nextIndex, autoScenePingPongDirection: nextPingPongDirection });
-      },
-      triggerAutoSceneFlash: () => {
-        set({ autoSceneIsFlashing: true });
-        // Auto-clear the flashing state after 200ms
-        setTimeout(() => {
-          set({ autoSceneIsFlashing: false });
-        }, 200);      },
-
-      // Enhanced Group State Actions Implementations
-      updateGroup: (groupId, groupData) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, ...groupData } : g
-          )
-        }));
-        // TODO: Consider persisting to backend if group structure (name, fixtureIndices, etc.) changes.
-        // For ignoreSceneChanges, it's probably fine as transient state or saved with scenes.
-      },
-      addGroupToCanvas: (group, position) => {
-        // This is a placeholder. Actual implementation might be more complex
-        // or handled by UI components that manage canvas state.
-        const updatedGroupWithPos = position ? { ...group, position } : group;
-        set(state => {
-          const existingGroup = state.groups.find(g => g.id === group.id);
-          if (existingGroup) {
-            return {
-              groups: state.groups.map(g => g.id === group.id ? { ...g, ...updatedGroupWithPos } : g)
-            };
-          } else {
-            return { groups: [...state.groups, updatedGroupWithPos] };
-          }
-        });
-        get().addNotification({ message: `Group '${group.name}' position updated for canvas.`, type: 'info' });
-      },
-      updateGroupPosition: (groupId, position) => {
-        set(state => ({
-          groups: state.groups.map(g => g.id === groupId ? { ...g, position } : g)
-        }));
-      },
-      saveGroupLastStates: (groupId) => {
-        set(state => {
-          const groupIndex = state.groups.findIndex(g => g.id === groupId);
-          if (groupIndex === -1) return state; // Group not found
-
-          const groups = [...state.groups];
-          const group = { ...groups[groupIndex] };
-
-          group.lastStates = [...state.dmxChannels];
-          groups[groupIndex] = group;
-
-          return { ...state, groups };
-        });
-      },
-      setGroupMasterValue: (groupId, value) => {
-        const { groups, saveGroupLastStates, _recalculateDmxOutput } = get();
-        const groupExists = groups.some(g => g.id === groupId);
-        if (!groupExists) return;
-
-        let groupHadLastStates = false;
-        const updatedGroups = groups.map(g => {
-          if (g.id === groupId) {
-            if (g.lastStates && g.lastStates.length > 0) {
-              groupHadLastStates = true;
-            }
-            let newLastStates = g.lastStates;
-            if (value > 0 && groupHadLastStates) {
-              newLastStates = []; // Clear lastStates as it's now live
-            }
-            return { ...g, masterValue: value, lastStates: newLastStates };
-          }
-          return g;
-        });
-
-        set({ groups: updatedGroups });
-
-        if (value === 0) {
-          saveGroupLastStates(groupId); // Save state *after* masterValue is set to 0 internally
-        }
-
-        _recalculateDmxOutput();
-      },
-      setGroupMute: (groupId, isMuted) => {
-        // The UI (`FixtureGroup.tsx`) handles calling `saveGroupLastStates(groupId)`
-        // and then `setGroupMasterValue(groupId, 0)` when muting.
-        // When unmuting, UI calls `setGroupMasterValue(groupId, oldMasterValue)`.
-        // So, this action primarily updates the `isMuted` flag and triggers recalculation.
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, isMuted } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupSolo: (groupId, isSolo) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, isSolo } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupPanOffset: (groupId, panOffset) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, panOffset } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupTiltOffset: (groupId, tiltOffset) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, tiltOffset } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupZoomValue: (groupId, zoomValue) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, zoomValue } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      // Implementations for Group MIDI actions will go here later
-      startGroupMidiLearn: (groupId) => {
-        set({ midiLearnTarget: { type: 'group', groupId: groupId } });
-        get().addNotification({ message: `MIDI Learn started for Group: ${groupId}`, type: 'info' });
-      },
-      cancelGroupMidiLearn: () => {
-        if (get().midiLearnTarget?.type === 'group') {
-          set({ midiLearnTarget: null });
-          get().addNotification({ message: 'Group MIDI Learn cancelled', type: 'info' });
-        }
-      },
-      setGroupMidiMapping: (groupId, mapping) => {
-        set(state => ({
-          groups: state.groups.map(g => g.id === groupId ? { ...g, midiMapping: mapping } : g),
-          midiLearnTarget: null,
-        }));
-        get().addNotification({ message: `MIDI mapped for Group: ${groupId}`, type: 'success' });
-      },      handleMidiForGroups: (message) => {
-        // Placeholder for MIDI handling logic for groups
-      },      // Autopilot Track Actions
-      setAutopilotTrackEnabled: (enabled) => {
-        set({ autopilotTrackEnabled: enabled });
-      },
-
-      setAutopilotTrackType: (type) => {
-        set({ autopilotTrackType: type });
-      },
-
-      setAutopilotTrackPosition: (position) => {
-        set({ autopilotTrackPosition: position });
-        // Automatically update pan/tilt when position changes
-        get().updatePanTiltFromTrack();
-      },
-
-      setAutopilotTrackSize: (size) => {
-        set({ autopilotTrackSize: size });
-      },
-
-      setAutopilotTrackSpeed: (speed) => {
-        set({ autopilotTrackSpeed: speed });
-      },
-
-      setAutopilotTrackCenter: (centerX, centerY) => {
-        set({ 
-          autopilotTrackCenterX: centerX,
-          autopilotTrackCenterY: centerY 
-        });
-      },
-
-      setAutopilotTrackAutoPlay: (autoPlay) => {
-        set({ autopilotTrackAutoPlay: autoPlay });
-      },
-
-      setAutopilotTrackCustomPoints: (points) => {
-        set({ autopilotTrackCustomPoints: points });
-      },
-
-      calculateTrackPosition: (trackType, position, size, centerX, centerY) => {
-        const normalizedPosition = position / 100; // Convert 0-100 to 0-1
-        const radius = size / 100 * 127; // Convert size percentage to DMX range
-        
-        let x = centerX;
-        let y = centerY;
-        
-        switch (trackType) {
-          case 'circle':
-            const angle = normalizedPosition * 2 * Math.PI;
-            x = centerX + radius * Math.cos(angle);
-            y = centerY + radius * Math.sin(angle);
-            break;
-            
-          case 'figure8':
-            const t = normalizedPosition * 2 * Math.PI;
-            x = centerX + radius * Math.sin(t);
-            y = centerY + radius * Math.sin(t) * Math.cos(t);
-            break;
-            
-          case 'square':
-            const side = Math.floor(normalizedPosition * 4);
-            const sidePosition = (normalizedPosition * 4) % 1;
-            
-            switch (side) {
-              case 0: // Top
-                x = centerX - radius + sidePosition * 2 * radius;
-                y = centerY + radius;
-                break;
-              case 1: // Right
-                x = centerX + radius;
-                y = centerY + radius - sidePosition * 2 * radius;
-                break;
-              case 2: // Bottom
-                x = centerX + radius - sidePosition * 2 * radius;
-                y = centerY - radius;
-                break;
-              case 3: // Left
-                x = centerX - radius;
-                y = centerY - radius + sidePosition * 2 * radius;
-                break;
-            }
-            break;
-            
-          case 'triangle':
-            const triSide = Math.floor(normalizedPosition * 3);
-            const triPosition = (normalizedPosition * 3) % 1;
-            const triRadius = radius * 1.15; // Slightly larger for better triangle shape
-            
-            switch (triSide) {
-              case 0: // Bottom to top-right
-                x = centerX - triRadius * 0.5 + triPosition * triRadius;
-                y = centerY - triRadius * 0.3 + triPosition * triRadius * 0.866;
-                break;
-              case 1: // Top-right to top-left
-                x = centerX + triRadius * 0.5 - triPosition * triRadius;
-                y = centerY + triRadius * 0.6;
-                break;
-              case 2: // Top-left to bottom
-                x = centerX - triRadius * 0.5 + triPosition * triRadius * 0.5;
-                y = centerY + triRadius * 0.6 - triPosition * triRadius * 0.9;
-                break;
-            }
-            break;
-            
-          case 'linear':
-            x = centerX - radius + normalizedPosition * 2 * radius;
-            y = centerY;
-            break;
-            
-          case 'random':
-            // Generate consistent random values based on position
-            const seed = Math.floor(normalizedPosition * 100);
-            const randomX = ((seed * 9301 + 49297) % 233280) / 233280;
-            const randomY = ((seed * 9301 + 49297 + 1000) % 233280) / 233280;
-            
-            x = centerX + (randomX - 0.5) * 2 * radius;
-            y = centerY + (randomY - 0.5) * 2 * radius;
-            break;
-            
-          case 'custom':
-            const { autopilotTrackCustomPoints } = get();
-            if (autopilotTrackCustomPoints.length >= 2) {
-              const totalSegments = autopilotTrackCustomPoints.length;
-              const segmentIndex = Math.floor(normalizedPosition * totalSegments);
-              const segmentPosition = (normalizedPosition * totalSegments) % 1;
-              
-              const startPoint = autopilotTrackCustomPoints[segmentIndex];
-              const endPoint = autopilotTrackCustomPoints[(segmentIndex + 1) % totalSegments];
-              
-              x = startPoint.x + (endPoint.x - startPoint.x) * segmentPosition;
-              y = startPoint.y + (endPoint.y - startPoint.y) * segmentPosition;
-            }
-            break;
-        }
-        
-        // Clamp values to DMX range (0-255)
-        return {
-          pan: Math.max(0, Math.min(255, Math.round(x))),
-          tilt: Math.max(0, Math.min(255, Math.round(y)))
-        };
-      },
-
-      updatePanTiltFromTrack: () => {
-        const { 
-          autopilotTrackEnabled,
-          autopilotTrackType, 
-          autopilotTrackPosition, 
-          autopilotTrackSize, 
-          autopilotTrackCenterX, 
-          autopilotTrackCenterY,
-          selectedChannels,
-          fixtures,
-          groups
-        } = get();
-        
-        if (!autopilotTrackEnabled) return;
-        
-        const { pan, tilt } = get().calculateTrackPosition(
-          autopilotTrackType,
-          autopilotTrackPosition,
-          autopilotTrackSize,
-          autopilotTrackCenterX,
-          autopilotTrackCenterY
-        );
-        
-        // Update Pan/Tilt values for selected channels or fixtures
-        const updates: { [key: number]: number } = {};
-        
-        // If we have selected channels, try to identify Pan/Tilt channels
-        if (selectedChannels.length > 0) {
-          selectedChannels.forEach(channelIndex => {
-            // Try to find fixtures that contain this channel
-            fixtures.forEach(fixture => {
-              const localChannelIndex = channelIndex - fixture.startAddress + 1;
-              if (localChannelIndex >= 0 && localChannelIndex < fixture.channels.length) {
-                const channel = fixture.channels[localChannelIndex];
-                if (channel.type.toLowerCase() === 'pan') {
-                  updates[channelIndex] = pan;
-                } else if (channel.type.toLowerCase() === 'tilt') {
-                  updates[channelIndex] = tilt;
-                }
-              }
-            });
-          });
-        } else {
-          // No specific channels selected, update all fixtures in active groups or all fixtures
-          const activeFixtures = fixtures.filter(fixture => {
-            const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtures.indexOf(fixture)));
-            const activeSoloGroups = groups.filter(g => g.isSolo);
-            
-            if (activeSoloGroups.length > 0) {
-              return fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
-            }
-            
-            return true; // If no solo groups, all fixtures are active
-          });
-          
-          activeFixtures.forEach(fixture => {
-            fixture.channels.forEach((channel, localIndex) => {
-              const dmxIndex = fixture.startAddress + localIndex - 1;
-              if (channel.type.toLowerCase() === 'pan') {
-                updates[dmxIndex] = pan;
-              } else if (channel.type.toLowerCase() === 'tilt') {
-                updates[dmxIndex] = tilt;
-              }
-            });
-          });
-        }
-        
-        // Apply the updates
-        if (Object.keys(updates).length > 0) {
-          get().setMultipleDmxChannels(updates);
-        }      },
-
-      // Recording and Automation Actions
-      startRecording: () => {
-        const now = Date.now();
-        set({ 
-          recordingActive: true, 
-          recordingStartTime: now, 
-          recordingData: [] 
-        });
-        
-        get().addNotification({ 
-          message: 'Recording started', 
-          type: 'success' 
-        });
-      },
-
-      stopRecording: () => {
-        set({ recordingActive: false });
-        
-        get().addNotification({ 
-          message: 'Recording stopped', 
-          type: 'info' 
-        });
-      },
-
-      clearRecording: () => {
-        set({ 
-          recordingData: [], 
-          recordingStartTime: null 
-        });
-        
-        get().addNotification({ 
-          message: 'Recording cleared', 
-          type: 'info' 
-        });
-      },
-
-      addRecordingEvent: (event) => {
-        const { recordingActive, recordingStartTime, recordingData } = get();
-        
-        if (!recordingActive || !recordingStartTime) return;
-        
-        const timestamp = Date.now() - recordingStartTime;
-        const newEvent = { ...event, timestamp };
-        
-        set({ recordingData: [...recordingData, newEvent] });
-      },
-
-      createAutomationTrack: (name, channel) => {
-        const trackId = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const newTrack = {
-          id: trackId,
-          name,
-          channel,
-          keyframes: [
-            { time: 0, value: 0, curve: 'linear' as const },
-            { time: 5000, value: 255, curve: 'linear' as const }, // 5 second track with full range
-            { time: 10000, value: 0, curve: 'linear' as const }
-          ],
-          enabled: true,
-          loop: false
-        };
-        
-        set(state => ({
-          automationTracks: [...state.automationTracks, newTrack]
-        }));
-        
-        get().addNotification({ 
-          message: `Automation track "${name}" created`, 
-          type: 'success' 
-        });
-        
-        return trackId;
-      },
-
-      updateAutomationTrack: (trackId, updates) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track =>
-            track.id === trackId ? { ...track, ...updates } : track
-          )
-        }));
-      },
-
-      deleteAutomationTrack: (trackId) => {
-        set(state => ({
-          automationTracks: state.automationTracks.filter(track => track.id !== trackId)
-        }));
-        
-        get().addNotification({ 
-          message: 'Automation track deleted', 
-          type: 'info' 
-        });
-      },
-
-      addKeyframe: (trackId, time, value, curve = 'linear') => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = [...track.keyframes, { time, value, curve }]
-                .sort((a, b) => a.time - b.time); // Keep keyframes sorted by time
-              return { ...track, keyframes: newKeyframes };
-            }
-            return track;
-          })
-        }));
-      },
-
-      updateKeyframe: (trackId, keyframeIndex, updates) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = track.keyframes.map((kf, index) =>
-                index === keyframeIndex ? { ...kf, ...updates } : kf
-              );
-              return { ...track, keyframes: newKeyframes.sort((a, b) => a.time - b.time) };
-            }
-            return track;
-          })
-        }));
-      },
-
-      deleteKeyframe: (trackId, keyframeIndex) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = track.keyframes.filter((_, index) => index !== keyframeIndex);
-              return { ...track, keyframes: newKeyframes };
-            }
-            return track;
-          })
-        }));
-      },
-
-      startAutomationPlayback: () => {
-        const now = Date.now();
-        set({ 
-          automationPlayback: { 
-            active: true, 
-            startTime: now, 
-            duration: 10000, // 10 seconds default
-            position: 0 
-          } 
-        });
-        
-        // Start automation update loop
-        const updateAutomation = () => {
-          const { automationPlayback, automationTracks, setDmxChannelValue } = get();
-          
-          if (!automationPlayback.active || !automationPlayback.startTime) return;
-          
-          const elapsed = Date.now() - automationPlayback.startTime;
-          const position = elapsed / automationPlayback.duration;
-          
-          // Update position
-          set(state => ({
-            automationPlayback: { ...state.automationPlayback, position }
-          }));
-          
-          // Apply automation to channels
-          automationTracks.forEach(track => {
-            if (!track.enabled) return;
-            
-            const currentTime = elapsed;
-            const value = interpolateKeyframes(track.keyframes, currentTime);
-            
-            if (value !== null) {
-              setDmxChannelValue(track.channel, Math.round(value));
-            }
-          });
-          
-          // Continue if not finished
-          if (position < 1) {
-            requestAnimationFrame(updateAutomation);
-          } else {
-            // Check for looping tracks
-            const loopingTracks = automationTracks.filter(t => t.loop && t.enabled);
-            if (loopingTracks.length > 0) {
-              // Restart for looping tracks
-              set(state => ({
-                automationPlayback: { 
-                  ...state.automationPlayback, 
-                  startTime: Date.now(),
-                  position: 0 
-                }
-              }));
-              requestAnimationFrame(updateAutomation);
-            } else {
-              get().stopAutomationPlayback();
-            }
-          }
-        };
-        
-        requestAnimationFrame(updateAutomation);
-        
-        get().addNotification({ 
-          message: 'Automation playback started', 
-          type: 'success' 
-        });
-      },
-
-      stopAutomationPlayback: () => {
-        set({ 
-          automationPlayback: { 
-            active: false, 
-            startTime: null, 
-            duration: 10000,
-            position: 0 
-          } 
-        });
-        
-        get().addNotification({ 
-          message: 'Automation playback stopped', 
-          type: 'info' 
-        });
-      },
-
-      setAutomationPosition: (position) => {
-        const { automationPlayback } = get();
-        const newTime = position * automationPlayback.duration;
-        
-        set({ 
-          automationPlayback: { 
-            ...automationPlayback, 
-            position,
-            startTime: automationPlayback.active ? Date.now() - newTime : null
-          } 
-        });
-      },
-
-      applyAutomationPreset: (trackId, preset) => {
-        const duration = 10000; // 10 seconds
-        const steps = 20; // Number of keyframes
-        const keyframes: Array<{ time: number; value: number; curve: 'linear' | 'smooth' }> = [];
-        
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps;
-          const time = t * duration;
-          let value = 0;
-          
-          switch (preset) {
-            case 'sine':
-              value = (Math.sin(t * Math.PI * 2 - Math.PI / 2) + 1) * 127.5;
-              break;
-            case 'triangle':
-              value = t < 0.5 ? t * 2 * 255 : (1 - t) * 2 * 255;
-              break;
-            case 'sawtooth':
-              value = t * 255;
-              break;
-            case 'square':
-              value = t < 0.5 ? 0 : 255;
-              break;
-            case 'random':
-              value = Math.random() * 255;
-              break;
-          }
-          
-          keyframes.push({ 
-            time, 
-            value: Math.max(0, Math.min(255, value)), 
-            curve: preset === 'random' ? 'linear' : 'smooth' 
-          });
-        }
-        
-        set(state => ({
-          automationTracks: state.automationTracks.map(track =>
-            track.id === trackId ? { ...track, keyframes } : track
-          )
-        }));
-        
-        get().addNotification({ 
-          message: `Applied ${preset} preset to automation track`, 
-          type: 'success' 
-        });
-      },
-
-      // Smooth DMX Actions
-      setSmoothDmxEnabled: (enabled) => {
-        set({ smoothDmxEnabled: enabled });
-        
-        // If enabling, start the smooth update timer
-        if (enabled) {
-          get().enableSmoothDmxMode();
-        } else {
-          get().disableSmoothDmxMode();
-        }
-        
-        get().addNotification({ 
-          message: `Smooth DMX ${enabled ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-
-      setSmoothDmxUpdateRate: (rate) => {
-        const clampedRate = Math.max(1, Math.min(60, rate)); // 1-60 FPS
-        set({ smoothDmxUpdateRate: clampedRate });
-        
-        // Restart smooth mode if currently active
-        const { smoothDmxEnabled } = get();
-        if (smoothDmxEnabled) {
-          get().disableSmoothDmxMode();
-          get().enableSmoothDmxMode();
-        }
-      },
-
-      setSmoothDmxThreshold: (threshold) => {
-        const clampedThreshold = Math.max(0, Math.min(10, threshold)); // 0-10 units
-        set({ smoothDmxThreshold: clampedThreshold });
-      },      setSmoothDmxChannelValue: (channel, value) => {
-        const { smoothDmxEnabled, smoothDmxThreshold, pendingSmoothUpdates, recordingActive } = get();
-        
-        if (!smoothDmxEnabled) {
-          // If smooth mode is disabled, update immediately
-          get().setDmxChannelValue(channel, value);
-          return;
-        }
-        
-        // Check if change is significant enough
-        const currentValue = get().getDmxChannelValue(channel);
-        const change = Math.abs(value - currentValue);
-        
-        if (change < smoothDmxThreshold) {
-          return; // Change too small, ignore
-        }
-        
-        // Record the change if recording is active - BEFORE adding to pending updates
-        if (recordingActive) {
-          get().addRecordingEvent({
-            type: 'dmx',
-            channel,
-            value
-          });
-        }
-        
-        // Add to pending updates
-        set(state => ({
-          pendingSmoothUpdates: {
-            ...state.pendingSmoothUpdates,
-            [channel]: value
-          }
-        }));
-      },
-
-      flushSmoothDmxUpdates: () => {
-        const { pendingSmoothUpdates } = get();
-        const updates = Object.keys(pendingSmoothUpdates);
-        
-        if (updates.length === 0) return;
-        
-        // Batch update all pending channels
-        const batchUpdates: { [key: number]: number } = {};
-        updates.forEach(channelStr => {
-          const channel = parseInt(channelStr);
-          batchUpdates[channel] = pendingSmoothUpdates[channel];
-        });
-        
-        // Clear pending updates and apply batch
-        set({ 
-          pendingSmoothUpdates: {},
-          lastSmoothUpdateTime: Date.now()
-        });
-        
-        get().setMultipleDmxChannels(batchUpdates);
-      },
-
-      enableSmoothDmxMode: () => {
-        const { smoothDmxUpdateRate } = get();
-        const updateInterval = 1000 / smoothDmxUpdateRate; // Convert FPS to milliseconds
-        
-        // Create smooth update loop
-        const smoothUpdateLoop = () => {
-          const { smoothDmxEnabled } = get();
-          
-          if (!smoothDmxEnabled) return; // Stop if disabled
-          
-          get().flushSmoothDmxUpdates();
-          
-          setTimeout(smoothUpdateLoop, updateInterval);
-        };
-        
-        // Start the loop
-        smoothUpdateLoop();
-        
-        console.log(`Smooth DMX mode enabled at ${smoothDmxUpdateRate} FPS`);
-      },
-
-      disableSmoothDmxMode: () => {
-        // Flush any remaining updates
-        get().flushSmoothDmxUpdates();
-        console.log('Smooth DMX mode disabled');
-      },
-
-      // Timeline Sequence Management Actions
-      saveTimelineSequence: (name, description) => {
-        const { recordingData } = get();
-        
-        if (recordingData.length === 0) {
-          console.warn('No recording data to save as timeline sequence');
-          return '';
-        }
-
-        const sequenceId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const maxTime = Math.max(...recordingData.map(e => e.timestamp));
-        
-        // Group events by channel
-        const channelGroups: { [channel: number]: TimelineKeyframe[] } = {};
-        
-        recordingData
-          .filter(event => event.type === 'dmx' && event.channel !== undefined && event.value !== undefined)
-          .forEach(event => {
-            const channel = event.channel!;
-            const keyframe: TimelineKeyframe = {
-              time: event.timestamp,
-              value: event.value!,
-              curve: 'smooth'
-            };
-            
-            if (!channelGroups[channel]) {
-              channelGroups[channel] = [];
-            }
-            channelGroups[channel].push(keyframe);
-          });
-
-        const newSequence: TimelineSequence = {
-          id: sequenceId,
-          name,
-          description: description || `Recorded sequence with ${recordingData.length} events`,
-          duration: maxTime,
-          channels: Object.entries(channelGroups).map(([channel, keyframes]) => ({
-            channel: parseInt(channel),
-            keyframes: keyframes.sort((a, b) => a.time - b.time)
-          })),
-          tags: ['recorded'],
-          createdAt: Date.now(),
-          modifiedAt: Date.now()
-        };
-
-        set(state => ({
-          timelineSequences: [...state.timelineSequences, newSequence],
-          activeTimelineSequence: sequenceId
-        }));
-
-        console.log(`Timeline sequence "${name}" saved with ID: ${sequenceId}`);
-        return sequenceId;
-      },
-
+      dmxChannels: new Array(512).fill(0),
+      oscAssignments: new Array(512).fill(""),
+      channelNames: new Array(512).fill(""),
+      selectedChannels: [],
+      isReady: false,
+      midiInterfaces: [],
+      activeInterfaces: [],
+      midiMappings: {},
+      midiLearnTarget: null,
+      midiLearnScene: null,
+      midiMessages: [],
+      midiActivity: 0,
+      oscMessages: [],
+      debugTools: {
+        debugButton: false,
+        midiMonitor: false,
+        oscMonitor: false
+      },
+      fixtures: [],
+      groups: [],
+      scenes: [],
+      artNetConfig: {
+        ip: '127.0.0.1',
+        subnet: 0,
+        universe: 0,
+        net: 0,
+        port: 6454,
+        base_refresh_interval: 1000/30
+      },
+      oscConfig: {
+        host: '127.0.0.1',
+        port: 8000,
+        sendEnabled: false,
+        sendHost: '127.0.0.1',
+        sendPort: 9000
+      },
+      artNetStatus: 'disconnected',
+      theme: 'artsnob',
+      darkMode: true,
+      uiSettings: {
+        sparklesEnabled: true
+      },
+      notifications: [],
+      bpm: 120,
+      isPlaying: false,
+      debugModules: {
+        midi: false,
+        osc: false,
+        artnet: false,
+        button: false
+      },
+      oscActivity: {},
+      exampleSliderValue: 0,
+      fixtureLayout: [],
+      placedFixtures: [],
+      masterSliders: [],
+      canvasBackgroundImage: null,
+      socket: null,
+
+      // Timeline Management Actions
       loadTimelineSequence: (sequenceId) => {
-        const { timelineSequences } = get();
+        const timelineSequences = get().timelineSequences;
         const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
         if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found`);
+          console.warn(`Timeline sequence ${sequenceId} not found`);
           return;
         }
 
-        set({ activeTimelineSequence: sequenceId });
-        console.log(`Timeline sequence "${sequence.name}" loaded`);
+        set({
+          activeTimelineSequence: sequenceId,
+          timelinePlayback: {
+            ...get().timelinePlayback,
+            sequenceId,
+            position: 0,
+            startTime: null,
+            active: false,
+          }
+        });
       },
 
       deleteTimelineSequence: (sequenceId) => {
-        set(state => ({
-          timelineSequences: state.timelineSequences.filter(s => s.id !== sequenceId),
-          activeTimelineSequence: state.activeTimelineSequence === sequenceId ? null : state.activeTimelineSequence
-        }));
-        console.log(`Timeline sequence ${sequenceId} deleted`);
+        set(state => {
+          const timelineSequences = state.timelineSequences.filter(s => s.id !== sequenceId);
+          const activeTimelineSequence = state.activeTimelineSequence === sequenceId 
+            ? null 
+            : state.activeTimelineSequence;
+
+          if (state.timelinePlayback.sequenceId === sequenceId) {
+            get().stopTimelinePlayback(); // Stop playback if deleting active sequence
+          }
+
+          return {
+            timelineSequences,
+            activeTimelineSequence,
+          };
+        });
       },
 
       updateTimelineSequence: (sequenceId, updates) => {
         set(state => ({
-          timelineSequences: state.timelineSequences.map(s => 
-            s.id === sequenceId 
-              ? { ...s, ...updates, modifiedAt: Date.now() }
-              : s
+          timelineSequences: state.timelineSequences.map(sequence => 
+            sequence.id === sequenceId 
+              ? { ...sequence, ...updates, modifiedAt: Date.now() }
+              : sequence
           )
         }));
       },
 
-      // Timeline Export/Import Actions
-      exportTimelineSequence: (sequenceId) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for export`);
-          return;
-        }
+      exportTimelineSequence: async (sequenceId) => {
+        const sequences = get().timelineSequences;
+        const sequence = sequences.find(s => s.id === sequenceId);
+        if (!sequence) return;
 
-        const exportData = {
-          version: '1.0',
-          type: 'artbastard-timeline-sequence',
-          exported: Date.now(),
-          sequence
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${sequence.name.replace(/[^a-z0-9]/gi, '_')}_timeline.json`;
+        a.download = `${sequence.name.replace(/\s+/g, '_')}-timeline.json`;
         document.body.appendChild(a);
         a.click();
+        window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        console.log(`Timeline sequence "${sequence.name}" exported`);
       },
 
-      importTimelineSequence: (sequenceData) => {
-        // Generate new ID to avoid conflicts
-        const newId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const importedSequence: TimelineSequence = {
-          ...sequenceData,
-          id: newId,
-          createdAt: Date.now(),
-          modifiedAt: Date.now(),
-          name: `${sequenceData.name} (Imported)`
-        };
+      importTimelineSequence: async (file) => {
+        try {
+          const text = await file.text();
+          const sequence: TimelineSequence = JSON.parse(text);
+          
+          // Generate new ID to avoid conflicts
+          const newSequence = {
+            ...sequence,
+            id: crypto.randomUUID(),
+            modifiedAt: Date.now(),
+            createdAt: Date.now(),
+          };
 
-        set(state => ({
-          timelineSequences: [...state.timelineSequences, importedSequence],
-          activeTimelineSequence: newId
-        }));
+          set(state => ({
+            timelineSequences: [...state.timelineSequences, newSequence]
+          }));
 
-        console.log(`Timeline sequence "${importedSequence.name}" imported with ID: ${newId}`);
-      },
-
-      // Timeline Smoothing Action
-      smoothTimelineSequence: (sequenceId, smoothingFactor) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for smoothing`);
-          return;
+        } catch (error) {
+          console.error('Failed to import timeline sequence:', error);
         }
+      },
 
-        const smoothedChannels = sequence.channels.map(channel => {
-          if (channel.keyframes.length < 3) {
-            return channel; // Not enough keyframes to smooth
-          }
+      smoothTimelineSequence: (sequenceId, smoothingFactor = 0.5) => {
+        set(state => {
+          const sequence = state.timelineSequences.find(s => s.id === sequenceId);
+          if (!sequence) return state;
 
-          const smoothedKeyframes = channel.keyframes.map((keyframe, index) => {
-            if (index === 0 || index === channel.keyframes.length - 1) {
-              return keyframe; // Don't smooth first or last keyframe
-            }
+          const smoothedChannels = sequence.channels.map(channel => ({
+            ...channel,
+            keyframes: channel.keyframes.map((kf, i, arr) => {
+              // Skip first and last keyframes
+              if (i === 0 || i === arr.length - 1) return kf;
 
-            const prevKeyframe = channel.keyframes[index - 1];
-            const nextKeyframe = channel.keyframes[index + 1];
-            
-            // Apply smoothing using weighted average
-            const weight = smoothingFactor; // 0 = no smoothing, 1 = full smoothing
-            const smoothedValue = 
-              keyframe.value * (1 - weight) + 
-              ((prevKeyframe.value + nextKeyframe.value) / 2) * weight;
+              const prev = arr[i - 1];
+              const next = arr[i + 1];
 
-            return {
-              ...keyframe,
-              value: Math.max(0, Math.min(255, Math.round(smoothedValue))),
-              curve: 'smooth' as const
-            };
-          });
+              // Calculate weighted average for value
+              const smoothedValue = (
+                prev.value * smoothingFactor +
+                kf.value * (1 - smoothingFactor * 2) +
+                next.value * smoothingFactor
+              );
+
+              return { ...kf, value: smoothedValue };
+            })
+          }));
 
           return {
-            ...channel,
-            keyframes: smoothedKeyframes
+            timelineSequences: state.timelineSequences.map(s =>
+              s.id === sequenceId
+                ? { ...s, channels: smoothedChannels, modifiedAt: Date.now() }
+                : s
+            )
           };
         });
-
-        const smoothedSequence: TimelineSequence = {
-          ...sequence,
-          channels: smoothedChannels,
-          modifiedAt: Date.now()
-        };
-
-        set(state => ({
-          timelineSequences: state.timelineSequences.map(s => 
-            s.id === sequenceId ? smoothedSequence : s
-          )
-        }));
-
-        console.log(`Timeline sequence "${sequence.name}" smoothed with factor ${smoothingFactor}`);
       },
 
-      // Timeline Playback Actions
-      playTimelineSequence: (sequenceId, loop = false) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for playback`);
-          return;
-        }
+      playTimelineSequence: (sequenceId) => {
+        const sequence = get().timelineSequences.find(s => s.id === sequenceId);
+        if (!sequence) return;
 
-        // Stop any existing playback
-        get().stopTimelinePlayback();
-
-        const startTime = Date.now();
         set({
           timelinePlayback: {
             active: true,
             sequenceId,
-            startTime,
+            startTime: Date.now(),
             position: 0,
-            loop
+            loop: get().timelinePlayback.loop,
           }
         });
 
         // Start playback loop
-        const playbackInterval = setInterval(() => {
+        const playbackLoop = () => {
           const state = get();
-          if (!state.timelinePlayback.active || state.timelinePlayback.sequenceId !== sequenceId) {
-            clearInterval(playbackInterval);
-            return;
-          }
+          if (!state.timelinePlayback.active) return;
 
-          const elapsed = Date.now() - state.timelinePlayback.startTime!;
-          const position = elapsed / sequence.duration;
+          const currentTime = Date.now();
+          const elapsedTime = currentTime - (state.timelinePlayback.startTime || currentTime);
+          const newPosition = (elapsedTime % sequence.duration) / sequence.duration;
 
-          if (position >= 1) {
-            if (loop) {
-              // Restart sequence
-              set(state => ({
-                timelinePlayback: {
-                  ...state.timelinePlayback,
-                  startTime: Date.now(),
-                  position: 0
-                }
-              }));
-            } else {
-              // Stop playback
-              get().stopTimelinePlayback();
-              clearInterval(playbackInterval);
-              return;
-            }
-          } else {
-            set(state => ({
-              timelinePlayback: {
-                ...state.timelinePlayback,
-                position
-              }
-            }));
-          }
-
-          // Apply DMX values from timeline
+          // Update DMX values based on timeline position
           sequence.channels.forEach(channel => {
-            const value = interpolateKeyframes(channel.keyframes, elapsed);
-            if (value !== null) {
-              state.setDmxChannel(channel.channel, value);
+            const value = interpolateChannelValue(channel.keyframes, newPosition * sequence.duration);
+            if (value !== undefined) {
+              get().setDmxChannelValue(channel.channel, value);
             }
           });
-        }, 16); // ~60fps
 
-        console.log(`Timeline sequence "${sequence.name}" started playback`);
+          // Update position
+          set(state => ({
+            timelinePlayback: {
+              ...state.timelinePlayback,
+              position: newPosition,
+            }
+          }));
+
+          // Request next frame if still active
+          if (get().timelinePlayback.active) {
+            requestAnimationFrame(playbackLoop);
+          }
+        };
+
+        requestAnimationFrame(playbackLoop);
       },
 
       stopTimelinePlayback: () => {
         set({
           timelinePlayback: {
+            ...get().timelinePlayback,
             active: false,
-            sequenceId: null,
-            startTime: null,
             position: 0,
-            loop: false
+            startTime: null,
           }
         });
-        console.log('Timeline playback stopped');
       },
 
-      // Timeline Preset Generation
       generateTimelinePresets: () => {
-        const presets: TimelinePreset[] = [
+        const commonPresets: TimelinePreset[] = [
           {
             id: 'sine',
             name: 'Sine Wave',
-            description: 'Smooth sine wave pattern',
-            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
-              const keyframes: TimelineKeyframe[] = [];
+            description: 'Smooth oscillating motion',
+            generator: (duration, amplitude = 127.5, frequency = 1, phase = 0) => {
               const steps = Math.max(10, Math.floor(duration / 100));
-              
+              const keyframes: TimelineKeyframe[] = [];
+
               for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const radians = (2 * Math.PI * frequency * t / duration) + (phase * Math.PI / 180);
-                const value = Math.round((Math.sin(radians) + 1) * (amplitude / 2));
-                
+                const time = (i / steps) * duration;
+                const value = 127.5 + amplitude * Math.sin(2 * Math.PI * frequency * (time / duration) + phase);
                 keyframes.push({
-                  time: t,
+                  time,
                   value: Math.max(0, Math.min(255, value)),
                   curve: 'smooth'
                 });
               }
-              
+
+              return keyframes;
+            }
+          },
+          {
+            id: 'triangle',
+            name: 'Triangle Wave',
+            description: 'Linear ramping motion',
+            generator: (duration, amplitude = 127.5, frequency = 1) => {
+              const steps = Math.max(10, Math.floor(duration / 100));
+              const keyframes: TimelineKeyframe[] = [];
+
+              for (let i = 0; i <= steps; i++) {
+                const time = (i / steps) * duration;
+                const phase = (time / duration) * frequency;
+                const triangleValue = 2 * amplitude * Math.abs((phase % 1) - 0.5);
+                keyframes.push({
+                  time,
+                  value: Math.max(0, Math.min(255, 127.5 + triangleValue - amplitude)),
+                  curve: 'linear'
+                });
+              }
+
               return keyframes;
             }
           },
           {
             id: 'square',
             name: 'Square Wave',
-            description: 'Sharp on/off square wave pattern',
-            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
+            description: 'On/off switching motion',
+            generator: (duration, amplitude = 127.5, frequency = 1) => {
+              const steps = frequency * 2; // Two points per cycle (high and low)
               const keyframes: TimelineKeyframe[] = [];
-              const period = duration / frequency;
-              const phaseOffset = (phase / 360) * period;
-              
-              for (let cycle = 0; cycle < frequency; cycle++) {
-                const cycleStart = cycle * period + phaseOffset;
-                const cycleHalf = cycleStart + period / 2;
-                const cycleEnd = cycleStart + period;
-                
-                if (cycleStart >= 0 && cycleStart <= duration) {
-                  keyframes.push({ time: cycleStart, value: amplitude, curve: 'step' });
-                }
-                if (cycleHalf >= 0 && cycleHalf <= duration) {
-                  keyframes.push({ time: cycleHalf, value: 0, curve: 'step' });
-                }
-                if (cycleEnd >= 0 && cycleEnd <= duration) {
-                  keyframes.push({ time: cycleEnd, value: amplitude, curve: 'step' });
-                }
-              }
-              
-              return keyframes.sort((a, b) => a.time - b.time);
-            }
-          },
-          {
-            id: 'eclipse',
-            name: 'Eclipse Curve',
-            description: 'Smooth fade in and out like an eclipse',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(20, Math.floor(duration / 50));
               
               for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const normalizedTime = (t / duration) * 2 - 1; // -1 to 1
-                const value = Math.round(amplitude * Math.max(0, 1 - normalizedTime * normalizedTime));
-                
+                const time = (i / steps) * duration;
+                const value = i % 2 === 0 ? 127.5 + amplitude : 127.5 - amplitude;
                 keyframes.push({
-                  time: t,
+                  time,
                   value: Math.max(0, Math.min(255, value)),
-                  curve: 'smooth'
+                  curve: 'step'
                 });
               }
-              
-              return keyframes;
-            }
-          },
-          {
-            id: 'soft-in',
-            name: 'Soft In',
-            description: 'Gentle fade in from 0 to full',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(10, Math.floor(duration / 100));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const progress = t / duration;
-                const value = Math.round(amplitude * progress * progress); // Quadratic ease-in
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'ease-in'
-                });
-              }
-              
-              return keyframes;
-            }
-          },
-          {
-            id: 'soft-out',
-            name: 'Soft Out',
-            description: 'Gentle fade out from full to 0',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(10, Math.floor(duration / 100));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const progress = 1 - (t / duration);
-                const value = Math.round(amplitude * progress * progress); // Quadratic ease-out
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'ease-out'
-                });
-              }
-              
+
               return keyframes;
             }
           }
         ];
 
-        set({ timelinePresets: presets });
-        console.log('Timeline presets generated');
+        set({ timelinePresets: commonPresets });
       },
 
-      createTimelineFromPreset: (presetId, channels, duration, amplitude = 255, frequency = 1, phase = 0) => {
-        const { timelinePresets } = get();
-        const preset = timelinePresets.find(p => p.id === presetId);
-        
-        if (!preset) {
-          console.error(`Timeline preset with ID ${presetId} not found`);
-          return;
-        }
+      createTimelineFromPreset: (presetId, name, channels, config) => {
+        const preset = get().timelinePresets.find(p => p.id === presetId);
+        if (!preset) return null;
 
-        const sequenceId = `preset-${presetId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const keyframes = preset.generator(duration, amplitude, frequency, phase);
-        
-        const newSequence: TimelineSequence = {
-          id: sequenceId,
-          name: `${preset.name} (${channels.join(',')})`,
-          description: `Generated from ${preset.name} preset`,
-          duration,
+        const sequence: TimelineSequence = {
+          id: crypto.randomUUID(),
+          name,
+          duration: config.duration,
           channels: channels.map(channel => ({
             channel,
-            keyframes: [...keyframes]
+            keyframes: preset.generator(
+              config.duration,
+              config.amplitude,
+              config.frequency,
+              config.phase
+            )
           })),
-          tags: ['preset', presetId],
           createdAt: Date.now(),
           modifiedAt: Date.now()
         };
 
         set(state => ({
-          timelineSequences: [...state.timelineSequences, newSequence],
-          activeTimelineSequence: sequenceId
+          timelineSequences: [...state.timelineSequences, sequence]
         }));
 
-        console.log(`Timeline sequence "${newSequence.name}" created from preset "${preset.name}"`);
+        return sequence.id;
       },
-    })
+      loadTimelineSequence: (sequenceId) => {
+        const timelineSequences = get().timelineSequences;
+        const sequence = timelineSequences.find(s => s.id === sequenceId);
+        if (!sequence) {
+          console.warn(`Timeline sequence ${sequenceId} not found`);
+          return;
+        }
+
+        set({
+          activeTimelineSequence: sequenceId,
+          timelinePlayback: {
+            ...get().timelinePlayback,
+            sequenceId,
+            position: 0,
+            startTime: null,
+            active: false,
+          }
+        });
+      },
+
+      deleteTimelineSequence: (sequenceId) => {
+        set(state => {
+          const timelineSequences = state.timelineSequences.filter(s => s.id !== sequenceId);
+          const activeTimelineSequence = state.activeTimelineSequence === sequenceId 
+            ? null 
+            : state.activeTimelineSequence;
+
+          if (state.timelinePlayback.sequenceId === sequenceId) {
+            get().stopTimelinePlayback(); // Stop playback if deleting active sequence
+          }
+
+          return {
+            timelineSequences,
+            activeTimelineSequence,
+          };
+        });
+      },
+
+      updateTimelineSequence: (sequenceId, updates) => {
+        set(state => ({
+          timelineSequences: state.timelineSequences.map(sequence => 
+            sequence.id === sequenceId 
+              ? { ...sequence, ...updates, modifiedAt: Date.now() }
+              : sequence
+          )
+        }));
+      },
+
+      exportTimelineSequence: async (sequenceId) => {
+        const sequences = get().timelineSequences;
+        const sequence = sequences.find(s => s.id === sequenceId);
+        if (!sequence) return;
+
+        const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${sequence.name.replace(/\s+/g, '_')}-timeline.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      },
+
+      importTimelineSequence: async (file) => {
+        try {
+          const text = await file.text();
+          const sequence: TimelineSequence = JSON.parse(text);
+          
+          // Generate new ID to avoid conflicts
+          const newSequence = {
+            ...sequence,
+            id: crypto.randomUUID(),
+            modifiedAt: Date.now(),
+            createdAt: Date.now(),
+          };
+
+          set(state => ({
+            timelineSequences: [...state.timelineSequences, newSequence]
+          }));
+
+        } catch (error) {
+          console.error('Failed to import timeline sequence:', error);
+        }
+      },
+
+      smoothTimelineSequence: (sequenceId, smoothingFactor = 0.5) => {
+        set(state => {
+          const sequence = state.timelineSequences.find(s => s.id === sequenceId);
+          if (!sequence) return state;
+
+          const smoothedChannels = sequence.channels.map(channel => ({
+            ...channel,
+            keyframes: channel.keyframes.map((kf, i, arr) => {
+              // Skip first and last keyframes
+              if (i === 0 || i === arr.length - 1) return kf;
+
+              const prev = arr[i - 1];
+              const next = arr[i + 1];
+
+              // Calculate weighted average for value
+              const smoothedValue = (
+                prev.value * smoothingFactor +
+                kf.value * (1 - smoothingFactor * 2) +
+                next.value * smoothingFactor
+              );
+
+              return { ...kf, value: smoothedValue };
+            })
+          }));
+
+          return {
+            timelineSequences: state.timelineSequences.map(s =>
+              s.id === sequenceId
+                ? { ...s, channels: smoothedChannels, modifiedAt: Date.now() }
+                : s
+            )
+          };
+        });
+      },
+
+      playTimelineSequence: (sequenceId) => {
+        const sequence = get().timelineSequences.find(s => s.id === sequenceId);
+        if (!sequence) return;
+
+        set({
+          timelinePlayback: {
+            active: true,
+            sequenceId,
+            startTime: Date.now(),
+            position: 0,
+            loop: get().timelinePlayback.loop,
+          }
+        });
+
+        // Start playback loop
+        const playbackLoop = () => {
+          const state = get();
+          if (!state.timelinePlayback.active) return;
+
+          const currentTime = Date.now();
+          const elapsedTime = currentTime - (state.timelinePlayback.startTime || currentTime);
+          const newPosition = (elapsedTime % sequence.duration) / sequence.duration;
+
+          // Update DMX values based on timeline position
+          sequence.channels.forEach(channel => {
+            const value = interpolateChannelValue(channel.keyframes, newPosition * sequence.duration);
+            if (value !== undefined) {
+              get().setDmxChannelValue(channel.channel, value);
+            }
+          });
+
+          // Update position
+          set(state => ({
+            timelinePlayback: {
+              ...state.timelinePlayback,
+              position: newPosition,
+            }
+          }));
+
+          // Request next frame if still active
+          if (get().timelinePlayback.active) {
+            requestAnimationFrame(playbackLoop);
+          }
+        };
+
+        requestAnimationFrame(playbackLoop);
+      },
+
+      stopTimelinePlayback: () => {
+        set({
+          timelinePlayback: {
+            ...get().timelinePlayback,
+            active: false,
+            position: 0,
+            startTime: null,
+          }
+        });
+      },
+
+      generateTimelinePresets: () => {
+        const commonPresets: TimelinePreset[] = [
+          {
+            id: 'sine',
+            name: 'Sine Wave',
+            description: 'Smooth oscillating motion',
+            generator: (duration, amplitude = 127.5, frequency = 1, phase = 0) => {
+              const steps = Math.max(10, Math.floor(duration / 100)); // At least 10 keyframes
+              const keyframes: TimelineKeyframe[] = [];
+
+              for (let i = 0; i <= steps; i++) {
+                const time = (i / steps) * duration;
+                const value = 127.5 + amplitude * Math.sin(2 * Math.PI * frequency * (time / duration) + phase);
+                keyframes.push({
+                  time,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'smooth'
+                });
+              }
+
+              return keyframes;
+            }
+          },
+          {
+            id: 'triangle',
+            name: 'Triangle Wave',
+            description: 'Linear ramping motion',
+            generator: (duration, amplitude = 127.5, frequency = 1) => {
+              const steps = Math.max(10, Math.floor(duration / 100));
+              const keyframes: TimelineKeyframe[] = [];
+
+              for (let i = 0; i <= steps; i++) {
+                const time = (i / steps) * duration;
+                const phase = (time / duration) * frequency;
+                const triangleValue = 2 * amplitude * Math.abs((phase % 1) - 0.5);
+                keyframes.push({
+                  time,
+                  value: Math.max(0, Math.min(255, 127.5 + triangleValue - amplitude)),
+                  curve: 'linear'
+                });
+              }
+
+              return keyframes;
+            }
+          },
+          {
+            id: 'square',
+            name: 'Square Wave',
+            description: 'On/off switching motion',
+            generator: (duration, amplitude = 127.5, frequency = 1) => {
+              const steps = frequency * 2; // Two points per cycle (high and low)
+              const keyframes: TimelineKeyframe[] = [];
+              
+              for (let i = 0; i <= steps; i++) {
+                const time = (i / steps) * duration;
+                const value = i % 2 === 0 ? 127.5 + amplitude : 127.5 - amplitude;
+                keyframes.push({
+                  time,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'step'
+                });
+              }
+
+              return keyframes;
+            }
+          }
+        ];
+
+        set({ timelinePresets: commonPresets });
+      },
+
+      createTimelineFromPreset: (presetId, name, channels, config) => {
+        const preset = get().timelinePresets.find(p => p.id === presetId);
+        if (!preset) return null;
+
+        const sequence: TimelineSequence = {
+          id: crypto.randomUUID(),
+          name,
+          duration: config.duration,
+          channels: channels.map(channel => ({
+            channel,
+            keyframes: preset.generator(
+              config.duration,
+              config.amplitude,
+              config.frequency,
+              config.phase
+            )
+          })),
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        };
+
+        set(state => ({
+          timelineSequences: [...state.timelineSequences, sequence]
+        }));
+
+        return sequence.id;
+      },
+
+      // ... other actions ...
+    }))
   )
 );
+    });
+  },
+
+  deleteTimelineSequence: (sequenceId: string) => {
+    set(state => {
+      const timelineSequences = state.timelineSequences.filter(s => s.id !== sequenceId);
+      const activeTimelineSequence = state.activeTimelineSequence === sequenceId 
+        ? null 
+        : state.activeTimelineSequence;
+
+      if (state.timelinePlayback.sequenceId === sequenceId) {
+        get().stopTimelinePlayback(); // Stop playback if deleting active sequence
+      }
+
+      return {
+        timelineSequences,
+        activeTimelineSequence,
+      };
+    });
+  },
+
+  updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => {
+    set(state => ({
+      timelineSequences: state.timelineSequences.map(sequence => 
+        sequence.id === sequenceId 
+          ? { ...sequence, ...updates, modifiedAt: Date.now() }
+          : sequence
+      )
+    }));
+  },
+
+  exportTimelineSequence: async (sequenceId: string) => {
+    const sequences = get().timelineSequences;
+    const sequence = sequences.find(s => s.id === sequenceId);
+    if (!sequence) return;
+
+    const blob = new Blob([JSON.stringify(sequence, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sequence.name.replace(/\s+/g, '_')}-timeline.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  importTimelineSequence: async (file: File) => {
+    try {
+      const text = await file.text();
+      const sequence: TimelineSequence = JSON.parse(text);
+      
+      // Generate new ID to avoid conflicts
+      const newSequence = {
+        ...sequence,
+        id: crypto.randomUUID(),
+        modifiedAt: Date.now(),
+        createdAt: Date.now(),
+      };
+
+      set(state => ({
+        timelineSequences: [...state.timelineSequences, newSequence]
+      }));
+
+    } catch (error) {
+      console.error('Failed to import timeline sequence:', error);
+    }
+  },
+
+  smoothTimelineSequence: (sequenceId: string, smoothingFactor = 0.5) => {
+    set(state => {
+      const sequence = state.timelineSequences.find(s => s.id === sequenceId);
+      if (!sequence) return state;
+
+      const smoothedChannels = sequence.channels.map(channel => ({
+        ...channel,
+        keyframes: channel.keyframes.map((kf, i, arr) => {
+          // Skip first and last keyframes
+          if (i === 0 || i === arr.length - 1) return kf;
+
+          const prev = arr[i - 1];
+          const next = arr[i + 1];
+
+          // Calculate weighted average for value
+          const smoothedValue = (
+            prev.value * smoothingFactor +
+            kf.value * (1 - smoothingFactor * 2) +
+            next.value * smoothingFactor
+          );
+
+          return { ...kf, value: smoothedValue };
+        })
+      }));
+
+      return {
+        timelineSequences: state.timelineSequences.map(s =>
+          s.id === sequenceId
+            ? { ...s, channels: smoothedChannels, modifiedAt: Date.now() }
+            : s
+        )
+      };
+    });
+  },
+
+  playTimelineSequence: (sequenceId: string) => {
+    const sequence = get().timelineSequences.find(s => s.id === sequenceId);
+    if (!sequence) return;
+
+    set({
+      timelinePlayback: {
+        active: true,
+        sequenceId,
+        startTime: Date.now(),
+        position: 0,
+        loop: get().timelinePlayback.loop,
+      }
+    });
+
+    // Start playback loop
+    const playbackLoop = () => {
+      const state = get();
+      if (!state.timelinePlayback.active) return;
+
+      const currentTime = Date.now();
+      const elapsedTime = currentTime - (state.timelinePlayback.startTime || currentTime);
+      const newPosition = (elapsedTime % sequence.duration) / sequence.duration;
+
+      // Update DMX values based on timeline position
+      sequence.channels.forEach(channel => {
+        const value = interpolateChannelValue(channel.keyframes, newPosition * sequence.duration);
+        if (value !== undefined) {
+          get().setDmxChannelValue(channel.channel, value);
+        }
+      });
+
+      // Update position
+      set(state => ({
+        timelinePlayback: {
+          ...state.timelinePlayback,
+          position: newPosition,
+        }
+      }));
+
+      // Request next frame if still active
+      if (get().timelinePlayback.active) {
+        requestAnimationFrame(playbackLoop);
+      }
+    };
+
+    requestAnimationFrame(playbackLoop);
+  },
+
+  stopTimelinePlayback: () => {
+    set({
+      timelinePlayback: {
+        ...get().timelinePlayback,
+        active: false,
+        position: 0,
+        startTime: null,
+      }
+    });
+  },
+
+  generateTimelinePresets: () => {
+    const commonPresets: TimelinePreset[] = [
+      {
+        id: 'sine',
+        name: 'Sine Wave',
+        description: 'Smooth oscillating motion',
+        generator: (duration, amplitude = 127.5, frequency = 1, phase = 0) => {
+          const steps = Math.max(10, Math.floor(duration / 100)); // At least 10 keyframes
+          const keyframes: TimelineKeyframe[] = [];
+
+          for (let i = 0; i <= steps; i++) {
+            const time = (i / steps) * duration;
+            const value = 127.5 + amplitude * Math.sin(2 * Math.PI * frequency * (time / duration) + phase);
+            keyframes.push({
+              time,
+              value: Math.max(0, Math.min(255, value)),
+              curve: 'smooth'
+            });
+          }
+
+          return keyframes;
+        }
+      },
+      {
+        id: 'triangle',
+        name: 'Triangle Wave',
+        description: 'Linear ramping motion',
+        generator: (duration, amplitude = 127.5, frequency = 1) => {
+          const steps = Math.max(10, Math.floor(duration / 100));
+          const keyframes: TimelineKeyframe[] = [];
+
+          for (let i = 0; i <= steps; i++) {
+            const time = (i / steps) * duration;
+            const phase = (time / duration) * frequency;
+            const triangleValue = 2 * amplitude * Math.abs((phase % 1) - 0.5);
+            keyframes.push({
+              time,
+              value: Math.max(0, Math.min(255, 127.5 + triangleValue - amplitude)),
+              curve: 'linear'
+            });
+          }
+
+          return keyframes;
+        }
+      },
+      {
+        id: 'square',
+        name: 'Square Wave',
+        description: 'On/off switching motion',
+        generator: (duration, amplitude = 127.5, frequency = 1) => {
+          const steps = frequency * 2; // Two points per cycle (high and low)
+          const keyframes: TimelineKeyframe[] = [];
+          
+          for (let i = 0; i <= steps; i++) {
+            const time = (i / steps) * duration;
+            const value = i % 2 === 0 ? 127.5 + amplitude : 127.5 - amplitude;
+            keyframes.push({
+              time,
+              value: Math.max(0, Math.min(255, value)),
+              curve: 'step'
+            });
+          }
+
+          return keyframes;
+        }
+      }
+    ];
+
+    set({ timelinePresets: commonPresets });
+  },
+
+  createTimelineFromPreset: (presetId: string, name: string, channels: number[], config: {
+    duration: number;
+    amplitude?: number;
+    frequency?: number;
+    phase?: number;
+  }) => {
+    const preset = get().timelinePresets.find(p => p.id === presetId);
+    if (!preset) return null;
+
+    const sequence: TimelineSequence = {
+      id: crypto.randomUUID(),
+      name,
+      duration: config.duration,
+      channels: channels.map(channel => ({
+        channel,
+        keyframes: preset.generator(
+          config.duration,
+          config.amplitude,
+          config.frequency,
+          config.phase
+        )
+      })),
+      createdAt: Date.now(),
+      modifiedAt: Date.now()
+    };
+
+    set(state => ({
+      timelineSequences: [...state.timelineSequences, sequence]
+    }));
+
+    return sequence.id;
+  },
+
+  // ... other actions ...
+  }))
+);
+
+// Helper function for timeline value interpolation
+function interpolateChannelValue(keyframes: TimelineKeyframe[], time: number): number | undefined {
+  if (keyframes.length === 0) return undefined;
+  if (keyframes.length === 1) return keyframes[0].value;
+
+  // Find the keyframes before and after the current time
+  let prevFrame = keyframes[0];
+  let nextFrame = keyframes[keyframes.length - 1];
+
+  for (let i = 0; i < keyframes.length - 1; i++) {
+    if (keyframes[i].time <= time && keyframes[i + 1].time > time) {
+      prevFrame = keyframes[i];
+      nextFrame = keyframes[i + 1];
+      break;
+    }
+  }
+
+  if (prevFrame === nextFrame) {
+    return prevFrame.value;
+  }
+
+  const progress = (time - prevFrame.time) / (nextFrame.time - prevFrame.time);
+
+  switch (prevFrame.curve) {
+    case 'step':
+      return prevFrame.value;
+    
+    case 'linear':
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+    
+    case 'smooth':
+      // Use smoothstep interpolation
+      const t = progress * progress * (3 - 2 * progress);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * t;
+    
+    case 'ease-in':
+      const ti = progress * progress;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * ti;
+    
+    case 'ease-out':
+      const to = 1 - Math.pow(1 - progress, 2);
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * to;
+    
+    case 'ease-in-out':
+      const tio = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * tio;
+    
+    case 'bezier':
+      if (prevFrame.controlPoint1 && prevFrame.controlPoint2) {
+        // Cubic Bezier interpolation
+        const t = progress;
+        const u = 1 - t;
+        const tt = t * t;
+        const uu = u * u;
+        const uuu = uu * u;
+        const ttt = tt * t;
+        
+        const p0 = prevFrame.value;
+        const p1 = prevFrame.controlPoint1.y;
+        const p2 = prevFrame.controlPoint2.y;
+        const p3 = nextFrame.value;
+        
+        return uuu * p0 + 3 * uu * t * p1 + 3 * u * tt * p2 + ttt * p3;
+      }
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+    
+    default:
+      return prevFrame.value + (nextFrame.value - prevFrame.value) * progress;
+  }
+}

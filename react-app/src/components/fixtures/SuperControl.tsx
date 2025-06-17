@@ -21,12 +21,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     groups,
     selectedChannels,
     getDmxChannelValue, 
-    setDmxChannelValue,
-    // Smooth DMX Functions
+    setDmxChannelValue,    // Smooth DMX Functions
     smoothDmxEnabled,
-    setSmoothDmxChannelValue,
-    enableSmoothDmxMode,
-    flushSmoothDmxUpdates,
+    // setSmoothDmxChannelValue, // TODO: Implement these functions
+    // enableSmoothDmxMode,
+    // flushSmoothDmxUpdates,
     // Autopilot Track System
     autopilotTrackEnabled,
     autopilotTrackType,
@@ -293,9 +292,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           break;
       }
       
-      if (targetChannel >= 0) {
-        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
-        setSmoothDmxChannelValue(targetChannel, value);
+      if (targetChannel >= 0) {        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
+        setDmxChannelValue(targetChannel, value);
         
         // Verification
         setTimeout(() => {

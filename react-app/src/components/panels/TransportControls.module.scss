@@ -883,3 +883,188 @@
   color: #FF9800;
   font-weight: 600;
 }
+
+/* Advanced Playback Mode Controls */
+.playRecordingButton {
+  background: linear-gradient(135deg, #8e44ad, #9b59b6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #666;
+  }
+}
+
+.playbackModeControls {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(40, 40, 40, 0.6);
+  border-radius: 6px;
+  border: 1px solid #555;
+
+  h5 {
+    color: #fff;
+    font-size: 12px;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+  }
+}
+
+.playbackModeButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.modeButton {
+  background: rgba(60, 60, 60, 0.8);
+  color: #ccc;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+
+  &:hover {
+    background: rgba(80, 80, 80, 0.9);
+    color: #fff;
+    border-color: #888;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border-color: #2980b9;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+  }
+}
+
+.playbackOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playbackOption {
+  display: flex;
+  align-items: center;
+  color: #ccc;
+  font-size: 11px;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    margin-right: 6px;
+    accent-color: #3498db;
+  }
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.speedControl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    color: #ccc;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+.speedSlider {
+  width: 100%;
+  height: 4px;
+  background: #666;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #3498db;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #2980b9;
+      transform: scale(1.1);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #3498db;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #2980b9;
+      transform: scale(1.1);
+    }
+  }
+}
+
+.reverseButton {
+  background: rgba(236, 240, 241, 0.1);
+  color: #ecf0f1;
+  border: 1px solid #666;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(236, 240, 241, 0.2);
+    border-color: #888;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.playbackStatus {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 4px;
+  border: 1px solid #444;
+}
+
+.statusInfo {
+  color: #bbb;
+  font-size: 9px;
+  font-family: monospace;
+  text-align: center;
+  display: block;
+}

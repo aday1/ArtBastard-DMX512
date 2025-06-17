@@ -16,22 +16,22 @@ interface KeyframeEditorState {
   dragStartValue: number;
 }
 
-const TimelineEditor: React.FC<TimelineEditorProps> = ({ className }) => {
-  const {
+const TimelineEditor: React.FC<TimelineEditorProps> = ({ className }) => {  const {
     timelineSequences,
     activeTimelineSequence,
     timelinePresets,
     timelinePlayback,
-    loadTimelineSequence,
-    deleteTimelineSequence,
-    updateTimelineSequence,
-    exportTimelineSequence,
-    importTimelineSequence,
-    smoothTimelineSequence,
-    playTimelineSequence,
-    stopTimelinePlayback,
-    generateTimelinePresets,
-    createTimelineFromPreset
+    // TODO: Implement missing timeline functions
+    // loadTimelineSequence,
+    // deleteTimelineSequence,
+    // updateTimelineSequence,
+    // exportTimelineSequence,
+    // importTimelineSequence,
+    // smoothTimelineSequence,
+    // playTimelineSequence,
+    // stopTimelinePlayback,
+    // generateTimelinePresets,
+    // createTimelineFromPreset
   } = useStore();
 
   const [editorState, setEditorState] = useState<KeyframeEditorState>({
