@@ -472,7 +472,7 @@ const VisualTimelineEditor: React.FC<VisualTimelineEditorProps> = ({ className }
     return (
       <div className={`${styles.timelineEditor} ${className || ''}`}>
         <div className={styles.noSequence}>
-          <LucideIcon name="Timeline" size={48} />
+          <LucideIcon name="Clock" size={48} />
           <h3>No Timeline Selected</h3>
           <p>Please select a timeline sequence to edit</p>
         </div>

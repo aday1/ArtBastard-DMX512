@@ -15,13 +15,25 @@ interface FixtureCapability {
   fixtures: string[];
 }
 
-const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
-  const { 
+const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {  const {
     fixtures, 
     groups,
     selectedChannels,
-    getDmxChannelValue, 
-    setDmxChannelValue,    // Smooth DMX Functions
+    selectAllChannels,
+    deselectAllChannels,
+    selectChannel,
+    deselectChannel,
+    toggleChannelSelection,
+    selectedFixtures,
+    selectNextFixture,
+    selectPreviousFixture,
+    selectAllFixtures,    selectFixturesByType,
+    selectFixtureGroup,
+    deselectAllFixtures,
+    setSelectedFixtures,
+    toggleFixtureSelection,
+    getDmxChannelValue,
+    setDmxChannelValue,// Smooth DMX Functions
     smoothDmxEnabled,
     // setSmoothDmxChannelValue, // TODO: Implement these functions
     // enableSmoothDmxMode,
@@ -44,10 +56,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setAutopilotTrackAutoPlay,
     updatePanTiltFromTrack
   } = useStore();
-
   // Selection state
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('channels');
-  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
 
@@ -55,6 +65,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
   const [tiltValue, setTiltValue] = useState(127);
+  const [finePanValue, setFinePanValue] = useState(0);
+  const [fineTiltValue, setFineTiltValue] = useState(0);
   const [red, setRed] = useState(255);
   const [green, setGreen] = useState(255);
   const [blue, setBlue] = useState(255);
@@ -67,14 +79,31 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Enhanced Movement Controls
   const [focus, setFocus] = useState(127);
   const [zoom, setZoom] = useState(127);
-  const [iris, setIris] = useState(255);
-  const [prism, setPrism] = useState(0);
+  const [iris, setIris] = useState(255);  const [prism, setPrism] = useState(0);
   const [colorWheel, setColorWheel] = useState(0);
   const [goboRotation, setGoboRotation] = useState(127);
   const [gobo2, setGobo2] = useState(0);
   const [frost, setFrost] = useState(0);
   const [macro, setMacro] = useState(0);
   const [speed, setSpeed] = useState(127);
+  
+  // Enhanced button controls
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [isStrobing, setIsStrobing] = useState(false);
+  const [flashSpeed, setFlashSpeed] = useState(100);
+  const [strobeSpeed, setStrobeSpeed] = useState(10);
+  
+  // GOBO presets for common gobo types
+  const goboPresets = [
+    { id: 0, name: 'Open', value: 0, icon: '○' },
+    { id: 1, name: 'Dots', value: 32, icon: '⋅⋅⋅' },
+    { id: 2, name: 'Lines', value: 64, icon: '|||' },
+    { id: 3, name: 'Breakup', value: 96, icon: '◦◉◦' },
+    { id: 4, name: 'Stars', value: 128, icon: '✦' },
+    { id: 5, name: 'Spiral', value: 160, icon: '🌀' },
+    { id: 6, name: 'Prism', value: 192, icon: '◆' },
+    { id: 7, name: 'Pattern', value: 224, icon: '⟐' }
+  ];
 
   // XY Pad state
   const [panTiltXY, setPanTiltXY] = useState({ x: 50, y: 50 });
@@ -228,10 +257,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
       console.log(`Channel mode: found ${affectedFixtures.length} affected fixtures`);
       return affectedFixtures;
     }
-    
-    if (selectionMode === 'fixtures' && selectedFixtures.length > 0) {
+      if (selectionMode === 'fixtures' && selectedFixtures.length > 0) {
       const affectedFixtures = fixtures.filter(fixture => 
-        selectedFixtures.includes(fixture.name)
+        selectedFixtures.includes(fixture.id) // Use fixture.id instead of fixture.name
       );
       console.log(`Fixture mode: found ${affectedFixtures.length} affected fixtures`);
       return affectedFixtures;
@@ -261,16 +289,32 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     
     console.log('No fixtures affected - no valid selection');
     return [];
-  };
-
-  const applyControl = (controlType: string, value: number) => {
+  };  const applyControl = (controlType: string, value: number) => {
     const affectedFixtures = getAffectedFixtures();
-    console.log(`applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
+    console.log(`[SuperControl] 🎛️ applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
+    console.log(`[SuperControl] Selection mode: ${selectionMode}`);
+    
+    if (selectionMode === 'channels') {
+      console.log(`[SuperControl] Selected channels:`, selectedChannels);
+    } else if (selectionMode === 'fixtures') {
+      console.log(`[SuperControl] Selected fixtures:`, selectedFixtures);
+    } else if (selectionMode === 'groups') {
+      console.log(`[SuperControl] Selected groups:`, selectedGroups);
+    } else if (selectionMode === 'capabilities') {
+      console.log(`[SuperControl] Selected capabilities:`, selectedCapabilities);
+    }
     
     if (affectedFixtures.length === 0) {
-      console.log('No fixtures to apply control to');
+      console.warn('[SuperControl] ❌ No fixtures to apply control to - please select fixtures first!');
+      console.warn('[SuperControl] 💡 Try clicking "Select All" or choose specific fixtures to control');
       return;
     }
+    
+    console.log(`[SuperControl] ✅ Applying ${controlType}=${value} to ${affectedFixtures.length} fixtures:`);
+    affectedFixtures.forEach(fixture => console.log(`  - ${fixture.name} (channels: ${fixture.startAddress}-${fixture.startAddress + fixture.channels.length - 1})`));
+    
+    let updateCount = 0;
+    let errorCount = 0;
     
     affectedFixtures.forEach((fixture, index) => {
       const channels = fixture.channels;
@@ -279,12 +323,17 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
       // Find the target channel based on control type
       switch (controlType) {        case 'dimmer':
           targetChannel = channels.find(c => c.type === 'dimmer')?.dmxAddress ?? -1;
-          break;
-        case 'pan':
+          break;        case 'pan':
           targetChannel = channels.find(c => c.type === 'pan')?.dmxAddress ?? -1;
+          break;
+        case 'finePan':
+          targetChannel = channels.find(c => c.type === 'finePan' || c.type === 'fine_pan' || c.type === 'pan_fine')?.dmxAddress ?? -1;
           break;
         case 'tilt':
           targetChannel = channels.find(c => c.type === 'tilt')?.dmxAddress ?? -1;
+          break;
+        case 'fineTilt':
+          targetChannel = channels.find(c => c.type === 'fineTilt' || c.type === 'fine_tilt' || c.type === 'tilt_fine')?.dmxAddress ?? -1;
           break;
         case 'red':
           targetChannel = channels.find(c => c.type === 'red')?.dmxAddress ?? -1;
@@ -298,6 +347,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         case 'gobo':
           targetChannel = channels.find(c => c.type === 'gobo')?.dmxAddress ?? -1;
           break;
+        case 'goboRotation':
+          targetChannel = channels.find(c => c.type === 'goboRotation' || c.type === 'gobo_rotation')?.dmxAddress ?? -1;
+          break;
+        case 'gobo2':
+          targetChannel = channels.find(c => c.type === 'gobo2')?.dmxAddress ?? -1;
+          break;
         case 'shutter':
           targetChannel = channels.find(c => c.type === 'shutter')?.dmxAddress ?? -1;
           break;
@@ -310,28 +365,131 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         case 'reset':
           targetChannel = channels.find(c => c.type === 'reset')?.dmxAddress ?? -1;
           break;
+        case 'focus':
+          targetChannel = channels.find(c => c.type === 'focus')?.dmxAddress ?? -1;
+          break;
+        case 'zoom':
+          targetChannel = channels.find(c => c.type === 'zoom')?.dmxAddress ?? -1;
+          break;
+        case 'iris':
+          targetChannel = channels.find(c => c.type === 'iris')?.dmxAddress ?? -1;
+          break;
+        case 'prism':
+          targetChannel = channels.find(c => c.type === 'prism')?.dmxAddress ?? -1;
+          break;
+        case 'colorWheel':
+          targetChannel = channels.find(c => c.type === 'colorWheel' || c.type === 'color_wheel')?.dmxAddress ?? -1;
+          break;
+        case 'frost':
+          targetChannel = channels.find(c => c.type === 'frost')?.dmxAddress ?? -1;
+          break;
+        case 'macro':
+          targetChannel = channels.find(c => c.type === 'macro')?.dmxAddress ?? -1;
+          break;
+        case 'speed':
+          targetChannel = channels.find(c => c.type === 'speed')?.dmxAddress ?? -1;
+          break;
+        default:
+          console.warn(`[SuperControl] ⚠️ Unknown control type: ${controlType}`);
+          break;
       }
       
-      if (targetChannel >= 0) {        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
+      if (targetChannel >= 0) {        console.log(`[DMX] 📡 Setting channel ${targetChannel} to ${value} for ${controlType} on fixture "${fixture.name}"`);
         setDmxChannelValue(targetChannel, value);
+        updateCount++;
         
-        // Verification
+        // Verification with more detailed logging
         setTimeout(() => {
           const actualValue = getDmxChannelValue(targetChannel);
-          console.log(`[DMX] Verification: Channel ${targetChannel} is now ${actualValue} (expected ${value})`);
+          if (actualValue === value) {
+            console.log(`[DMX] ✅ Verification SUCCESS: Channel ${targetChannel} = ${actualValue} (${controlType})`);
+          } else {
+            console.error(`[DMX] ❌ Verification FAILED: Channel ${targetChannel} = ${actualValue}, expected ${value} (${controlType})`);
+          }
         }, 50);
       } else {
-        console.log(`[DMX] ERROR: No target channel found for ${controlType} in fixture ${index}`, channels);
+        console.error(`[DMX] ❌ ERROR: No target channel found for ${controlType} in fixture "${fixture.name}"`, {
+          fixtureChannels: channels.map(c => ({ type: c.type, dmxAddress: c.dmxAddress })),
+          requestedControlType: controlType
+        });
+        errorCount++;
       }
     });
+    
+    // Summary logging
+    console.log(`[SuperControl] 📊 Control application summary: ${updateCount} successful updates, ${errorCount} errors`);
+    
+    if (errorCount > 0) {
+      console.warn(`[SuperControl] ⚠️ Some controls failed to apply. Check fixture definitions and channel mappings.`);
+    }
   };
-
   // OSC Address Management
   const updateOscAddress = (control: string, address: string) => {
     setOscAddresses(prev => ({
       ...prev,
       [control]: address
     }));
+  };
+
+  // Get DMX channel assignments for a control type
+  const getDmxChannelForControl = (controlType: string): string => {
+    const affectedFixtures = getAffectedFixtures();
+    if (affectedFixtures.length === 0) return 'No fixtures selected';
+    
+    const channels: number[] = [];
+    affectedFixtures.forEach(fixture => {
+      let targetChannel = -1;
+      
+      switch (controlType) {
+        case 'dimmer':
+          targetChannel = fixture.channels.find(c => c.type === 'dimmer')?.dmxAddress ?? -1;
+          break;
+        case 'pan':
+          targetChannel = fixture.channels.find(c => c.type === 'pan')?.dmxAddress ?? -1;
+          break;
+        case 'tilt':
+          targetChannel = fixture.channels.find(c => c.type === 'tilt')?.dmxAddress ?? -1;
+          break;
+        case 'finePan':
+          targetChannel = fixture.channels.find(c => c.type === 'finePan' || c.type === 'fine_pan' || c.type === 'pan_fine')?.dmxAddress ?? -1;
+          break;
+        case 'fineTilt':
+          targetChannel = fixture.channels.find(c => c.type === 'fineTilt' || c.type === 'fine_tilt' || c.type === 'tilt_fine')?.dmxAddress ?? -1;
+          break;
+        case 'red':
+          targetChannel = fixture.channels.find(c => c.type === 'red')?.dmxAddress ?? -1;
+          break;
+        case 'green':
+          targetChannel = fixture.channels.find(c => c.type === 'green')?.dmxAddress ?? -1;
+          break;
+        case 'blue':
+          targetChannel = fixture.channels.find(c => c.type === 'blue')?.dmxAddress ?? -1;
+          break;
+        case 'gobo':
+          targetChannel = fixture.channels.find(c => c.type === 'gobo')?.dmxAddress ?? -1;
+          break;
+        case 'shutter':
+          targetChannel = fixture.channels.find(c => c.type === 'shutter')?.dmxAddress ?? -1;
+          break;
+        default:
+          targetChannel = fixture.channels.find(c => c.type === controlType)?.dmxAddress ?? -1;
+          break;
+      }
+      
+      if (targetChannel >= 0) {
+        channels.push(targetChannel + 1); // Convert to 1-based for display
+      }
+    });
+    
+    if (channels.length === 0) return 'No channels';
+    if (channels.length === 1) return `Ch ${channels[0]}`;
+    
+    // Group consecutive channels for better display
+    const sortedChannels = [...new Set(channels)].sort((a, b) => a - b);
+    if (sortedChannels.length <= 3) {
+      return `Ch ${sortedChannels.join(', ')}`;
+    }
+    return `Ch ${sortedChannels[0]}-${sortedChannels[sortedChannels.length - 1]} (${sortedChannels.length})`;
   };
 
   // XY Pad handlers
@@ -367,7 +525,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     applyControl('pan', panVal);
     applyControl('tilt', tiltVal);
   };
-
   // Reset Pan/Tilt to center position
   const resetPanTiltToCenter = () => {
     const centerValue = 127; // DMX center position (50% of 255)
@@ -379,6 +536,97 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     
     applyControl('pan', centerValue);
     applyControl('tilt', centerValue);
+  };
+
+  // Flash function - quick bright pulse
+  const handleFlash = () => {
+    if (isFlashing) return;
+    
+    setIsFlashing(true);
+    const originalDimmer = dimmer;
+    
+    // Flash to full brightness
+    setDimmer(255);
+    applyControl('dimmer', 255);
+    applyControl('shutter', 255); // Open shutter
+    
+    setTimeout(() => {
+      setDimmer(originalDimmer);
+      applyControl('dimmer', originalDimmer);
+      setIsFlashing(false);
+    }, flashSpeed);
+  };
+
+  // Strobe function - continuous strobing
+  const handleStrobe = () => {
+    setIsStrobing(!isStrobing);
+    
+    if (!isStrobing) {
+      // Start strobing
+      const strobeValue = Math.max(128, Math.min(255, 128 + strobeSpeed * 8)); // Strobe range typically 128-255
+      applyControl('shutter', strobeValue);
+    } else {
+      // Stop strobing - open shutter
+      applyControl('shutter', 255);
+    }
+  };
+
+  // Reset all controls to default values
+  const handleResetAll = () => {
+    const resetConfirm = window.confirm('Reset all SuperControl values to defaults?');
+    if (!resetConfirm) return;    // Reset all state values
+    setDimmer(0);
+    setPanValue(127);
+    setTiltValue(127);
+    setFinePanValue(0);
+    setFineTiltValue(0);
+    setRed(0);
+    setGreen(0);
+    setBlue(0);
+    setGobo(0);
+    setShutter(255);
+    setStrobe(0);
+    setLamp(0);
+    setReset(0);
+    setFocus(127);
+    setZoom(127);
+    setIris(127);
+    setPrism(0);
+    setColorWheel(0);
+    setGoboRotation(127);
+    setGobo2(0);
+    setFrost(0);
+    setMacro(0);
+    setSpeed(127);
+    setPanTiltXY({ x: 50, y: 50 });
+    setColorHue(0);
+    setColorSaturation(0);
+    setIsStrobing(false);
+
+    // Apply reset values to fixtures
+    const affectedFixtures = getAffectedFixtures();
+    if (affectedFixtures.length > 0) {
+      affectedFixtures.forEach(fixture => {
+        fixture.channels.forEach(channel => {
+          if (channel.dmxAddress) {
+            let resetValue = 0;            // Special reset values for certain channel types
+            if (channel.type === 'pan' || channel.type === 'tilt' || 
+                channel.type === 'focus' || channel.type === 'zoom' || 
+                channel.type === 'iris' || channel.type === 'goboRotation' || 
+                channel.type === 'speed') {
+              resetValue = 127; // Center position
+            } else if (channel.type === 'finePan' || channel.type === 'fineTilt' ||
+                       channel.type === 'fine_pan' || channel.type === 'fine_tilt' ||
+                       channel.type === 'pan_fine' || channel.type === 'tilt_fine') {
+              resetValue = 0; // Fine controls start at 0
+            } else if (channel.type === 'shutter') {
+              resetValue = 255; // Open shutter
+            }
+            applyControl(channel.type, resetValue);
+          }
+        });
+      });
+    }
   };
 
   // Color wheel handlers
@@ -531,15 +779,34 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     const prevIndex = currentSceneIndex === 0 ? scenes.length - 1 : currentSceneIndex - 1;
     loadScene(prevIndex);
   };
-
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
-        <h3>
-          <LucideIcon name="Settings" />
-          Super Control
-        </h3>
-        <p>Advanced DMX Control Interface</p>
+        <div className={styles.headerTop}>
+          <h3>
+            <LucideIcon name="Settings" />
+            Super Control
+            {/* Status Indicators */}
+            <div className={styles.statusIndicators}>
+              {isFlashing && (
+                <span className={`${styles.statusBadge} ${styles.flashStatus}`}>
+                  <LucideIcon name="Zap" />
+                  FLASH
+                </span>
+              )}
+              {isStrobing && (
+                <span className={`${styles.statusBadge} ${styles.strobeStatus}`}>
+                  <LucideIcon name="Sun" />
+                  STROBE
+                </span>
+              )}
+              <span className={`${styles.statusBadge} ${styles.selectionStatus}`}>
+                {getAffectedFixtures().length} selected
+              </span>
+            </div>
+          </h3>
+          <p>Advanced DMX Control Interface with Enhanced GOBO Controls</p>
+        </div>
         <div className={styles.headerActions}>
           <button
             className={styles.touchOscBtn}
@@ -596,14 +863,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           <div className={styles.fixtureList}>
             {fixtures.map(fixture => (
               <div
-                key={fixture.name}
-                className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.name) ? styles.selected : ''}`}
+                key={fixture.name}                className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
                 onClick={() => {
-                  setSelectedFixtures(prev => 
-                    prev.includes(fixture.name) 
-                      ? prev.filter(name => name !== fixture.name)
-                      : [...prev, fixture.name]
-                  );
+                  toggleFixtureSelection(fixture.id);
                 }}
               >
                 <span className={styles.fixtureName}>{fixture.name}</span>
@@ -662,289 +924,639 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         )}
       </div>
 
-      {/* Basic Controls */}
-      <div className={styles.controlsSection}>
-        <div className={styles.sectionHeader}>
-          <h4>Basic Controls</h4>
-        </div>
-        
-        <div className={styles.controlGrid}>
-          {/* Dimmer Control */}
-          <div className={styles.controlRow}>
-            <label>Dimmer</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={dimmer}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setDimmer(val);
-                  applyControl('dimmer', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={dimmer}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setDimmer(val);
-                  applyControl('dimmer', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.dimmer}</span>
-            </div>
-          </div>
-
-          {/* Pan Control */}
-          <div className={styles.controlRow}>
-            <label>Pan</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={panValue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setPanValue(val);
-                  applyControl('pan', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={panValue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setPanValue(val);
-                  applyControl('pan', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.pan}</span>
-            </div>
-          </div>
-
-          {/* Tilt Control */}
-          <div className={styles.controlRow}>
-            <label>Tilt</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={tiltValue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setTiltValue(val);
-                  applyControl('tilt', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={tiltValue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setTiltValue(val);
-                  applyControl('tilt', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.tilt}</span>
-            </div>
-          </div>
-
-          {/* Color Controls */}
-          <div className={styles.controlRow}>
-            <label style={{ color: '#ff0000' }}>Red</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={red}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setRed(val);
-                  applyControl('red', val);
-                }}
-                className={styles.slider}
-                style={{ accentColor: '#ff0000' }}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={red}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setRed(val);
-                  applyControl('red', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.red}</span>
-            </div>
-          </div>
-
-          <div className={styles.controlRow}>
-            <label style={{ color: '#00ff00' }}>Green</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={green}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setGreen(val);
-                  applyControl('green', val);
-                }}
-                className={styles.slider}
-                style={{ accentColor: '#00ff00' }}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={green}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setGreen(val);
-                  applyControl('green', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.green}</span>
-            </div>
-          </div>
-
-          <div className={styles.controlRow}>
-            <label style={{ color: '#0000ff' }}>Blue</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={blue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setBlue(val);
-                  applyControl('blue', val);
-                }}
-                className={styles.slider}
-                style={{ accentColor: '#0000ff' }}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={blue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setBlue(val);
-                  applyControl('blue', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.blue}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Pan/Tilt XY Pad Control */}
-      <div className={styles.controlsSection}>
-        <div className={styles.sectionHeader}>
-          <h4>Pan/Tilt XY Pad</h4>
-        </div>
-        
-        <div 
-          className={styles.xyPad}
-          ref={xyPadRef}
-          onMouseDown={handleXYPadMouseDown}
-          onMouseMove={handleXYPadMouseMove}
-          onMouseUp={handleXYPadMouseUp}
-        >
-          <div className={styles.xyGridLines} />
-          <div 
-            className={styles.xyHandle}
-            style={{
-              left: `${panTiltXY.x}%`,
-              top: `${panTiltXY.y}%`
-            }}
-          />
-        </div>
-        
-        <div className={styles.panTiltControls}>
-          <button 
-            className={styles.centerResetBtn}
-            onClick={resetPanTiltToCenter}
-            title="Reset Pan/Tilt to center position"
-          >
-            <LucideIcon name="Target" />
-            Reset to Center
-          </button>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '10px', fontSize: '0.9rem', justifyContent: 'center' }}>
-          <span>Pan: {panValue}</span>
-          <span>Tilt: {tiltValue}</span>
-        </div>
-      </div>
-
-      {/* RGB Color Wheel Control */}
-      <div className={styles.controlsSection}>
-        <div className={styles.sectionHeader}>
-          <h4>RGB Color Control</h4>
-        </div>
-        
-        <div 
-          className={styles.colorWheel}
-          ref={colorWheelRef}
-          onMouseDown={handleColorWheelMouseDown}
-          onMouseMove={handleColorWheelMouseMove}
-          onMouseUp={handleColorWheelMouseUp}
-        >
-          <div className={styles.colorSaturation}>
-            <div 
-              className={styles.colorHandle}
-              style={{
-                left: `${50 + (colorSaturation / 100) * Math.cos(colorHue * Math.PI / 180) * 45}%`,
-                top: `${50 + (colorSaturation / 100) * Math.sin(colorHue * Math.PI / 180) * 45}%`
+      {/* Selection Status and Quick Actions */}
+      {getAffectedFixtures().length === 0 && (
+        <div className={styles.selectionWarning}>
+          <div className={styles.warningContent}>
+            <LucideIcon name="AlertTriangle" />
+            <span>No fixtures selected - controls will have no effect</span>
+            <button 
+              className={styles.selectAllBtn}
+              onClick={() => {                if (selectionMode === 'fixtures') {
+                  selectAllFixtures();
+                } else if (selectionMode === 'groups') {
+                  setSelectedGroups(groups.map(g => g.name));
+                } else if (selectionMode === 'capabilities') {
+                  setSelectedCapabilities(getFixtureCapabilities().map(c => c.type));                } else if (selectionMode === 'channels') {
+                  // Select first 50 channels instead of all 512 to avoid UI lag
+                  deselectAllChannels();
+                  for (let i = 1; i <= 50; i++) {
+                    selectChannel(i);
+                  }
+                }
               }}
-            />
+            >
+              Select All
+            </button>
           </div>
         </div>
-        
-        <div style={{ display: 'flex', gap: '10px', fontSize: '0.9rem', justifyContent: 'center' }}>
-          <span style={{ color: '#ff0000' }}>R: {red}</span>
-          <span style={{ color: '#00ff00' }}>G: {green}</span>
-          <span style={{ color: '#0000ff' }}>B: {blue}</span>
+      )}      {/* Active Selection Summary */}
+      {getAffectedFixtures().length > 0 && (
+        <div className={styles.selectionSummary}>
+          <LucideIcon name="Check" />
+          <span>{getAffectedFixtures().length} fixture{getAffectedFixtures().length !== 1 ? 's' : ''} selected</span>
         </div>
-      </div>
+      )}
 
-      {/* Additional Controls */}
+      {/* Fixture Selection Controls */}
+      <div className={styles.controlsSection}>
+        <div className={styles.sectionHeader}>
+          <h4>
+            <LucideIcon name="Target" />
+            Fixture Selection
+          </h4>
+        </div>
+        
+        <div className={styles.selectionControls}>          <div className={styles.selectionButtonGrid}>
+            <button 
+              className={styles.selectionButton}
+              onClick={selectNextFixture}
+              title="Select Next Fixture"
+            >
+              <LucideIcon name="ArrowRight" />
+              Next
+              <button 
+                className={styles.midiLearnBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // TODO: Add MIDI Learn for fixture selection
+                  console.log('MIDI Learn: Select Next Fixture');
+                }}
+                title="MIDI Learn: Select Next Fixture"
+              >
+                M
+              </button>
+            </button>
+              <button 
+              className={styles.selectionButton}
+              onClick={selectPreviousFixture}
+              title="Select Previous Fixture"
+            >
+              <LucideIcon name="ArrowLeft" />
+              Previous
+              <button 
+                className={styles.midiLearnBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('MIDI Learn: Select Previous Fixture');
+                }}
+                title="MIDI Learn: Select Previous Fixture"
+              >
+                M
+              </button>
+            </button>
+            
+            <button 
+              className={styles.selectionButton}
+              onClick={selectAllFixtures}
+              title="Select All Fixtures"
+            >
+              <LucideIcon name="CheckSquare" />
+              All
+              <button 
+                className={styles.midiLearnBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('MIDI Learn: Select All Fixtures');
+                }}
+                title="MIDI Learn: Select All Fixtures"
+              >
+                M
+              </button>
+            </button>
+            
+            <button 
+              className={styles.selectionButton}
+              onClick={deselectAllFixtures}
+              title="Deselect All Fixtures"
+            >
+              <LucideIcon name="X" />
+              None
+              <button 
+                className={styles.midiLearnBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('MIDI Learn: Deselect All Fixtures');
+                }}
+                title="MIDI Learn: Deselect All Fixtures"
+              >
+                M
+              </button>
+            </button>
+          </div>
+          
+          <div className={styles.selectionByType}>
+            <label>Select by Type:</label>
+            <div className={styles.typeButtonGrid}>
+              <button 
+                className={styles.typeButton}
+                onClick={() => selectFixturesByType('pan')}
+                title="Select Moving Head Fixtures"
+              >
+                Moving Heads
+              </button>
+              
+              <button 
+                className={styles.typeButton}
+                onClick={() => selectFixturesByType('red')}
+                title="Select RGB/Color Fixtures"
+              >
+                RGB/Color
+              </button>
+              
+              <button 
+                className={styles.typeButton}
+                onClick={() => selectFixturesByType('dimmer')}
+                title="Select Dimmer Fixtures"
+              >
+                Dimmers
+              </button>
+              
+              <button 
+                className={styles.typeButton}
+                onClick={() => selectFixturesByType('gobo')}
+                title="Select Fixtures with Gobos"
+              >
+                Gobos
+              </button>
+            </div>
+          </div>
+          
+          {groups.length > 0 && (
+            <div className={styles.selectionByGroup}>
+              <label>Select by Group:</label>
+              <div className={styles.groupButtonGrid}>
+                {groups.map(group => (
+                  <button 
+                    key={group.id}
+                    className={styles.groupButton}
+                    onClick={() => selectFixtureGroup(group.id)}
+                    title={`Select group: ${group.name}`}
+                  >
+                    <LucideIcon name="Users" />
+                    {group.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>      {/* Enhanced Controls Layout with XY Pad */}
+      <div className={styles.controlsMainGrid}>
+        {/* Left Controls Column */}
+        <div className={styles.leftControls}>
+          {/* Movement & Position Controls */}
+          <div className={styles.sliderSection}>
+            <h4>Movement & Position</h4>
+              {/* Focus Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Focus</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={focus}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setFocus(val);
+                    applyControl('focus', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={focus}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setFocus(val);
+                    applyControl('focus', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('focus')}</div>
+            </div>
+
+            {/* Zoom Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Zoom</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={zoom}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setZoom(val);
+                    applyControl('zoom', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={zoom}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setZoom(val);
+                    applyControl('zoom', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('zoom')}</div>
+            </div>
+
+            {/* Iris Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Iris</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={iris}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setIris(val);
+                    applyControl('iris', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={iris}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setIris(val);
+                    applyControl('iris', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('iris')}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Controls - XY Pad and Color Wheel */}
+        <div className={styles.centerControls}>          {/* Pan/Tilt XY Pad Control with Fine Adjustments */}
+          <div className={styles.controlsSection}>
+            <div className={styles.sectionHeader}>
+              <h4>Pan/Tilt XY Control</h4>
+            </div>
+            
+            <div 
+              className={styles.xyPad}
+              ref={xyPadRef}
+              onMouseDown={handleXYPadMouseDown}
+              onMouseMove={handleXYPadMouseMove}
+              onMouseUp={handleXYPadMouseUp}
+            >
+              <div className={styles.xyGridLines} />
+              <div 
+                className={styles.xyHandle}
+                style={{
+                  left: `${panTiltXY.x}%`,
+                  top: `${panTiltXY.y}%`
+                }}
+              />
+            </div>
+            
+            {/* Fine Controls underneath XY Pad */}
+            <div className={styles.fineControls}>
+              <div className={styles.fineControlRow}>
+                <label>Fine Pan</label>
+                <div className={styles.fineControlInputs}>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="255" 
+                    value={finePanValue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setFinePanValue(val);
+                      applyControl('finePan', val);
+                    }}
+                    className={styles.fineSlider}
+                  />
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="255" 
+                    value={finePanValue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setFinePanValue(val);
+                      applyControl('finePan', val);
+                    }}
+                    className={styles.fineValueInput}
+                  />
+                </div>
+                <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('finePan')}</div>
+              </div>
+              
+              <div className={styles.fineControlRow}>
+                <label>Fine Tilt</label>
+                <div className={styles.fineControlInputs}>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="255" 
+                    value={fineTiltValue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setFineTiltValue(val);
+                      applyControl('fineTilt', val);
+                    }}
+                    className={styles.fineSlider}
+                  />
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="255" 
+                    value={fineTiltValue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setFineTiltValue(val);
+                      applyControl('fineTilt', val);
+                    }}
+                    className={styles.fineValueInput}
+                  />
+                </div>
+                <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('fineTilt')}</div>
+              </div>
+            </div>
+            
+            <div className={styles.panTiltControls}>
+              <button 
+                className={styles.centerResetBtn}
+                onClick={resetPanTiltToCenter}
+                title="Reset Pan/Tilt to center position"
+              >
+                <LucideIcon name="Target" />
+                Reset to Center
+              </button>
+              <button 
+                className={styles.fineResetBtn}
+                onClick={() => {
+                  setFinePanValue(0);
+                  setFineTiltValue(0);
+                  applyControl('finePan', 0);
+                  applyControl('fineTilt', 0);
+                }}
+                title="Reset Fine adjustments to 0"
+              >
+                <LucideIcon name="RotateCcw" />
+                Reset Fine
+              </button>
+            </div>
+            
+            <div className={styles.xyPositionDisplay}>
+              <div className={styles.coarseValues}>
+                <span>Pan: {panValue} <small>({getDmxChannelForControl('pan')})</small></span>
+                <span>Tilt: {tiltValue} <small>({getDmxChannelForControl('tilt')})</small></span>
+              </div>
+              <div className={styles.fineValues}>
+                <span>Fine Pan: {finePanValue}</span>
+                <span>Fine Tilt: {fineTiltValue}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* RGB Color Wheel Control */}
+          <div className={styles.controlsSection}>
+            <div className={styles.sectionHeader}>
+              <h4>RGB Color Control</h4>
+            </div>
+            
+            <div 
+              className={styles.colorWheel}
+              ref={colorWheelRef}
+              onMouseDown={handleColorWheelMouseDown}
+              onMouseMove={handleColorWheelMouseMove}
+              onMouseUp={handleColorWheelMouseUp}
+            >
+              <div className={styles.colorSaturation}>
+                <div 
+                  className={styles.colorHandle}
+                  style={{
+                    left: `${50 + (colorSaturation / 100) * Math.cos(colorHue * Math.PI / 180) * 45}%`,
+                    top: `${50 + (colorSaturation / 100) * Math.sin(colorHue * Math.PI / 180) * 45}%`
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '15px', fontSize: '0.9rem', justifyContent: 'center', marginTop: '10px' }}>
+              <span style={{ color: '#ff6b6b' }}>R: {red} <small>({getDmxChannelForControl('red')})</small></span>
+              <span style={{ color: '#51cf66' }}>G: {green} <small>({getDmxChannelForControl('green')})</small></span>
+              <span style={{ color: '#339af0' }}>B: {blue} <small>({getDmxChannelForControl('blue')})</small></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Controls Column */}
+        <div className={styles.rightControls}>
+          {/* Basic Controls */}
+          <div className={styles.sliderSection}>
+            <h4>Basic Controls</h4>
+            
+            {/* Dimmer Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Dimmer</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={dimmer}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setDimmer(val);
+                    applyControl('dimmer', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={dimmer}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setDimmer(val);
+                    applyControl('dimmer', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('dimmer')}</div>
+            </div>
+
+            {/* Shutter Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Shutter</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={shutter}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setShutter(val);
+                    applyControl('shutter', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={shutter}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setShutter(val);
+                    applyControl('shutter', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('shutter')}</div>
+            </div>
+
+            {/* Strobe Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Strobe</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={strobe}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setStrobe(val);
+                    applyControl('strobe', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={strobe}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setStrobe(val);
+                    applyControl('strobe', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('strobe')}</div>
+            </div>
+
+            {/* GOBO Control */}
+            <div className={styles.controlWithChannel}>
+              <label>GOBO</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={gobo}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setGobo(val);
+                    applyControl('gobo', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={gobo}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setGobo(val);
+                    applyControl('gobo', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('gobo')}</div>
+            </div>
+
+            {/* Color Wheel Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Color Wheel</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={colorWheel}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setColorWheel(val);
+                    applyControl('colorWheel', val);
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={colorWheel}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setColorWheel(val);
+                    applyControl('colorWheel', val);
+                  }}
+                  className={styles.valueInput}
+                />
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('colorWheel')}</div>
+            </div>
+          </div>
+        </div>
+      </div>      {/* Additional Controls */}
       <div className={styles.controlsSection}>
         <div className={styles.sectionHeader}>
           <h4>Additional Controls</h4>
         </div>
-        
-        <div className={styles.controlGrid}>
-          {/* Gobo Control */}
-          <div className={styles.controlRow}>
-            <label>Gobo</label>
+          <div className={styles.controlGrid}>
+          {/* Enhanced GOBO Control with Presets */}
+          <div className={styles.goboSection}>
+            <label>GOBO Selection</label>
+            <div className={styles.goboPresets}>
+              {goboPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  className={`${styles.goboPresetBtn} ${gobo === preset.value ? styles.active : ''}`}
+                  onClick={() => {
+                    setGobo(preset.value);
+                    applyControl('gobo', preset.value);
+                  }}
+                  title={`${preset.name} (${preset.value})`}
+                >
+                  <span className={styles.goboIcon}>{preset.icon}</span>
+                  <span className={styles.goboName}>{preset.name}</span>
+                </button>
+              ))}
+            </div>
+            
+            {/* GOBO Fine Control */}
             <div className={styles.controlInputs}>
               <input 
                 type="range" 
@@ -971,6 +1583,133 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 className={styles.valueInput}
               />
               <span className={styles.oscAddress}>{oscAddresses.gobo}</span>
+            </div>
+          </div>
+
+          {/* GOBO Rotation Control */}
+          <div className={styles.controlRow}>
+            <label>GOBO Rotation</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={goboRotation}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setGoboRotation(val);
+                  applyControl('goboRotation', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={goboRotation}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setGoboRotation(val);
+                  applyControl('goboRotation', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.goboRotation}</span>
+            </div>
+          </div>
+
+          {/* Enhanced Action Buttons */}
+          <div className={styles.actionButtons}>
+            <button
+              className={`${styles.actionBtn} ${styles.flashBtn} ${isFlashing ? styles.active : ''}`}
+              onClick={handleFlash}
+              disabled={isFlashing}
+              title="Flash (Quick Bright Pulse)"
+            >
+              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              Flash
+            </button>
+
+            <button
+              className={`${styles.actionBtn} ${styles.strobeBtn} ${isStrobing ? styles.active : ''}`}
+              onClick={handleStrobe}
+              title={isStrobing ? "Stop Strobing" : "Start Strobing"}
+            >
+              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="4" />
+                <path d="m21.17 8.17-2.83-2.83" />
+                <path d="m6.66 8.17 2.83-2.83" />
+                <path d="m21.17 15.83-2.83 2.83" />
+                <path d="m6.66 15.83 2.83 2.83" />
+                <path d="M8.17 21.17 8.17 18.34" />
+                <path d="M15.83 21.17 15.83 18.34" />
+                <path d="M8.17 6.66 8.17 2.83" />
+                <path d="M15.83 6.66 15.83 2.83" />
+              </svg>
+              {isStrobing ? 'Stop' : 'Strobe'}
+            </button>
+
+            <button
+              className={`${styles.actionBtn} ${styles.resetBtn}`}
+              onClick={handleResetAll}
+              title="Reset All Controls to Default"
+            >
+              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+              Reset All
+            </button>
+          </div>
+
+          {/* Flash/Strobe Speed Controls */}
+          <div className={styles.speedControls}>
+            <div className={styles.controlRow}>
+              <label>Flash Speed (ms)</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="50" 
+                  max="500" 
+                  value={flashSpeed}
+                  onChange={(e) => setFlashSpeed(parseInt(e.target.value))}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="50" 
+                  max="500" 
+                  value={flashSpeed}
+                  onChange={(e) => setFlashSpeed(parseInt(e.target.value) || 100)}
+                  className={styles.valueInput}
+                />
+              </div>
+            </div>
+
+            <div className={styles.controlRow}>
+              <label>Strobe Speed</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  value={strobeSpeed}
+                  onChange={(e) => setStrobeSpeed(parseInt(e.target.value))}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="20" 
+                  value={strobeSpeed}
+                  onChange={(e) => setStrobeSpeed(parseInt(e.target.value) || 10)}
+                  className={styles.valueInput}
+                />
+              </div>
             </div>
           </div>
 

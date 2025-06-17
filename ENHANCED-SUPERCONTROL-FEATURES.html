@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced SuperControl Features - ArtBastard DMX512</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .feature-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .feature-card h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .icon {
+            font-size: 1.5em;
+        }
+        .status-demo {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .flash-status {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            color: #ffc107;
+        }
+        .strobe-status {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #dc3545;
+        }
+        .selection-status {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+        .button-demo {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .btn-demo {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ddd;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .flash-btn {
+            border-color: rgba(255, 193, 7, 0.5);
+            color: #ffc107;
+        }
+        .strobe-btn {
+            border-color: rgba(220, 53, 69, 0.5);
+            color: #dc3545;
+        }
+        .reset-btn {
+            border-color: rgba(108, 117, 125, 0.5);
+            color: #6c757d;
+        }
+        .gobo-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .gobo-demo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .gobo-demo:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+        .gobo-icon {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+        .gobo-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .instructions {
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 4px solid #00d4ff;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .changelog {
+            background: rgba(40, 167, 69, 0.1);
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ Enhanced SuperControl Features</h1>
+        
+        <div class="instructions">
+            <h3>🚀 How to Use Enhanced SuperControl</h3>
+            <ol>
+                <li><strong>Start Both Servers:</strong>
+                    <ul>
+                        <li>Backend: <code>npm run dev</code> (in root directory) - Handles DMX/ArtNet/OSC output</li>
+                        <li>Frontend: <code>npm run dev</code> (in react-app directory) - Serves the UI</li>
+                    </ul>
+                </li>
+                <li><strong>Open SuperControl:</strong> Navigate to <code>http://localhost:3001</code> and find the SuperControl panel</li>
+                <li><strong>Select Fixtures:</strong> Use the selection controls to choose fixtures, channels, groups, or capabilities</li>
+                <li><strong>Control Lighting:</strong> Use sliders, GOBO presets, and action buttons to control your lighting</li>
+            </ol>
+        </div>
+
+        <div class="feature-grid">
+            <!-- Enhanced GOBO Controls -->
+            <div class="feature-card">
+                <h3><span class="icon">🎭</span>Enhanced GOBO Controls</h3>
+                <p>Professional GOBO selection with visual presets and SVG icons for intuitive control.</p>
+                
+                <h4>GOBO Presets:</h4>
+                <div class="gobo-grid">
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">○</span>
+                        <span class="gobo-name">Open</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">⋅⋅⋅</span>
+                        <span class="gobo-name">Dots</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">|||</span>
+                        <span class="gobo-name">Lines</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">◦◉◦</span>
+                        <span class="gobo-name">Breakup</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">✦</span>
+                        <span class="gobo-name">Stars</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">🌀</span>
+                        <span class="gobo-name">Spiral</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">◆</span>
+                        <span class="gobo-name">Prism</span>
+                    </div>
+                    <div class="gobo-demo">
+                        <span class="gobo-icon">⟐</span>
+                        <span class="gobo-name">Pattern</span>
+                    </div>
+                </div>
+                
+                <ul>
+                    <li>8 common GOBO presets with visual icons</li>
+                    <li>One-click GOBO selection</li>
+                    <li>Fine control with slider and numeric input</li>
+                    <li>GOBO rotation control with full 0-255 range</li>
+                    <li>Real-time DMX/ArtNet/OSC output</li>
+                </ul>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="feature-card">
+                <h3><span class="icon">⚡</span>Professional Action Buttons</h3>
+                <p>Quick access to common lighting effects with visual feedback and customizable parameters.</p>
+                
+                <div class="button-demo">
+                    <button class="btn-demo flash-btn">⚡ Flash</button>
+                    <button class="btn-demo strobe-btn">☀️ Strobe</button>
+                    <button class="btn-demo reset-btn">🔄 Reset All</button>
+                </div>
+                
+                <ul>
+                    <li><strong>Flash Button:</strong> Quick bright pulse with customizable duration (50-500ms)</li>
+                    <li><strong>Strobe Button:</strong> Continuous strobing with speed control (1-20)</li>
+                    <li><strong>Reset All:</strong> Instantly reset all controls to safe defaults</li>
+                    <li>Visual button states with animations</li>
+                    <li>Safety confirmations for destructive actions</li>
+                    <li>Automatic shutter management</li>
+                </ul>
+            </div>
+
+            <!-- Status Indicators -->
+            <div class="feature-card">
+                <h3><span class="icon">📊</span>Real-time Status Indicators</h3>
+                <p>Visual feedback system for current lighting state and active effects.</p>
+                
+                <div style="margin: 15px 0;">
+                    <span class="status-demo flash-status">⚡ FLASH</span>
+                    <span class="status-demo strobe-status">☀️ STROBE</span>
+                    <span class="status-demo selection-status">5 selected</span>
+                </div>
+                
+                <ul>
+                    <li>Flash status indicator with pulsing animation</li>
+                    <li>Strobe status with rapid blinking effect</li>
+                    <li>Selection count showing active fixtures</li>
+                    <li>Color-coded status badges</li>
+                    <li>Live updates during operation</li>
+                </ul>
+            </div>
+
+            <!-- Enhanced UX -->
+            <div class="feature-card">
+                <h3><span class="icon">🎨</span>Enhanced User Experience</h3>
+                <p>Improved interface design with better visual hierarchy and professional styling.</p>
+                
+                <ul>
+                    <li>Modern glassmorphism design with backdrop blur</li>
+                    <li>Responsive grid layout for all screen sizes</li>
+                    <li>Smooth animations and hover effects</li>
+                    <li>Color-coded controls by function type</li>
+                    <li>Improved typography and spacing</li>
+                    <li>Mobile-friendly touch controls</li>
+                    <li>High contrast for better visibility</li>
+                    <li>Accessibility improvements</li>
+                </ul>
+            </div>
+
+            <!-- Technical Features -->
+            <div class="feature-card">
+                <h3><span class="icon">⚙️</span>Technical Enhancements</h3>
+                <p>Advanced control capabilities and improved performance under the hood.</p>
+                
+                <ul>
+                    <li><strong>Enhanced DMX Control:</strong> Support for all fixture channel types</li>
+                    <li><strong>Multi-Protocol Output:</strong> DMX, ArtNet, and OSC simultaneously</li>
+                    <li><strong>Real-time Logging:</strong> Console debugging for troubleshooting</li>
+                    <li><strong>Fixture Intelligence:</strong> Automatic channel type detection</li>
+                    <li><strong>Selection Modes:</strong> Channels, fixtures, groups, and capabilities</li>
+                    <li><strong>State Management:</strong> Persistent control values</li>
+                    <li><strong>Error Handling:</strong> Graceful failure recovery</li>
+                    <li><strong>Performance:</strong> Optimized rendering and updates</li>
+                </ul>
+            </div>
+
+            <!-- Network Integration -->
+            <div class="feature-card">
+                <h3><span class="icon">🌐</span>Network Integration</h3>
+                <p>Professional network protocols for seamless integration with lighting systems.</p>
+                
+                <ul>
+                    <li><strong>ArtNet Output:</strong> Standard lighting network protocol</li>
+                    <li><strong>OSC Integration:</strong> Open Sound Control for external software</li>
+                    <li><strong>TouchOSC Export:</strong> Generate mobile control layouts</li>
+                    <li><strong>WebSocket Updates:</strong> Real-time bidirectional communication</li>
+                    <li><strong>HTTP API:</strong> RESTful endpoints for automation</li>
+                    <li><strong>MIDI Learn:</strong> Hardware controller integration</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="changelog">
+            <h3>✅ What's New in This Release</h3>
+            <ul>
+                <li><strong>GOBO Preset Buttons:</strong> 8 visual GOBO presets with icons for quick selection</li>
+                <li><strong>Flash Function:</strong> Professional flash button with customizable duration</li>
+                <li><strong>Strobe Control:</strong> Continuous strobing with speed adjustment</li>
+                <li><strong>Reset All Button:</strong> One-click reset to safe defaults with confirmation</li>
+                <li><strong>Status Indicators:</strong> Real-time visual feedback for active effects</li>
+                <li><strong>Enhanced Styling:</strong> Modern glassmorphism design with animations</li>
+                <li><strong>Speed Controls:</strong> Separate flash and strobe speed adjustment</li>
+                <li><strong>Improved Header:</strong> Better visual hierarchy with status badges</li>
+                <li><strong>Extended DMX Support:</strong> All fixture channel types now supported</li>
+                <li><strong>Better Error Handling:</strong> Improved logging and graceful failures</li>
+                <li><strong>Responsive Design:</strong> Mobile-friendly layouts and touch controls</li>
+                <li><strong>Performance Optimization:</strong> Faster rendering and reduced CPU usage</li>
+            </ul>
+        </div>
+
+        <div class="instructions">
+            <h3>🔧 Backend Configuration</h3>
+            <p>The backend server logs show the following when properly configured:</p>
+            <ul>
+                <li><strong>ArtNet:</strong> Sending to configured IP address (default: 192.168.1.199:6454)</li>
+                <li><strong>OSC:</strong> Sending to 127.0.0.1:57120, receiving on port 57121</li>
+                <li><strong>WebSocket:</strong> Connected clients for real-time updates</li>
+                <li><strong>MIDI:</strong> Available inputs/outputs for hardware integration</li>
+            </ul>
+            <p>Check the backend console for DMX channel updates: <code>DMX: DMX channel X: Y → Z</code></p>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+            <h3>🎭 ArtBastard DMX512 - Luminous Mastery Edition</h3>
+            <p>Professional lighting control with enhanced SuperControl interface</p>
+        </div>
+    </div>
+</body>
+</html>
