@@ -887,8 +887,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setOscAddresses(prev => ({
       ...prev,
       [control]: address
-    }));  };
-  
+    }));
+  };
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -2329,9 +2329,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 disabled={!hasSelection}
                 style={{ width: '60px' }}
               />
-              <span>{reset}</span>              <div className={styles.connectionControls}>
-                <div className={styles.midiRangeSection}>
-                  <button 
+              <span>{reset}</span>
+              <div className={styles.connectionControls}>
+                <div className={styles.midiRangeSection}>                  <button 
                     className={`${styles.midiLearnBtn} ${midiLearnTarget === 'reset' ? styles.learning : ''}`}
                     onClick={() => midiLearnTarget === 'reset' ? stopMidiLearn() : startMidiLearn('reset')}
                   >
@@ -2348,11 +2348,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                         <LucideIcon name="X" />
                       </button>
                     </div>
-                  )}                </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
     </div>
   );

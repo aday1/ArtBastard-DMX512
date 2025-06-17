@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smooth DMX SuperControl Test Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .feature-highlight {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .test-step {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .expected-result {
+            background: #e1f5fe;
+            border-left: 4px solid #0288d1;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .code {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .metric {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎚️ Smooth DMX SuperControl Test Guide</h1>
+    
+    <div class="feature-highlight">
+        <h3>✨ New Feature: Smooth DMX Output</h3>
+        <p>SuperControl now implements intelligent DMX smoothing to prevent ArtNet message spam while maintaining responsive control. This system batches rapid slider movements and applies rate limiting to optimize network performance.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Getting Started</h2>
+        
+        <div class="test-step">
+            <h4>Step 1: Launch ArtBastard DMX512</h4>
+            <p>Start the application and ensure ArtNet is configured correctly:</p>
+            <div class="code">
+                npm start
+            </div>
+            <div class="expected-result">
+                <strong>Expected:</strong> Application loads with smooth DMX mode automatically enabled.
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Step 2: Access SuperControl</h4>
+            <p>Open SuperControl panel from the main interface or use the dockable version.</p>
+            <div class="expected-result">
+                <strong>Expected:</strong> SuperControl opens with all channel sliders and fixture controls visible.
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎛️ Basic Slider Smoothing Tests</h2>
+        
+        <div class="test-step">
+            <h4>Test 1: Single Slider Movement</h4>
+            <ol>
+                <li>Select a DMX channel (e.g., Channel 1)</li>
+                <li>Slowly move the vertical slider from 0 to 255</li>
+                <li>Monitor network traffic or console output</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong> 
+                <ul>
+                    <li>Smooth DMX values sent at <span class="metric">30 FPS</span></li>
+                    <li>No excessive network messages</li>
+                    <li>Responsive visual feedback</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 2: Rapid Slider Movement</h4>
+            <ol>
+                <li>Select multiple DMX channels</li>
+                <li>Rapidly move several sliders simultaneously</li>
+                <li>Observe the update rate and responsiveness</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Updates batched and sent together</li>
+                    <li>Maximum of <span class="metric">30 updates/sec</span> per channel</li>
+                    <li>No UI lag or freezing</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 3: Threshold Testing</h4>
+            <ol>
+                <li>Make very small adjustments to a slider (1-2 DMX units)</li>
+                <li>Check if these micro-movements trigger updates</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Changes below threshold (<span class="metric">1 DMX unit</span>) are ignored</li>
+                    <li>Only significant changes trigger network updates</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Quick Action Button Tests</h2>
+        
+        <div class="test-step">
+            <h4>Test 4: Quick Value Buttons</h4>
+            <ol>
+                <li>Use the "0", "50%", and "100%" quick buttons on various channels</li>
+                <li>Test rapid clicking of these buttons</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Immediate response to button clicks</li>
+                    <li>Smooth transitions between values</li>
+                    <li>Proper batching of rapid button presses</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 5: Numeric Input Fields</h4>
+            <ol>
+                <li>Use the numeric input fields to set precise values</li>
+                <li>Type values rapidly in multiple fields</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Values update smoothly as typed</li>
+                    <li>No network spam during typing</li>
+                    <li>Final value sent when input is complete</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Autopilot Integration Tests</h2>
+        
+        <div class="test-step">
+            <h4>Test 6: Autopilot with Smooth DMX</h4>
+            <ol>
+                <li>Enable autopilot track movement</li>
+                <li>Select Pan/Tilt fixtures</li>
+                <li>Start autopilot movement (Circle, Figure 8, etc.)</li>
+                <li>Monitor DMX output during movement</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Smooth, fluid movement patterns</li>
+                    <li>Consistent <span class="metric">30 FPS</span> update rate</li>
+                    <li>No jerky or erratic movements</li>
+                    <li>Pan/Tilt sliders update to reflect current values</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Performance Monitoring</h2>
+        
+        <div class="test-step">
+            <h4>Test 7: Network Traffic Analysis</h4>
+            <ol>
+                <li>Use network monitoring tools or browser dev tools</li>
+                <li>Monitor requests to <code>/api/dmx</code> and <code>/api/dmx/batch</code></li>
+                <li>Perform intensive slider operations</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Batch requests to <code>/api/dmx/batch</code> predominant</li>
+                    <li>Maximum of 30 requests per second during heavy use</li>
+                    <li>Significant reduction compared to non-smooth mode</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 8: CPU and Memory Usage</h4>
+            <ol>
+                <li>Monitor browser task manager during intensive use</li>
+                <li>Run extended sessions with continuous slider movement</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Stable CPU usage</li>
+                    <li>No memory leaks during extended use</li>
+                    <li>Responsive UI performance</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🏗️ Advanced Scenarios</h2>
+        
+        <div class="test-step">
+            <h4>Test 9: Multi-Fixture Control</h4>
+            <ol>
+                <li>Select multiple fixtures using groups or individual selection</li>
+                <li>Use capability-based controls (Dimmer, Color, Pan/Tilt)</li>
+                <li>Apply changes to all selected fixtures simultaneously</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>All selected fixtures update smoothly together</li>
+                    <li>Batch updates for multiple channels</li>
+                    <li>Coordinated movement across fixtures</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 10: Scene Loading with Smooth DMX</h4>
+            <ol>
+                <li>Create scenes with multiple channel values</li>
+                <li>Load scenes rapidly in succession</li>
+                <li>Test scene transitions</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Scene changes applied smoothly</li>
+                    <li>All channels transition together</li>
+                    <li>No channel conflicts or delays</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Configuration and Tuning</h2>
+        
+        <div class="warning">
+            <strong>Note:</strong> Smooth DMX parameters can be adjusted in the store if needed:
+            <ul>
+                <li><strong>Update Rate:</strong> Default 30 FPS (adjustable)</li>
+                <li><strong>Threshold:</strong> Default 1 DMX unit minimum change</li>
+                <li><strong>Enabled:</strong> Automatically enabled by default</li>
+            </ul>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 11: Parameter Adjustment (Advanced)</h4>
+            <ol>
+                <li>Access the store configuration if needed</li>
+                <li>Test different update rates (15, 30, 60 FPS)</li>
+                <li>Adjust threshold values (0.5, 1, 2, 5 units)</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Higher FPS = smoother but more network traffic</li>
+                    <li>Higher threshold = fewer but larger updates</li>
+                    <li>Immediate effect of parameter changes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Success Criteria</h2>
+        
+        <div class="feature-highlight">
+            <h4>The smooth DMX implementation is successful if:</h4>
+            <ul>
+                <li>✅ No ArtNet message spam during rapid slider movement</li>
+                <li>✅ Consistent 30 FPS update rate maintained</li>
+                <li>✅ UI remains responsive during intensive operations</li>
+                <li>✅ Batch updates used for multiple channel changes</li>
+                <li>✅ Threshold filtering prevents micro-updates</li>
+                <li>✅ Autopilot integration works smoothly</li>
+                <li>✅ Scene loading and transitions are fluid</li>
+                <li>✅ Network traffic significantly reduced compared to direct updates</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🐛 Troubleshooting</h2>
+        
+        <div class="test-step">
+            <h4>Common Issues and Solutions:</h4>
+            
+            <h5>Issue: Delayed response to controls</h5>
+            <p><strong>Solution:</strong> Check if update rate is too low or if threshold is too high.</p>
+            
+            <h5>Issue: Still seeing network spam</h5>
+            <p><strong>Solution:</strong> Verify that smooth mode is enabled and check console for errors.</p>
+            
+            <h5>Issue: Choppy autopilot movement</h5>
+            <p><strong>Solution:</strong> Ensure autopilot is using smooth DMX functions and update rate is adequate.</p>
+            
+            <h5>Issue: Controls not responding</h5>
+            <p><strong>Solution:</strong> Check if smooth update loop is running and flush pending updates manually if needed.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Test Report Template</h2>
+        
+        <div class="code">
+Test Date: ___________
+Tester: ______________
+Version: ArtBastard DMX512 v5.1.3
+
+Test Results:
+□ Basic slider smoothing - PASS/FAIL
+□ Rapid movement handling - PASS/FAIL  
+□ Threshold filtering - PASS/FAIL
+□ Quick action buttons - PASS/FAIL
+□ Numeric input fields - PASS/FAIL
+□ Autopilot integration - PASS/FAIL
+□ Network traffic optimization - PASS/FAIL
+□ Performance monitoring - PASS/FAIL
+□ Multi-fixture control - PASS/FAIL
+□ Scene loading - PASS/FAIL
+
+Notes:
+_________________________________
+_________________________________
+_________________________________
+
+Overall Assessment: PASS/FAIL
+        </div>
+    </div>
+
+    <footer style="margin-top: 40px; padding: 20px; background: #34495e; color: white; border-radius: 8px;">
+        <p><strong>ArtBastard DMX512 - Smooth DMX SuperControl Feature</strong></p>
+        <p>This enhancement ensures optimal ArtNet performance by implementing intelligent DMX output smoothing, preventing network spam while maintaining responsive real-time control.</p>
+    </footer>
+</body>
+</html>

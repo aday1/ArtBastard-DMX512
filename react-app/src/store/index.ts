@@ -139,6 +139,37 @@ export interface MasterSlider {
   midiMapping?: MidiMapping; // Re-use existing MidiMapping type
 }
 
+// Timeline Sequence Management
+export interface TimelineKeyframe {
+  time: number; // milliseconds from start
+  value: number; // 0-255
+  curve: 'linear' | 'smooth' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'bezier';
+  // For bezier curves
+  controlPoint1?: { x: number; y: number };
+  controlPoint2?: { x: number; y: number };
+}
+
+export interface TimelineSequence {
+  id: string;
+  name: string;
+  description?: string;
+  duration: number; // Total duration in milliseconds
+  channels: Array<{
+    channel: number;
+    keyframes: TimelineKeyframe[];
+  }>;
+  tags?: string[];
+  createdAt: number;
+  modifiedAt: number;
+}
+
+export interface TimelinePreset {
+  id: string;
+  name: string;
+  description: string;
+  generator: (duration: number, amplitude?: number, frequency?: number, phase?: number) => TimelineKeyframe[];
+}
+
 // Notification type definition (used in State and actions)
 export interface Notification {
   id: string;
@@ -321,8 +352,55 @@ interface State {
   autopilotTrackSpeed: number; // 0-100, speed of automatic movement (when auto-playing)
   autopilotTrackCenterX: number; // 0-255, center point X for the track
   autopilotTrackCenterY: number; // 0-255, center point Y for the track
-  autopilotTrackAutoPlay: boolean; // Auto-advance along track
-  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
+  autopilotTrackAutoPlay: boolean; // Auto-advance along track  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
+
+  // Recording and Automation System State
+  recordingActive: boolean;
+  recordingStartTime: number | null;
+  recordingData: Array<{
+    timestamp: number;
+    type: 'dmx' | 'midi' | 'osc';
+    channel?: number;
+    value?: number;
+    data?: any;
+  }>;
+  automationTracks: Array<{
+    id: string;
+    name: string;
+    channel: number;
+    keyframes: Array<{
+      time: number; // milliseconds from start
+      value: number; // 0-255
+      curve: 'linear' | 'smooth' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out';
+    }>;
+    enabled: boolean;
+    loop: boolean;
+  }>;  automationPlayback: {
+    active: boolean;
+    startTime: number | null;
+    duration: number; // Total duration in milliseconds
+    position: number; // Current position 0-1
+  };
+  // Smooth DMX Output System
+  smoothDmxEnabled: boolean;
+  smoothDmxUpdateRate: number; // Updates per second (default: 30fps)
+  smoothDmxThreshold: number; // Minimum change to trigger update (default: 1)
+  pendingSmoothUpdates: { [channel: number]: number }; // Pending smooth updates
+  lastSmoothUpdateTime: number;
+
+  // Timeline Sequence Management
+  timelineSequences: TimelineSequence[];
+  activeTimelineSequence: string | null; // Currently loaded/selected sequence
+  timelineEditMode: boolean;
+  timelinePresets: TimelinePreset[];
+  timelinePlayback: {
+    active: boolean;
+    sequenceId: string | null;
+    startTime: number | null;
+    position: number; // 0-1
+    loop: boolean;
+  };
+
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -391,12 +469,12 @@ interface State {
   // Auto-Scene Actions
   setAutoSceneEnabled: (enabled: boolean) => void;
   setAutoSceneList: (sceneNames: string[]) => void;
-  setAutoSceneMode: (mode: 'forward' | 'ping-pong' | 'random') => void;
-  setAutoSceneBeatDivision: (division: number) => void;
+  setAutoSceneMode: (mode: 'forward' | 'ping-pong' | 'random') => void;  setAutoSceneBeatDivision: (division: number) => void;
   setAutoSceneTempoSource: (source: 'internal_clock' | 'manual_bpm' | 'tap_tempo') => void;
   setNextAutoSceneIndex: () => void; // Calculates and updates autoSceneCurrentIndex
   resetAutoSceneIndex: () => void;
-  setManualBpm: (bpm: number) => void; // For auto-scene manual tempo  recordTapTempo: () => void;         // For auto-scene tap tempo
+  setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
+  recordTapTempo: () => void;         // For auto-scene tap tempo
   triggerAutoSceneFlash: () => void;  // Triggers the shared flashing state
 
   // Group Actions
@@ -431,11 +509,43 @@ interface State {
   setAutopilotTrackSpeed: (speed: number) => void;
   setAutopilotTrackCenter: (centerX: number, centerY: number) => void;
   setAutopilotTrackAutoPlay: (autoPlay: boolean) => void;
-  setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;
-  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
+  setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
   updatePanTiltFromTrack: () => void;
 
-  // ...existing code...
+  // Recording and Automation Actions
+  startRecording: () => void;
+  stopRecording: () => void;
+  clearRecording: () => void;
+  addRecordingEvent: (event: { type: 'dmx' | 'midi' | 'osc'; channel?: number; value?: number; data?: any }) => void;
+  createAutomationTrack: (name: string, channel: number) => string; // Returns track ID
+  updateAutomationTrack: (trackId: string, updates: Partial<{ name: string; enabled: boolean; loop: boolean }>) => void;
+  deleteAutomationTrack: (trackId: string) => void;  addKeyframe: (trackId: string, time: number, value: number, curve?: 'linear' | 'smooth' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out') => void;
+  updateKeyframe: (trackId: string, keyframeIndex: number, updates: Partial<{ time: number; value: number; curve: string }>) => void;
+  deleteKeyframe: (trackId: string, keyframeIndex: number) => void;
+  startAutomationPlayback: () => void;
+  stopAutomationPlayback: () => void;
+  setAutomationPosition: (position: number) => void; // 0-1
+  applyAutomationPreset: (trackId: string, preset: 'sine' | 'triangle' | 'sawtooth' | 'square' | 'random') => void;
+
+  // Smooth DMX Actions
+  setSmoothDmxEnabled: (enabled: boolean) => void;
+  setSmoothDmxUpdateRate: (rate: number) => void;
+  setSmoothDmxThreshold: (threshold: number) => void;
+  setSmoothDmxChannelValue: (channel: number, value: number) => void;  flushSmoothDmxUpdates: () => void;
+  enableSmoothDmxMode: () => void;
+  disableSmoothDmxMode: () => void;
+  // Timeline Sequence Management
+  saveTimelineSequence: (name: string, description?: string) => string; // Returns sequence ID
+  loadTimelineSequence: (sequenceId: string) => void;
+  deleteTimelineSequence: (sequenceId: string) => void;
+  updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => void;
+  exportTimelineSequence: (sequenceId: string) => void;
+  importTimelineSequence: (sequenceData: TimelineSequence) => void;
+  smoothTimelineSequence: (sequenceId: string, smoothingFactor: number) => void;
+  playTimelineSequence: (sequenceId: string, loop?: boolean) => void;
+  stopTimelinePlayback: () => void;
+  generateTimelinePresets: () => void;
+  createTimelineFromPreset: (presetId: string, channels: number[], duration: number, amplitude?: number, frequency?: number, phase?: number) => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -469,8 +579,62 @@ const initializeUiSettings = (): { sparklesEnabled: boolean } => {
     return defaultSettings;
   } catch (error) {
     console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
-    return { sparklesEnabled: true };
+    return { sparklesEnabled: true };  }
+};
+
+// Helper function to interpolate between keyframes
+const interpolateKeyframes = (keyframes: Array<{ time: number; value: number; curve: string }>, currentTime: number): number | null => {
+  if (keyframes.length === 0) return null;
+  if (keyframes.length === 1) return keyframes[0].value;
+  
+  // Find surrounding keyframes
+  let prevKeyframe = keyframes[0];
+  let nextKeyframe = keyframes[keyframes.length - 1];
+  
+  for (let i = 0; i < keyframes.length - 1; i++) {
+    if (currentTime >= keyframes[i].time && currentTime <= keyframes[i + 1].time) {
+      prevKeyframe = keyframes[i];
+      nextKeyframe = keyframes[i + 1];
+      break;
+    }
   }
+  
+  // Handle edge cases
+  if (currentTime <= prevKeyframe.time) return prevKeyframe.value;
+  if (currentTime >= nextKeyframe.time) return nextKeyframe.value;
+  
+  // Calculate interpolation factor
+  const timeDiff = nextKeyframe.time - prevKeyframe.time;
+  if (timeDiff === 0) return prevKeyframe.value;
+  
+  const t = (currentTime - prevKeyframe.time) / timeDiff;
+  const valueDiff = nextKeyframe.value - prevKeyframe.value;
+  
+  // Apply curve
+  let easedT = t;
+  switch (prevKeyframe.curve) {
+    case 'step':
+      easedT = 0; // Use previous value until next keyframe
+      break;
+    case 'ease-in':
+      easedT = t * t;
+      break;
+    case 'ease-out':
+      easedT = 1 - (1 - t) * (1 - t);
+      break;
+    case 'ease-in-out':
+      easedT = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+      break;
+    case 'smooth':
+      easedT = t * t * (3 - 2 * t); // Smoothstep
+      break;
+    case 'linear':
+    default:
+      easedT = t;
+      break;
+  }
+  
+  return prevKeyframe.value + valueDiff * easedT;
 };
 
 export const useStore = create<State>()(
@@ -589,9 +753,37 @@ export const useStore = create<State>()(
       autopilotTrackSize: 50,
       autopilotTrackSpeed: 50,
       autopilotTrackCenterX: 127,
-      autopilotTrackCenterY: 127,
-      autopilotTrackAutoPlay: false,
+      autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
       autopilotTrackCustomPoints: [],
+
+      // Recording and Automation System Initial State
+      recordingActive: false,
+      recordingStartTime: null,
+      recordingData: [],
+      automationTracks: [],
+      automationPlayback: {
+        active: false,
+        startTime: null,
+        duration: 10000, // Default 10 seconds        position: 0
+      },      // Smooth DMX Output System Initial State  
+      smoothDmxEnabled: true, // Enable by default for better performance
+      smoothDmxUpdateRate: 30, // 30 FPS update rate
+      smoothDmxThreshold: 1, // Minimum change of 1 DMX unit
+      pendingSmoothUpdates: {},
+      lastSmoothUpdateTime: 0,
+
+      // Timeline Sequence Management Initial State
+      timelineSequences: [],
+      activeTimelineSequence: null,
+      timelineEditMode: false,
+      timelinePresets: [],
+      timelinePlayback: {
+        active: false,
+        sequenceId: null,
+        startTime: null,
+        position: 0,
+        loop: false,
+      },
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
@@ -842,10 +1034,18 @@ export const useStore = create<State>()(
             console.error('Failed to update DMX channels in batch:', error);
             get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
           });
-      },
-
-      setDmxChannelValue: (channel, value) => { 
+      },      setDmxChannelValue: (channel, value) => { 
         get().setDmxChannel(channel, value);
+        
+        // Record the change if recording is active
+        const { recordingActive } = get();
+        if (recordingActive) {
+          get().addRecordingEvent({
+            type: 'dmx',
+            channel,
+            value
+          });
+        }
       },
 
       setDmxChannelsForTransition: (values) => { 
@@ -1386,62 +1586,62 @@ export const useStore = create<State>()(
             type: 'error',
           });
         }
-      },      // Auto-Scene Actions Implementations
-      setAutoSceneEnabled: (enabled) => {
-        set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
-        saveCurrentAutoSceneSettings(get());
-      },
-      setAutoSceneList: (sceneNames) => {
-        set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }); // Reset index
-        saveCurrentAutoSceneSettings(get());
-      },
-      setAutoSceneMode: (mode) => {
-        set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }); // Reset index and direction
-        saveCurrentAutoSceneSettings(get());
-      },
-      setAutoSceneBeatDivision: (division) => {
-        set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure division is at least 1
-        saveCurrentAutoSceneSettings(get());
-      },
-      setAutoSceneTempoSource: (source) => {
-        set({ autoSceneTempoSource: source });
-        saveCurrentAutoSceneSettings(get());
-      },
-      resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),      setManualBpm: (bpm) => {
-        const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
-        set({ autoSceneManualBpm: newBpm });
-        if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
+      },      // Auto-Scene Actions
+  setAutoSceneEnabled: (enabled) => {
+    set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
+    saveCurrentAutoSceneSettings(get());
+  },
+  setAutoSceneList: (sceneNames) => {
+    set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }); // Reset index
+    saveCurrentAutoSceneSettings(get());
+  },
+  setAutoSceneMode: (mode) => {
+    set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }); // Reset index and direction
+    saveCurrentAutoSceneSettings(get());
+  },
+  setAutoSceneBeatDivision: (division) => {
+    set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure division is at least 1
+    saveCurrentAutoSceneSettings(get());
+  },
+  setAutoSceneTempoSource: (source) => {
+    set({ autoSceneTempoSource: source });
+    saveCurrentAutoSceneSettings(get());
+  },
+  resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),      setManualBpm: (bpm) => {
+    const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
+    set({ autoSceneManualBpm: newBpm });
+    if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
+      get().setMidiClockBpm(newBpm); // Also update main internal clock
+    }
+    saveCurrentAutoSceneSettings(get());
+  },      recordTapTempo: () => {
+    const now = Date.now();
+    const lastTapTime = get().autoSceneLastTapTime;
+    let newTapTimes = [...get().autoSceneTapTimes];
+
+    if (lastTapTime > 0) {
+      const interval = now - lastTapTime;
+      if (interval > 0 && interval < 2000) // Ignore taps too close or too far apart (2s = 30 BPM)
+        newTapTimes.push(interval);
+      if (newTapTimes.length > 5) // Keep last 5 intervals for averaging
+        newTapTimes.shift();
+    } else // If interval is too long, reset taps
+      newTapTimes = [];
+
+    set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
+
+    if (newTapTimes.length >= 2) { // Need at least 2 taps (1 interval) to calculate BPM
+      const averageInterval = newTapTimes.reduce((sum, t) => sum + t, 0) / newTapTimes.length;
+      if (averageInterval > 0) {
+        const newBpm = Math.max(20, Math.min(300, 60000 / averageInterval)); // Clamp BPM
+        set({ autoSceneTapTempoBpm: newBpm });
+        if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
           get().setMidiClockBpm(newBpm); // Also update main internal clock
         }
-        saveCurrentAutoSceneSettings(get());
-      },      recordTapTempo: () => {
-        const now = Date.now();
-        const lastTapTime = get().autoSceneLastTapTime;
-        let newTapTimes = [...get().autoSceneTapTimes];
-
-        if (lastTapTime > 0) {
-          const interval = now - lastTapTime;
-          if (interval > 0 && interval < 2000) // Ignore taps too close or too far apart (2s = 30 BPM)
-            newTapTimes.push(interval);
-          if (newTapTimes.length > 5) // Keep last 5 intervals for averaging
-            newTapTimes.shift();
-        } else // If interval is too long, reset taps
-          newTapTimes = [];
-
-        set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
-
-        if (newTapTimes.length >= 2) { // Need at least 2 taps (1 interval) to calculate BPM
-          const averageInterval = newTapTimes.reduce((sum, t) => sum + t, 0) / newTapTimes.length;
-          if (averageInterval > 0) {
-            const newBpm = Math.max(20, Math.min(300, 60000 / averageInterval)); // Clamp BPM
-            set({ autoSceneTapTempoBpm: newBpm });
-            if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
-              get().setMidiClockBpm(newBpm); // Also update main internal clock
-            }
-            saveCurrentAutoSceneSettings(get()); // Save when BPM changes
-          }
-        }
-      },      setNextAutoSceneIndex: () => {
+        saveCurrentAutoSceneSettings(get()); // Save when BPM changes
+      }
+    }
+  },      setNextAutoSceneIndex: () => {
         const { autoSceneList, autoSceneMode, autoSceneCurrentIndex, autoScenePingPongDirection } = get();
         if (!autoSceneList || autoSceneList.length === 0) {
           set({ autoSceneCurrentIndex: -1 });
@@ -1835,181 +2035,837 @@ export const useStore = create<State>()(
         // Apply the updates
         if (Object.keys(updates).length > 0) {
           get().setMultipleDmxChannels(updates);
-        }
-      },
+        }      },
 
-      // Fixture Flagging Actions
-      addFixtureFlag: (fixtureId, flag) => {
-        set(state => ({
-          fixtures: state.fixtures.map(f => {
-            if (f.id === fixtureId) {
-              const existingFlags = f.flags || [];
-              const flagExists = existingFlags.some(existingFlag => existingFlag.id === flag.id);
-              
-              if (!flagExists) {
-                return { 
-                  ...f, 
-                  flags: [...existingFlags, flag],
-                  isFlagged: true 
-                };
-              }
-            }
-            return f;
-          })
-        }));
+      // Recording and Automation Actions
+      startRecording: () => {
+        const now = Date.now();
+        set({ 
+          recordingActive: true, 
+          recordingStartTime: now, 
+          recordingData: [] 
+        });
         
         get().addNotification({ 
-          message: `Flag "${flag.name}" added to fixture`, 
+          message: 'Recording started', 
           type: 'success' 
         });
       },
 
-      removeFixtureFlag: (fixtureId, flagId) => {
+      stopRecording: () => {
+        set({ recordingActive: false });
+        
+        get().addNotification({ 
+          message: 'Recording stopped', 
+          type: 'info' 
+        });
+      },
+
+      clearRecording: () => {
+        set({ 
+          recordingData: [], 
+          recordingStartTime: null 
+        });
+        
+        get().addNotification({ 
+          message: 'Recording cleared', 
+          type: 'info' 
+        });
+      },
+
+      addRecordingEvent: (event) => {
+        const { recordingActive, recordingStartTime, recordingData } = get();
+        
+        if (!recordingActive || !recordingStartTime) return;
+        
+        const timestamp = Date.now() - recordingStartTime;
+        const newEvent = { ...event, timestamp };
+        
+        set({ recordingData: [...recordingData, newEvent] });
+      },
+
+      createAutomationTrack: (name, channel) => {
+        const trackId = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newTrack = {
+          id: trackId,
+          name,
+          channel,
+          keyframes: [
+            { time: 0, value: 0, curve: 'linear' as const },
+            { time: 5000, value: 255, curve: 'linear' as const }, // 5 second track with full range
+            { time: 10000, value: 0, curve: 'linear' as const }
+          ],
+          enabled: true,
+          loop: false
+        };
+        
         set(state => ({
-          fixtures: state.fixtures.map(f => {
-            if (f.id === fixtureId) {
-              const updatedFlags = (f.flags || []).filter(flag => flag.id !== flagId);
-              return { 
-                ...f, 
-                flags: updatedFlags,
-                isFlagged: updatedFlags.length > 0 
-              };
-            }
-            return f;
-          })
+          automationTracks: [...state.automationTracks, newTrack]
         }));
         
         get().addNotification({ 
-          message: `Flag removed from fixture`, 
+          message: `Automation track "${name}" created`, 
           type: 'success' 
- });
+        });
+        
+        return trackId;
       },
 
-      toggleFixtureFlag: (fixtureId, flagId) => {
-        const fixture = get().fixtures.find(f => f.id === fixtureId);
-        if (!fixture) return;
+      updateAutomationTrack: (trackId, updates) => {
+        set(state => ({
+          automationTracks: state.automationTracks.map(track =>
+            track.id === trackId ? { ...track, ...updates } : track
+          )
+        }));
+      },
+
+      deleteAutomationTrack: (trackId) => {
+        set(state => ({
+          automationTracks: state.automationTracks.filter(track => track.id !== trackId)
+        }));
         
-        const hasFlag = (fixture.flags || []).some(flag => flag.id === flagId);
+        get().addNotification({ 
+          message: 'Automation track deleted', 
+          type: 'info' 
+        });
+      },
+
+      addKeyframe: (trackId, time, value, curve = 'linear') => {
+        set(state => ({
+          automationTracks: state.automationTracks.map(track => {
+            if (track.id === trackId) {
+              const newKeyframes = [...track.keyframes, { time, value, curve }]
+                .sort((a, b) => a.time - b.time); // Keep keyframes sorted by time
+              return { ...track, keyframes: newKeyframes };
+            }
+            return track;
+          })
+        }));
+      },
+
+      updateKeyframe: (trackId, keyframeIndex, updates) => {
+        set(state => ({
+          automationTracks: state.automationTracks.map(track => {
+            if (track.id === trackId) {
+              const newKeyframes = track.keyframes.map((kf, index) =>
+                index === keyframeIndex ? { ...kf, ...updates } : kf
+              );
+              return { ...track, keyframes: newKeyframes.sort((a, b) => a.time - b.time) };
+            }
+            return track;
+          })
+        }));
+      },
+
+      deleteKeyframe: (trackId, keyframeIndex) => {
+        set(state => ({
+          automationTracks: state.automationTracks.map(track => {
+            if (track.id === trackId) {
+              const newKeyframes = track.keyframes.filter((_, index) => index !== keyframeIndex);
+              return { ...track, keyframes: newKeyframes };
+            }
+            return track;
+          })
+        }));
+      },
+
+      startAutomationPlayback: () => {
+        const now = Date.now();
+        set({ 
+          automationPlayback: { 
+            active: true, 
+            startTime: now, 
+            duration: 10000, // 10 seconds default
+            position: 0 
+          } 
+        });
         
-        if (hasFlag) {
-          get().removeFixtureFlag(fixtureId, flagId);
-        } else {
-          // Need to find the flag definition - this could be enhanced with a global flag registry
-          get().addNotification({ 
-            message: `Cannot toggle flag: Flag definition not found`, 
-            type: 'warning' 
+        // Start automation update loop
+        const updateAutomation = () => {
+          const { automationPlayback, automationTracks, setDmxChannelValue } = get();
+          
+          if (!automationPlayback.active || !automationPlayback.startTime) return;
+          
+          const elapsed = Date.now() - automationPlayback.startTime;
+          const position = elapsed / automationPlayback.duration;
+          
+          // Update position
+          set(state => ({
+            automationPlayback: { ...state.automationPlayback, position }
+          }));
+          
+          // Apply automation to channels
+          automationTracks.forEach(track => {
+            if (!track.enabled) return;
+            
+            const currentTime = elapsed;
+            const value = interpolateKeyframes(track.keyframes, currentTime);
+            
+            if (value !== null) {
+              setDmxChannelValue(track.channel, Math.round(value));
+            }
+          });
+          
+          // Continue if not finished
+          if (position < 1) {
+            requestAnimationFrame(updateAutomation);
+          } else {
+            // Check for looping tracks
+            const loopingTracks = automationTracks.filter(t => t.loop && t.enabled);
+            if (loopingTracks.length > 0) {
+              // Restart for looping tracks
+              set(state => ({
+                automationPlayback: { 
+                  ...state.automationPlayback, 
+                  startTime: Date.now(),
+                  position: 0 
+                }
+              }));
+              requestAnimationFrame(updateAutomation);
+            } else {
+              get().stopAutomationPlayback();
+            }
+          }
+        };
+        
+        requestAnimationFrame(updateAutomation);
+        
+        get().addNotification({ 
+          message: 'Automation playback started', 
+          type: 'success' 
+        });
+      },
+
+      stopAutomationPlayback: () => {
+        set({ 
+          automationPlayback: { 
+            active: false, 
+            startTime: null, 
+            duration: 10000,
+            position: 0 
+          } 
+        });
+        
+        get().addNotification({ 
+          message: 'Automation playback stopped', 
+          type: 'info' 
+        });
+      },
+
+      setAutomationPosition: (position) => {
+        const { automationPlayback } = get();
+        const newTime = position * automationPlayback.duration;
+        
+        set({ 
+          automationPlayback: { 
+            ...automationPlayback, 
+            position,
+            startTime: automationPlayback.active ? Date.now() - newTime : null
+          } 
+        });
+      },
+
+      applyAutomationPreset: (trackId, preset) => {
+        const duration = 10000; // 10 seconds
+        const steps = 20; // Number of keyframes
+        const keyframes: Array<{ time: number; value: number; curve: 'linear' | 'smooth' }> = [];
+        
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const time = t * duration;
+          let value = 0;
+          
+          switch (preset) {
+            case 'sine':
+              value = (Math.sin(t * Math.PI * 2 - Math.PI / 2) + 1) * 127.5;
+              break;
+            case 'triangle':
+              value = t < 0.5 ? t * 2 * 255 : (1 - t) * 2 * 255;
+              break;
+            case 'sawtooth':
+              value = t * 255;
+              break;
+            case 'square':
+              value = t < 0.5 ? 0 : 255;
+              break;
+            case 'random':
+              value = Math.random() * 255;
+              break;
+          }
+          
+          keyframes.push({ 
+            time, 
+            value: Math.max(0, Math.min(255, value)), 
+            curve: preset === 'random' ? 'linear' : 'smooth' 
           });
         }
-      },
-
-      updateFixtureFlag: (fixtureId, flagId, updates) => {
-       
-
-        set(state => ({
-          fixtures: state.fixtures.map(f => {
-            if (f.id === fixtureId) {
-              return {
-                ...f,
-                flags: (f.flags || []).map(flag => 
-                  flag.id === flagId ? { ...flag, ...updates } : flag
-                )
-              };
-            }
-            return f;
-          })
-        }));
         
-        get().addNotification({ 
-          message: `Flag updated`, 
-          type: 'success' 
-        });
-      },
-
-      clearFixtureFlags: (fixtureId) => {
         set(state => ({
-          fixtures: state.fixtures.map(f => 
-            f.id === fixtureId 
-              ? { ...f, flags: [], isFlagged: false }
-              : f
-
+          automationTracks: state.automationTracks.map(track =>
+            track.id === trackId ? { ...track, keyframes } : track
           )
         }));
         
         get().addNotification({ 
-          message: `All flags cleared from fixture`, 
+          message: `Applied ${preset} preset to automation track`, 
           type: 'success' 
         });
       },
 
-      getFixturesByFlag: (flagId) => {
-        return get().fixtures.filter(f => 
-          (f.flags || []).some(flag => flag.id === flagId)
-        );
+      // Smooth DMX Actions
+      setSmoothDmxEnabled: (enabled) => {
+        set({ smoothDmxEnabled: enabled });
+        
+        // If enabling, start the smooth update timer
+        if (enabled) {
+          get().enableSmoothDmxMode();
+        } else {
+          get().disableSmoothDmxMode();
+        }
+        
+        get().addNotification({ 
+          message: `Smooth DMX ${enabled ? 'enabled' : 'disabled'}`, 
+          type: 'info' 
+        });
       },
 
-      getFixturesByFlagCategory: (category) => {
-        return get().fixtures.filter(f => 
-          (f.flags || []).some(flag => flag.category === category)
-        );
+      setSmoothDmxUpdateRate: (rate) => {
+        const clampedRate = Math.max(1, Math.min(60, rate)); // 1-60 FPS
+        set({ smoothDmxUpdateRate: clampedRate });
+        
+        // Restart smooth mode if currently active
+        const { smoothDmxEnabled } = get();
+        if (smoothDmxEnabled) {
+          get().disableSmoothDmxMode();
+          get().enableSmoothDmxMode();
+        }
       },
 
-      createQuickFlag: (name, color, category) => {
-        const flag: FixtureFlag = {
-          id: `flag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name,
-          color,
-          category,
-          priority: 1
+      setSmoothDmxThreshold: (threshold) => {
+        const clampedThreshold = Math.max(0, Math.min(10, threshold)); // 0-10 units
+        set({ smoothDmxThreshold: clampedThreshold });
+      },      setSmoothDmxChannelValue: (channel, value) => {
+        const { smoothDmxEnabled, smoothDmxThreshold, pendingSmoothUpdates, recordingActive } = get();
+        
+        if (!smoothDmxEnabled) {
+          // If smooth mode is disabled, update immediately
+          get().setDmxChannelValue(channel, value);
+          return;
+        }
+        
+        // Check if change is significant enough
+        const currentValue = get().getDmxChannelValue(channel);
+        const change = Math.abs(value - currentValue);
+        
+        if (change < smoothDmxThreshold) {
+          return; // Change too small, ignore
+        }
+        
+        // Record the change if recording is active - BEFORE adding to pending updates
+        if (recordingActive) {
+          get().addRecordingEvent({
+            type: 'dmx',
+            channel,
+            value
+          });
+        }
+        
+        // Add to pending updates
+        set(state => ({
+          pendingSmoothUpdates: {
+            ...state.pendingSmoothUpdates,
+            [channel]: value
+          }
+        }));
+      },
+
+      flushSmoothDmxUpdates: () => {
+        const { pendingSmoothUpdates } = get();
+        const updates = Object.keys(pendingSmoothUpdates);
+        
+        if (updates.length === 0) return;
+        
+        // Batch update all pending channels
+        const batchUpdates: { [key: number]: number } = {};
+        updates.forEach(channelStr => {
+          const channel = parseInt(channelStr);
+          batchUpdates[channel] = pendingSmoothUpdates[channel];
+        });
+        
+        // Clear pending updates and apply batch
+        set({ 
+          pendingSmoothUpdates: {},
+          lastSmoothUpdateTime: Date.now()
+        });
+        
+        get().setMultipleDmxChannels(batchUpdates);
+      },
+
+      enableSmoothDmxMode: () => {
+        const { smoothDmxUpdateRate } = get();
+        const updateInterval = 1000 / smoothDmxUpdateRate; // Convert FPS to milliseconds
+        
+        // Create smooth update loop
+        const smoothUpdateLoop = () => {
+          const { smoothDmxEnabled } = get();
+          
+          if (!smoothDmxEnabled) return; // Stop if disabled
+          
+          get().flushSmoothDmxUpdates();
+          
+          setTimeout(smoothUpdateLoop, updateInterval);
         };
         
-        return flag;
+        // Start the loop
+        smoothUpdateLoop();
+        
+        console.log(`Smooth DMX mode enabled at ${smoothDmxUpdateRate} FPS`);
       },
 
-      bulkAddFlag: (fixtureIds, flag) => {
+      disableSmoothDmxMode: () => {
+        // Flush any remaining updates
+        get().flushSmoothDmxUpdates();
+        console.log('Smooth DMX mode disabled');
+      },
+
+      // Timeline Sequence Management Actions
+      saveTimelineSequence: (name, description) => {
+        const { recordingData } = get();
+        
+        if (recordingData.length === 0) {
+          console.warn('No recording data to save as timeline sequence');
+          return '';
+        }
+
+        const sequenceId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const maxTime = Math.max(...recordingData.map(e => e.timestamp));
+        
+        // Group events by channel
+        const channelGroups: { [channel: number]: TimelineKeyframe[] } = {};
+        
+        recordingData
+          .filter(event => event.type === 'dmx' && event.channel !== undefined && event.value !== undefined)
+          .forEach(event => {
+            const channel = event.channel!;
+            const keyframe: TimelineKeyframe = {
+              time: event.timestamp,
+              value: event.value!,
+              curve: 'smooth'
+            };
+            
+            if (!channelGroups[channel]) {
+              channelGroups[channel] = [];
+            }
+            channelGroups[channel].push(keyframe);
+          });
+
+        const newSequence: TimelineSequence = {
+          id: sequenceId,
+          name,
+          description: description || `Recorded sequence with ${recordingData.length} events`,
+          duration: maxTime,
+          channels: Object.entries(channelGroups).map(([channel, keyframes]) => ({
+            channel: parseInt(channel),
+            keyframes: keyframes.sort((a, b) => a.time - b.time)
+          })),
+          tags: ['recorded'],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        };
+
         set(state => ({
-          fixtures: state.fixtures.map(f => {
-            if (fixtureIds.includes(f.id)) {
-              const existingFlags = f.flags || [];
-              const flagExists = existingFlags.some(existingFlag => existingFlag.id === flag.id);
-              
-              if (!flagExists) {
-                return { 
-                  ...f, 
-                  flags: [...existingFlags, flag],
-                  isFlagged: true 
-                };
+          timelineSequences: [...state.timelineSequences, newSequence],
+          activeTimelineSequence: sequenceId
+        }));
+
+        console.log(`Timeline sequence "${name}" saved with ID: ${sequenceId}`);
+        return sequenceId;
+      },
+
+      loadTimelineSequence: (sequenceId) => {
+        const { timelineSequences } = get();
+        const sequence = timelineSequences.find(s => s.id === sequenceId);
+        
+        if (!sequence) {
+          console.error(`Timeline sequence with ID ${sequenceId} not found`);
+          return;
+        }
+
+        set({ activeTimelineSequence: sequenceId });
+        console.log(`Timeline sequence "${sequence.name}" loaded`);
+      },
+
+      deleteTimelineSequence: (sequenceId) => {
+        set(state => ({
+          timelineSequences: state.timelineSequences.filter(s => s.id !== sequenceId),
+          activeTimelineSequence: state.activeTimelineSequence === sequenceId ? null : state.activeTimelineSequence
+        }));
+        console.log(`Timeline sequence ${sequenceId} deleted`);
+      },
+
+      updateTimelineSequence: (sequenceId, updates) => {
+        set(state => ({
+          timelineSequences: state.timelineSequences.map(s => 
+            s.id === sequenceId 
+              ? { ...s, ...updates, modifiedAt: Date.now() }
+              : s
+          )
+        }));
+      },
+
+      // Timeline Export/Import Actions
+      exportTimelineSequence: (sequenceId) => {
+        const { timelineSequences } = get();
+        const sequence = timelineSequences.find(s => s.id === sequenceId);
+        
+        if (!sequence) {
+          console.error(`Timeline sequence with ID ${sequenceId} not found for export`);
+          return;
+        }
+
+        const exportData = {
+          version: '1.0',
+          type: 'artbastard-timeline-sequence',
+          exported: Date.now(),
+          sequence
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${sequence.name.replace(/[^a-z0-9]/gi, '_')}_timeline.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`Timeline sequence "${sequence.name}" exported`);
+      },
+
+      importTimelineSequence: (sequenceData) => {
+        // Generate new ID to avoid conflicts
+        const newId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const importedSequence: TimelineSequence = {
+          ...sequenceData,
+          id: newId,
+          createdAt: Date.now(),
+          modifiedAt: Date.now(),
+          name: `${sequenceData.name} (Imported)`
+        };
+
+        set(state => ({
+          timelineSequences: [...state.timelineSequences, importedSequence],
+          activeTimelineSequence: newId
+        }));
+
+        console.log(`Timeline sequence "${importedSequence.name}" imported with ID: ${newId}`);
+      },
+
+      // Timeline Smoothing Action
+      smoothTimelineSequence: (sequenceId, smoothingFactor) => {
+        const { timelineSequences } = get();
+        const sequence = timelineSequences.find(s => s.id === sequenceId);
+        
+        if (!sequence) {
+          console.error(`Timeline sequence with ID ${sequenceId} not found for smoothing`);
+          return;
+        }
+
+        const smoothedChannels = sequence.channels.map(channel => {
+          if (channel.keyframes.length < 3) {
+            return channel; // Not enough keyframes to smooth
+          }
+
+          const smoothedKeyframes = channel.keyframes.map((keyframe, index) => {
+            if (index === 0 || index === channel.keyframes.length - 1) {
+              return keyframe; // Don't smooth first or last keyframe
+            }
+
+            const prevKeyframe = channel.keyframes[index - 1];
+            const nextKeyframe = channel.keyframes[index + 1];
+            
+            // Apply smoothing using weighted average
+            const weight = smoothingFactor; // 0 = no smoothing, 1 = full smoothing
+            const smoothedValue = 
+              keyframe.value * (1 - weight) + 
+              ((prevKeyframe.value + nextKeyframe.value) / 2) * weight;
+
+            return {
+              ...keyframe,
+              value: Math.max(0, Math.min(255, Math.round(smoothedValue))),
+              curve: 'smooth' as const
+            };
+          });
+
+          return {
+            ...channel,
+            keyframes: smoothedKeyframes
+          };
+        });
+
+        const smoothedSequence: TimelineSequence = {
+          ...sequence,
+          channels: smoothedChannels,
+          modifiedAt: Date.now()
+        };
+
+        set(state => ({
+          timelineSequences: state.timelineSequences.map(s => 
+            s.id === sequenceId ? smoothedSequence : s
+          )
+        }));
+
+        console.log(`Timeline sequence "${sequence.name}" smoothed with factor ${smoothingFactor}`);
+      },
+
+      // Timeline Playback Actions
+      playTimelineSequence: (sequenceId, loop = false) => {
+        const { timelineSequences } = get();
+        const sequence = timelineSequences.find(s => s.id === sequenceId);
+        
+        if (!sequence) {
+          console.error(`Timeline sequence with ID ${sequenceId} not found for playback`);
+          return;
+        }
+
+        // Stop any existing playback
+        get().stopTimelinePlayback();
+
+        const startTime = Date.now();
+        set({
+          timelinePlayback: {
+            active: true,
+            sequenceId,
+            startTime,
+            position: 0,
+            loop
+          }
+        });
+
+        // Start playback loop
+        const playbackInterval = setInterval(() => {
+          const state = get();
+          if (!state.timelinePlayback.active || state.timelinePlayback.sequenceId !== sequenceId) {
+            clearInterval(playbackInterval);
+            return;
+          }
+
+          const elapsed = Date.now() - state.timelinePlayback.startTime!;
+          const position = elapsed / sequence.duration;
+
+          if (position >= 1) {
+            if (loop) {
+              // Restart sequence
+              set(state => ({
+                timelinePlayback: {
+                  ...state.timelinePlayback,
+                  startTime: Date.now(),
+                  position: 0
+                }
+              }));
+            } else {
+              // Stop playback
+              get().stopTimelinePlayback();
+              clearInterval(playbackInterval);
+              return;
+            }
+          } else {
+            set(state => ({
+              timelinePlayback: {
+                ...state.timelinePlayback,
+                position
               }
+            }));
+          }
+
+          // Apply DMX values from timeline
+          sequence.channels.forEach(channel => {
+            const value = interpolateKeyframes(channel.keyframes, elapsed);
+            if (value !== null) {
+              state.setDmxChannel(channel.channel, value);
             }
-            return f;
-          })
-        }));
-        
-        get().addNotification({ 
-          message: `Flag "${flag.name}" added to ${fixtureIds.length} fixtures`, 
-          type: 'success' 
-        });
+          });
+        }, 16); // ~60fps
+
+        console.log(`Timeline sequence "${sequence.name}" started playback`);
       },
 
-      bulkRemoveFlag: (fixtureIds, flagId) => {
-        set(state => ({
-          fixtures: state.fixtures.map(f => {
-            if (fixtureIds.includes(f.id)) {
-              const updatedFlags = (f.flags || []).filter(flag => flag.id !== flagId);
-              return { 
-                ...f, 
-                flags: updatedFlags,
-                isFlagged: updatedFlags.length > 0 
-              };
-            }
-            return f;
-          })
-        }));
-        
-        get().addNotification({ 
-          message: `Flag removed from ${fixtureIds.length} fixtures`, 
-          type: 'success' 
+      stopTimelinePlayback: () => {
+        set({
+          timelinePlayback: {
+            active: false,
+            sequenceId: null,
+            startTime: null,
+            position: 0,
+            loop: false
+          }
         });
-      }
+        console.log('Timeline playback stopped');
+      },
+
+      // Timeline Preset Generation
+      generateTimelinePresets: () => {
+        const presets: TimelinePreset[] = [
+          {
+            id: 'sine',
+            name: 'Sine Wave',
+            description: 'Smooth sine wave pattern',
+            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
+              const keyframes: TimelineKeyframe[] = [];
+              const steps = Math.max(10, Math.floor(duration / 100));
+              
+              for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * duration;
+                const radians = (2 * Math.PI * frequency * t / duration) + (phase * Math.PI / 180);
+                const value = Math.round((Math.sin(radians) + 1) * (amplitude / 2));
+                
+                keyframes.push({
+                  time: t,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'smooth'
+                });
+              }
+              
+              return keyframes;
+            }
+          },
+          {
+            id: 'square',
+            name: 'Square Wave',
+            description: 'Sharp on/off square wave pattern',
+            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
+              const keyframes: TimelineKeyframe[] = [];
+              const period = duration / frequency;
+              const phaseOffset = (phase / 360) * period;
+              
+              for (let cycle = 0; cycle < frequency; cycle++) {
+                const cycleStart = cycle * period + phaseOffset;
+                const cycleHalf = cycleStart + period / 2;
+                const cycleEnd = cycleStart + period;
+                
+                if (cycleStart >= 0 && cycleStart <= duration) {
+                  keyframes.push({ time: cycleStart, value: amplitude, curve: 'step' });
+                }
+                if (cycleHalf >= 0 && cycleHalf <= duration) {
+                  keyframes.push({ time: cycleHalf, value: 0, curve: 'step' });
+                }
+                if (cycleEnd >= 0 && cycleEnd <= duration) {
+                  keyframes.push({ time: cycleEnd, value: amplitude, curve: 'step' });
+                }
+              }
+              
+              return keyframes.sort((a, b) => a.time - b.time);
+            }
+          },
+          {
+            id: 'eclipse',
+            name: 'Eclipse Curve',
+            description: 'Smooth fade in and out like an eclipse',
+            generator: (duration, amplitude = 255) => {
+              const keyframes: TimelineKeyframe[] = [];
+              const steps = Math.max(20, Math.floor(duration / 50));
+              
+              for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * duration;
+                const normalizedTime = (t / duration) * 2 - 1; // -1 to 1
+                const value = Math.round(amplitude * Math.max(0, 1 - normalizedTime * normalizedTime));
+                
+                keyframes.push({
+                  time: t,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'smooth'
+                });
+              }
+              
+              return keyframes;
+            }
+          },
+          {
+            id: 'soft-in',
+            name: 'Soft In',
+            description: 'Gentle fade in from 0 to full',
+            generator: (duration, amplitude = 255) => {
+              const keyframes: TimelineKeyframe[] = [];
+              const steps = Math.max(10, Math.floor(duration / 100));
+              
+              for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * duration;
+                const progress = t / duration;
+                const value = Math.round(amplitude * progress * progress); // Quadratic ease-in
+                
+                keyframes.push({
+                  time: t,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'ease-in'
+                });
+              }
+              
+              return keyframes;
+            }
+          },
+          {
+            id: 'soft-out',
+            name: 'Soft Out',
+            description: 'Gentle fade out from full to 0',
+            generator: (duration, amplitude = 255) => {
+              const keyframes: TimelineKeyframe[] = [];
+              const steps = Math.max(10, Math.floor(duration / 100));
+              
+              for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * duration;
+                const progress = 1 - (t / duration);
+                const value = Math.round(amplitude * progress * progress); // Quadratic ease-out
+                
+                keyframes.push({
+                  time: t,
+                  value: Math.max(0, Math.min(255, value)),
+                  curve: 'ease-out'
+                });
+              }
+              
+              return keyframes;
+            }
+          }
+        ];
+
+        set({ timelinePresets: presets });
+        console.log('Timeline presets generated');
+      },
+
+      createTimelineFromPreset: (presetId, channels, duration, amplitude = 255, frequency = 1, phase = 0) => {
+        const { timelinePresets } = get();
+        const preset = timelinePresets.find(p => p.id === presetId);
+        
+        if (!preset) {
+          console.error(`Timeline preset with ID ${presetId} not found`);
+          return;
+        }
+
+        const sequenceId = `preset-${presetId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const keyframes = preset.generator(duration, amplitude, frequency, phase);
+        
+        const newSequence: TimelineSequence = {
+          id: sequenceId,
+          name: `${preset.name} (${channels.join(',')})`,
+          description: `Generated from ${preset.name} preset`,
+          duration,
+          channels: channels.map(channel => ({
+            channel,
+            keyframes: [...keyframes]
+          })),
+          tags: ['preset', presetId],
+          createdAt: Date.now(),
+          modifiedAt: Date.now()
+        };
+
+        set(state => ({
+          timelineSequences: [...state.timelineSequences, newSequence],
+          activeTimelineSequence: sequenceId
+        }));
+
+        console.log(`Timeline sequence "${newSequence.name}" created from preset "${preset.name}"`);
+      },
     })
   )
 );

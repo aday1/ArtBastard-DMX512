@@ -12,6 +12,7 @@ import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
 import PageRouter from '../router/PageRouter'
 import TransportControls from '../panels/TransportControls'
+import { useStore } from '../../store'
 import styles from './Layout.module.scss'
 
 interface LayoutProps {
@@ -20,33 +21,45 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme, darkMode, toggleDarkMode } = useTheme()
+  const { 
+    recordingActive, 
+    automationPlayback,
+    startRecording, 
+    stopRecording, 
+    startAutomationPlayback, 
+    stopAutomationPlayback 
+  } = useStore()
+  
   const [transportVisible, setTransportVisible] = useState(true)
   const [transportDocked, setTransportDocked] = useState(true)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-
   const handlePlay = () => {
-    setIsPlaying(true)
-    setIsPaused(false)
-    console.log('Transport: Play')
+    if (automationPlayback.active) {
+      stopAutomationPlayback()
+    } else {
+      startAutomationPlayback()
+    }
+    console.log('Transport: Play/Stop Automation')
   }
 
   const handlePause = () => {
-    setIsPaused(true)
-    setIsPlaying(false)
-    console.log('Transport: Pause')
+    if (automationPlayback.active) {
+      stopAutomationPlayback()
+    }
+    console.log('Transport: Pause Automation')
   }
 
   const handleStop = () => {
-    setIsPlaying(false)
-    setIsPaused(false)
-    console.log('Transport: Stop')
+    stopAutomationPlayback()
+    console.log('Transport: Stop Automation')
   }
 
   const handleRecord = () => {
-    setIsRecording(!isRecording)
-    console.log('Transport: Record', !isRecording)
+    if (recordingActive) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+    console.log('Transport: Record', !recordingActive)
   }
 
   return (
@@ -82,9 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
         
-        <StatusBar />
-
-        {/* Transport Controls for TouchBad Panel functionality */}
+        <StatusBar />        {/* Transport Controls for TouchBad Panel functionality */}
         <TransportControls
           isVisible={transportVisible}
           isDocked={transportDocked}
@@ -93,9 +104,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           onPause={handlePause}
           onStop={handleStop}
           onRecord={handleRecord}
-          isPlaying={isPlaying}
-          isPaused={isPaused}
-          isRecording={isRecording}
+          isPlaying={automationPlayback.active}
+          isPaused={false}
+          isRecording={recordingActive}
         />
       </div>
     </RouterProvider>

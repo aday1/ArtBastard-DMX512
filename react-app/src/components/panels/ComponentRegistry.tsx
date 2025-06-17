@@ -16,6 +16,7 @@ import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
 import { FixtureCanvas2DWrapper } from '../fixtures/FixtureCanvas2DWrapper';
+import TimelineEditor from './TimelineEditor';
 
 export interface ComponentDefinition {
   type: string;
@@ -175,6 +176,15 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-cog',
     component: MidiOscSetup,
     minSize: { width: 400, height: 350 },
+  },
+  'timeline-editor': {
+    type: 'timeline-editor',
+    title: 'Timeline Editor',
+    description: 'Create, edit, and play timeline sequences for DMX automation',
+    category: 'dmx',
+    icon: 'fas fa-timeline',
+    component: TimelineEditor,
+    minSize: { width: 800, height: 500 },
   },
 };
 

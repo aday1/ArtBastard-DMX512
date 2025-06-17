@@ -52,7 +52,25 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   const { 
     fixtures, 
     getDmxChannelValue, 
-    setDmxChannelValue 
+    setDmxChannelValue,
+    // Recording and Automation
+    recordingActive,
+    recordingData,
+    automationTracks,
+    automationPlayback,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    createAutomationTrack,
+    updateAutomationTrack,
+    deleteAutomationTrack,
+    addKeyframe,
+    updateKeyframe,
+    deleteKeyframe,
+    startAutomationPlayback,
+    stopAutomationPlayback,
+    setAutomationPosition,
+    applyAutomationPreset
   } = useStore();
 
   const [isMinimized, setIsMinimized] = useState(false);
@@ -82,9 +100,8 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   const [autoSceneMode, setAutoSceneMode] = useState(false);
   const [autoSceneInterval, setAutoSceneInterval] = useState(5000); // 5 seconds
   const autoSceneIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Panel tabs
-  const [activeTab, setActiveTab] = useState<'transport' | 'autopilot' | 'scenes'>('transport');  useEffect(() => {
+    // Panel tabs
+  const [activeTab, setActiveTab] = useState<'transport' | 'autopilot' | 'scenes' | 'automation'>('transport');useEffect(() => {
     // Position at bottom-right by default
     if (!isDocked) {
       setPosition({ 
@@ -539,14 +556,19 @@ const TransportControls: React.FC<TransportControlsProps> = ({
             onClick={() => setActiveTab('autopilot')}
           >
             Autopilot
-          </button>
-          <button
+          </button>          <button
             className={`${styles.tab} ${activeTab === 'scenes' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('scenes')}
           >
             Scenes
           </button>
-        </div>        {/* Transport Tab */}
+          <button
+            className={`${styles.tab} ${activeTab === 'automation' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('automation')}
+          >
+            Automation
+          </button>
+        </div>{/* Transport Tab */}
         {activeTab === 'transport' && (
           <div className={styles.tabContent}>
             <div className={styles.mainControls}>
@@ -864,7 +886,198 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                         </button>
                       </div>                    </div>
                   ))
+                )}              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Automation Tab */}
+        {activeTab === 'automation' && (
+          <div className={styles.tabContent}>
+            <div className={styles.automationControls}>
+              {/* Recording Section */}
+              <div className={styles.recordingSection}>
+                <h4>Recording</h4>
+                <div className={styles.recordingControls}>
+                  <button
+                    className={`${styles.recordButton} ${recordingActive ? styles.active : ''}`}
+                    onClick={recordingActive ? stopRecording : startRecording}
+                    title={recordingActive ? 'Stop Recording' : 'Start Recording'}
+                  >
+                    {recordingActive ? '⏹' : '⏺'} {recordingActive ? 'Stop' : 'Record'}
+                  </button>
+                  <button
+                    className={styles.clearButton}
+                    onClick={clearRecording}
+                    disabled={recordingData.length === 0}
+                    title="Clear Recording"
+                  >
+                    🗑 Clear
+                  </button>                  <span className={styles.recordingInfo}>
+                    {recordingActive ? 'Recording...' : `${recordingData.length} events recorded`}
+                  </span>
+                </div>
+                
+                {/* Recording Timeline Visualization */}
+                {recordingData.length > 0 && (
+                  <div className={styles.recordingTimeline}>
+                    <h5>Recording Timeline</h5>
+                    <div className={styles.timelineContainer}>
+                      <div className={styles.timelineTrack}>
+                        {recordingData.map((event, index) => {
+                          const maxTime = Math.max(...recordingData.map(e => e.timestamp));
+                          const position = maxTime > 0 ? (event.timestamp / maxTime) * 100 : 0;
+                          return (
+                            <div
+                              key={index}
+                              className={`${styles.timelineEvent} ${styles[`event-${event.type}`]}`}
+                              style={{ left: `${position}%` }}
+                              title={`${event.type.toUpperCase()}: Ch${event.channel} = ${event.value} @ ${(event.timestamp / 1000).toFixed(2)}s`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className={styles.timelineLabels}>
+                        <span>0s</span>
+                        <span>{recordingData.length > 0 ? `${(Math.max(...recordingData.map(e => e.timestamp)) / 1000).toFixed(1)}s` : '0s'}</span>
+                      </div>
+                    </div>
+                    <div className={styles.recordingStats}>
+                      <div className={styles.eventTypeStats}>
+                        <span className={styles.dmxEvents}>
+                          🎚 DMX: {recordingData.filter(e => e.type === 'dmx').length}
+                        </span>
+                        <span className={styles.midiEvents}>
+                          🎹 MIDI: {recordingData.filter(e => e.type === 'midi').length}
+                        </span>
+                        <span className={styles.oscEvents}>
+                          🔗 OSC: {recordingData.filter(e => e.type === 'osc').length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 )}
+              </div>
+
+              {/* Automation Playback Section */}
+              <div className={styles.playbackSection}>
+                <h4>Automation Playback</h4>
+                <div className={styles.playbackControls}>
+                  <button
+                    className={`${styles.playButton} ${automationPlayback.active ? styles.active : ''}`}
+                    onClick={automationPlayback.active ? stopAutomationPlayback : startAutomationPlayback}
+                    title={automationPlayback.active ? 'Stop Playback' : 'Start Playback'}
+                  >
+                    {automationPlayback.active ? '⏸' : '▶'} {automationPlayback.active ? 'Stop' : 'Play'}
+                  </button>
+                  <div className={styles.progressContainer}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={automationPlayback.position}
+                      onChange={(e) => setAutomationPosition(parseFloat(e.target.value))}
+                      className={styles.progressSlider}
+                    />
+                    <span className={styles.progressLabel}>
+                      {(automationPlayback.position * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Automation Tracks Section */}
+              <div className={styles.tracksSection}>
+                <div className={styles.tracksHeader}>
+                  <h4>Automation Tracks</h4>
+                  <button
+                    className={styles.addTrackButton}
+                    onClick={() => {
+                      const channel = prompt('Enter DMX channel (1-512):');
+                      if (channel && !isNaN(parseInt(channel))) {
+                        const channelNum = parseInt(channel);
+                        if (channelNum >= 1 && channelNum <= 512) {
+                          createAutomationTrack(`Channel ${channelNum}`, channelNum - 1);
+                        }
+                      }
+                    }}
+                    title="Add Automation Track"
+                  >
+                    + Add Track
+                  </button>
+                </div>
+                <div className={styles.tracksList}>
+                  {automationTracks.length === 0 ? (
+                    <p className={styles.noTracks}>No automation tracks. Click "Add Track" to create one.</p>
+                  ) : (
+                    automationTracks.map((track) => (
+                      <div key={track.id} className={styles.trackItem}>
+                        <div className={styles.trackHeader}>
+                          <div className={styles.trackInfo}>
+                            <strong>{track.name}</strong>
+                            <span className={styles.trackChannel}>CH {track.channel + 1}</span>
+                          </div>
+                          <div className={styles.trackControls}>
+                            <label className={styles.enabledToggle}>
+                              <input
+                                type="checkbox"
+                                checked={track.enabled}
+                                onChange={(e) => updateAutomationTrack(track.id, { enabled: e.target.checked })}
+                              />
+                              Enabled
+                            </label>
+                            <label className={styles.loopToggle}>
+                              <input
+                                type="checkbox"
+                                checked={track.loop}
+                                onChange={(e) => updateAutomationTrack(track.id, { loop: e.target.checked })}
+                              />
+                              Loop
+                            </label>
+                            <button
+                              className={styles.deleteTrackButton}
+                              onClick={() => deleteAutomationTrack(track.id)}
+                              title="Delete Track"
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className={styles.trackPresets}>
+                          <span>Presets:</span>
+                          {(['sine', 'triangle', 'sawtooth', 'square', 'random'] as const).map(preset => (
+                            <button
+                              key={preset}
+                              className={styles.presetButton}
+                              onClick={() => applyAutomationPreset(track.id, preset)}
+                              title={`Apply ${preset} wave`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className={styles.keyframesPreview}>
+                          <div className={styles.keyframesVisualization}>
+                            {track.keyframes.map((kf, index) => (
+                              <div
+                                key={index}
+                                className={styles.keyframeDot}
+                                style={{
+                                  left: `${(kf.time / 10000) * 100}%`,
+                                  bottom: `${(kf.value / 255) * 100}%`
+                                }}
+                                title={`Time: ${(kf.time / 1000).toFixed(1)}s, Value: ${kf.value}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>

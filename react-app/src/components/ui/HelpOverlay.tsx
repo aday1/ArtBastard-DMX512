@@ -214,9 +214,7 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>IP Address:</strong> Note your computer's IP for remote control</li>
                 <li><strong>Test Connection:</strong> Send test messages to verify setup</li>
               </ol>
-            </div>
-
-            <div className={styles.section}>
+            </div>            <div className={styles.section}>
               <h5>📬 OSC Address Patterns</h5>
               <ul>
                 <li><strong>/dmx/channel/[1-512]</strong> - Control individual DMX channels</li>
@@ -225,6 +223,72 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>/fixture/[id]/brightness</strong> - Control fixture brightness</li>
                 <li><strong>/fixture/[id]/color/[r,g,b]</strong> - Set RGB color values</li>
               </ul>
+            </div>
+
+            <div className={styles.section}>
+              <h5>🎛️ SuperControl OSC Addresses</h5>
+              <p>Complete reference for all SuperControl interface controls:</p>
+              
+              <div className={styles.oscAddressGrid}>
+                <div className={styles.oscCategory}>
+                  <h6>Basic Controls</h6>
+                  <ul className={styles.oscAddressList}>
+                    <li><code>/supercontrol/dimmer</code> - Dimmer (0-255)</li>
+                    <li><code>/supercontrol/pan</code> - Pan (0-255)</li>
+                    <li><code>/supercontrol/tilt</code> - Tilt (0-255)</li>
+                  </ul>
+                </div>
+                
+                <div className={styles.oscCategory}>
+                  <h6>Color Controls</h6>
+                  <ul className={styles.oscAddressList}>
+                    <li><code>/supercontrol/red</code> - Red (0-255)</li>
+                    <li><code>/supercontrol/green</code> - Green (0-255)</li>
+                    <li><code>/supercontrol/blue</code> - Blue (0-255)</li>
+                    <li><code>/supercontrol/color/wheel</code> - Color Wheel (0.0-1.0)</li>
+                  </ul>
+                </div>
+                
+                <div className={styles.oscCategory}>
+                  <h6>Effects Controls</h6>
+                  <ul className={styles.oscAddressList}>
+                    <li><code>/supercontrol/gobo</code> - Gobo (0-255)</li>
+                    <li><code>/supercontrol/shutter</code> - Shutter (0-255)</li>
+                    <li><code>/supercontrol/strobe</code> - Strobe (0-255)</li>
+                    <li><code>/supercontrol/lamp</code> - Lamp (0-255)</li>
+                    <li><code>/supercontrol/reset</code> - Reset Function (0-255)</li>
+                  </ul>
+                </div>
+                
+                <div className={styles.oscCategory}>
+                  <h6>Advanced Controls</h6>
+                  <ul className={styles.oscAddressList}>
+                    <li><code>/supercontrol/pantilt/xy</code> - Pan/Tilt XY Pad (x,y: 0.0-1.0)</li>
+                    <li><code>/supercontrol/autopilot/enable</code> - Autopilot Enable (0/1)</li>
+                    <li><code>/supercontrol/autopilot/speed</code> - Autopilot Speed (0.0-1.0)</li>
+                  </ul>
+                </div>
+                
+                <div className={styles.oscCategory}>
+                  <h6>Scene Controls</h6>
+                  <ul className={styles.oscAddressList}>
+                    <li><code>/supercontrol/scene/next</code> - Next Scene (trigger)</li>
+                    <li><code>/supercontrol/scene/prev</code> - Previous Scene (trigger)</li>
+                    <li><code>/supercontrol/scene/save</code> - Save Current Scene (trigger)</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className={styles.oscUsageNotes}>
+                <h6>📝 Usage Notes:</h6>
+                <ul>
+                  <li>Most controls accept values 0-255 (8-bit DMX standard)</li>
+                  <li>XY Pad and normalized controls use 0.0-1.0 range</li>
+                  <li>Trigger controls respond to any positive value</li>
+                  <li>Addresses are customizable in SuperControl OSC input fields</li>
+                  <li>Use TouchOSC Export button in SuperControl for .tosc file generation</li>
+                </ul>
+              </div>
             </div>
 
             <div className={styles.section}>

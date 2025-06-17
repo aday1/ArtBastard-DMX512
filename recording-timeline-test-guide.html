@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recording Timeline SuperControl Test Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .feature-highlight {
+            background: #fdeaea;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .test-step {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .expected-result {
+            background: #e1f5fe;
+            border-left: 4px solid #0288d1;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .code {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .metric {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .timeline-demo {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            height: 40px;
+            position: relative;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .demo-event {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 24px;
+            border-radius: 1px;
+        }
+        .demo-dmx {
+            background: linear-gradient(180deg, #4CAF50, #388E3C);
+            box-shadow: 0 0 4px #4CAF50;
+        }
+        .demo-midi {
+            background: linear-gradient(180deg, #2196F3, #1976D2);
+            box-shadow: 0 0 4px #2196F3;
+        }
+        .demo-osc {
+            background: linear-gradient(180deg, #FF9800, #F57C00);
+            box-shadow: 0 0 4px #FF9800;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 Recording Timeline SuperControl Test Guide</h1>
+    
+    <div class="feature-highlight">
+        <h3>✨ New Feature: Recording Timeline Visualization</h3>
+        <p>SuperControl movements are now properly recorded and displayed in a visual timeline within the Transport Controls panel. This allows real-time monitoring of recording sessions and provides instant feedback on captured events.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Getting Started</h2>
+        
+        <div class="test-step">
+            <h4>Step 1: Launch ArtBastard DMX512</h4>
+            <p>Start the application and ensure all systems are running:</p>
+            <div class="code">
+                npm start
+            </div>
+            <div class="expected-result">
+                <strong>Expected:</strong> Application loads with Transport Controls panel available.
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Step 2: Open Transport Controls</h4>
+            <p>Access the Transport Controls panel from the main interface.</p>
+            <div class="expected-result">
+                <strong>Expected:</strong> Transport Controls panel opens with "Automation" tab containing Recording section.
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎚️ Recording DMX Movements</h2>
+        
+        <div class="test-step">
+            <h4>Test 1: Start Recording Session</h4>
+            <ol>
+                <li>Click the "Automation" tab in Transport Controls</li>
+                <li>Click the red "Record" button (⏺ Record)</li>
+                <li>Verify recording status shows "Recording..."</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong> 
+                <ul>
+                    <li>Record button becomes active/highlighted</li>
+                    <li>Status text shows <span class="metric">"Recording..."</span></li>
+                    <li>Event counter starts at 0</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 2: Record SuperControl Slider Movements</h4>
+            <ol>
+                <li>Open SuperControl panel</li>
+                <li>While recording is active, move various sliders:</li>
+                <ul>
+                    <li>Channel sliders (vertical sliders)</li>
+                    <li>Dimmer controls</li>
+                    <li>Pan/Tilt controls</li>
+                    <li>Color controls</li>
+                </ul>
+                <li>Make both slow and rapid movements</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Event counter increases with each significant movement</li>
+                    <li>Timeline visualization appears below recording controls</li>
+                    <li>Green DMX events <span class="demo-event demo-dmx" style="display: inline-block; margin: 0 5px; vertical-align: middle;"></span> appear on timeline</li>
+                    <li>Event tooltips show details on hover</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 3: Record Quick Action Buttons</h4>
+            <ol>
+                <li>While recording, use SuperControl quick action buttons:</li>
+                <ul>
+                    <li>"0" buttons (set to minimum)</li>
+                    <li>"50%" buttons (set to middle)</li>
+                    <li>"100%" buttons (set to maximum)</li>
+                </ul>
+                <li>Test rapid button clicking</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Each button press creates a new timeline event</li>
+                    <li>Events appear at the correct time position</li>
+                    <li>Tooltip shows channel and value information</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 4: Record Numeric Input Changes</h4>
+            <ol>
+                <li>Use numeric input fields in SuperControl</li>
+                <li>Type various values while recording</li>
+                <li>Test both gradual and rapid value changes</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Input changes are captured as DMX events</li>
+                    <li>Final values (not intermediate typing) are recorded</li>
+                    <li>Timeline reflects the actual input timing</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Timeline Visualization</h2>
+        
+        <div class="timeline-demo">
+            <div class="demo-event demo-dmx" style="left: 10%;"></div>
+            <div class="demo-event demo-dmx" style="left: 25%;"></div>
+            <div class="demo-event demo-midi" style="left: 40%;"></div>
+            <div class="demo-event demo-dmx" style="left: 55%;"></div>
+            <div class="demo-event demo-osc" style="left: 70%;"></div>
+            <div class="demo-event demo-dmx" style="left: 85%;"></div>
+        </div>
+        <p><em>Example timeline showing mixed DMX, MIDI, and OSC events</em></p>
+        
+        <div class="test-step">
+            <h4>Test 5: Timeline Event Inspection</h4>
+            <ol>
+                <li>Hover over individual events on the timeline</li>
+                <li>Verify tooltip information displays correctly</li>
+                <li>Check time stamps are accurate</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Tooltip format: <code>"DMX: Ch1 = 255 @ 1.25s"</code></li>
+                    <li>Events highlight on hover</li>
+                    <li>Time stamps match actual recording timing</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 6: Event Type Differentiation</h4>
+            <ol>
+                <li>Record a mix of DMX, MIDI, and OSC events</li>
+                <li>Observe different color coding on timeline</li>
+                <li>Check the event statistics display</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li><span class="metric" style="background: #4CAF50;">🎚 DMX</span> events in green</li>
+                    <li><span class="metric" style="background: #2196F3;">🎹 MIDI</span> events in blue</li>
+                    <li><span class="metric" style="background: #FF9800;">🔗 OSC</span> events in orange</li>
+                    <li>Accurate event counts for each type</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>⏹️ Recording Session Management</h2>
+        
+        <div class="test-step">
+            <h4>Test 7: Stop Recording</h4>
+            <ol>
+                <li>Click the "Stop" button (⏹ Stop) to end recording</li>
+                <li>Verify final event count is displayed</li>
+                <li>Check that timeline remains visible</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Recording button returns to inactive state</li>
+                    <li>Status shows final count: <span class="metric">"X events recorded"</span></li>
+                    <li>Timeline visualization persists with all events</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 8: Clear Recording</h4>
+            <ol>
+                <li>Use the "Clear" button (🗑 Clear) to reset recording</li>
+                <li>Verify timeline disappears</li>
+                <li>Check event count resets to 0</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Timeline visualization is hidden</li>
+                    <li>Event statistics reset to zero</li>
+                    <li>Clear button becomes disabled</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Smooth DMX Integration</h2>
+        
+        <div class="test-step">
+            <h4>Test 9: Smooth DMX Recording Behavior</h4>
+            <ol>
+                <li>Make rapid, small movements on sliders</li>
+                <li>Observe which movements are recorded</li>
+                <li>Test threshold behavior</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Only significant changes (≥1 DMX unit) are recorded</li>
+                    <li>Micro-movements below threshold are ignored</li>
+                    <li>Timeline shows meaningful events, not noise</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 10: Real-time Recording Feedback</h4>
+            <ol>
+                <li>Watch timeline update in real-time during recording</li>
+                <li>Verify immediate visual feedback</li>
+                <li>Test performance with intensive slider use</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Events appear immediately on timeline</li>
+                    <li>No lag or delay in visualization</li>
+                    <li>Smooth performance even with rapid movements</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎛️ Advanced Recording Scenarios</h2>
+        
+        <div class="test-step">
+            <h4>Test 11: Multi-Channel Recording</h4>
+            <ol>
+                <li>Select multiple fixtures/channels in SuperControl</li>
+                <li>Apply capability-based changes (affect multiple channels)</li>
+                <li>Record complex lighting scenes</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Each affected channel creates separate timeline events</li>
+                    <li>Events appear simultaneously for coordinated changes</li>
+                    <li>Timeline shows the complexity of multi-channel operations</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 12: Scene Loading During Recording</h4>
+            <ol>
+                <li>Create and save scenes in SuperControl</li>
+                <li>Load scenes while recording is active</li>
+                <li>Observe batch event recording</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Scene loading creates multiple simultaneous events</li>
+                    <li>All scene channels are recorded</li>
+                    <li>Timeline shows scene transitions clearly</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Technical Verification</h2>
+        
+        <div class="test-step">
+            <h4>Test 13: Event Data Accuracy</h4>
+            <ol>
+                <li>Record specific channel changes with known values</li>
+                <li>Check tooltip data against expected values</li>
+                <li>Verify timing accuracy</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Channel numbers match actual channels changed</li>
+                    <li>Values match final slider positions</li>
+                    <li>Timestamps reflect actual change timing</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-step">
+            <h4>Test 14: Memory and Performance</h4>
+            <ol>
+                <li>Record long sessions with many events</li>
+                <li>Monitor browser performance</li>
+                <li>Test timeline rendering with large datasets</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected:</strong>
+                <ul>
+                    <li>Stable performance with hundreds of events</li>
+                    <li>Timeline remains responsive</li>
+                    <li>No memory leaks during extended recording</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Success Criteria</h2>
+        
+        <div class="feature-highlight">
+            <h4>The recording timeline implementation is successful if:</h4>
+            <ul>
+                <li>✅ All SuperControl movements are captured as recording events</li>
+                <li>✅ Timeline visualization appears and updates in real-time</li>
+                <li>✅ Event tooltips provide accurate channel and value information</li>
+                <li>✅ Color coding differentiates DMX, MIDI, and OSC events</li>
+                <li>✅ Event statistics display correct counts by type</li>
+                <li>✅ Timeline scales appropriately based on recording duration</li>
+                <li>✅ Threshold filtering prevents noise from micro-movements</li>
+                <li>✅ Performance remains smooth during intensive recording</li>
+                <li>✅ Clear and stop functions work correctly</li>
+                <li>✅ Integration with smooth DMX system functions properly</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🐛 Troubleshooting</h2>
+        
+        <div class="test-step">
+            <h4>Common Issues and Solutions:</h4>
+            
+            <h5>Issue: No events being recorded</h5>
+            <p><strong>Solution:</strong> Ensure recording is active (red Record button highlighted) and make significant slider movements (≥1 DMX unit).</p>
+            
+            <h5>Issue: Timeline not appearing</h5>
+            <p><strong>Solution:</strong> Timeline only appears when events are recorded. Try making larger slider movements.</p>
+            
+            <h5>Issue: Events appear at wrong time positions</h5>
+            <p><strong>Solution:</strong> Timeline scales based on recording duration. Longer recordings will compress events toward the left.</p>
+            
+            <h5>Issue: Too many events being recorded</h5>
+            <p><strong>Solution:</strong> Threshold filtering should prevent micro-movements. Check smooth DMX settings.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Test Report Template</h2>
+        
+        <div class="code">
+Test Date: ___________
+Tester: ______________
+Version: ArtBastard DMX512 v5.1.3
+
+Recording Timeline Test Results:
+□ Recording session start/stop - PASS/FAIL
+□ SuperControl slider recording - PASS/FAIL
+□ Quick action button recording - PASS/FAIL
+□ Numeric input recording - PASS/FAIL
+□ Timeline visualization - PASS/FAIL
+□ Event inspection tooltips - PASS/FAIL
+□ Event type differentiation - PASS/FAIL
+□ Real-time feedback - PASS/FAIL
+□ Multi-channel recording - PASS/FAIL
+□ Performance with large datasets - PASS/FAIL
+
+Notes:
+_________________________________
+_________________________________
+_________________________________
+
+Overall Assessment: PASS/FAIL
+        </div>
+    </div>
+
+    <footer style="margin-top: 40px; padding: 20px; background: #34495e; color: white; border-radius: 8px;">
+        <p><strong>ArtBastard DMX512 - Recording Timeline Feature</strong></p>
+        <p>This enhancement provides visual feedback for recording sessions, allowing users to see exactly when and what DMX changes were captured during their control sessions.</p>
+    </footer>
+</body>
+</html>

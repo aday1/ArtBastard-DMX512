@@ -887,8 +887,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setOscAddresses(prev => ({
       ...prev,
       [control]: address
-    }));  };
-  
+    }));
+  };
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -2121,8 +2121,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     <div className={styles.goboFallback} style={{ display: 'none' }}>
                       <LucideIcon name="Circle" />
                     </div>
-                  </div>
-                  <span className={styles.goboName}>{goboOption.name}</span>
+                  </div>                  <span className={styles.goboName}>{goboOption.name}</span>
                   <span className={styles.goboValue}>{goboOption.value}</span>
                 </div>
               ))}
@@ -2329,9 +2328,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 disabled={!hasSelection}
                 style={{ width: '60px' }}
               />
-              <span>{reset}</span>              <div className={styles.connectionControls}>
-                <div className={styles.midiRangeSection}>
-                  <button 
+              <span>{reset}</span>
+              <div className={styles.connectionControls}>
+                <div className={styles.midiRangeSection}>                  <button 
                     className={`${styles.midiLearnBtn} ${midiLearnTarget === 'reset' ? styles.learning : ''}`}
                     onClick={() => midiLearnTarget === 'reset' ? stopMidiLearn() : startMidiLearn('reset')}
                   >
@@ -2348,14 +2347,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                         <LucideIcon name="X" />
                       </button>
                     </div>
-                  )}                </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>  );
 };
 
 export default SuperControl;
