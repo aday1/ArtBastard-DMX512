@@ -51,7 +51,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
 
-  // Control values state
+  // Control values state  const [dimmer, setDimmer] = useState(255);  // Basic Control State
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
   const [tiltValue, setTiltValue] = useState(127);
@@ -63,6 +63,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const [strobe, setStrobe] = useState(0);
   const [lamp, setLamp] = useState(255);
   const [reset, setReset] = useState(0);
+
+  // Enhanced Movement Controls
+  const [focus, setFocus] = useState(127);
+  const [zoom, setZoom] = useState(127);
+  const [iris, setIris] = useState(255);
+  const [prism, setPrism] = useState(0);
+  const [colorWheel, setColorWheel] = useState(0);
+  const [goboRotation, setGoboRotation] = useState(127);
+  const [gobo2, setGobo2] = useState(0);
+  const [frost, setFrost] = useState(0);
+  const [macro, setMacro] = useState(0);
+  const [speed, setSpeed] = useState(127);
 
   // XY Pad state
   const [panTiltXY, setPanTiltXY] = useState({ x: 50, y: 50 });
@@ -79,8 +91,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const [midiLearnTarget, setMidiLearnTarget] = useState<string | null>(null);
   const [oscAddresses, setOscAddresses] = useState<Record<string, string>>({
     dimmer: '/supercontrol/dimmer',
-    pan: '/supercontrol/pan',
-    tilt: '/supercontrol/tilt',
+    pan: '/supercontrol/pan',    tilt: '/supercontrol/tilt',
     red: '/supercontrol/red',
     green: '/supercontrol/green',
     blue: '/supercontrol/blue',
@@ -89,8 +100,17 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     strobe: '/supercontrol/strobe',
     lamp: '/supercontrol/lamp',
     reset: '/supercontrol/reset',
+    focus: '/supercontrol/focus',
+    zoom: '/supercontrol/zoom',
+    iris: '/supercontrol/iris',
+    prism: '/supercontrol/prism',
+    colorWheel: '/supercontrol/colorwheel',
+    goboRotation: '/supercontrol/gobo/rotation',
+    gobo2: '/supercontrol/gobo2',
+    frost: '/supercontrol/frost',
+    macro: '/supercontrol/macro',
+    speed: '/supercontrol/speed',
     panTiltXY: '/supercontrol/pantilt/xy',
-    colorWheel: '/supercontrol/color/wheel',
     autopilotEnable: '/supercontrol/autopilot/enable',
     autopilotSpeed: '/supercontrol/autopilot/speed',
     sceneNext: '/supercontrol/scene/next',
@@ -1013,8 +1033,332 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                   applyControl('strobe', val);
                 }}
                 className={styles.valueInput}
+              />              <span className={styles.oscAddress}>{oscAddresses.strobe}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Movement Controls Section */}
+        <div className={styles.controlSection}>
+          <h3>Enhanced Movement Controls</h3>
+          
+          {/* Focus Control */}
+          <div className={styles.controlRow}>
+            <label>Focus</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={focus}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setFocus(val);
+                  applyControl('focus', val);
+                }}
+                className={styles.slider}
               />
-              <span className={styles.oscAddress}>{oscAddresses.strobe}</span>
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={focus}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setFocus(val);
+                  applyControl('focus', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.focus}</span>
+            </div>
+          </div>
+
+          {/* Zoom Control */}
+          <div className={styles.controlRow}>
+            <label>Zoom</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={zoom}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setZoom(val);
+                  applyControl('zoom', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={zoom}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setZoom(val);
+                  applyControl('zoom', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.zoom}</span>
+            </div>
+          </div>
+
+          {/* Iris Control */}
+          <div className={styles.controlRow}>
+            <label>Iris</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={iris}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setIris(val);
+                  applyControl('iris', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={iris}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setIris(val);
+                  applyControl('iris', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.iris}</span>
+            </div>
+          </div>
+
+          {/* Prism Control */}
+          <div className={styles.controlRow}>
+            <label>Prism</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={prism}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setPrism(val);
+                  applyControl('prism', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={prism}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setPrism(val);
+                  applyControl('prism', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.prism}</span>
+            </div>
+          </div>
+
+          {/* Color Wheel Control */}
+          <div className={styles.controlRow}>
+            <label>Color Wheel</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={colorWheel}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setColorWheel(val);
+                  applyControl('colorWheel', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={colorWheel}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setColorWheel(val);
+                  applyControl('colorWheel', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.colorWheel}</span>
+            </div>
+          </div>
+
+          {/* Gobo Rotation Control */}
+          <div className={styles.controlRow}>
+            <label>Gobo Rotation</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={goboRotation}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setGoboRotation(val);
+                  applyControl('goboRotation', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={goboRotation}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setGoboRotation(val);
+                  applyControl('goboRotation', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.goboRotation}</span>
+            </div>
+          </div>
+
+          {/* Gobo 2 Control */}
+          <div className={styles.controlRow}>
+            <label>Gobo 2</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={gobo2}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setGobo2(val);
+                  applyControl('gobo2', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={gobo2}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setGobo2(val);
+                  applyControl('gobo2', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.gobo2}</span>
+            </div>
+          </div>
+
+          {/* Frost Control */}
+          <div className={styles.controlRow}>
+            <label>Frost</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={frost}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setFrost(val);
+                  applyControl('frost', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={frost}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setFrost(val);
+                  applyControl('frost', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.frost}</span>
+            </div>
+          </div>
+
+          {/* Macro Control */}
+          <div className={styles.controlRow}>
+            <label>Macro</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={macro}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setMacro(val);
+                  applyControl('macro', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={macro}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setMacro(val);
+                  applyControl('macro', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.macro}</span>
+            </div>
+          </div>
+
+          {/* Speed Control */}
+          <div className={styles.controlRow}>
+            <label>Speed</label>
+            <div className={styles.controlInputs}>
+              <input 
+                type="range" 
+                min="0" 
+                max="255" 
+                value={speed}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setSpeed(val);
+                  applyControl('speed', val);
+                }}
+                className={styles.slider}
+              />
+              <input 
+                type="number" 
+                min="0" 
+                max="255" 
+                value={speed}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setSpeed(val);
+                  applyControl('speed', val);
+                }}
+                className={styles.valueInput}
+              />
+              <span className={styles.oscAddress}>{oscAddresses.speed}</span>
             </div>
           </div>
         </div>

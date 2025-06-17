@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../../store';
 import { TimelineKeyframe, TimelineSequence, TimelinePreset } from '../../store';
+import VisualTimelineEditor from './VisualTimelineEditor';
+import TimelineControls from './TimelineControls';
 import styles from './TimelineEditor.module.scss';
 
 interface TimelineEditorProps {

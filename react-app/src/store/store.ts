@@ -404,6 +404,10 @@ interface State {
     pingPong: boolean; // Ping-pong playback mode
     pingPongDirection: 'forward' | 'reverse'; // Current ping-pong direction
   };
+  
+  // MIDI Timeline Control Mappings
+  timelineMidiMappings: Record<string, MidiMapping>; // sequenceId -> MidiMapping
+  timelineControlMidiMappings: Record<'play' | 'loop' | 'bounce' | 'reverse', MidiMapping>; // control type -> MidiMapping
 
   // Actions
   fetchInitialState: () => Promise<void>
@@ -567,1093 +571,864 @@ interface State {
   seekTimeline: (position: number) => void;
   generateTimelinePresets: () => void;
   createTimelineFromPreset: (presetId: string, channels: number[], duration: number, amplitude?: number, frequency?: number, phase?: number) => void;
+  
+  // MIDI Timeline Control Functions
+  setTimelineMidiTrigger: (sequenceId: string, mapping?: MidiMapping) => void;
+  triggerTimelineFromMidi: (midiChannel: number, note?: number, controller?: number) => void;
+  clearTimelineMidiMappings: () => void;
+  
+  // MIDI Timeline Playback Control Functions
+  setTimelineControlMidiMapping: (controlType: 'play' | 'loop' | 'bounce' | 'reverse', mapping?: MidiMapping) => void;
+  triggerTimelineControlFromMidi: (midiChannel: number, note?: number, controller?: number) => void;
+  clearTimelineControlMidiMappings: () => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
-const initializeDarkMode = (): boolean => {
+const getInitialDarkMode = (): boolean => {
   try {
-    const stored = localStorage.getItem('darkMode');
-    const darkMode = stored !== null ? stored === 'true' : true; // Default to true if not found
-    
-    // Apply theme immediately on initialization
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    
-    return darkMode;
-  } catch (error) {
-    console.warn('Failed to read darkMode from localStorage, using default (true):', error);
-    document.documentElement.setAttribute('data-theme', 'dark');
-    return true;
+    const saved = localStorage.getItem('darkMode');
+    return saved !== null ? JSON.parse(saved) : true; // Default to true (dark mode)
+  } catch {
+    return true; // Default to true (dark mode) if parsing fails
   }
 };
 
-// Helper function to initialize UI settings from localStorage
-const initializeUiSettings = (): { sparklesEnabled: boolean } => {
-  try {
-    const stored = localStorage.getItem('uiSettings');
-    const defaultSettings = { sparklesEnabled: true };
-    
-    if (stored) {
-      const parsedSettings = JSON.parse(stored);
-      return { ...defaultSettings, ...parsedSettings };
+export const useStore = create<AppState>((set, get) => ({
+  // State
+  dmxChannels: new Array(512).fill(0),
+  oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+  channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+  selectedChannels: new Set<number>(),
+  fixtures: [],
+  groups: [],
+  midiMappings: {},
+  artNetConfig: {
+    universeId: 1,
+    subnetId: 0,
+    networkId: 0,
+    broadcastAddress: '255.255.255.255',
+    port: 6454,
+    refreshRate: 30,
+    enabled: true,
+  },
+  scenes: [], 
+  oscMessages: [],
+  fixtureLayout: [], 
+  canvasBackgroundImage: null, 
+  midiMessages: [],
+  midiLearnMode: false,
+  midiLearnTarget: null,
+  statusMessage: null,
+  uiSettings: {
+    sparklesEnabled: true,
+  },
+  theme: 'artsnob' as const,
+  darkMode: getInitialDarkMode(),
+  exampleSliderValue: 50,
+  notifications: [],
+  debugModules: {
+    midi: false,
+    osc: false,
+    artnet: false,
+    button: false
+  },
+  bpm: 120,
+  isPlaying: false,
+  midiActivity: 0,
+  masterSliders: [], 
+  transitionDuration: 1000, 
+  transitionEasing: 'ease-in-out', 
+  currentTransitionFrame: null, 
+  transitionValues: [], 
+  midiClockState: {
+    hostId: null,
+    availableHosts: [],
+    bpm: 120,
+    isPlaying: false,
+    beat: 0,
+    bar: 0,
+  },
+  autoSceneState: {
+    enabled: false,
+    sceneList: [],
+    currentIndex: 0,
+    mode: 'forward',
+    beatDivision: 1,
+    tempoSource: 'internal_clock',
+    manualBpm: 120,
+    tapTempo: {
+      tapTimes: [],
+      calculatedBpm: 120,
+    },
+    flashState: {
+      isFlashing: false,
+      lastFlashTime: 0,
+      flashDuration: 100, // milliseconds
+    },
+  },
+  groupMidiMappings: {},
+  fixtureFlags: [],
+  autopilotTrackState: {
+    enabled: false,
+    type: 'circle',
+    position: 0,
+    size: 50,
+    speed: 1,
+    center: { x: 50, y: 50 },
+    autoPlay: false,
+    customPoints: [],
+  },
+  recordingState: {
+    isRecording: false,
+    events: [],
+    startTime: null,
+  },
+  automationTracks: {},
+  automationPlayback: {
+    isPlaying: false,
+    position: 0,
+    playbackMode: 'forward',
+    loop: false,
+    speed: 1,
+    startTime: null,
+  },
+  smoothDmxState: {
+    enabled: false,
+    updateRate: 60,
+    threshold: 1,
+    pendingUpdates: {},
+  },
+  timelineSequences: [
+    {
+      id: 'example-moving-head',
+      name: 'Moving Head Pan/Tilt',
+      description: 'Example timeline for moving head pan and tilt',
+      duration: 10000,
+      channels: [
+        {
+          channel: 1,
+          keyframes: [
+            { time: 0, value: 0, curve: 'linear' },
+            { time: 2500, value: 127, curve: 'smooth' },
+            { time: 5000, value: 255, curve: 'smooth' },
+            { time: 7500, value: 127, curve: 'smooth' },
+            { time: 10000, value: 0, curve: 'linear' }
+          ]
+        },
+        {
+          channel: 2,
+          keyframes: [
+            { time: 0, value: 127, curve: 'linear' },
+            { time: 2500, value: 0, curve: 'smooth' },
+            { time: 5000, value: 255, curve: 'smooth' },
+            { time: 7500, value: 200, curve: 'smooth' },
+            { time: 10000, value: 127, curve: 'linear' }
+          ]
+        }
+      ],
+      loop: false,
+      createdAt: Date.now()
+    },
+    {
+      id: 'blank-timeline',
+      name: 'Blank Timeline',
+      description: 'Empty timeline for creating new sequences',
+      duration: 5000,
+      channels: [],
+      loop: false,
+      createdAt: Date.now()
     }
+  ],
+  activeTimelineSequence: null,
+  timelinePlayback: {
+    active: false,
+    startTime: null,
+    speed: 1,
+    direction: 'forward',
+    loop: false,
+    pingPong: false,
+    pingPongDirection: 'forward',
+  },
+  timelinePresets: [
+    { id: 'sine', name: 'Sine Wave', description: 'Smooth sine wave animation' },
+    { id: 'triangle', name: 'Triangle Wave', description: 'Linear triangle wave' },
+    { id: 'sawtooth', name: 'Sawtooth Wave', description: 'Linear sawtooth ramp' },
+    { id: 'square', name: 'Square Wave', description: 'Step square wave' },
+    { id: 'random', name: 'Random', description: 'Random value changes' },
+    { id: 'pulse', name: 'Pulse', description: 'Periodic pulse effect' },
+    { id: 'fade', name: 'Fade In/Out', description: 'Smooth fade in and out' },
+    { id: 'strobe', name: 'Strobe', description: 'Fast on/off strobe effect' }
+  ],
+  timelineMidiMappings: {},
+  timelineControlMidiMappings: {} as Record<'play' | 'loop' | 'bounce' | 'reverse', MidiMapping>,
+
+  // Actions
+  fetchInitialState: async () => {
+      const response = await axios.get('/api/state', {
+        timeout: 5000,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
+      
+      if (response.status === 200 && response.data) {
+        const state = response.data
+        
+        set({
+          dmxChannels: state.dmxChannels || new Array(512).fill(0),
+          oscAssignments: state.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+          channelNames: state.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+          fixtures: state.fixtures || [],
+          groups: state.groups || [],
+          midiMappings: state.midiMappings || {},
+          artNetConfig: state.artNetConfig || get().artNetConfig,
+          scenes: state.scenes || [],
+          fixtureLayout: state.fixtureLayout || [], 
+          masterSliders: state.masterSliders || [] 
+        })
+
+        if (state.settings && typeof state.settings.transitionDuration === 'number') {
+            set({ transitionDuration: state.settings.transitionDuration });
+        }
+        // No explicit success notification here, to avoid clutter on normal startup
+        return 
+      }
+      throw new Error('Invalid response from server')        } catch (error: any) {
+        console.error('Failed to fetch initial state:', error)
+        get().addNotification({ 
+          message:
+            error.code === 'ECONNABORTED'
+              ? 'Connection timeout - please check server status'
+              : 'Failed to fetch initial state - using default values',
+          type: 'error',
+          priority: 'high',
+          persistent: true
+        })
+        
+        // Only set default values if we don't have existing data
+        // This prevents clearing fixtures during navigation when server is unavailable
+        const currentState = get()
+        const hasExistingFixtures = currentState.fixtures && currentState.fixtures.length > 0
+        
+        if (!hasExistingFixtures) {
+          set({
+            dmxChannels: new Array(512).fill(0),
+            oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+            channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+            fixtures: [],
+            groups: [],
+            midiMappings: {},
+            scenes: [],
+            fixtureLayout: [], 
+            masterSliders: [], 
+            transitionDuration: 1000, 
+          })
+        } else {
+          // If we have existing fixtures, only set essential defaults for missing data
+          set({
+            dmxChannels: currentState.dmxChannels || new Array(512).fill(0),
+            oscAssignments: currentState.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+            channelNames: currentState.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+            // Keep existing fixtures, groups, etc.
+            midiMappings: currentState.midiMappings || {},
+            scenes: currentState.scenes || [],
+            masterSliders: currentState.masterSliders || [], 
+            transitionDuration: currentState.transitionDuration || 1000, 
+          })
+        }
+      }
+    },
     
-    return defaultSettings;
-  } catch (error) {
-    console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
-    return { sparklesEnabled: true };  }
-};
+    getDmxChannelValue: (channel) => {
+      const dmxChannels = get().dmxChannels;
+      if (channel >= 0 && channel < dmxChannels.length) {
+        return dmxChannels[channel] || 0;
+      }
+      return 0;
+    },
+    
+    setDmxChannel: (channel, value) => {
+      const dmxChannels = [...get().dmxChannels]
+      dmxChannels[channel] = value
+      set({ dmxChannels })
+      
+      axios.post('/api/dmx', { channel, value })
+        .catch(error => {
+          console.error('Failed to update DMX channel:', error)
+          get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
+        })
+    },
 
-// Helper function to interpolate between keyframes
-const interpolateKeyframes = (keyframes: Array<{ time: number; value: number; curve: string }>, currentTime: number): number | null => {
-  if (keyframes.length === 0) return null;
-  if (keyframes.length === 1) return keyframes[0].value;
-  
-  // Find surrounding keyframes
-  let prevKeyframe = keyframes[0];
-  let nextKeyframe = keyframes[keyframes.length - 1];
-  
-  for (let i = 0; i < keyframes.length - 1; i++) {
-    if (currentTime >= keyframes[i].time && currentTime <= keyframes[i + 1].time) {
-      prevKeyframe = keyframes[i];
-      nextKeyframe = keyframes[i + 1];
-      break;
-    }
-  }
-  
-  // Handle edge cases
-  if (currentTime <= prevKeyframe.time) return prevKeyframe.value;
-  if (currentTime >= nextKeyframe.time) return nextKeyframe.value;
-  
-  // Calculate interpolation factor
-  const timeDiff = nextKeyframe.time - prevKeyframe.time;
-  if (timeDiff === 0) return prevKeyframe.value;
-  
-  const t = (currentTime - prevKeyframe.time) / timeDiff;
-  const valueDiff = nextKeyframe.value - prevKeyframe.value;
-  
-  // Apply curve
-  let easedT = t;
-  switch (prevKeyframe.curve) {
-    case 'step':
-      easedT = 0; // Use previous value until next keyframe
-      break;
-    case 'ease-in':
-      easedT = t * t;
-      break;
-    case 'ease-out':
-      easedT = 1 - (1 - t) * (1 - t);
-      break;
-    case 'ease-in-out':
-      easedT = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
-      break;
-    case 'smooth':
-      easedT = t * t * (3 - 2 * t); // Smoothstep
-      break;
-    case 'linear':
-    default:
-      easedT = t;
-      break;
-  }
-  
-  return prevKeyframe.value + valueDiff * easedT;
-};
+    setMultipleDmxChannels: (updates) => {
+      const currentDmxChannels = get().dmxChannels;
+      const newDmxChannels = [...currentDmxChannels];
+      for (const channelStr in updates) {
+        const channel = parseInt(channelStr, 10);
+        if (channel >= 0 && channel < newDmxChannels.length) {
+          newDmxChannels[channel] = updates[channel];
+        }
+      }
+      set({ dmxChannels: newDmxChannels });
 
-export const useStore = create<State>()(
-  devtools(
-    (set, get) => ({
-      // Initial state
-      dmxChannels: new Array(512).fill(0),
-      oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-      channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-      selectedChannels: [],
+      axios.post('/api/dmx/batch', updates)
+        .catch(error => {
+          console.error('Failed to update DMX channels in batch:', error);
+          get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
+        });
+    },      setDmxChannelValue: (channel, value) => { 
+      get().setDmxChannel(channel, value);
       
-      // Navigation State
-      navVisibility: {
-        main: true,
-        midiOsc: true,
-        fixture: true,
-        scenes: true,
-        audio: true,
-        touchosc: true,
-        misc: true
-      },
-      
-      // Debug Tools
-      debugTools: {
-        debugButton: true,
-        midiMonitor: true,
-        oscMonitor: true
-      },
-        midiInterfaces: [],
-      activeInterfaces: [],
-      midiMappings: {},
-      midiLearnTarget: null,
-      midiLearnScene: null,
-      midiMessages: [],
-      oscMessages: [], // Initialized oscMessages
-      midiActivity: 0, // Default MIDI activity level
-      
-      // Audio/BPM State defaults
-      bpm: 120, // Default BPM
-      isPlaying: false, // Default not playing
+      // Record the change if recording is active
+      const { recordingActive } = get();
+      if (recordingActive) {
+        get().addRecordingEvent({
+          type: 'dmx',
+          channel,
+          value
+        });
+      }
+    },
 
-      fixtures: [],
-      groups: [],
-      
-      scenes: [],
-      
-      artNetConfig: {
-        ip: "192.168.1.199",
-        subnet: 0,
-        universe: 0,
-        net: 0,
-        port: 6454,
-        base_refresh_interval: 1000
-      },      
-      artNetStatus: 'disconnected',      theme: 'artsnob',
-      darkMode: initializeDarkMode(),
-      // statusMessage: null, // Deprecated
-      notifications: [], 
-        // UI Settings
-      uiSettings: initializeUiSettings(),
-      
-      oscActivity: {},
-      debugModules: {
-        midi: false,
-        osc: false,
-        artnet: false,
-        button: true
-      },
-      exampleSliderValue: 0,
-      fixtureLayout: [], 
-      placedFixtures: [], 
-      masterSliders: [], 
-      canvasBackgroundImage: null, 
+    setDmxChannelsForTransition: (values) => { 
+      set({ dmxChannels: values });
+    },
 
-      // Scene Transition State Init
+    setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
+
+    clearTransitionState: () => set({
       isTransitioning: false,
       transitionStartTime: null,
-      transitionDuration: 1000, // Default 1 second
       fromDmxValues: null,
       toDmxValues: null,
       currentTransitionFrame: null,
-        socket: null,
-      setSocket: (socket) => set({ socket }),
+    }),
+
+    setTransitionDuration: (duration) => {
+      if (duration >= 0) { 
+        set({ transitionDuration: duration });
+      }
+    },
+    
+    selectChannel: (channel) => {
+      const selectedChannels = [...get().selectedChannels]
+      if (!selectedChannels.includes(channel)) {
+        selectedChannels.push(channel)
+        set({ selectedChannels })
+      }
+    },
+    
+    deselectChannel: (channel) => {
+      const selectedChannels = get().selectedChannels.filter(ch => ch !== channel)
+      set({ selectedChannels })
+    },
+    
+    toggleChannelSelection: (channel) => {
+      const selectedChannels = [...get().selectedChannels]
+      const index = selectedChannels.indexOf(channel)
       
-      // MIDI Clock Sync State Init
-      availableMidiClockHosts: [
-        { id: 'internal', name: 'Internal Clock' },
-        // Other hosts would be populated dynamically
-      ],
-      selectedMidiClockHostId: 'internal',
-      midiClockBpm: 120.0,
-      midiClockIsPlaying: false,
-      midiClockCurrentBeat: 1,
-      midiClockCurrentBar: 1,      // Auto-Scene Feature State Init - Load from localStorage if available
-      ...((): any => {
-        const savedSettings = loadAutoSceneSettings();
-        return {
-          autoSceneEnabled: savedSettings.autoSceneEnabled ?? false,
-          autoSceneList: savedSettings.autoSceneList ?? [],
-          autoSceneMode: savedSettings.autoSceneMode ?? 'forward',
-          autoSceneCurrentIndex: -1, // Always start fresh, don't persist current index
-          autoScenePingPongDirection: 'forward', // Always start fresh
-          autoSceneBeatDivision: savedSettings.autoSceneBeatDivision ?? 4,
-          autoSceneManualBpm: savedSettings.autoSceneManualBpm ?? 120,
-          autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
-          autoSceneLastTapTime: 0, // Don't persist timing state
-          autoSceneTapTimes: [], // Don't persist timing state
-          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',          autoSceneIsFlashing: false, // Initial flashing state
-        };
-      })(),
+      if (index === -1) {
+        selectedChannels.push(channel)
+      } else {
+        selectedChannels.splice(index, 1)
+      }
+      
+      set({ selectedChannels })
+    },
+    
+    selectAllChannels: () => {
+      const selectedChannels = Array.from({ length: 512 }, (_, i) => i)
+      set({ selectedChannels })
+    },
+    
+    deselectAllChannels: () => {
+      set({ selectedChannels: [] })
+    },
+    
+    invertChannelSelection: () => {
+      const currentSelection = get().selectedChannels
+      const allChannels = Array.from({ length: 512 }, (_, i) => i)
+      const newSelection = allChannels.filter(ch => !currentSelection.includes(ch))
+      set({ selectedChannels: newSelection })
+    },
+    
+    setOscAssignment: (channelIndex, address) => {
+      const oscAssignments = [...get().oscAssignments];
+      oscAssignments[channelIndex] = address;
+      set({ oscAssignments });
+      axios.post('/api/osc/assign', { channelIndex, address })
+        .catch(error => {
+          console.error('Failed to set OSC assignment:', error);
+          get().addNotification({ message: 'Failed to set OSC assignment', type: 'error' });
+        });
+    },
 
-      // Autopilot Track System Initial State
-      autopilotTrackEnabled: false,
-      autopilotTrackType: 'circle',
-      autopilotTrackPosition: 0,
-      autopilotTrackSize: 50,
-      autopilotTrackSpeed: 50,
-      autopilotTrackCenterX: 127,
-      autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
-      autopilotTrackCustomPoints: [],
-
-      // Recording and Automation System Initial State
-      recordingActive: false,
-      recordingStartTime: null,
-      recordingData: [],
-      automationTracks: [],
-      automationPlayback: {
-        active: false,
-        startTime: null,
-        duration: 10000, // Default 10 seconds        position: 0
-      },      // Smooth DMX Output System Initial State  
-      smoothDmxEnabled: true, // Enable by default for better performance
-      smoothDmxUpdateRate: 30, // 30 FPS update rate
-      smoothDmxThreshold: 1, // Minimum change of 1 DMX unit
-      pendingSmoothUpdates: {},
-      lastSmoothUpdateTime: 0,
-
-      // Timeline Sequence Management Initial State
-      timelineSequences: [
-        {
-          id: 'moving-head-example',
-          name: 'Example: Moving Head Pan/Tilt',
-          description: 'A smooth figure-eight pattern using pan and tilt channels',
-          duration: 10000, // 10 seconds
-          channels: [
-            {
-              channel: 1, // Pan channel
-              keyframes: [
-                { time: 0, value: 0, curve: 'ease-in-out' },
-                { time: 2500, value: 255, curve: 'ease-in-out' },
-                { time: 5000, value: 0, curve: 'ease-in-out' },
-                { time: 7500, value: 255, curve: 'ease-in-out' },
-                { time: 10000, value: 0, curve: 'ease-in-out' }
-              ]
-            },
-            {
-              channel: 2, // Tilt channel
-              keyframes: [
-                { time: 0, value: 127, curve: 'ease-in-out' },
-                { time: 2500, value: 255, curve: 'ease-in-out' },
-                { time: 5000, value: 127, curve: 'ease-in-out' },
-                { time: 7500, value: 0, curve: 'ease-in-out' },
-                { time: 10000, value: 127, curve: 'ease-in-out' }
-              ]
-            }
-          ],
-          tags: ['example', 'moving head', 'pan/tilt'],
-          createdAt: Date.now(),
-          modifiedAt: Date.now()
-        },
-        {
-          id: 'blank-timeline',
-          name: 'Blank Timeline',
-          description: 'A fresh timeline ready for your creativity',
-          duration: 5000, // 5 seconds
-          channels: [], // No channels initially
-          tags: ['template'],
-          createdAt: Date.now(),
-          modifiedAt: Date.now()
+    reportOscActivity: (channelIndex, value) => {
+      set(state => ({
+        oscActivity: {
+          ...state.oscActivity,
+          [channelIndex]: { value, timestamp: Date.now() }
         }
-      ],
-      activeTimelineSequence: null,
-      timelineEditMode: false,
-      timelinePresets: [],
-      timelinePlayback: {
-        active: false,
-        sequenceId: null,
-        startTime: null,
-        position: 0,
-        loop: false,
-        speed: 1.0,
-        direction: 'forward',
-        pingPong: false,
-        pingPongDirection: 'forward'
-      },
+      }));
+    },
+    
+    addOscMessage: (message) => { // Implemented addOscMessage
+      const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
+      set({ oscMessages: messages });
+      // console.log('OSC message received in store:', message); // Optional: for debugging
+    },
+
+    // MIDI Actions
+    startMidiLearn: (target) => {
+      set({ midiLearnTarget: target });
+      get().addNotification({ 
+        message: `MIDI Learn started for ${target.type === 'dmxChannel' ? 'DMX Ch: ' + (target.channelIndex + 1) : 'Master Slider: ' + target.id }`, 
+        type: 'info', 
+        priority: 'low' 
+      });
+      if (target.type === 'dmxChannel') {
+          axios.post('/api/midi/learn', { channel: target.channelIndex })
+            .catch(error => {
+              console.error('Failed to start MIDI learn for DMX channel:', error);
+              get().addNotification({ message: 'Failed to start MIDI learn for DMX channel', type: 'error' });
+            });
+      }
+    },
+    
+    cancelMidiLearn: () => {
+      const currentTarget = get().midiLearnTarget;
+      set({ midiLearnTarget: null });
+      get().addNotification({ message: 'MIDI Learn cancelled', type: 'info', priority: 'low' });
       
-      _recalculateDmxOutput: () => {
-        const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
-        const newDmxValuesArray = [...dmxChannels]; // Base DMX state for this calculation run
-        const newDmxValuesBatch: DmxChannelBatchUpdate = {};
-
-        const activeSoloGroups = groups.filter(g => g.isSolo);
-
-        fixtures.forEach((fixture, fixtureIdx) => {
-          const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtureIdx));
-
-          let isFixtureSoloActive = true;
-          if (activeSoloGroups.length > 0) {
-            isFixtureSoloActive = fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
-          }
-
-          fixture.channels.forEach((channel, channelIdx) => {
-            const dmxAddress = fixture.startAddress + channelIdx - 1; // 0-indexed
-            if (dmxAddress < 0 || dmxAddress >= 512) return;
-
-            let baseValueForGroupEffects = newDmxValuesArray[dmxAddress];
-            let currentChannelValue = baseValueForGroupEffects; // Initialize with base
-
-            if (fixtureGroups.length > 0) {
-              const firstGroup = fixtureGroups[0]; // Prioritize the first group for P/T/Z, Master, Mute logic
-
-              // Determine base value for intensity effects if lastStates is available
-              const channelTypeUpper = channel.type.toUpperCase();
-              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-                if (firstGroup.masterValue > 0 && firstGroup.lastStates && firstGroup.lastStates.length === 512) {
-                  baseValueForGroupEffects = firstGroup.lastStates[dmxAddress];
-                }
-                // If masterValue is 0, or lastStates isn't valid, baseValueForGroupEffects remains newDmxValuesArray[dmxAddress]
-                // which will correctly become 0 if muted or master is 0.
-                currentChannelValue = baseValueForGroupEffects; // Re-initialize for intensity channel based on lastStates logic
-              }
-
-              // Apply Group P/T/Z (operates on currentChannelValue, which is from newDmxValuesArray unless it's an intensity channel using lastStates)
-              // For PAN/TILT/ZOOM, they typically operate on whatever the current DMX value is (e.g. from a scene or manual override).
-              // If P/T/Z channels are also intensity, the baseValueForGroupEffects logic for intensity above would apply.
-              // However, typically P/T/Z are separate or combined with intensity where master/mute applies to intensity part.
-              // Let's assume P/T/Z apply to the initial `newDmxValuesArray[dmxAddress]` value.
-              let ptzModifiedValue = newDmxValuesArray[dmxAddress]; // Use initial DMX for P/T/Z base
-
-              if (firstGroup.panOffset !== undefined && channel.type.toUpperCase() === 'PAN') {
-                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.panOffset));
-              }
-              if (firstGroup.tiltOffset !== undefined && channel.type.toUpperCase() === 'TILT') {
-                ptzModifiedValue = Math.max(0, Math.min(255, ptzModifiedValue + firstGroup.tiltOffset));
-              }
-              if (firstGroup.zoomValue !== undefined && channel.type.toUpperCase() === 'ZOOM') {
-                ptzModifiedValue = Math.max(0, Math.min(255, firstGroup.zoomValue)); // Zoom is absolute
-              }
-
-              // If the channel is NOT intensity/dimmer, P/T/Z applies directly.
-              // If it IS intensity/dimmer, P/T/Z effect is on the non-intensity aspect (which we assume is separate here).
-              // The `currentChannelValue` for intensity is based on `baseValueForGroupEffects`.
-              // This logic assumes P/T/Z are not the *same* channels as master/mute sensitive intensity.
-              // If they are (e.g. a moving head's dimmer channel), this logic needs refinement.
-              // For now, if it's PAN/TILT/ZOOM, we take that value. If it's DIMMER/INTENSITY, we proceed with its own base.
-              if (channelTypeUpper === 'PAN' || channelTypeUpper === 'TILT' || channelTypeUpper === 'ZOOM') {
-                currentChannelValue = ptzModifiedValue;
-              }
-
-
-              // Apply Group Master/Mute for intensity/dimmer channels
-              if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-                if (firstGroup.isMuted) {
-                  currentChannelValue = 0;
-                } else {
-                  // Master value scales the chosen base (either from lastStates or current DMX)
-                  currentChannelValue = Math.round(baseValueForGroupEffects * (firstGroup.masterValue / 255));
-                }
-              }
-            }
-
-            // Apply Solo Logic for intensity/dimmer channels
-            const channelTypeUpper = channel.type.toUpperCase(); // Re-check for safety, though already have it
-            if (channelTypeUpper === 'DIMMER' || channelTypeUpper === 'INTENSITY') {
-              if (!isFixtureSoloActive) {
-                currentChannelValue = 0;
-              }
-            }
-
-            const finalValue = Math.max(0, Math.min(255, Math.round(currentChannelValue)));
-            if (newDmxValuesArray[dmxAddress] !== finalValue || !(dmxAddress in newDmxValuesBatch)) {
-              // Update batch if value changed OR if it wasn't set by a prior fixture but needs to be included
-              newDmxValuesBatch[dmxAddress] = finalValue;
-            }
-            // We don't write to newDmxValuesArray here because each fixture's calculation should start from the original dmxChannels snapshot
-            // or its group's lastStates, not be influenced by other groups' calculations in the same pass, to avoid order dependency issues.
-            // The batch update will apply all final values at the end.
+      if (currentTarget && currentTarget.type === 'dmxChannel') {
+        axios.post('/api/midi/cancel-learn', { channel: currentTarget.channelIndex })
+          .catch(error => {
+            console.error('Failed to cancel MIDI learn for DMX channel:', error);
           });
+      }
+    },
+    
+    addMidiMessage: (message) => {
+      const messages = [...get().midiMessages, message].slice(-20)
+      set({ midiMessages: messages })
+      console.log('MIDI message received:', message)
+    },
+    
+    addMidiMapping: (dmxChannel, mapping) => {
+      const midiMappings = { ...get().midiMappings }
+      midiMappings[dmxChannel] = mapping
+      set({ midiMappings, midiLearnTarget: null }) 
+      
+      axios.post('/api/midi/mapping', { dmxChannel, mapping })
+        .then(() => {
+          get().addNotification({ message: `MIDI mapped to DMX Ch: ${dmxChannel + 1}`, type: 'success' });
+        })
+        .catch(error => {
+          console.error('Failed to add MIDI mapping:', error)
+          get().addNotification({ message: 'Failed to add MIDI mapping', type: 'error', priority: 'high' }) 
+        })
+    },
+    
+    removeMidiMapping: (dmxChannel) => {
+      const midiMappings = { ...get().midiMappings }
+      delete midiMappings[dmxChannel]
+      set({ midiMappings })
+      
+      axios.delete(`/api/midi/mapping/${dmxChannel}`)
+        .then(() => {
+          get().addNotification({ message: `MIDI mapping removed for DMX Ch: ${dmxChannel + 1}`, type: 'success' });
+        })
+        .catch(error => {
+          console.error('Failed to remove MIDI mapping:', error)
+          get().addNotification({ message: 'Failed to remove MIDI mapping', type: 'error' }) 
+        })
+    },
+    
+    clearAllMidiMappings: () => {
+      set({ midiMappings: {} })
+      
+      axios.delete('/api/midi/mappings')
+        .then(() => {
+          get().addNotification({ message: 'All MIDI mappings cleared', type: 'success' });
+        })
+        .catch(error => {
+          console.error('Failed to clear all MIDI mappings:', error)
+          get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
+        })
+    },
+    
+    // Scene Actions
+    saveScene: (name, oscAddress) => {
+      const dmxChannels = get().dmxChannels
+      const newScene: Scene = {
+        name,
+        channelValues: [...dmxChannels],
+        oscAddress
+      }
+      
+      const scenes = [...get().scenes]
+      const existingIndex = scenes.findIndex(s => s.name === name)
+      
+      if (existingIndex !== -1) {
+        scenes[existingIndex] = newScene
+      } else {
+        scenes.push(newScene
+        )
+      }
+      
+      set({ scenes })
+      
+      axios.post('/api/scenes', newScene)
+        .then(() => {
+          get().addNotification({ message: `Scene '${name}' saved`, type: 'success' });
+        })
+        .catch(error => {
+          console.error('Failed to save scene:', error)
+          get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
+        })
+    },
+      loadScene: (name) => { 
+      const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
+      const scene = scenes.find(s => s.name === name);
+      
+      if (scene) {
+        if (isTransitioning && currentTransitionFrame) {
+          cancelAnimationFrame(currentTransitionFrame);
+          set({ currentTransitionFrame: null }); 
+        }
+
+        // Create a copy of scene values that we can modify
+        const targetDmxValues = [...scene.channelValues];
+
+        // For each group that ignores scene changes, restore their current DMX values
+        groups.forEach(group => {
+          if (group.ignoreSceneChanges) {
+            group.fixtureIndices.forEach(fixtureIndex => {
+              const fixture = fixtures[fixtureIndex];
+              if (fixture) {
+                // Calculate the DMX range for this fixture
+                const startAddr = fixture.startAddress - 1; // Convert to 0-based
+                const endAddr = startAddr + fixture.channels.length;
+                
+                // Copy current values for these channels
+                for (let i = startAddr; i < endAddr; i++) {
+                  targetDmxValues[i] = currentDmxState[i];
+                }
+              }
+            });
+          }
         });
 
-        // Create a full batch if any calculation path could have missed setting a value
-        // For safety, ensure all 512 channels are in the batch if any processing happened.
-        // A more optimized way would be to only send changed values, but _recalculateDmxOutput implies a full refresh.
-        // The current logic for newDmxValuesBatch only includes changed values.
-        // Let's ensure that if we started with dmxChannels, and applied group logic, the result is what we send.
-        // The `setMultipleDmxChannels` expects a DmxChannelBatchUpdate (Record<number, number>).
-        // We need to convert the `newDmxValuesArray` (which has been implicitly modified if we were writing to it)
-        // or build up the `newDmxValuesBatch` correctly.
-
-        // Correct approach: newDmxValuesArray is the "scratchpad" that gets modified to final values.
-        // Then compare newDmxValuesArray to original dmxChannels to build the minimal batch.
-        const finalBatch: DmxChannelBatchUpdate = {};
-        let hasChanges = false;
-        for (let i = 0; i < 512; i++) {
-          // The loop above calculates final values and puts them into newDmxValuesBatch if they changed from original newDmxValuesArray[i]
-          // However, the newDmxValuesArray itself was NOT updated inside the loop.
-          // This means the `baseValueForGroupEffects` was always from the original dmxChannels or lastStates.
-          // This is correct to avoid inter-group calculation order dependencies.
-          // The `newDmxValuesBatch` should correctly contain all intended changes.
-        }
-        // The current newDmxValuesBatch logic seems correct: it only adds if finalValue is different from the original state of newDmxValuesArray[dmxAddress]
-
-        if (Object.keys(newDmxValuesBatch).length > 0) {
-          // Before setting, update the local dmxChannels state completely with the results of this calculation pass
-          // This ensures that `get().dmxChannels` is the new calculated state *before* `setMultipleDmxChannels` (which might be async for backend)
-          const fullyCalculatedDmxState = [...get().dmxChannels];
-          for (const addr in newDmxValuesBatch) {
-            fullyCalculatedDmxState[parseInt(addr)] = newDmxValuesBatch[addr];
-          }
-          set({ dmxChannels: fullyCalculatedDmxState });
-
-          // Now send the batch to backend
-          axios.post('/api/dmx/batch', newDmxValuesBatch)
-            .catch(error => {
-              console.error('Failed to update DMX channels in batch from _recalculateDmxOutput:', error);
-              get().addNotification({ message: 'Failed to apply group DMX calculations', type: 'error', priority: 'high' });
-            });
-        }
-      },
-
-      // Actions
-      fetchInitialState: async () => {
-        try {
-          const response = await axios.get('/api/state', {
-            timeout: 5000,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          })
-          
-          if (response.status === 200 && response.data) {
-            const state = response.data
-            
-            set({
-              dmxChannels: state.dmxChannels || new Array(512).fill(0),
-              oscAssignments: state.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: state.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              fixtures: state.fixtures || [],
-              groups: state.groups || [],
-              midiMappings: state.midiMappings || {},
-              artNetConfig: state.artNetConfig || get().artNetConfig,
-              scenes: state.scenes || [],
-              fixtureLayout: state.fixtureLayout || [], 
-              masterSliders: state.masterSliders || [] 
-            })
-
-            if (state.settings && typeof state.settings.transitionDuration === 'number') {
-                set({ transitionDuration: state.settings.transitionDuration });
-            }
-            // No explicit success notification here, to avoid clutter on normal startup
-            return 
-          }
-          throw new Error('Invalid response from server')        } catch (error: any) {
-          console.error('Failed to fetch initial state:', error)
-          get().addNotification({ 
-            message:
-              error.code === 'ECONNABORTED'
-                ? 'Connection timeout - please check server status'
-                : 'Failed to fetch initial state - using default values',
-            type: 'error',
-            priority: 'high',
-            persistent: true
-          })
-          
-          // Only set default values if we don't have existing data
-          // This prevents clearing fixtures during navigation when server is unavailable
-          const currentState = get()
-          const hasExistingFixtures = currentState.fixtures && currentState.fixtures.length > 0
-          
-          if (!hasExistingFixtures) {
-            set({
-              dmxChannels: new Array(512).fill(0),
-              oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              fixtures: [],
-              groups: [],
-              midiMappings: {},
-              scenes: [],
-              fixtureLayout: [], 
-              masterSliders: [], 
-              transitionDuration: 1000, 
-            })
-          } else {
-            // If we have existing fixtures, only set essential defaults for missing data
-            set({
-              dmxChannels: currentState.dmxChannels || new Array(512).fill(0),
-              oscAssignments: currentState.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
-              channelNames: currentState.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-              // Keep existing fixtures, groups, etc.
-              midiMappings: currentState.midiMappings || {},
-              scenes: currentState.scenes || [],
-              masterSliders: currentState.masterSliders || [], 
-              transitionDuration: currentState.transitionDuration || 1000, 
-            })
-          }
-        }
-      },
-      
-      getDmxChannelValue: (channel) => {
-        const dmxChannels = get().dmxChannels;
-        if (channel >= 0 && channel < dmxChannels.length) {
-          return dmxChannels[channel] || 0;
-        }
-        return 0;
-      },
-      
-      setDmxChannel: (channel, value) => {
-        const dmxChannels = [...get().dmxChannels]
-        dmxChannels[channel] = value
-        set({ dmxChannels })
-        
-        axios.post('/api/dmx', { channel, value })
-          .catch(error => {
-            console.error('Failed to update DMX channel:', error)
-            get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
-          })
-      },
-
-      setMultipleDmxChannels: (updates) => {
-        const currentDmxChannels = get().dmxChannels;
-        const newDmxChannels = [...currentDmxChannels];
-        for (const channelStr in updates) {
-          const channel = parseInt(channelStr, 10);
-          if (channel >= 0 && channel < newDmxChannels.length) {
-            newDmxChannels[channel] = updates[channel];
-          }
-        }
-        set({ dmxChannels: newDmxChannels });
-
-        axios.post('/api/dmx/batch', updates)
-          .catch(error => {
-            console.error('Failed to update DMX channels in batch:', error);
-            get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
-          });
-      },      setDmxChannelValue: (channel, value) => { 
-        get().setDmxChannel(channel, value);
-        
-        // Record the change if recording is active
-        const { recordingActive } = get();
-        if (recordingActive) {
-          get().addRecordingEvent({
-            type: 'dmx',
-            channel,
-            value
-          });
-        }
-      },
-
-      setDmxChannelsForTransition: (values) => { 
-        set({ dmxChannels: values });
-      },
-
-      setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
-
-      clearTransitionState: () => set({
-        isTransitioning: false,
-        transitionStartTime: null,
-        fromDmxValues: null,
-        toDmxValues: null,
-        currentTransitionFrame: null,
-      }),
-
-      setTransitionDuration: (duration) => {
-        if (duration >= 0) { 
-          set({ transitionDuration: duration });
-        }
-      },
-      
-      selectChannel: (channel) => {
-        const selectedChannels = [...get().selectedChannels]
-        if (!selectedChannels.includes(channel)) {
-          selectedChannels.push(channel)
-          set({ selectedChannels })
-        }
-      },
-      
-      deselectChannel: (channel) => {
-        const selectedChannels = get().selectedChannels.filter(ch => ch !== channel)
-        set({ selectedChannels })
-      },
-      
-      toggleChannelSelection: (channel) => {
-        const selectedChannels = [...get().selectedChannels]
-        const index = selectedChannels.indexOf(channel)
-        
-        if (index === -1) {
-          selectedChannels.push(channel)
-        } else {
-          selectedChannels.splice(index, 1)
-        }
-        
-        set({ selectedChannels })
-      },
-      
-      selectAllChannels: () => {
-        const selectedChannels = Array.from({ length: 512 }, (_, i) => i)
-        set({ selectedChannels })
-      },
-      
-      deselectAllChannels: () => {
-        set({ selectedChannels: [] })
-      },
-      
-      invertChannelSelection: () => {
-        const currentSelection = get().selectedChannels
-        const allChannels = Array.from({ length: 512 }, (_, i) => i)
-        const newSelection = allChannels.filter(ch => !currentSelection.includes(ch))
-        set({ selectedChannels: newSelection })
-      },
-      
-      setOscAssignment: (channelIndex, address) => {
-        const oscAssignments = [...get().oscAssignments];
-        oscAssignments[channelIndex] = address;
-        set({ oscAssignments });
-        axios.post('/api/osc/assign', { channelIndex, address })
-          .catch(error => {
-            console.error('Failed to set OSC assignment:', error);
-            get().addNotification({ message: 'Failed to set OSC assignment', type: 'error' });
-          });
-      },
-
-      reportOscActivity: (channelIndex, value) => {
-        set(state => ({
-          oscActivity: {
-            ...state.oscActivity,
-            [channelIndex]: { value, timestamp: Date.now() }
-          }
-        }));
-      },
-      
-      addOscMessage: (message) => { // Implemented addOscMessage
-        const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
-        set({ oscMessages: messages });
-        // console.log('OSC message received in store:', message); // Optional: for debugging
-      },
-
-      // MIDI Actions
-      startMidiLearn: (target) => {
-        set({ midiLearnTarget: target });
-        get().addNotification({ 
-          message: `MIDI Learn started for ${target.type === 'dmxChannel' ? 'DMX Ch: ' + (target.channelIndex + 1) : 'Master Slider: ' + target.id }`, 
-          type: 'info', 
-          priority: 'low' 
+        set({
+          isTransitioning: true,
+          fromDmxValues: [...currentDmxState], 
+          toDmxValues: targetDmxValues,
+          transitionStartTime: Date.now(),
         });
-        if (target.type === 'dmxChannel') {
-            axios.post('/api/midi/learn', { channel: target.channelIndex })
-              .catch(error => {
-                console.error('Failed to start MIDI learn for DMX channel:', error);
-                get().addNotification({ message: 'Failed to start MIDI learn for DMX channel', type: 'error' });
-              });
-        }
-      },
-      
-      cancelMidiLearn: () => {
-        const currentTarget = get().midiLearnTarget;
-        set({ midiLearnTarget: null });
-        get().addNotification({ message: 'MIDI Learn cancelled', type: 'info', priority: 'low' });
         
-        if (currentTarget && currentTarget.type === 'dmxChannel') {
-          axios.post('/api/midi/cancel-learn', { channel: currentTarget.channelIndex })
-            .catch(error => {
-              console.error('Failed to cancel MIDI learn for DMX channel:', error);
-            });
-        }
-      },
-      
-      addMidiMessage: (message) => {
-        const messages = [...get().midiMessages, message].slice(-20)
-        set({ midiMessages: messages })
-        console.log('MIDI message received:', message)
-      },
-      
-      addMidiMapping: (dmxChannel, mapping) => {
-        const midiMappings = { ...get().midiMappings }
-        midiMappings[dmxChannel] = mapping
-        set({ midiMappings, midiLearnTarget: null }) 
-        
-        axios.post('/api/midi/mapping', { dmxChannel, mapping })
-          .then(() => {
-            get().addNotification({ message: `MIDI mapped to DMX Ch: ${dmxChannel + 1}`, type: 'success' });
-          })
+        get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
+        axios.post('/api/scenes/load', { name }) 
           .catch(error => {
-            console.error('Failed to add MIDI mapping:', error)
-            get().addNotification({ message: 'Failed to add MIDI mapping', type: 'error', priority: 'high' }) 
+            console.error('Failed to load scene:', error)
+            get().addNotification({ message: `Failed to load scene '${name}'`, type: 'error', priority: 'high' }) 
           })
-      },
+      } else {
+        get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
+      }
+    },
+    
+    updateScene: (originalName, updates) => {
+      const scenes = [...get().scenes]
+      const sceneIndex = scenes.findIndex(s => s.name === originalName)
       
-      removeMidiMapping: (dmxChannel) => {
-        const midiMappings = { ...get().midiMappings }
-        delete midiMappings[dmxChannel]
-        set({ midiMappings })
-        
-        axios.delete(`/api/midi/mapping/${dmxChannel}`)
-          .then(() => {
-            get().addNotification({ message: `MIDI mapping removed for DMX Ch: ${dmxChannel + 1}`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to remove MIDI mapping:', error)
-            get().addNotification({ message: 'Failed to remove MIDI mapping', type: 'error' }) 
-          })
-      },
-      
-      clearAllMidiMappings: () => {
-        set({ midiMappings: {} })
-        
-        axios.delete('/api/midi/mappings')
-          .then(() => {
-            get().addNotification({ message: 'All MIDI mappings cleared', type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to clear all MIDI mappings:', error)
-            get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
-          })
-      },
-      
-      // Scene Actions
-      saveScene: (name, oscAddress) => {
-        const dmxChannels = get().dmxChannels
-        const newScene: Scene = {
-          name,
-          channelValues: [...dmxChannels],
-          oscAddress
-        }
-        
-        const scenes = [...get().scenes]
-        const existingIndex = scenes.findIndex(s => s.name === name)
-        
-        if (existingIndex !== -1) {
-          scenes[existingIndex] = newScene
-        } else {
-          scenes.push(newScene
-          )
-        }
-        
+      if (sceneIndex !== -1) {
+        scenes[sceneIndex] = { ...scenes[sceneIndex], ...updates }
         set({ scenes })
         
-        axios.post('/api/scenes', newScene)
+        axios.put(`/api/scenes/${encodeURIComponent(originalName)}`, updates)
           .then(() => {
-            get().addNotification({ message: `Scene '${name}' saved`, type: 'success' });
+            get().addNotification({ message: `Scene '${originalName}' updated`, type: 'success' });
           })
           .catch(error => {
-            console.error('Failed to save scene:', error)
-            get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
+            console.error('Failed to update scene:', error)
+            get().addNotification({ message: `Failed to update scene '${originalName}'`, type: 'error' }) 
           })
-      },
-        loadScene: (name) => { 
-        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
-        const scene = scenes.find(s => s.name === name);
-        
-        if (scene) {
-          if (isTransitioning && currentTransitionFrame) {
-            cancelAnimationFrame(currentTransitionFrame);
-            set({ currentTransitionFrame: null }); 
+      } else {
+        get().addNotification({ message: `Scene "${originalName}" not found`, type: 'error' }) 
+      }
+    },
+    
+    deleteScene: (name) => {
+      const scenes = get().scenes.filter(s => s.name !== name)
+      set({ scenes })
+      
+      axios.delete(`/api/scenes/${encodeURIComponent(name)}`)
+        .then(() => {
+          get().addNotification({ message: `Scene '${name}' deleted`, type: 'success' });
+        })
+        .catch(error => {
+          console.error('Failed to delete scene:', error)
+          get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
+        })
+    },
+    
+    // Config Actions
+    updateArtNetConfig: (config) => {
+      const socket = get().socket
+      if (socket?.connected) {
+        socket.emit('updateArtNetConfig', config)
+        set({ artNetConfig: { ...get().artNetConfig, ...config } })
+        get().addNotification({ message: 'ArtNet config updated. Restart may be required.', type: 'info' });
+      } else {
+        get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
+      }
+    },
+    
+    updateDebugModules: (debugSettings) => {
+      const currentDebugModules = get().debugModules || { midi: false, osc: false, artnet: false, button: true };
+      const updatedDebugModules = { ...currentDebugModules, ...debugSettings };
+      
+      set({ debugModules: updatedDebugModules });
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('debugModules', JSON.stringify(updatedDebugModules));
+      
+      // Socket emit if needed
+      const socket = get().socket;
+      if (socket?.connected) {
+        socket.emit('updateDebugSettings', updatedDebugModules);
+      }
+    },
+
+    testArtNetConnection: () => {
+      const socket = get().socket
+      if (socket?.connected) {
+        socket.emit('testArtNetConnection')
+        get().addNotification({ message: 'Testing ArtNet connection...', type: 'info' }) 
+      } else {
+        get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
+      }
+    },
+
+    // Theme Actions
+    setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
+      set({ theme })
+      localStorage.setItem('theme', theme)
+      get().addNotification({ message: `Theme changed to ${theme}`, type: 'info' })
+    },
+
+    toggleDarkMode: () => {
+      const newDarkMode = !get().darkMode
+      set({ darkMode: newDarkMode })
+      localStorage.setItem('darkMode', newDarkMode.toString())
+      document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
+      get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
+    },
+
+    // UI Settings Actions
+    updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => {
+      const currentUiSettings = get().uiSettings;
+      const updatedUiSettings = { ...currentUiSettings, ...settings };
+      set({ uiSettings: updatedUiSettings });
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('uiSettings', JSON.stringify(updatedUiSettings));
+      
+      get().addNotification({ 
+        message: `UI settings updated`, 
+        type: 'success' 
+      });
+    },
+
+    toggleSparkles: () => {
+      const currentEnabled = get().uiSettings.sparklesEnabled;
+      const newEnabled = !currentEnabled;
+      
+      get().updateUiSettings({ sparklesEnabled: newEnabled });
+      
+      get().addNotification({ 
+        message: `Sparkles effect ${newEnabled ? 'enabled' : 'disabled'}`, 
+        type: 'info' 
+      });
+    },
+    
+    // Deprecated actions - can be removed later
+    // showStatusMessage: (text, type) => { 
+    //   get().addNotification({ message: text, type });
+    // },
+    // clearStatusMessage: () => {},
+
+    // Notification Actions
+    addNotification: (notificationInput: AddNotificationInput) => {
+      const newNotification: Notification = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+        timestamp: Date.now(),
+        message: notificationInput.message,
+        type: notificationInput.type,
+        priority: notificationInput.priority || 'normal',
+        persistent: notificationInput.persistent || false,
+        dismissible: notificationInput.dismissible !== undefined ? notificationInput.dismissible : true,
+      };
+      set((state) => {
+        const updatedNotifications = [...state.notifications, newNotification];
+        updatedNotifications.sort((a, b) => {
+          const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+          const priorityA = priorityOrder[a.priority || 'normal'];
+          const priorityB = priorityOrder[b.priority || 'normal'];
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
           }
+          return b.timestamp - a.timestamp; // Newest first for same priority
+        });
+        return { notifications: updatedNotifications };
+      });
+    },
+    removeNotification: (id: string) =>
+      set((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== id),
+      })),
+    clearAllNotifications: () => {
+      set({ notifications: [] });
+    },
 
-          // Create a copy of scene values that we can modify
-          const targetDmxValues = [...scene.channelValues];
+    setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
+    setBpm: (bpm: number) => set({ bpm }),
+    setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
+    setMidiActivity: (activity: number) => set({ midiActivity: activity }),
+    setFixtureLayout: (layout: PlacedFixture[]) => {
+      set({ fixtureLayout: layout });
+    },
 
-          // For each group that ignores scene changes, restore their current DMX values
-          groups.forEach(group => {
-            if (group.ignoreSceneChanges) {
-              group.fixtureIndices.forEach(fixtureIndex => {
-                const fixture = fixtures[fixtureIndex];
-                if (fixture) {
-                  // Calculate the DMX range for this fixture
-                  const startAddr = fixture.startAddress - 1; // Convert to 0-based
-                  const endAddr = startAddr + fixture.channels.length;
-                  
-                  // Copy current values for these channels
-                  for (let i = startAddr; i < endAddr; i++) {
-                    targetDmxValues[i] = currentDmxState[i];
-                  }
-                }
-              });
-            }
-          });
+    setCanvasBackgroundImage: (image: HTMLImageElement | null) => {
+      set({ canvasBackgroundImage: image });
+    },
 
-          set({
-            isTransitioning: true,
-            fromDmxValues: [...currentDmxState], 
-            toDmxValues: targetDmxValues,
-            transitionStartTime: Date.now(),
-          });
+    addMasterSlider: (slider: MasterSlider) => {
+      set(state => ({ masterSliders: [...state.masterSliders, slider] }));
+      get().addNotification({ message: `Master slider '${slider.name}' added`, type: 'success' });
+    },
+    
+    updateMasterSliderValue: (sliderId, value) => {
+      const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
+      const updatedSliders = masterSliders.map(s => 
+        s.id === sliderId ? { ...s, value } : s
+      );
+      set({ masterSliders: updatedSliders });
+
+      const activeSlider = updatedSliders.find(s => s.id === sliderId);
+      if (activeSlider && activeSlider.targets) {
+        activeSlider.targets.forEach(target => {            
+          const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
+          if (!pFixture) return;
+
+          const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId); 
+          if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
           
-          get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
-          axios.post('/api/scenes/load', { name }) 
-            .catch(error => {
-              console.error('Failed to load scene:', error)
-              get().addNotification({ message: `Failed to load scene '${name}'`, type: 'error', priority: 'high' }) 
-            })
-        } else {
-          get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
-        }
-      },
-      
-      updateScene: (originalName, updates) => {
-        const scenes = [...get().scenes]
-        const sceneIndex = scenes.findIndex(s => s.name === originalName)
-        
-        if (sceneIndex !== -1) {
-          scenes[sceneIndex] = { ...scenes[sceneIndex], ...updates }
-          set({ scenes })
-          
-          axios.put(`/api/scenes/${encodeURIComponent(originalName)}`, updates)
-            .then(() => {
-              get().addNotification({ message: `Scene '${originalName}' updated`, type: 'success' });
-            })
-            .catch(error => {
-              console.error('Failed to update scene:', error)
-              get().addNotification({ message: `Failed to update scene '${originalName}'`, type: 'error' }) 
-            })
-        } else {
-          get().addNotification({ message: `Scene "${originalName}" not found`, type: 'error' }) 
-        }
-      },
-      
-      deleteScene: (name) => {
-        const scenes = get().scenes.filter(s => s.name !== name)
-        set({ scenes })
-        
-        axios.delete(`/api/scenes/${encodeURIComponent(name)}`)
-          .then(() => {
-            get().addNotification({ message: `Scene '${name}' deleted`, type: 'success' });
-          })
-          .catch(error => {
-            console.error('Failed to delete scene:', error)
-            get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
-          })
-      },
-      
-      // Config Actions
-      updateArtNetConfig: (config) => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('updateArtNetConfig', config)
-          set({ artNetConfig: { ...get().artNetConfig, ...config } })
-          get().addNotification({ message: 'ArtNet config updated. Restart may be required.', type: 'info' });
-        } else {
-          get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-      
-      updateDebugModules: (debugSettings) => {
-        const currentDebugModules = get().debugModules || { midi: false, osc: false, artnet: false, button: true };
-        const updatedDebugModules = { ...currentDebugModules, ...debugSettings };
-        
-        set({ debugModules: updatedDebugModules });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('debugModules', JSON.stringify(updatedDebugModules));
-        
-        // Socket emit if needed
-        const socket = get().socket;
-        if (socket?.connected) {
-          socket.emit('updateDebugSettings', updatedDebugModules);
-        }
-      },
+          const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; 
 
-      testArtNetConnection: () => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('testArtNetConnection')
-          get().addNotification({ message: 'Testing ArtNet connection...', type: 'info' }) 
-        } else {
-          get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-
-      // Theme Actions
-      setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
-        set({ theme })
-        localStorage.setItem('theme', theme)
-        get().addNotification({ message: `Theme changed to ${theme}`, type: 'info' })
-      },
-
-      toggleDarkMode: () => {
-        const newDarkMode = !get().darkMode
-        set({ darkMode: newDarkMode })
-        localStorage.setItem('darkMode', newDarkMode.toString())
-        document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
-        get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
-      },
-
-      // UI Settings Actions
-      updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => {
-        const currentUiSettings = get().uiSettings;
-        const updatedUiSettings = { ...currentUiSettings, ...settings };
-        set({ uiSettings: updatedUiSettings });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('uiSettings', JSON.stringify(updatedUiSettings));
-        
-        get().addNotification({ 
-          message: `UI settings updated`, 
-          type: 'success' 
-        });
-      },
-
-      toggleSparkles: () => {
-        const currentEnabled = get().uiSettings.sparklesEnabled;
-        const newEnabled = !currentEnabled;
-        
-        get().updateUiSettings({ sparklesEnabled: newEnabled });
-        
-        get().addNotification({ 
-          message: `Sparkles effect ${newEnabled ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-      
-      // Deprecated actions - can be removed later
-      // showStatusMessage: (text, type) => { 
-      //   get().addNotification({ message: text, type });
-      // },
-      // clearStatusMessage: () => {},
-
-      // Notification Actions
-      addNotification: (notificationInput: AddNotificationInput) => {
-        const newNotification: Notification = {
-          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-          timestamp: Date.now(),
-          message: notificationInput.message,
-          type: notificationInput.type,
-          priority: notificationInput.priority || 'normal',
-          persistent: notificationInput.persistent || false,
-          dismissible: notificationInput.dismissible !== undefined ? notificationInput.dismissible : true,
-        };
-        set((state) => {
-          const updatedNotifications = [...state.notifications, newNotification];
-          updatedNotifications.sort((a, b) => {
-            const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
-            const priorityA = priorityOrder[a.priority || 'normal'];
-            const priorityB = priorityOrder[b.priority || 'normal'];
-            if (priorityA !== priorityB) {
-              return priorityA - priorityB;
-            }
-            return b.timestamp - a.timestamp; // Newest first for same priority
-          });
-          return { notifications: updatedNotifications };
-        });
-      },
-      removeNotification: (id: string) =>
-        set((state) => ({
-          notifications: state.notifications.filter((n) => n.id !== id),
-        })),
-      clearAllNotifications: () => {
-        set({ notifications: [] });
-      },
-
-      setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
-      setBpm: (bpm: number) => set({ bpm }),
-      setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
-      setMidiActivity: (activity: number) => set({ midiActivity: activity }),
-      setFixtureLayout: (layout: PlacedFixture[]) => {
-        set({ fixtureLayout: layout });
-      },
-
-      setCanvasBackgroundImage: (image: HTMLImageElement | null) => {
-        set({ canvasBackgroundImage: image });
-      },
-
-      addMasterSlider: (slider: MasterSlider) => {
-        set(state => ({ masterSliders: [...state.masterSliders, slider] }));
-        get().addNotification({ message: `Master slider '${slider.name}' added`, type: 'success' });
-      },
-      
-      updateMasterSliderValue: (sliderId, value) => {
-        const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
-        const updatedSliders = masterSliders.map(s => 
-          s.id === sliderId ? { ...s, value } : s
-        );
-        set({ masterSliders: updatedSliders });
-
-        const activeSlider = updatedSliders.find(s => s.id === sliderId);
-        if (activeSlider && activeSlider.targets) {
-          activeSlider.targets.forEach(target => {            
-            const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
-            if (!pFixture) return;
-
-            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId); 
-            if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
+          if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
+            const masterValueNormalized = value / 255;
+            let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
+            targetDmxValue = Math.round(targetDmxValue);
+            targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); 
             
-            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; 
+            dmxSetter(actualDmxAddress, targetDmxValue);
+          }
+        });
+      }
+    },
+    
+    updateMasterSlider: (sliderId, updatedSliderData) => {
+      set(state => ({
+        masterSliders: state.masterSliders.map(s => 
+          s.id === sliderId ? { ...s, ...updatedSliderData } : s
+        )
+      }));
+      get().addNotification({ message: `Master slider '${updatedSliderData.name || sliderId}' updated`, type: 'info' });
+    },
+    removeMasterSlider: (sliderId) => {
+      set(state => ({
+        masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
+      }));
+      get().addNotification({ message: `Master slider removed`, type: 'success' });
+    },
+    setMasterSliders: (sliders) => {
+      set({ masterSliders: sliders });
+    },
+    // This action is now dual-purpose:
+    // 1. Called by UI to request a source change (sends WS message).
+    // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
+    setSelectedMidiClockHostId: (hostId) => {
+      const { socket, addNotification, availableMidiClockHosts, selectedMidiClockHostId: currentSelectedHostId } = get();
 
-            if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
-              const masterValueNormalized = value / 255;
-              let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
-              targetDmxValue = Math.round(targetDmxValue);
-              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); 
-              
-              dmxSetter(actualDmxAddress, targetDmxValue);
-            }
-          });
-        }
-      },
-      
-      updateMasterSlider: (sliderId, updatedSliderData) => {
-        set(state => ({
-          masterSliders: state.masterSliders.map(s => 
-            s.id === sliderId ? { ...s, ...updatedSliderData } : s
-          )
-        }));
-        get().addNotification({ message: `Master slider '${updatedSliderData.name || sliderId}' updated`, type: 'info' });
-      },
-      removeMasterSlider: (sliderId) => {
-        set(state => ({
-          masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
-        }));
-        get().addNotification({ message: `Master slider removed`, type: 'success' });
-      },
-      setMasterSliders: (sliders) => {
-        set({ masterSliders: sliders });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a source change (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setSelectedMidiClockHostId: (hostId) => {
-        const { socket, addNotification, availableMidiClockHosts, selectedMidiClockHostId: currentSelectedHostId } = get();
+      // If called by UI (or to reflect a change initiated elsewhere that needs to be sent to backend)
+      // Check if it's a request to change the source via UI, not just a state update from backend
+      // A simple heuristic: if the hostId is different from current state and socket is connected, it's likely a user request.
+      // This distinction might need refinement if the action is purely for backend updates in some contexts.
+      // For now, assume if socket is present, it's a request path. If not, it's a direct state update (e.g. from WS handler).
 
-        // If called by UI (or to reflect a change initiated elsewhere that needs to be sent to backend)
-        // Check if it's a request to change the source via UI, not just a state update from backend
-        // A simple heuristic: if the hostId is different from current state and socket is connected, it's likely a user request.
-        // This distinction might need refinement if the action is purely for backend updates in some contexts.
-        // For now, assume if socket is present, it's a request path. If not, it's a direct state update (e.g. from WS handler).
+      if (socket?.connected && hostId !== currentSelectedHostId) { // Primary path for UI-initiated change
+        socket.emit('setMasterClockSource', hostId);
+        addNotification({
+          message: `Requesting Master Clock source change to ${availableMidiClockHosts.find(h => h.id === hostId)?.name || 'Unknown'}...`,
+          type: 'info',
+        });
+        // Optimistic update removed: set({ selectedMidiClockHostId: hostId });
+      } else if (!socket?.connected && hostId !== currentSelectedHostId) { // UI tried to change but not connected
+         addNotification({
+          message: 'Cannot change Master Clock: Not connected to server.',
+          type: 'error',
+        });
+      } else { // This path handles direct state update (e.g., from WebSocket handler)
+        set({ selectedMidiClockHostId: hostId });
+        // Avoid sending notification if it's just reflecting a state update from backend
+      }
+    },
+    setAvailableMidiClockHosts: (hosts) => { // Called by WS handler
+      set({ availableMidiClockHosts: hosts });
+    },
+    // This action is now dual-purpose:
+    // 1. Called by UI to request a BPM change for internal clock (sends WS message).
+    // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
+    setMidiClockBpm: (bpm) => { // Renamed in spirit to `requestOrSetMidiClockBpm`
+      const { socket, addNotification, selectedMidiClockHostId, midiClockBpm: currentBpm } = get();
 
-        if (socket?.connected && hostId !== currentSelectedHostId) { // Primary path for UI-initiated change
-          socket.emit('setMasterClockSource', hostId);
-          addNotification({
-            message: `Requesting Master Clock source change to ${availableMidiClockHosts.find(h => h.id === hostId)?.name || 'Unknown'}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ selectedMidiClockHostId: hostId });
-        } else if (!socket?.connected && hostId !== currentSelectedHostId) { // UI tried to change but not connected
-           addNotification({
-            message: 'Cannot change Master Clock: Not connected to server.',
-            type: 'error',
-          });
-        } else { // This path handles direct state update (e.g., from WebSocket handler)
-          set({ selectedMidiClockHostId: hostId });
-          // Avoid sending notification if it's just reflecting a state update from backend
-        }
-      },
-      setAvailableMidiClockHosts: (hosts) => { // Called by WS handler
-        set({ availableMidiClockHosts: hosts });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a BPM change for internal clock (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setMidiClockBpm: (bpm) => { // Renamed in spirit to `requestOrSetMidiClockBpm`
-        const { socket, addNotification, selectedMidiClockHostId, midiClockBpm: currentBpm } = get();
-
-        // If called by UI to change BPM (heuristic: for internal clock, different BPM, socket connected)
-        if (socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) { // Path for UI-initiated change for internal clock
-          socket.emit('setInternalClockBPM', bpm);
-          addNotification({
-            message: `Requesting Internal Clock BPM change to ${bpm}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ midiClockBpm: bpm });
-        } else if (!socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) {
-          addNotification({
-            message: 'Cannot change Internal Clock BPM: Not connected to server.',
-            type: 'error',
-          });
-        }
-        // This will always update the local state, either optimistically (if UI call fails to send) or from backend broadcast
-        set({ midiClockBpm: bpm });
-      },
-      setMidiClockIsPlaying: (isPlaying) => { // Called by WS handler
-        set({ midiClockIsPlaying: isPlaying });
-      },
-      setMidiClockBeatBar: (beat, bar) => { // Called by WS handler
-        set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar });
-      },
-      requestToggleMasterClockPlayPause: () => { // Renamed from toggleInternalMidiClockPlayState
-        const { socket, addNotification } = get();
-        if (socket?.connected) {
-          socket.emit('toggleMasterClockPlayPause');
-          // Notification can be added if desired, e.g., "Play/pause request sent"
-          // The actual state (isPlaying, beat, bar) will update via 'masterClockUpdate'
-        } else {
-          addNotification({
-            message: 'Cannot toggle play/pause: Not connected to server.',
-            type: 'error',
-          });
-        }
-      },      // Auto-Scene Actions
+      // If called by UI to change BPM (heuristic: for internal clock, different BPM, socket connected)
+      if (socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) { // Path for UI-initiated change for internal clock
+        socket.emit('setInternalClockBPM', bpm);
+        addNotification({
+          message: `Requesting Internal Clock BPM change to ${bpm}...`,
+          type: 'info',
+        });
+        // Optimistic update removed: set({ midiClockBpm: bpm });
+      } else if (!socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) {
+        addNotification({
+          message: 'Cannot change Internal Clock BPM: Not connected to server.',
+          type: 'error',
+        });
+      }
+      // This will always update the local state, either optimistically (if UI call fails to send) or from backend broadcast
+      set({ midiClockBpm: bpm });
+    },
+    setMidiClockIsPlaying: (isPlaying) => { // Called by WS handler
+      set({ midiClockIsPlaying: isPlaying });
+    },
+    setMidiClockBeatBar: (beat, bar) => { // Called by WS handler
+      set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar });
+    },
+    requestToggleMasterClockPlayPause: () => { // Renamed from toggleInternalMidiClockPlayState
+      const { socket, addNotification } = get();
+      if (socket?.connected) {
+        socket.emit('toggleMasterClockPlayPause');
+        // Notification can be added if desired, e.g., "Play/pause request sent"
+        // The actual state (isPlaying, beat, bar) will update via 'masterClockUpdate'
+      } else {
+        addNotification({
+          message: 'Cannot toggle play/pause: Not connected to server.',
+          type: 'error',
+        });
+      }
+    },      // Auto-Scene Actions
   setAutoSceneEnabled: (enabled) => {
     set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
     saveCurrentAutoSceneSettings(get());
@@ -2361,7 +2136,7 @@ export const useStore = create<State>()(
           }
           
           keyframes.push({ 
-            time, 
+            time: t * duration, 
             value: Math.max(0, Math.min(255, value)), 
             curve: preset === 'random' ? 'linear' : 'smooth' 
           });
@@ -2902,7 +2677,7 @@ export const useStore = create<State>()(
                 keyframes.push({
                   time: t,
                   value: Math.max(0, Math.min(255, value)),
-                  curve: 'smooth'
+                  curve: preset === 'random' ? 'linear' : 'smooth' 
                 });
               }
               
@@ -3044,6 +2819,149 @@ export const useStore = create<State>()(
         }));
 
         console.log(`Timeline sequence "${newSequence.name}" created from preset "${preset.name}"`);
+      },
+
+      // MIDI Timeline Control Functions
+      setTimelineMidiTrigger: (sequenceId, mapping) => {
+        if (mapping) {
+          set(state => ({
+            timelineMidiMappings: {
+              ...state.timelineMidiMappings,
+              [sequenceId]: mapping
+            }
+          }));
+          get().addNotification({ 
+            message: `MIDI trigger assigned to timeline sequence`, 
+            type: 'success' 
+          });
+        } else {
+          // Remove mapping
+          set(state => {
+            const newMappings = { ...state.timelineMidiMappings };
+            delete newMappings[sequenceId];
+            return { timelineMidiMappings: newMappings };
+          });
+          get().addNotification({ 
+            message: `MIDI trigger removed from timeline sequence`, 
+            type: 'info' 
+          });
+        }
+      },
+
+      triggerTimelineFromMidi: (midiChannel, note, controller) => {
+        const { timelineMidiMappings, timelineSequences } = get();
+        
+        // Find matching timeline sequence
+        const matchingSequenceId = Object.keys(timelineMidiMappings).find(sequenceId => {
+          const mapping = timelineMidiMappings[sequenceId];
+          return mapping.channel === midiChannel && 
+                 ((note !== undefined && mapping.note === note) ||
+                  (controller !== undefined && mapping.controller === controller));
+        });
+
+        if (matchingSequenceId) {
+          const sequence = timelineSequences.find(s => s.id === matchingSequenceId);
+          if (sequence) {
+            // Toggle playback - if already playing this sequence, stop it; otherwise start it
+            const { timelinePlayback } = get();
+            if (timelinePlayback.active && timelinePlayback.sequenceId === matchingSequenceId) {
+              get().stopTimelinePlayback();
+              get().addNotification({ 
+                message: `Timeline "${sequence.name}" stopped via MIDI`, 
+                type: 'info' 
+              });
+            } else {
+              get().playTimelineSequence(matchingSequenceId);
+              get().addNotification({ 
+                message: `Timeline "${sequence.name}" triggered via MIDI`, 
+                type: 'success' 
+              });
+            }
+          }
+        }
+      },
+
+      // MIDI Timeline Playback Control Functions
+      setTimelineControlMidiMapping: (controlType, mapping) => {
+        if (mapping) {
+          set(state => ({
+            timelineControlMidiMappings: {
+              ...state.timelineControlMidiMappings,
+              [controlType]: mapping
+            }
+          }));
+          get().addNotification({ 
+            message: `MIDI mapping assigned to ${controlType} control`, 
+            type: 'success' 
+          });
+        } else {
+          // Remove mapping
+          set(state => {
+            const newMappings = { ...state.timelineControlMidiMappings };
+            delete newMappings[controlType];
+            return { timelineControlMidiMappings: newMappings };
+          });
+          get().addNotification({ 
+            message: `MIDI mapping removed from ${controlType} control`, 
+            type: 'info' 
+          });
+        }
+      },
+
+      triggerTimelineControlFromMidi: (midiChannel, note, controller) => {
+        const { timelineControlMidiMappings } = get();
+        
+        // Find matching control mapping
+        const mapping = Object.values(timelineControlMidiMappings).find(m => 
+          m.channel === midiChannel && 
+          ((note !== undefined && m.note === note) ||
+           (controller !== undefined && m.controller === controller))
+        );
+
+        if (mapping) {
+          const { type } = mapping;
+          const { timelinePlayback } = get();
+
+          // Handle play/pause toggle
+          if (type === 'play') {
+            if (timelinePlayback.active) {
+              get().stopTimelinePlayback();
+              get().addNotification({ 
+                message: `Playback stopped via MIDI`, 
+                type: 'info' 
+              });
+            } else {
+              get().playTimelineSequence(timelinePlayback.sequenceId);
+              get().addNotification({ 
+                message: `Playback started via MIDI`, 
+                type: 'success' 
+              });
+            }
+          } else if (type === 'loop' || type === 'bounce' || type === 'reverse') {
+            // For loop, bounce, reverse - toggle or set directly
+            const newValue = type === 'loop' ? !timelinePlayback.loop : type === 'reverse' ? 'reverse' : 'forward';
+            set(state => ({
+              timelinePlayback: {
+                ...state.timelinePlayback,
+                loop: type === 'loop' ? !state.timelinePlayback.loop : state.timelinePlayback.loop,
+                direction: newValue,
+                pingPong: type === 'bounce'
+              }
+            }));
+            get().addNotification({ 
+              message: `Playback ${type === 'loop' ? 'looping' : type === 'reverse' ? 'reversed' : 'bouncing'} set via MIDI`, 
+              type: 'info' 
+            });
+          }
+        }
+      },
+
+      clearTimelineControlMidiMappings: () => {
+        set({ timelineControlMidiMappings: {} });
+        get().addNotification({ 
+          message: 'All timeline control MIDI mappings cleared', 
+          type: 'info' 
+        });
       },
     })
   )
