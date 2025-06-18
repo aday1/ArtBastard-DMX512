@@ -176,7 +176,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   }>>([]);
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [sceneAutoSave, setSceneAutoSave] = useState(false);
-
   // TouchOSC Export state
   const [showTouchOscExport, setShowTouchOscExport] = useState(false);
   const [touchOscExportOptions, setTouchOscExportOptions] = useState<SuperControlExportOptions>({
@@ -200,6 +199,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     message: '',
     isSuccess: false,
   });
+
+  // OSC Help state
+  const [showOscHelp, setShowOscHelp] = useState(false);
 
   // TouchOSC Export function
   const handleTouchOscExport = async () => {
@@ -1125,7 +1127,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     };
   }, [fixtures, selectedFixtures, selectedChannels, selectedGroups, selectionMode]);
 
-  // ...existing code...
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -1162,9 +1163,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
           >
             <LucideIcon name="Smartphone" />
             TouchOSC
-          </button>
-          <button
+          </button>          <button
             className={styles.helpBtn}
+            onClick={() => setShowOscHelp(true)}
             title="Show OSC Addresses"
           >
             <LucideIcon name="HelpCircle" />
@@ -1236,8 +1237,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       {fixture.channels.length} channels
                     </span>
                   </div>
-                </div>
-              ))
+                </div>              ))
             )}
           </div>
         )}
@@ -2676,6 +2676,129 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   onClick={() => setShowTouchOscExport(false)}
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OSC Help Modal */}
+      {showOscHelp && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h3>OSC Addresses Reference</h3>
+              <button
+                className={styles.closeBtn}
+                onClick={() => setShowOscHelp(false)}
+              >
+                <LucideIcon name="X" />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>OSC control addresses for the SuperControl interface:</p>
+              
+              <div className={styles.oscAddressSection}>
+                <h4>Basic Controls</h4>
+                <div className={styles.oscAddressList}>
+                  <div className={styles.oscAddress}>
+                    <code>/dimmer</code>
+                    <span>Master Dimmer (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/red</code>
+                    <span>Red Color (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/green</code>
+                    <span>Green Color (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/blue</code>
+                    <span>Blue Color (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/white</code>
+                    <span>White Color (0.0 - 1.0)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.oscAddressSection}>
+                <h4>Movement Controls</h4>
+                <div className={styles.oscAddressList}>
+                  <div className={styles.oscAddress}>
+                    <code>/pan</code>
+                    <span>Pan Position (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/tilt</code>
+                    <span>Tilt Position (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/xy</code>
+                    <span>Combined Pan/Tilt (x, y values 0.0 - 1.0)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.oscAddressSection}>
+                <h4>GOBO & Effects</h4>
+                <div className={styles.oscAddressList}>
+                  <div className={styles.oscAddress}>
+                    <code>/gobo</code>
+                    <span>GOBO Selection (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/gobo_rotation</code>
+                    <span>GOBO Rotation (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/strobe</code>
+                    <span>Strobe Speed (0.0 - 1.0)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/focus</code>
+                    <span>Focus/Zoom (0.0 - 1.0)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.oscAddressSection}>
+                <h4>Scene Control</h4>
+                <div className={styles.oscAddressList}>
+                  <div className={styles.oscAddress}>
+                    <code>/scene/save</code>
+                    <span>Save Current Scene (bang/trigger)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/scene/prev</code>
+                    <span>Previous Scene (bang/trigger)</span>
+                  </div>
+                  <div className={styles.oscAddress}>
+                    <code>/scene/next</code>
+                    <span>Next Scene (bang/trigger)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.oscInfo}>
+                <h4>Usage Notes</h4>
+                <ul>
+                  <li>All values should be normalized between 0.0 and 1.0</li>
+                  <li>Bang/trigger messages can be sent with any value</li>
+                  <li>Default OSC port: 8000 (configurable in settings)</li>
+                  <li>Use TouchOSC or similar apps to control remotely</li>
+                </ul>
+              </div>
+              
+              <div className={styles.modalActions}>
+                <button
+                  className={styles.cancelBtn}
+                  onClick={() => setShowOscHelp(false)}
+                >
+                  Close
                 </button>
               </div>
             </div>

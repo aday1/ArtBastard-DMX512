@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperControl Button Fix Test Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #00d4ff;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .step {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #00d4ff;
+            border-radius: 4px;
+        }
+        .expected {
+            background: rgba(40, 167, 69, 0.2);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-x: auto;
+        }
+        .warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            color: #28a745;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .checklist {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .checklist input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎛️ SuperControl Button Fix Test Guide</h1>
+    <p>This guide helps you test the fixes for the TouchOSC and OSC Help buttons in the SuperControl component.</p>
+
+    <div class="success">
+        <h3>✅ What Was Fixed</h3>
+        <ul>
+            <li><strong>OSC Help Button:</strong> Added missing onClick handler to show OSC Help modal</li>
+            <li><strong>OSC Help Modal:</strong> Implemented complete modal with OSC address reference</li>
+            <li><strong>Button Styles:</strong> Added proper CSS styles for .touchOscBtn and .helpBtn classes</li>
+            <li><strong>Modal Styles:</strong> Added comprehensive modal styling system</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test Procedures</h2>
+
+        <h3>1. TouchOSC Button Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Open the SuperControl component in your application
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Look for the blue "TouchOSC" button in the header area (top right)
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Click the TouchOSC button
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> The TouchOSC Export modal should open with export options and settings
+        </div>
+
+        <h3>2. OSC Help Button Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Locate the yellow "OSC Help" button next to the TouchOSC button
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Click the OSC Help button
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> The OSC Help modal should open showing OSC address reference
+        </div>
+
+        <h3>3. Button Styling Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Verify both buttons have proper styling:
+            <ul>
+                <li>TouchOSC button: Blue color scheme with smartphone icon</li>
+                <li>OSC Help button: Yellow/amber color scheme with help circle icon</li>
+            </ul>
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Test hover effects - buttons should glow and lift slightly on hover
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Both buttons should have modern, glowing appearance with smooth hover animations
+        </div>
+
+        <h3>4. OSC Help Modal Content Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Open the OSC Help modal
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Verify the modal contains these sections:
+            <ul>
+                <li>Basic Controls (/dimmer, /red, /green, /blue, /white)</li>
+                <li>Movement Controls (/pan, /tilt, /xy)</li>
+                <li>GOBO & Effects (/gobo, /gobo_rotation, /strobe, /focus)</li>
+                <li>Scene Control (/scene/save, /scene/prev, /scene/next)</li>
+                <li>Usage Notes section</li>
+            </ul>
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> All OSC addresses should be displayed with proper formatting and descriptions
+        </div>
+
+        <h3>5. Modal Functionality Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Test closing the OSC Help modal using the X button
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Test closing with the "Close" button at the bottom
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Test closing by clicking outside the modal (if implemented)
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Modal should close properly with all methods
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 OSC Address Reference (From Modal)</h2>
+        <p>The OSC Help modal should display these addresses:</p>
+
+        <h3>Basic Controls</h3>
+        <div class="code">
+/dimmer - Master Dimmer (0.0 - 1.0)
+/red - Red Color (0.0 - 1.0)
+/green - Green Color (0.0 - 1.0)
+/blue - Blue Color (0.0 - 1.0)
+/white - White Color (0.0 - 1.0)
+        </div>
+
+        <h3>Movement Controls</h3>
+        <div class="code">
+/pan - Pan Position (0.0 - 1.0)
+/tilt - Tilt Position (0.0 - 1.0)
+/xy - Combined Pan/Tilt (x, y values 0.0 - 1.0)
+        </div>
+
+        <h3>GOBO & Effects</h3>
+        <div class="code">
+/gobo - GOBO Selection (0.0 - 1.0)
+/gobo_rotation - GOBO Rotation (0.0 - 1.0)
+/strobe - Strobe Speed (0.0 - 1.0)
+/focus - Focus/Zoom (0.0 - 1.0)
+        </div>
+
+        <h3>Scene Control</h3>
+        <div class="code">
+/scene/save - Save Current Scene (bang/trigger)
+/scene/prev - Previous Scene (bang/trigger)
+/scene/next - Next Scene (bang/trigger)
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Test Checklist</h2>
+        <div class="checklist">
+            <label><input type="checkbox"> TouchOSC button is visible and properly styled</label><br>
+            <label><input type="checkbox"> OSC Help button is visible and properly styled</label><br>
+            <label><input type="checkbox"> TouchOSC button opens the export modal</label><br>
+            <label><input type="checkbox"> OSC Help button opens the help modal</label><br>
+            <label><input type="checkbox"> Both buttons have hover effects</label><br>
+            <label><input type="checkbox"> OSC Help modal displays all address sections</label><br>
+            <label><input type="checkbox"> OSC addresses are properly formatted</label><br>
+            <label><input type="checkbox"> Modal can be closed with X button</label><br>
+            <label><input type="checkbox"> Modal can be closed with Close button</label><br>
+            <label><input type="checkbox"> No console errors when clicking buttons</label><br>
+        </div>
+    </div>
+
+    <div class="warning">
+        <h3>⚠️ Troubleshooting</h3>
+        <p>If buttons still don't work:</p>
+        <ul>
+            <li><strong>Check Browser Console:</strong> Look for JavaScript errors</li>
+            <li><strong>Clear Cache:</strong> Hard refresh (Ctrl+F5) to ensure new styles load</li>
+            <li><strong>Check Network Tab:</strong> Verify CSS files are loading correctly</li>
+            <li><strong>Verify Build:</strong> Make sure the application was rebuilt after changes</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Technical Details</h2>
+        <h3>Files Modified</h3>
+        <ul>
+            <li><strong>SuperControl.tsx:</strong> Added onClick handler for OSC Help button and implemented OSC Help modal</li>
+            <li><strong>SuperControl.module.scss:</strong> Added button styles (.touchOscBtn, .helpBtn) and complete modal styling system</li>
+        </ul>
+
+        <h3>Key CSS Classes Added</h3>
+        <div class="code">
+.touchOscBtn - Blue TouchOSC button styling
+.helpBtn - Yellow OSC Help button styling
+.modal - Modal overlay and backdrop
+.modalContent - Modal content container
+.modalHeader - Modal header with title and close button
+.modalBody - Modal content area
+.oscAddressSection - OSC address section styling
+.oscAddress - Individual OSC address styling
+        </div>
+    </div>
+</body>
+</html>
