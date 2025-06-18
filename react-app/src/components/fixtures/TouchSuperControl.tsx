@@ -118,10 +118,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
   // Selection change callback
   useEffect(() => {
     const affected = getAffectedFixtures(); // getAffectedFixtures will now use globalSelectedFixtures
-    onSelectionChange?.(affected.length);
-  }, [globalSelectedFixtures, selectedGroups, selectedCapabilities, selectionMode, onSelectionChange, fixtures]); // Added fixtures to deps for getAffectedFixtures
+    onSelectionChange?.(affected.length);  }, [globalSelectedFixtures, selectedGroups, selectedCapabilities, selectionMode, onSelectionChange, fixtures]); // Added fixtures to deps for getAffectedFixtures
 
-  // Get DMX channel assignments for a control type
   const getDmxChannelForControl = useCallback((controlType: string): string => {
     const timestamp = new Date().toISOString();
     const logPrefix = `[${timestamp}] [TouchSuperControl.getDmxChannelForControl]`;
@@ -244,124 +242,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
       return `Ch ${sortedDmxChannels.join(', ')}`;
     } else {
       return `Ch ${sortedDmxChannels[0]}-${sortedDmxChannels[sortedDmxChannels.length - 1]} (${sortedDmxChannels.length})`;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [globalSelectedFixtures, selectedGroups, selectedCapabilities, selectionMode, onSelectionChange, fixtures, getAffectedFixtures]); // Added getAffectedFixtures to deps
-
-  const getDmxChannelForControl = useCallback((controlType: string): string => {
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[${timestamp}] [TouchSuperControl.getDmxChannelForControl]`;
-
-    const affectedFixtureObjects = getAffectedFixtures();
-
-    if (affectedFixtureObjects.length === 0) {
-      return 'No Sel';
-    }
-    
-    const dmxChannelsFound: number[] = [];
-    // affectedFixtureObjects is Array<{ fixture: Fixture; channels: Record<string, number> }>
-    // We need to iterate fixture.channels from fixture object for consistency with SuperControl's getDmxChannelForControl
-    affectedFixtureObjects.forEach((fixtObj: any) => {
-      const fixture = fixtObj.fixture; // Actual fixture definition
-      if (!fixture || !fixture.channels) return;
-
-      let targetChannelAddress = -1;
-      const controlTypeLower = controlType.toLowerCase();
-      
-      switch (controlTypeLower) {
-        case 'dimmer':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'dimmer')?.dmxAddress ?? -1;
-          break;
-        case 'pan':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'pan')?.dmxAddress ?? -1;
-          break;
-        case 'tilt':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'tilt')?.dmxAddress ?? -1;
-          break;
-        case 'finepan':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
-            return typeLower === 'finepan' || typeLower === 'fine_pan' || typeLower === 'pan_fine';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'finetilt':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
-            return typeLower === 'finetilt' || typeLower === 'fine_tilt' || typeLower === 'tilt_fine';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'red':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'red')?.dmxAddress ?? -1;
-          break;
-        case 'green':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'green')?.dmxAddress ?? -1;
-          break;
-        case 'blue':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'blue')?.dmxAddress ?? -1;
-          break;
-        case 'gobo':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'gobo')?.dmxAddress ?? -1;
-          break;
-        case 'shutter':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'shutter')?.dmxAddress ?? -1;
-          break;
-        case 'goborotation':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
-            return typeLower === 'goborotation' || typeLower === 'gobo_rotation';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'colorwheel':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
-            return typeLower === 'colorwheel' || typeLower === 'color_wheel';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'focus':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'focus')?.dmxAddress ?? -1;
-          break;
-        case 'zoom':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'zoom')?.dmxAddress ?? -1;
-          break;
-        case 'iris':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'iris')?.dmxAddress ?? -1;
-          break;
-        case 'prism':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'prism')?.dmxAddress ?? -1;
-          break;
-        case 'frost':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'frost')?.dmxAddress ?? -1;
-          break;
-        case 'macro':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'macro')?.dmxAddress ?? -1;
-          break;
-        case 'speed':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'speed')?.dmxAddress ?? -1;
-          break;
-        default:
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === controlTypeLower)?.dmxAddress ?? -1;
-          break;
-      }
-      
-      if (targetChannelAddress !== -1 && targetChannelAddress !== undefined) {
-        dmxChannelsFound.push(targetChannelAddress + 1); 
-      }
-    });
-    
-    if (dmxChannelsFound.length === 0) {
-      return 'No Ch';
-    }
-    if (dmxChannelsFound.length === 1) {
-      return `Ch ${dmxChannelsFound[0]}`;
-    }
-    
-    const sortedDmxChannels = [...new Set(dmxChannelsFound)].sort((a, b) => a - b);
-    if (sortedDmxChannels.length <= 3) {
-      return `Ch ${sortedDmxChannels.join(', ')}`;
-    } else {
-      return `Ch ${sortedDmxChannels[0]}-${sortedDmxChannels[sortedDmxChannels.length - 1]} (${sortedDmxChannels.length})`;
-    }
-  }, [getAffectedFixtures]); // getAffectedFixtures is the key dependency from component scope
+    }  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [globalSelectedFixtures, selectedGroups, selectedCapabilities, selectionMode, onSelectionChange, fixtures]); // Removed getAffectedFixtures to deps since it's defined later
 
   // Get fixture capabilities (fixtures grouped by shared channel types)
   const getFixtureCapabilities = (): FixtureCapability[] => {
@@ -488,40 +370,38 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
       return; 
     }
 
-    console.log(`[TouchSuperControl] applyControl: Processing ${affectedFixtures.length} affected fixtures.`);
-
-    affectedFixtures.forEach((fixtObj) => { // fixtObj is { fixture: any, channels: { [key:string]: number } }
+    console.log(`[TouchSuperControl] applyControl: Processing ${affectedFixtures.length} affected fixtures.`);    affectedFixtures.forEach((fixtObj) => { // fixtObj is { fixture: any, channels: { [key:string]: number } }
       const fixtureChannelsMap = fixtObj.channels;
       const fixtureName = fixtObj.fixture.name || fixtObj.fixture.id;
       let targetChannel: number | undefined;
 
       switch (controlType) {
         case 'dimmer':
-          targetChannel = channels['dimmer'] || channels['intensity'] || channels['master'];
+          targetChannel = fixtureChannelsMap['dimmer'] || fixtureChannelsMap['intensity'] || fixtureChannelsMap['master'];
           break;
         case 'pan':
-          targetChannel = channels['pan'];
+          targetChannel = fixtureChannelsMap['pan'];
           break;
         case 'tilt':
-          targetChannel = channels['tilt'];
+          targetChannel = fixtureChannelsMap['tilt'];
           break;
         case 'red':
-          targetChannel = channels['red'] || channels['r'];
+          targetChannel = fixtureChannelsMap['red'] || fixtureChannelsMap['r'];
           break;
         case 'green':
-          targetChannel = channels['green'] || channels['g'];
+          targetChannel = fixtureChannelsMap['green'] || fixtureChannelsMap['g'];
           break;
         case 'blue':
-          targetChannel = channels['blue'] || channels['b'];
+          targetChannel = fixtureChannelsMap['blue'] || fixtureChannelsMap['b'];
           break;
         case 'gobo':
-          targetChannel = channels['gobo'] || channels['gobowheel'] || channels['gobo_wheel'];
+          targetChannel = fixtureChannelsMap['gobo'] || fixtureChannelsMap['gobowheel'] || fixtureChannelsMap['gobo_wheel'];
           break;
         case 'shutter':
-          targetChannel = channels['shutter'];
+          targetChannel = fixtureChannelsMap['shutter'];
           break;
         case 'strobe':
-          targetChannel = channels['strobe'];
+          targetChannel = fixtureChannelsMap['strobe'];
           break;
       }
 
