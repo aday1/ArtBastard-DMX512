@@ -252,62 +252,73 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   };
 
   const getAffectedFixtures = () => {
-    console.log(`getAffectedFixtures called - selectionMode: ${selectionMode}`);
-    console.log(`Selected channels: ${selectedChannels.length}`, selectedChannels);
-    console.log(`Selected fixtures: ${selectedFixtures.length}`, selectedFixtures);
-    console.log(`Selected groups: ${selectedGroups.length}`, selectedGroups);
+    const timestamp = new Date().toISOString();
+    const logPrefix = `[${timestamp}] [getAffectedFixtures]`;
 
-    if (selectionMode === 'channels' && selectedChannels.length > 0) {
-      // Find fixtures that contain the selected channels
-      const affectedFixtures = fixtures.filter(fixture => 
-        fixture.channels.some(channel => 
-          selectedChannels.includes(channel.dmxAddress || 0)
-        )
-      );
-      console.log(`Channel mode: found ${affectedFixtures.length} affected fixtures`);
-      return affectedFixtures;
+    console.log(`${logPrefix} Called. selectionMode: ${selectionMode}`);
+    console.log(`${logPrefix} All fixtures in store:`, fixtures.map(f => f.id));
+
+    let affectedFixtures: any[] = [];
+
+    if (selectionMode === 'channels') {
+      console.log(`${logPrefix} Mode: channels. Selected channels:`, selectedChannels);
+      if (selectedChannels.length > 0) {
+        affectedFixtures = fixtures.filter(fixture =>
+          fixture.channels.some(channel =>
+            selectedChannels.includes(channel.dmxAddress || 0)
+          )
+        );
+      }
+    } else if (selectionMode === 'fixtures') {
+      const storeSelectedFixtures = useStore.getState().selectedFixtures;
+      console.log(`${logPrefix} Mode: fixtures. Selected fixtures (prop):`, selectedFixtures);
+      console.log(`${logPrefix} Mode: fixtures. Selected fixtures (store):`, storeSelectedFixtures);
+      if (storeSelectedFixtures.length > 0) {
+        affectedFixtures = fixtures.filter(fixture =>
+          storeSelectedFixtures.includes(fixture.id) // Use fixture.id
+        );
+      }
+    } else if (selectionMode === 'groups') {
+      console.log(`${logPrefix} Mode: groups. Selected groups:`, selectedGroups);
+      if (selectedGroups.length > 0) {
+        const groupFixturesNames = groups
+          .filter(group => selectedGroups.includes(group.name))
+          .flatMap(group => group.fixtureIndices.map(idx => fixtures[idx]?.name).filter(Boolean));
+        affectedFixtures = fixtures.filter(fixture =>
+          groupFixturesNames.includes(fixture.name)
+        );
+      }
+    } else if (selectionMode === 'capabilities') {
+      console.log(`${logPrefix} Mode: capabilities. Selected capabilities:`, selectedCapabilities);
+      if (selectedCapabilities.length > 0) {
+        affectedFixtures = fixtures.filter(fixture =>
+          fixture.channels.some(channel =>
+            selectedCapabilities.includes(channel.type)
+          )
+        );
+      }
     }
-      if (selectionMode === 'fixtures' && selectedFixtures.length > 0) {
-      const affectedFixtures = fixtures.filter(fixture => 
-        selectedFixtures.includes(fixture.id) // Use fixture.id instead of fixture.name
-      );
-      console.log(`Fixture mode: found ${affectedFixtures.length} affected fixtures`);
-      return affectedFixtures;
+
+    console.log(`${logPrefix} Affected fixtures before return:`, affectedFixtures.map(f => f.id));
+    if (affectedFixtures.length === 0) {
+      console.log(`${logPrefix} No fixtures affected - no valid selection or empty selection.`);
     }
-    
-    if (selectionMode === 'groups' && selectedGroups.length > 0) {
-      const groupFixtures = groups
-        .filter(group => selectedGroups.includes(group.name))
-        .flatMap(group => group.fixtureIndices.map(idx => fixtures[idx]?.name).filter(Boolean));
-      
-      const affectedFixtures = fixtures.filter(fixture => 
-        groupFixtures.includes(fixture.name)
-      );
-      console.log(`Group mode: found ${affectedFixtures.length} affected fixtures`);
-      return affectedFixtures;
-    }
-    
-    if (selectionMode === 'capabilities' && selectedCapabilities.length > 0) {
-      const affectedFixtures = fixtures.filter(fixture => 
-        fixture.channels.some(channel => 
-          selectedCapabilities.includes(channel.type)
-        )
-      );
-      console.log(`Capability mode: found ${affectedFixtures.length} affected fixtures`);
-      return affectedFixtures;
-    }
-    
-    console.log('No fixtures affected - no valid selection');
-    return [];
-  };  const applyControl = (controlType: string, value: number) => {
+    return affectedFixtures;
+  };
+
+  const applyControl = (controlType: string, value: number) => {
+    console.log(`[SuperControl] applyControl: Entered. controlType=${controlType}, value=${value}`);
     const affectedFixtures = getAffectedFixtures();
-    console.log(`[SuperControl] 🎛️ applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
+    console.log(`[SuperControl] 🎛️ applyControl: Affected fixtures length from getAffectedFixtures(): ${affectedFixtures.length}`);
+    // The existing log above is slightly different from the one requested to be here, 
+    // but it serves a similar purpose of logging type, value, and count. I'll keep it and add the new ones.
+
     console.log(`[SuperControl] Selection mode: ${selectionMode}`);
     
     if (selectionMode === 'channels') {
       console.log(`[SuperControl] Selected channels:`, selectedChannels);
     } else if (selectionMode === 'fixtures') {
-      console.log(`[SuperControl] Selected fixtures:`, selectedFixtures);
+      console.log(`[SuperControl] Selected fixtures (prop):`, selectedFixtures); // Note: SuperControl uses prop selectedFixtures here
     } else if (selectionMode === 'groups') {
       console.log(`[SuperControl] Selected groups:`, selectedGroups);
     } else if (selectionMode === 'capabilities') {
@@ -317,9 +328,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     if (affectedFixtures.length === 0) {
       console.warn('[SuperControl] ❌ No fixtures to apply control to - please select fixtures first!');
       console.warn('[SuperControl] 💡 Try clicking "Select All" or choose specific fixtures to control');
+      console.log('[SuperControl] applyControl: No affected fixtures. Will not call setDmxChannelValue.');
       return;
     }
     
+    console.log(`[SuperControl] applyControl: Processing ${affectedFixtures.length} affected fixtures.`);
     console.log(`[SuperControl] ✅ Applying ${controlType}=${value} to ${affectedFixtures.length} fixtures:`);
     affectedFixtures.forEach(fixture => console.log(`  - ${fixture.name} (channels: ${fixture.startAddress}-${fixture.startAddress + fixture.channels.length - 1})`));
     
@@ -443,63 +456,132 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
 
   // Get DMX channel assignments for a control type
   const getDmxChannelForControl = (controlType: string): string => {
+    const timestamp = new Date().toISOString();
+    const logPrefix = `[${timestamp}] [getDmxChannelForControl]`;
+
+    console.log(`${logPrefix} Called for controlType: ${controlType}`);
+
     const affectedFixtures = getAffectedFixtures();
-    if (affectedFixtures.length === 0) return 'No fixtures selected';
+    console.log(`${logPrefix} Affected fixtures count: ${affectedFixtures.length}`, affectedFixtures.map(f => ({ id: f.id, name: f.name })));
+
+    if (affectedFixtures.length === 0) {
+      const returnMsg = 'No fixtures selected';
+      console.log(`${logPrefix} Returning: "${returnMsg}"`);
+      return returnMsg;
+    }
     
     const channels: number[] = [];
     affectedFixtures.forEach(fixture => {
+      console.log(`${logPrefix} Processing fixture - ID: ${fixture.id}, Name: ${fixture.name}`);
+      console.log(`${logPrefix} Fixture channels for ${fixture.name}:`, fixture.channels.map((ch: any) => ({ type: ch.type, dmxAddress: ch.dmxAddress })));
       let targetChannel = -1;
+      const controlTypeLower = controlType.toLowerCase();
       
-      switch (controlType) {
+      switch (controlTypeLower) { // Switch on the lowercased controlType for case-insensitivity at the switch level
         case 'dimmer':
-          targetChannel = fixture.channels.find(c => c.type === 'dimmer')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'dimmer')?.dmxAddress ?? -1;
           break;
         case 'pan':
-          targetChannel = fixture.channels.find(c => c.type === 'pan')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'pan')?.dmxAddress ?? -1;
           break;
         case 'tilt':
-          targetChannel = fixture.channels.find(c => c.type === 'tilt')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'tilt')?.dmxAddress ?? -1;
           break;
-        case 'finePan':
-          targetChannel = fixture.channels.find(c => c.type === 'finePan' || c.type === 'fine_pan' || c.type === 'pan_fine')?.dmxAddress ?? -1;
+        case 'finepan': // Assuming controlType might come as 'finePan' or 'finepan'
+          targetChannel = fixture.channels.find((c: any) => {
+            const typeLower = c.type.toLowerCase();
+            return typeLower === 'finepan' || typeLower === 'fine_pan' || typeLower === 'pan_fine';
+          })?.dmxAddress ?? -1;
           break;
-        case 'fineTilt':
-          targetChannel = fixture.channels.find(c => c.type === 'fineTilt' || c.type === 'fine_tilt' || c.type === 'tilt_fine')?.dmxAddress ?? -1;
+        case 'finetilt': // Assuming controlType might come as 'fineTilt' or 'finetilt'
+          targetChannel = fixture.channels.find((c: any) => {
+            const typeLower = c.type.toLowerCase();
+            return typeLower === 'finetilt' || typeLower === 'fine_tilt' || typeLower === 'tilt_fine';
+          })?.dmxAddress ?? -1;
           break;
         case 'red':
-          targetChannel = fixture.channels.find(c => c.type === 'red')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'red')?.dmxAddress ?? -1;
           break;
         case 'green':
-          targetChannel = fixture.channels.find(c => c.type === 'green')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'green')?.dmxAddress ?? -1;
           break;
         case 'blue':
-          targetChannel = fixture.channels.find(c => c.type === 'blue')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'blue')?.dmxAddress ?? -1;
           break;
         case 'gobo':
-          targetChannel = fixture.channels.find(c => c.type === 'gobo')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'gobo')?.dmxAddress ?? -1;
           break;
         case 'shutter':
-          targetChannel = fixture.channels.find(c => c.type === 'shutter')?.dmxAddress ?? -1;
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'shutter')?.dmxAddress ?? -1;
+          break;
+        case 'goborotation':
+          targetChannel = fixture.channels.find((c: any) => {
+            const typeLower = c.type.toLowerCase();
+            return typeLower === 'goborotation' || typeLower === 'gobo_rotation';
+          })?.dmxAddress ?? -1;
+          break;
+        case 'colorwheel':
+          targetChannel = fixture.channels.find((c: any) => {
+            const typeLower = c.type.toLowerCase();
+            return typeLower === 'colorwheel' || typeLower === 'color_wheel';
+          })?.dmxAddress ?? -1;
+          break;
+        case 'focus':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'focus')?.dmxAddress ?? -1;
+          break;
+        case 'zoom':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'zoom')?.dmxAddress ?? -1;
+          break;
+        case 'iris':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'iris')?.dmxAddress ?? -1;
+          break;
+        case 'prism':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'prism')?.dmxAddress ?? -1;
+          break;
+        case 'frost':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'frost')?.dmxAddress ?? -1;
+          break;
+        case 'macro':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'macro')?.dmxAddress ?? -1;
+          break;
+        case 'speed':
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'speed')?.dmxAddress ?? -1;
           break;
         default:
-          targetChannel = fixture.channels.find(c => c.type === controlType)?.dmxAddress ?? -1;
+          // Case-insensitive search for the default case as well
+          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === controlTypeLower)?.dmxAddress ?? -1;
           break;
       }
+      console.log(`${logPrefix} Target channel for ${fixture.name} (type: ${controlType}, searched as: ${controlTypeLower}): ${targetChannel}`);
       
       if (targetChannel >= 0) {
         channels.push(targetChannel + 1); // Convert to 1-based for display
       }
     });
     
-    if (channels.length === 0) return 'No channels';
-    if (channels.length === 1) return `Ch ${channels[0]}`;
+    console.log(`${logPrefix} Collected DMX channels (1-based, before processing):`, channels);
+
+    if (channels.length === 0) {
+      const returnMsg = 'No channels';
+      console.log(`${logPrefix} Returning: "${returnMsg}"`);
+      return returnMsg;
+    }
+    if (channels.length === 1) {
+      const returnMsg = `Ch ${channels[0]}`;
+      console.log(`${logPrefix} Returning: "${returnMsg}"`);
+      return returnMsg;
+    }
     
     // Group consecutive channels for better display
     const sortedChannels = [...new Set(channels)].sort((a, b) => a - b);
+    let finalStr;
     if (sortedChannels.length <= 3) {
-      return `Ch ${sortedChannels.join(', ')}`;
+      finalStr = `Ch ${sortedChannels.join(', ')}`;
+    } else {
+      finalStr = `Ch ${sortedChannels[0]}-${sortedChannels[sortedChannels.length - 1]} (${sortedChannels.length})`;
     }
-    return `Ch ${sortedChannels[0]}-${sortedChannels[sortedChannels.length - 1]} (${sortedChannels.length})`;
+    console.log(`${logPrefix} Returning: "${finalStr}"`);
+    return finalStr;
   };
 
   // XY Pad handlers
@@ -817,7 +899,115 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-    };  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition]);
+    };  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition, updatePanTiltFromTrack, setAutopilotTrackPosition]);
+
+  const getVisualTrackIndicatorPosition = (
+    trackType: string,
+    positionPercent: number, // 0-100
+    sizePercent: number, // 0-100
+    centerXPercent: number, // 0-100
+    centerYPercent: number // 0-100
+  ): { x: number; y: number } => {
+    const visualCenterX = centerXPercent;
+    const visualCenterY = centerYPercent;
+    const visualSize = sizePercent; // This is diameter for circle, width/height for square etc.
+    const radius = visualSize / 2;
+    const progress = positionPercent / 100; // 0-1
+
+    let x = visualCenterX;
+    let y = visualCenterY;
+
+    switch (trackType) {
+      case 'circle':
+        x = visualCenterX + radius * Math.cos(progress * 2 * Math.PI - Math.PI / 2); // Start from top
+        y = visualCenterY + radius * Math.sin(progress * 2 * Math.PI - Math.PI / 2);
+        break;
+      case 'square':
+        const sideLength = visualSize;
+        const halfSide = sideLength / 2;
+        const perimeter = sideLength * 4;
+        const distance = progress * perimeter;
+
+        if (distance < sideLength) { // Top edge
+          x = visualCenterX - halfSide + distance;
+          y = visualCenterY - halfSide;
+        } else if (distance < sideLength * 2) { // Right edge
+          x = visualCenterX + halfSide;
+          y = visualCenterY - halfSide + (distance - sideLength);
+        } else if (distance < sideLength * 3) { // Bottom edge
+          x = visualCenterX + halfSide - (distance - sideLength * 2);
+          y = visualCenterY + halfSide;
+        } else { // Left edge
+          x = visualCenterX - halfSide;
+          y = visualCenterY + halfSide - (distance - sideLength * 3);
+        }
+        break;
+      case 'triangle':
+        const triHeight = visualSize; // Treat visualSize as height
+        const triHalfBase = (visualSize * Math.sqrt(3)) / 2 / 2; // Equilateral assumption for simplicity
+
+        // Define points of the triangle (approximate for visual)
+        const p1 = { x: visualCenterX, y: visualCenterY - (2/3) * triHeight / 2 }; // Top point
+        const p2 = { x: visualCenterX - triHalfBase, y: visualCenterY + (1/3) * triHeight / 2 }; // Bottom-left
+        const p3 = { x: visualCenterX + triHalfBase, y: visualCenterY + (1/3) * triHeight / 2 }; // Bottom-right
+        
+        if (progress < 1/3) { // p1 to p2
+            x = p1.x + (p2.x - p1.x) * (progress * 3);
+            y = p1.y + (p2.y - p1.y) * (progress * 3);
+        } else if (progress < 2/3) { // p2 to p3
+            x = p2.x + (p3.x - p2.x) * ((progress - 1/3) * 3);
+            y = p2.y + (p3.y - p2.y) * ((progress - 1/3) * 3);
+        } else { // p3 to p1
+            x = p3.x + (p1.x - p3.x) * ((progress - 2/3) * 3);
+            y = p3.y + (p1.y - p3.y) * ((progress - 2/3) * 3);
+        }
+        break;
+      case 'linear':
+        // Horizontal line for simplicity
+        x = (visualCenterX - radius) + progress * visualSize;
+        y = visualCenterY;
+        break;
+      case 'figure8':
+        // Simplified figure 8 for visual representation
+        // This will trace two circles side-by-side, scaled to fit within the size
+        const R = radius / 2; // Radius of each lobe
+        const centerOffset = R;
+        if (progress < 0.5) { // First lobe (left or top)
+            const currentProgress = progress * 2; // 0-1 for this lobe
+            x = (visualCenterX - centerOffset) + R * Math.cos(currentProgress * 2 * Math.PI - Math.PI / 2);
+            y = visualCenterY + R * Math.sin(currentProgress * 2 * Math.PI - Math.PI / 2);
+        } else { // Second lobe (right or bottom)
+            const currentProgress = (progress - 0.5) * 2; // 0-1 for this lobe
+            x = (visualCenterX + centerOffset) + R * Math.cos(currentProgress * 2 * Math.PI - Math.PI / 2 + Math.PI); // Start opposite
+            y = visualCenterY + R * Math.sin(currentProgress * 2 * Math.PI - Math.PI / 2 + Math.PI);
+        }
+        break;
+      case 'random':
+        // Deterministic "random" based on positionPercent for visual stability in one cycle
+        // Using sine/cosine with varying frequencies/phases based on positionPercent
+        // The goal is not true randomness, but a pseudo-random-looking path that is repeatable.
+        const angle1 = (positionPercent / 100) * Math.PI * 2 * 3; // Multiply for more "randomness"
+        const angle2 = (positionPercent / 100) * Math.PI * 2 * 5;
+        x = visualCenterX + radius * Math.cos(angle1) * (0.5 + 0.5 * Math.sin(angle2));
+        y = visualCenterY + radius * Math.sin(angle1) * (0.5 + 0.5 * Math.cos(angle2));
+        // Clamp to bounds if complex functions might exceed radius
+        const dist = Math.sqrt(Math.pow(x - visualCenterX, 2) + Math.pow(y - visualCenterY, 2));
+        if (dist > radius) {
+            x = visualCenterX + (x - visualCenterX) * radius / dist;
+            y = visualCenterY + (y - visualCenterY) * radius / dist;
+        }
+        break;
+      default: // Circle as default
+        x = visualCenterX + radius * Math.cos(progress * 2 * Math.PI - Math.PI / 2);
+        y = visualCenterY + radius * Math.sin(progress * 2 * Math.PI - Math.PI / 2);
+        break;
+    }
+    // Ensure visual indicator stays within the 0-100 bounds of the pad approximately
+    return { 
+      x: Math.max(0, Math.min(100, x)), 
+      y: Math.max(0, Math.min(100, y)) 
+    };
+  };
 
   // Generate SVG path for track visualization
   const generateTrackPath = () => {
@@ -1450,9 +1640,21 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     />
                     {/* Current position indicator */}
                     <circle
-                      cx={autopilotTrackCenterX + Math.cos((autopilotTrackPosition / 100) * 2 * Math.PI) * (autopilotTrackSize / 2)}
-                      cy={autopilotTrackCenterY + Math.sin((autopilotTrackPosition / 100) * 2 * Math.PI) * (autopilotTrackSize / 2)}
-                      r="1"
+                      cx={getVisualTrackIndicatorPosition(
+                        autopilotTrackType,
+                        autopilotTrackPosition,
+                        autopilotTrackSize,
+                        autopilotTrackCenterX,
+                        autopilotTrackCenterY
+                      ).x}
+                      cy={getVisualTrackIndicatorPosition(
+                        autopilotTrackType,
+                        autopilotTrackPosition,
+                        autopilotTrackSize,
+                        autopilotTrackCenterX,
+                        autopilotTrackCenterY
+                      ).y}
+                      r="1" // Radius of the indicator dot
                       fill="rgba(0, 255, 128, 0.8)"
                     />
                   </svg>

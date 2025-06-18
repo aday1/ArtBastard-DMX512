@@ -1077,20 +1077,48 @@ export const useStore = create<State>()(
       },
 
       setMultipleDmxChannels: (updates) => {
+        console.log('[STORE] setMultipleDmxChannels: Called with updates batch:', updates);
         const currentDmxChannels = get().dmxChannels;
         const newDmxChannels = [...currentDmxChannels];
+        let changesApplied = false;
         for (const channelStr in updates) {
           const channel = parseInt(channelStr, 10);
           if (channel >= 0 && channel < newDmxChannels.length) {
-            newDmxChannels[channel] = updates[channel];
+            if (newDmxChannels[channel] !== updates[channel]) { // Check if value actually changes
+              newDmxChannels[channel] = updates[channel];
+              changesApplied = true;
+            }
           }
         }
-        set({ dmxChannels: newDmxChannels });
-
+        
+        if (changesApplied) {
+          set({ dmxChannels: newDmxChannels });
+          console.log('[STORE] setMultipleDmxChannels: Applied changes to local DMX state.');
+        } else {
+          console.log('[STORE] setMultipleDmxChannels: No actual changes to local DMX state after processing batch.');
+        }
+        
+        console.log('[STORE] setMultipleDmxChannels: Sending HTTP POST to /api/dmx/batch with payload:', updates);
         axios.post('/api/dmx/batch', updates)
+          .then(response => {
+            console.log('[STORE] setMultipleDmxChannels: DMX batch API call successful. Response status:', response.status, 'Data:', response.data);
+          })
           .catch(error => {
-            console.error('Failed to update DMX channels in batch:', error);
-            get().addNotification({ message: 'Failed to update DMX channels in batch', type: 'error', priority: 'high' });
+            console.error('[STORE] setMultipleDmxChannels: Failed to update DMX channels in batch via API.');
+            if (error.response) {
+              // The request was made and the server responded with a status code
+              // that falls out of the range of 2xx
+              console.error('[STORE] setMultipleDmxChannels: Error response data:', error.response.data);
+              console.error('[STORE] setMultipleDmxChannels: Error response status:', error.response.status);
+              console.error('[STORE] setMultipleDmxChannels: Error response headers:', error.response.headers);
+            } else if (error.request) {
+              // The request was made but no response was received
+              console.error('[STORE] setMultipleDmxChannels: No response received for DMX batch:', error.request);
+            } else {
+              // Something happened in setting up the request that triggered an Error
+              console.error('[STORE] setMultipleDmxChannels: Error setting up DMX batch request:', error.message);
+            }
+            get().addNotification({ message: 'Failed to send DMX batch update to server', type: 'error', priority: 'high' });
           });
       },      setDmxChannelValue: (channel, value) => { 
         get().setDmxChannel(channel, value);
@@ -2136,6 +2164,7 @@ export const useStore = create<State>()(
       },
 
       updatePanTiltFromTrack: () => {
+        console.log('[STORE] updatePanTiltFromTrack: Entered.');
         const {
           autopilotTrackEnabled,
           autopilotTrackType,
@@ -2147,7 +2176,10 @@ export const useStore = create<State>()(
           selectedFixtures, // Array of selected fixture IDs
         } = get();
 
-        if (!autopilotTrackEnabled) return;
+        if (!autopilotTrackEnabled) {
+          console.log('[STORE] updatePanTiltFromTrack: Autopilot not enabled, exiting.');
+          return;
+        }
 
         const { pan, tilt } = get().calculateTrackPosition(
           autopilotTrackType,
@@ -2156,26 +2188,25 @@ export const useStore = create<State>()(
           autopilotTrackCenterX,
           autopilotTrackCenterY
         );
+        console.log(`[STORE] updatePanTiltFromTrack: Calculated pan=${pan}, tilt=${tilt}`);
 
         const updates: DmxChannelBatchUpdate = {};
-
         let targetFixtures: Fixture[] = [];
 
         if (selectedFixtures.length > 0) {
           targetFixtures = fixtures.filter(f => selectedFixtures.includes(f.id));
         } else {
-          // Default to all fixtures if no specific selection
-          targetFixtures = fixtures;
+          targetFixtures = fixtures; // Default to all fixtures if no specific selection
         }
+        console.log(`[STORE] updatePanTiltFromTrack: Number of targetFixtures to update: ${targetFixtures.length}`);
 
         if (targetFixtures.length === 0) {
-          // console.log('[Autopilot] No target fixtures for Pan/Tilt update.');
+          console.log('[STORE] updatePanTiltFromTrack: No target fixtures for Pan/Tilt update, exiting.');
           return;
         }
 
         targetFixtures.forEach(fixture => {
           fixture.channels.forEach(channel => {
-            // Ensure dmxAddress is defined and valid
             if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 0 && channel.dmxAddress < 512) {
               if (channel.type.toLowerCase() === 'pan') {
                 updates[channel.dmxAddress] = pan;
@@ -2185,9 +2216,12 @@ export const useStore = create<State>()(
             }
           });
         });
-
+        
+        console.log('[STORE] updatePanTiltFromTrack: DMX batch updates to be applied:', updates);
         if (Object.keys(updates).length > 0) {
           get().setMultipleDmxChannels(updates);
+        } else {
+          console.log('[STORE] updatePanTiltFromTrack: No DMX updates to apply.');
         }
       },
 
