@@ -61,6 +61,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
 
+  // Log fixtures prop changes
+  useEffect(() => {
+    console.log('[SuperControl] Fixtures updated:', fixtures.map(f => f.id));
+  }, [fixtures]);
+
+  // Log selectedFixtures state changes
+  useEffect(() => {
+    console.log('[SuperControl] selectedFixtures state updated:', selectedFixtures);
+  }, [selectedFixtures]);
+
   // Control values state  const [dimmer, setDimmer] = useState(255);  // Basic Control State
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
@@ -932,7 +942,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   key={fixture.id}
                   className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
                   onClick={() => {
+                    console.log('[SuperControl] Clicking fixture ID:', fixture.id, 'Current name:', fixture.name);
+                    console.log('[SuperControl] Current selectedFixtures (before toggle):', useStore.getState().selectedFixtures);
                     toggleFixtureSelection(fixture.id);
+                    const newSelected = useStore.getState().selectedFixtures;
+                    console.log('[SuperControl] selectedFixtures from store AFTER toggle:', newSelected);
+                    console.log(`[SuperControl] Does new selection include ${fixture.id}? : ${newSelected.includes(fixture.id)}`);
                   }}
                 >
                   <div className={styles.fixtureInfo}>
@@ -1071,8 +1086,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         <div className={styles.selectionControls}>          <div className={styles.selectionButtonGrid}>
             <button 
               className={styles.selectionButton}
-              onClick={selectNextFixture}
+              onClick={() => {
+                console.log('[SuperControl] "Next Fixture" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
+                selectNextFixture();
+              }}
               title="Select Next Fixture"
+              disabled={fixtures.length < 2}
             >
               <LucideIcon name="ArrowRight" />
               Next
@@ -1090,8 +1109,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             </button>
               <button 
               className={styles.selectionButton}
-              onClick={selectPreviousFixture}
+              onClick={() => {
+                console.log('[SuperControl] "Previous Fixture" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
+                selectPreviousFixture();
+              }}
               title="Select Previous Fixture"
+              disabled={fixtures.length < 2}
             >
               <LucideIcon name="ArrowLeft" />
               Previous
@@ -1109,8 +1132,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             
             <button 
               className={styles.selectionButton}
-              onClick={selectAllFixtures}
+              onClick={() => {
+                console.log('[SuperControl] "Select All" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
+                selectAllFixtures();
+              }}
               title="Select All Fixtures"
+              disabled={fixtures.length === 0 || selectedFixtures.length === fixtures.length}
             >
               <LucideIcon name="CheckSquare" />
               All
@@ -1130,6 +1157,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               className={styles.selectionButton}
               onClick={deselectAllFixtures}
               title="Deselect All Fixtures"
+              disabled={selectedFixtures.length === 0}
             >
               <LucideIcon name="X" />
               None

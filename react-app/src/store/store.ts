@@ -1298,6 +1298,9 @@ export const useStore = create<State>()(
         const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
         set({ oscMessages: messages });
         // console.log('OSC message received in store:', message); // Optional: for debugging
+        if (get().recordingActive) {
+          get().addRecordingEvent({ type: 'osc', data: message });
+        }
       },
 
       // MIDI Actions
@@ -1334,6 +1337,9 @@ export const useStore = create<State>()(
         const messages = [...get().midiMessages, message].slice(-20)
         set({ midiMessages: messages })
         console.log('MIDI message received:', message)
+        if (get().recordingActive) {
+          get().addRecordingEvent({ type: 'midi', data: message });
+        }
       },
       
       addMidiMapping: (dmxChannel, mapping) => {
@@ -2130,20 +2136,19 @@ export const useStore = create<State>()(
       },
 
       updatePanTiltFromTrack: () => {
-        const { 
+        const {
           autopilotTrackEnabled,
-          autopilotTrackType, 
-          autopilotTrackPosition, 
-          autopilotTrackSize, 
-          autopilotTrackCenterX, 
+          autopilotTrackType,
+          autopilotTrackPosition,
+          autopilotTrackSize,
+          autopilotTrackCenterX,
           autopilotTrackCenterY,
-          selectedChannels,
-          fixtures,
-          groups
+          fixtures, // Main fixtures list
+          selectedFixtures, // Array of selected fixture IDs
         } = get();
-        
+
         if (!autopilotTrackEnabled) return;
-        
+
         const { pan, tilt } = get().calculateTrackPosition(
           autopilotTrackType,
           autopilotTrackPosition,
@@ -2151,55 +2156,40 @@ export const useStore = create<State>()(
           autopilotTrackCenterX,
           autopilotTrackCenterY
         );
-        
-        // Update Pan/Tilt values for selected channels or fixtures
-        const updates: { [key: number]: number } = {};
-        
-        // If we have selected channels, try to identify Pan/Tilt channels
-        if (selectedChannels.length > 0) {
-          selectedChannels.forEach(channelIndex => {
-            // Try to find fixtures that contain this channel
-            fixtures.forEach(fixture => {
-              const localChannelIndex = channelIndex - fixture.startAddress + 1;
-              if (localChannelIndex >= 0 && localChannelIndex < fixture.channels.length) {
-                const channel = fixture.channels[localChannelIndex];
-                if (channel.type.toLowerCase() === 'pan') {
-                  updates[channelIndex] = pan;
-                } else if (channel.type.toLowerCase() === 'tilt') {
-                  updates[channelIndex] = tilt;
-                }
-              }
-            });
-          });
+
+        const updates: DmxChannelBatchUpdate = {};
+
+        let targetFixtures: Fixture[] = [];
+
+        if (selectedFixtures.length > 0) {
+          targetFixtures = fixtures.filter(f => selectedFixtures.includes(f.id));
         } else {
-          // No specific channels selected, update all fixtures in active groups or all fixtures
-          const activeFixtures = fixtures.filter(fixture => {
-            const fixtureGroups = groups.filter(g => g.fixtureIndices.includes(fixtures.indexOf(fixture)));
-            const activeSoloGroups = groups.filter(g => g.isSolo);
-            
-            if (activeSoloGroups.length > 0) {
-              return fixtureGroups.some(fg => activeSoloGroups.some(asg => asg.id === fg.id));
-            }
-            
-            return true; // If no solo groups, all fixtures are active
-          });
-          
-          activeFixtures.forEach(fixture => {
-            fixture.channels.forEach((channel, localIndex) => {
-              const dmxIndex = fixture.startAddress + localIndex - 1;
-              if (channel.type.toLowerCase() === 'pan') {
-                updates[dmxIndex] = pan;
-              } else if (channel.type.toLowerCase() === 'tilt') {
-                updates[dmxIndex] = tilt;
-              }
-            });
-          });
+          // Default to all fixtures if no specific selection
+          targetFixtures = fixtures;
         }
-        
-        // Apply the updates
+
+        if (targetFixtures.length === 0) {
+          // console.log('[Autopilot] No target fixtures for Pan/Tilt update.');
+          return;
+        }
+
+        targetFixtures.forEach(fixture => {
+          fixture.channels.forEach(channel => {
+            // Ensure dmxAddress is defined and valid
+            if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 0 && channel.dmxAddress < 512) {
+              if (channel.type.toLowerCase() === 'pan') {
+                updates[channel.dmxAddress] = pan;
+              } else if (channel.type.toLowerCase() === 'tilt') {
+                updates[channel.dmxAddress] = tilt;
+              }
+            }
+          });
+        });
+
         if (Object.keys(updates).length > 0) {
           get().setMultipleDmxChannels(updates);
-        }      },
+        }
+      },
 
       // Recording and Automation Actions
       startRecording: () => {
