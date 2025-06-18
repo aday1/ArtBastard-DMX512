@@ -789,9 +789,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     const prevIndex = currentSceneIndex === 0 ? scenes.length - 1 : currentSceneIndex - 1;
     loadScene(prevIndex);
   };
-
   // Autopilot track animation
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number>(0);
   const lastUpdateTime = useRef<number>(0);
 
   useEffect(() => {
@@ -850,6 +849,93 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     }
   };
 
+  // Enhanced debugging for DMX control issues
+  const debugDmxControls = () => {
+    console.log('🔧 DMX Control Debug Report');
+    console.log('========================');
+    
+    // Check fixtures
+    console.log(`📋 Total fixtures loaded: ${fixtures.length}`);
+    if (fixtures.length === 0) {
+      console.warn('❌ No fixtures loaded! Please add fixtures to the workspace first.');
+      console.log('💡 Go to Fixture Creator page and create test fixtures.');
+      return;
+    }
+    
+    fixtures.forEach((fixture, index) => {
+      console.log(`  ${index + 1}. ${fixture.name} (ID: ${fixture.id})`);
+      console.log(`     Type: ${fixture.type || 'Generic'}`);
+      console.log(`     Start Address: ${fixture.startAddress}`);
+      console.log(`     Channels: ${fixture.channels.length}`);
+      fixture.channels.forEach((channel, chIndex) => {
+        console.log(`       ${chIndex}: ${channel.name} (${channel.type}) -> DMX ${channel.dmxAddress}`);
+      });
+    });
+    
+    // Check selection
+    console.log(`\n🎯 Selection Status:`);
+    console.log(`   Mode: ${selectionMode}`);
+    console.log(`   Selected fixtures: ${selectedFixtures.length}`);
+    console.log(`   Selected channels: ${selectedChannels.length}`);
+    console.log(`   Selected groups: ${selectedGroups.length}`);
+    
+    if (selectionMode === 'fixtures' && selectedFixtures.length === 0) {
+      console.warn('❌ No fixtures selected! Click on fixtures in the list or use "Select All" button.');
+    }
+    
+    // Test affected fixtures
+    const affected = getAffectedFixtures();
+    console.log(`\n🎛️ Affected fixtures for controls: ${affected.length}`);
+    affected.forEach(fixture => {
+      console.log(`   - ${fixture.name} (${fixture.channels.length} channels)`);
+    });
+    
+    if (affected.length === 0) {
+      console.error('❌ ISSUE FOUND: No affected fixtures - controls will not work!');
+      if (fixtures.length > 0 && selectedFixtures.length === 0) {
+        console.log('💡 SOLUTION: Select fixtures by clicking on them or using "Select All" button');
+      }
+    } else {
+      console.log('✅ Good: Fixtures are available for control');
+    }
+    
+    // Test DMX functions
+    console.log(`\n🔌 Testing DMX functions:`);
+    try {
+      const testChannel = 1;
+      const currentValue = getDmxChannelValue(testChannel);
+      console.log(`   getDmxChannelValue(${testChannel}) = ${currentValue} ✅`);
+      
+      console.log(`   Testing setDmxChannelValue(${testChannel}, 100)...`);
+      setDmxChannelValue(testChannel, 100);
+      console.log(`   ✅ setDmxChannelValue executed (check network tab for HTTP request)`);
+    } catch (error) {
+      console.error('❌ DMX function error:', error);
+    }
+    
+    console.log('\n📝 Next Steps:');
+    if (fixtures.length === 0) {
+      console.log('1. Add fixtures using Fixture Creator');
+    } else if (selectedFixtures.length === 0) {
+      console.log('1. Select fixtures in SuperControl');
+    } else {
+      console.log('1. Move controls and check for DMX logs');
+      console.log('2. Check Network tab for /api/dmx requests');
+      console.log('3. Check server terminal for incoming requests');
+    }
+  };
+  
+  // Expose debug function to window for console access
+  useEffect(() => {
+    (window as any).debugDmxControls = debugDmxControls;
+    console.log('🔧 Debug function available: window.debugDmxControls()');
+    
+    return () => {
+      delete (window as any).debugDmxControls;
+    };
+  }, [fixtures, selectedFixtures, selectedChannels, selectedGroups, selectionMode]);
+
+  // ...existing code...
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -955,8 +1041,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     <span className={styles.fixtureType}>{fixture.type || 'Generic'}</span>
                   </div>
                   <div className={styles.fixtureDetails}>
-                    <span className={styles.fixtureChannels}>
-                      CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
+                    <span className={styles.fixtureChannels}>                      CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
                     </span>                    <span className={styles.channelCount}>
                       {fixture.channels.length} channels
                     </span>
@@ -965,7 +1050,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               ))
             )}
           </div>
-        )}{selectionMode === 'groups' && (
+        )}
+
+        {selectionMode === 'groups' && (
           <div className={styles.fixtureList}>
             {groups.length === 0 ? (
               <div className={styles.noFixtures}>

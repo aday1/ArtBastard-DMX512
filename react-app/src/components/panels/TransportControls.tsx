@@ -404,9 +404,9 @@ const TransportControls: React.FC<TransportControlsProps> = ({
               onStop?.();
               stopAutopilot();
               stopAutoScene();
-              break;
-            case 'transport_record':
-              onRecord?.();
+              break;            case 'transport_record':
+              // Record functionality removed
+              console.log('Record triggered via MIDI (functionality disabled)');
               break;
           }
         }
@@ -435,7 +435,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
         clearInterval(autoSceneIntervalRef.current);
       }
     };
-  }, [midiMappings, autopilotActive, autoSceneMode, scenes, currentSceneIndex, onPlay, onStop, onRecord]);
+  }, [midiMappings, autopilotActive, autoSceneMode, scenes, currentSceneIndex, onPlay, onStop]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isDocked) return;

@@ -19,15 +19,11 @@ interface LayoutProps {
   children?: React.ReactNode
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { theme, darkMode, toggleDarkMode } = useTheme()
+export const Layout: React.FC<LayoutProps> = ({ children }) => {  const { theme, darkMode, toggleDarkMode } = useTheme()
   const { 
-    recordingActive, 
     automationPlayback,
-    startRecording, 
-    stopRecording, 
     startAutomationPlayback, 
-    stopAutomationPlayback 
+    stopAutomationPlayback
   } = useStore()
   
   const [transportVisible, setTransportVisible] = useState(true)
@@ -47,19 +43,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
     console.log('Transport: Pause Automation')
   }
-
   const handleStop = () => {
     stopAutomationPlayback()
     console.log('Transport: Stop Automation')
-  }
-
-  const handleRecord = () => {
-    if (recordingActive) {
-      stopRecording()
-    } else {
-      startRecording()
-    }
-    console.log('Transport: Record', !recordingActive)
   }
 
   return (
@@ -103,10 +89,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           onPlay={handlePlay}
           onPause={handlePause}
           onStop={handleStop}
-          onRecord={handleRecord}
           isPlaying={automationPlayback.active}
           isPaused={false}
-          isRecording={recordingActive}
         />
       </div>
     </RouterProvider>

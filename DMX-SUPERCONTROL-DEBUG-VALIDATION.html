@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMX SuperControl Debug Validation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            margin-bottom: 30px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #00ff88;
+        }
+        .issue {
+            background: rgba(255, 68, 68, 0.1);
+            border-left-color: #ff4444;
+        }
+        .solution {
+            background: rgba(0, 255, 136, 0.1);
+            border-left-color: #00ff88;
+        }
+        .test-step {
+            background: rgba(68, 136, 255, 0.1);
+            border-left-color: #4488ff;
+        }
+        h2 {
+            color: #00ff88;
+            margin-top: 0;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .highlight {
+            background: rgba(255, 255, 0, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.fixed {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+        }
+        .status.pending {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid #ffa500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ DMX SuperControl Debug Validation</h1>
+        
+        <div class="section issue">
+            <h2>🚨 Issue Identified</h2>
+            <p><strong>Problem:</strong> SuperControl isn't sending DMX channel updates to selected fixtures.</p>
+            
+            <h3>Root Cause Analysis:</h3>
+            <ul>
+                <li>✅ <span class="highlight">setDmxChannelValue</span> and <span class="highlight">getDmxChannelValue</span> functions exist in store</li>
+                <li>✅ <span class="highlight">applyControl</span> function exists in SuperControl component</li>
+                <li>✅ Controls are calling <span class="highlight">applyControl</span> with correct parameters</li>
+                <li>⚠️ Potential issue: <strong>No fixtures selected</strong> or fixture selection not working</li>
+                <li>⚠️ Potential issue: <strong>DMX channel mapping</strong> in fixtures might be incorrect</li>
+            </ul>
+        </div>
+
+        <div class="section solution">
+            <h2>🔧 Implementation Status</h2>
+            
+            <div class="status fixed">
+                ✅ <strong>FIXED:</strong> DMX functions are properly implemented in store.ts
+            </div>
+            
+            <h3>Key Functions Verified:</h3>
+            <div class="code">
+getDmxChannelValue: (channel) => {
+  const dmxChannels = get().dmxChannels;
+  return dmxChannels[channel] || 0;
+}
+
+setDmxChannelValue: (channel, value) => { 
+  get().setDmxChannel(channel, value);
+  // Records if recording is active
+}
+
+setDmxChannel: (channel, value) => {
+  console.log(`[STORE] setDmxChannel called: channel=${channel}, value=${value}`);
+  const dmxChannels = [...get().dmxChannels]
+  dmxChannels[channel] = value
+  set({ dmxChannels })
+  
+  console.log(`[STORE] Sending HTTP POST to /api/dmx: channel=${channel}, value=${value}`);
+  axios.post('/api/dmx', { channel, value })
+    .then(response => {
+      console.log(`[STORE] DMX API call successful:`, response.data);
+    })
+    .catch(error => {
+      console.error('Failed to update DMX channel:', error)
+    })
+}
+            </div>
+        </div>
+
+        <div class="section test-step">
+            <h2>🧪 Debugging Steps</h2>
+            
+            <h3>Step 1: Check Fixture Selection</h3>
+            <ul>
+                <li>Open SuperControl in the app</li>
+                <li>Check if the "Fixtures" tab shows any fixtures</li>
+                <li>Verify fixtures are clickable and get selected (highlighted)</li>
+                <li>Check browser console for selection logs</li>
+            </ul>
+            
+            <h3>Step 2: Test DMX Channel Mapping</h3>
+            <ul>
+                <li>Select a fixture</li>
+                <li>Move any control (e.g., Pan, Tilt, Color)</li>
+                <li>Check browser console for DMX logs:</li>
+            </ul>
+            <div class="code">
+Expected logs:
+[SuperControl] 🎛️ applyControl called: type=pan, value=127, fixtures=1
+[DMX] 📡 Setting channel 1 to 127 for pan on fixture "My Fixture"
+[STORE] setDmxChannel called: channel=1, value=127
+[STORE] Sending HTTP POST to /api/dmx: channel=1, value=127
+[STORE] DMX API call successful: {...}
+            </div>
+            
+            <h3>Step 3: Verify Backend Communication</h3>
+            <ul>
+                <li>Check server terminal for DMX API requests</li>
+                <li>Look for successful POST /api/dmx requests</li>
+                <li>Verify ArtNet/DMX output is working</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🔍 Common Issues & Solutions</h2>
+            
+            <h3>Issue 1: No Fixtures Available</h3>
+            <div class="code">
+Solution: Add fixtures to the workspace:
+1. Go to Fixture Creator page
+2. Create test fixture with proper channel mapping
+3. Return to SuperControl and verify fixture appears
+            </div>
+            
+            <h3>Issue 2: Fixtures Not Selected</h3>
+            <div class="code">
+Solution: 
+1. Click on fixtures in SuperControl fixture list
+2. Use "Select All" button
+3. Check console for selection logs
+            </div>
+            
+            <h3>Issue 3: Incorrect DMX Channel Mapping</h3>
+            <div class="code">
+Solution: Verify fixture channels have correct:
+- type: 'pan', 'tilt', 'dimmer', etc.
+- dmxAddress: actual DMX channel number (0-based)
+            </div>
+            
+            <h3>Issue 4: Backend Communication Failed</h3>
+            <div class="code">
+Solution: Check network tab for failed requests:
+- POST /api/dmx should return 200 OK
+- Check server logs for errors
+- Verify ArtNet config is correct
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Next Steps</h2>
+            <ol>
+                <li><strong>Test fixture selection:</strong> Open SuperControl and verify fixtures are selectable</li>
+                <li><strong>Test control movement:</strong> Move sliders/XY pad and check console logs</li>
+                <li><strong>Verify backend:</strong> Check server logs for DMX API calls</li>
+                <li><strong>Check DMX output:</strong> Verify actual DMX data is sent to fixtures</li>
+            </ol>
+            
+            <div class="status pending">
+                ⏳ <strong>PENDING:</strong> User testing required to confirm issue resolution
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Expected Behavior</h2>
+            <p>When working correctly:</p>
+            <ul>
+                <li>✅ Fixtures appear in SuperControl fixture list</li>
+                <li>✅ Fixtures can be selected (become highlighted)</li>
+                <li>✅ Moving controls generates console logs</li>
+                <li>✅ DMX API calls are made to backend</li>
+                <li>✅ Server logs show successful DMX updates</li>
+                <li>✅ Physical fixtures respond to control changes</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
