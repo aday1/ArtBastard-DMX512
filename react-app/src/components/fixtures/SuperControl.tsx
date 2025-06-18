@@ -779,6 +779,67 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     const prevIndex = currentSceneIndex === 0 ? scenes.length - 1 : currentSceneIndex - 1;
     loadScene(prevIndex);
   };
+
+  // Autopilot track animation
+  const animationFrameRef = useRef<number>();
+  const lastUpdateTime = useRef<number>(0);
+
+  useEffect(() => {
+    if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
+      const animate = (currentTime: number) => {        if (currentTime - lastUpdateTime.current >= (110 - autopilotTrackSpeed) * 10) {
+          const newPosition = (autopilotTrackPosition + 1) % 100;
+          setAutopilotTrackPosition(newPosition);
+          
+          // Trigger the store's updatePanTiltFromTrack function
+          updatePanTiltFromTrack();
+          
+          lastUpdateTime.current = currentTime;
+        }
+        
+        if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      };
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition]);
+
+  // Generate SVG path for track visualization
+  const generateTrackPath = () => {
+    const cx = autopilotTrackCenterX;
+    const cy = autopilotTrackCenterY;
+    const size = autopilotTrackSize / 2;
+    
+    switch (autopilotTrackType) {
+      case 'circle':
+        return `M ${cx + size} ${cy} A ${size} ${size} 0 1 1 ${cx + size - 0.01} ${cy}`;
+      
+      case 'square':
+        return `M ${cx - size} ${cy - size} L ${cx + size} ${cy - size} L ${cx + size} ${cy + size} L ${cx - size} ${cy + size} Z`;
+      
+      case 'triangle':
+        return `M ${cx} ${cy - size} L ${cx + size * 0.866} ${cy + size * 0.5} L ${cx - size * 0.866} ${cy + size * 0.5} Z`;
+      
+      case 'figure8':
+        return `M ${cx} ${cy} Q ${cx + size} ${cy - size} ${cx} ${cy} Q ${cx - size} ${cy + size} ${cx} ${cy}`;
+        case 'linear':
+        return `M ${cx - size} ${cy} L ${cx + size} ${cy}`;
+      
+      case 'random':
+        // For random, just show a dotted circle as placeholder
+        return `M ${cx + size} ${cy} A ${size} ${size} 0 1 1 ${cx + size - 0.01} ${cy}`;
+      
+      default:
+        return `M ${cx + size} ${cy} A ${size} ${size} 0 1 1 ${cx + size - 0.01} ${cy}`;
+    }
+  };
+
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -857,69 +918,109 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             <LucideIcon name="Zap" />
             Capabilities
           </button>
-        </div>
-
-        {selectionMode === 'fixtures' && (
+        </div>        {selectionMode === 'fixtures' && (
           <div className={styles.fixtureList}>
-            {fixtures.map(fixture => (
-              <div
-                key={fixture.name}                className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
-                onClick={() => {
-                  toggleFixtureSelection(fixture.id);
-                }}
-              >
-                <span className={styles.fixtureName}>{fixture.name}</span>
-                <span className={styles.fixtureChannels}>
-                  CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
-                </span>
+            {fixtures.length === 0 ? (
+              <div className={styles.noFixtures}>
+                <LucideIcon name="AlertCircle" />
+                <span>No fixtures available</span>
+                <small>Add fixtures to the workspace to control them</small>
               </div>
-            ))}
+            ) : (
+              fixtures.map(fixture => (
+                <div
+                  key={fixture.id}
+                  className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
+                  onClick={() => {
+                    toggleFixtureSelection(fixture.id);
+                  }}
+                >
+                  <div className={styles.fixtureInfo}>
+                    <span className={styles.fixtureName}>{fixture.name}</span>
+                    <span className={styles.fixtureType}>{fixture.type || 'Generic'}</span>
+                  </div>
+                  <div className={styles.fixtureDetails}>
+                    <span className={styles.fixtureChannels}>
+                      CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
+                    </span>                    <span className={styles.channelCount}>
+                      {fixture.channels.length} channels
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        )}
-
-        {selectionMode === 'groups' && (
+        )}{selectionMode === 'groups' && (
           <div className={styles.fixtureList}>
-            {groups.map(group => (
-              <div
-                key={group.name}
-                className={`${styles.fixtureItem} ${selectedGroups.includes(group.name) ? styles.selected : ''}`}
-                onClick={() => {
-                  setSelectedGroups(prev => 
-                    prev.includes(group.name) 
-                      ? prev.filter(name => name !== group.name)
-                      : [...prev, group.name]
-                  );
-                }}
-              >
-                <span className={styles.fixtureName}>{group.name}</span>
-                <span className={styles.fixtureChannels}>
-                  {group.fixtureIndices.length} fixtures
-                </span>
+            {groups.length === 0 ? (
+              <div className={styles.noFixtures}>
+                <LucideIcon name="Users" />
+                <span>No fixture groups available</span>
+                <small>Create fixture groups to organize your lighting</small>
               </div>
-            ))}
+            ) : (
+              groups.map(group => (
+                <div
+                  key={group.name}
+                  className={`${styles.fixtureItem} ${selectedGroups.includes(group.name) ? styles.selected : ''}`}
+                  onClick={() => {
+                    setSelectedGroups(prev => 
+                      prev.includes(group.name) 
+                        ? prev.filter(name => name !== group.name)
+                        : [...prev, group.name]
+                    );
+                  }}
+                >
+                  <div className={styles.fixtureInfo}>
+                    <span className={styles.fixtureName}>{group.name}</span>
+                    <span className={styles.fixtureType}>Group</span>
+                  </div>
+                  <div className={styles.fixtureDetails}>
+                    <span className={styles.fixtureChannels}>
+                      {group.fixtureIndices.length} fixtures
+                    </span>                    <span className={styles.channelCount}>
+                      {group.fixtureIndices.map(index => fixtures[index]?.name).filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        )}
-
-        {selectionMode === 'capabilities' && (
+        )}{selectionMode === 'capabilities' && (
           <div className={styles.fixtureList}>
-            {getFixtureCapabilities().map(capability => (
-              <div
-                key={capability.type}
-                className={`${styles.fixtureItem} ${selectedCapabilities.includes(capability.type) ? styles.selected : ''}`}
-                onClick={() => {
-                  setSelectedCapabilities(prev => 
-                    prev.includes(capability.type) 
-                      ? prev.filter(type => type !== capability.type)
-                      : [...prev, capability.type]
-                  );
-                }}
-              >
-                <span className={styles.fixtureName}>{capability.type.toUpperCase()}</span>
-                <span className={styles.fixtureChannels}>
-                  {capability.fixtures.length} fixtures
-                </span>
+            {getFixtureCapabilities().length === 0 ? (
+              <div className={styles.noFixtures}>
+                <LucideIcon name="Zap" />
+                <span>No fixture capabilities detected</span>
+                <small>Add fixtures with defined capabilities to group by function</small>
               </div>
-            ))}
+            ) : (
+              getFixtureCapabilities().map(capability => (
+                <div
+                  key={capability.type}
+                  className={`${styles.fixtureItem} ${selectedCapabilities.includes(capability.type) ? styles.selected : ''}`}
+                  onClick={() => {
+                    setSelectedCapabilities(prev => 
+                      prev.includes(capability.type) 
+                        ? prev.filter(type => type !== capability.type)
+                        : [...prev, capability.type]
+                    );
+                  }}
+                >
+                  <div className={styles.fixtureInfo}>
+                    <span className={styles.fixtureName}>{capability.type.toUpperCase()}</span>
+                    <span className={styles.fixtureType}>Capability</span>
+                  </div>
+                  <div className={styles.fixtureDetails}>
+                    <span className={styles.fixtureChannels}>
+                      {capability.fixtures.length} fixtures
+                    </span>                    <span className={styles.channelCount}>
+                      {capability.fixtures.join(', ')}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>
@@ -1212,8 +1313,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             <div className={styles.sectionHeader}>
               <h4>Pan/Tilt XY Control</h4>
             </div>
-            
-            <div 
+              <div 
               className={styles.xyPad}
               ref={xyPadRef}
               onMouseDown={handleXYPadMouseDown}
@@ -1221,6 +1321,29 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               onMouseUp={handleXYPadMouseUp}
             >
               <div className={styles.xyGridLines} />
+              
+              {/* Autopilot Track Visualization */}
+              {autopilotTrackEnabled && (
+                <div className={styles.trackPath}>
+                  <svg className={styles.trackSvg} viewBox="0 0 100 100">
+                    <path
+                      d={generateTrackPath()}
+                      stroke="rgba(0, 255, 128, 0.4)"
+                      strokeWidth="0.5"
+                      fill="none"
+                      strokeDasharray="2,2"
+                    />
+                    {/* Current position indicator */}
+                    <circle
+                      cx={autopilotTrackCenterX + Math.cos((autopilotTrackPosition / 100) * 2 * Math.PI) * (autopilotTrackSize / 2)}
+                      cy={autopilotTrackCenterY + Math.sin((autopilotTrackPosition / 100) * 2 * Math.PI) * (autopilotTrackSize / 2)}
+                      r="1"
+                      fill="rgba(0, 255, 128, 0.8)"
+                    />
+                  </svg>
+                </div>
+              )}
+              
               <div 
                 className={styles.xyHandle}
                 style={{
@@ -1292,8 +1415,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   />
                 </div>
                 <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('fineTilt')}</div>
-              </div>
-            </div>
+              </div>            </div>
             
             <div className={styles.panTiltControls}>
               <button 
@@ -1327,8 +1449,128 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               <div className={styles.fineValues}>
                 <span>Fine Pan: {finePanValue}</span>
                 <span>Fine Tilt: {fineTiltValue}</span>
-              </div>
+              </div>            </div>
+          </div>
+
+          {/* Autopilot Track Controls */}
+          <div className={styles.controlsSection}>
+            <div className={styles.sectionHeader}>
+              <h4>
+                <LucideIcon name="Navigation" />
+                Autopilot Track
+              </h4>
+              <button
+                className={`${styles.autopilotToggle} ${autopilotTrackEnabled ? styles.active : ''}`}
+                onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
+                title={autopilotTrackEnabled ? "Disable Autopilot" : "Enable Autopilot"}
+              >
+                <LucideIcon name={autopilotTrackEnabled ? "Pause" : "Play"} />
+                {autopilotTrackEnabled ? "Stop" : "Start"}
+              </button>
             </div>
+            
+            {autopilotTrackEnabled && (
+              <div className={styles.autopilotSettings}>
+                <div className={styles.controlRow}>
+                  <label>Track Type</label>                    <select
+                      value={autopilotTrackType}
+                      onChange={(e) => setAutopilotTrackType(e.target.value as any)}
+                      className={styles.autopilotSelect}
+                    >
+                      <option value="circle">Circle</option>
+                      <option value="square">Square</option>
+                      <option value="figure8">Figure 8</option>
+                      <option value="triangle">Triangle</option>
+                      <option value="linear">Linear</option>
+                      <option value="random">Random</option>
+                    </select>
+                </div>
+                
+                <div className={styles.controlRow}>
+                  <label>Speed</label>
+                  <div className={styles.controlInputs}>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="5"
+                      step="0.1"
+                      value={autopilotTrackSpeed}
+                      onChange={(e) => setAutopilotTrackSpeed(parseFloat(e.target.value))}
+                      className={styles.slider}
+                    />
+                    <span className={styles.valueDisplay}>{autopilotTrackSpeed.toFixed(1)}x</span>
+                  </div>
+                </div>
+                
+                <div className={styles.controlRow}>
+                  <label>Size</label>
+                  <div className={styles.controlInputs}>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={autopilotTrackSize}
+                      onChange={(e) => setAutopilotTrackSize(parseInt(e.target.value))}
+                      className={styles.slider}
+                    />
+                    <span className={styles.valueDisplay}>{autopilotTrackSize}%</span>
+                  </div>
+                </div>
+                
+                <div className={styles.controlRow}>
+                  <label>Center X</label>
+                  <div className={styles.controlInputs}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={autopilotTrackCenterX}
+                      onChange={(e) => setAutopilotTrackCenter(parseInt(e.target.value), autopilotTrackCenterY)}
+                      className={styles.slider}
+                    />
+                    <span className={styles.valueDisplay}>{autopilotTrackCenterX}%</span>
+                  </div>
+                </div>
+                
+                <div className={styles.controlRow}>
+                  <label>Center Y</label>
+                  <div className={styles.controlInputs}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={autopilotTrackCenterY}
+                      onChange={(e) => setAutopilotTrackCenter(autopilotTrackCenterX, parseInt(e.target.value))}
+                      className={styles.slider}
+                    />
+                    <span className={styles.valueDisplay}>{autopilotTrackCenterY}%</span>
+                  </div>
+                </div>
+                
+                <div className={styles.controlRow}>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => {
+                      setAutopilotTrackCenter(50, 50);
+                      setAutopilotTrackSize(50);
+                      setAutopilotTrackSpeed(1);
+                    }}
+                    title="Reset to default values"
+                  >
+                    <LucideIcon name="RotateCcw" />
+                    Reset
+                  </button>
+                  <button
+                    className={`${styles.actionBtn} ${autopilotTrackAutoPlay ? styles.active : ''}`}
+                    onClick={() => setAutopilotTrackAutoPlay(!autopilotTrackAutoPlay)}
+                    title={autopilotTrackAutoPlay ? "Disable Auto Loop" : "Enable Auto Loop"}
+                  >
+                    <LucideIcon name="Repeat" />
+                    Auto Loop
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* RGB Color Wheel Control */}
@@ -1648,7 +1890,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 <path d="M8.17 6.66 8.17 2.83" />
                 <path d="M15.83 6.66 15.83 2.83" />
               </svg>
-              {isStrobing ? 'Stop' : 'Strobe'}
+              {isStrobing ? 'Stop' : 'Strobing'}
             </button>
 
             <button
@@ -1938,70 +2180,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 className={styles.valueInput}
               />
               <span className={styles.oscAddress}>{oscAddresses.colorWheel}</span>
-            </div>
-          </div>
-
-          {/* Gobo Rotation Control */}
-          <div className={styles.controlRow}>
-            <label>Gobo Rotation</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={goboRotation}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setGoboRotation(val);
-                  applyControl('goboRotation', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={goboRotation}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setGoboRotation(val);
-                  applyControl('goboRotation', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.goboRotation}</span>
-            </div>
-          </div>
-
-          {/* Gobo 2 Control */}
-          <div className={styles.controlRow}>
-            <label>Gobo 2</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={gobo2}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setGobo2(val);
-                  applyControl('gobo2', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={gobo2}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setGobo2(val);
-                  applyControl('gobo2', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{oscAddresses.gobo2}</span>
             </div>
           </div>
 
