@@ -43,9 +43,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
     // selectAllFixtures, // Not explicitly used in current TouchSuperControl UI, but good to have if needed
     // deselectAllFixtures, // Same as above
   } = useStore();
-
-  // Selection state
-  const [selectionMode, setSelectionMode] = useState<TouchSelectionMode>('channels');
+  // Selection state - Default to 'fixtures' since 'channels' mode is disabled in UI
+  const [selectionMode, setSelectionMode] = useState<TouchSelectionMode>('fixtures');
   // selectedFixtures is now from global store
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]); // Kept local for now
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]); // Kept local for now
@@ -133,8 +132,7 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
       return 'No Sel'; 
     }
     
-    const dmxChannelsFound: number[] = []; 
-    affectedFixtureObjects.forEach((fixtObj: any) => { 
+    const dmxChannelsFound: number[] = [];    affectedFixtureObjects.forEach((fixtObj: any) => { 
       const fixture = fixtObj.fixture; // This is the actual fixture object
       // const fixtureDmxChannelMap = fixtObj.channels; // This is the {type: dmxAddress} map from getAffectedFixtures
       // We need to use fixture.channels for find, and fixtureDmxChannelMap for the address if direct type exists.
@@ -150,83 +148,63 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
       // console.log(`${logPrefix} Processing fixture - ID: ${fixture.id}, Name: ${fixture.name}`);
       // console.log(`${logPrefix} Fixture channels for ${fixture.name}:`, fixture.channels.map((ch: any) => ({ type: ch.type, dmxAddress: ch.dmxAddress })));
       
-      switch (controlTypeLower) {
-        case 'dimmer':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'dimmer')?.dmxAddress ?? -1;
-          break;
-        case 'pan':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'pan')?.dmxAddress ?? -1;
-          break;
-        case 'tilt':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'tilt')?.dmxAddress ?? -1;
-          break;
-        case 'finepan':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
+      // First try to find channel with the control type
+      const foundChannel = fixture.channels.find((c: any) => {
+        const typeLower = c.type.toLowerCase();
+        switch (controlTypeLower) {
+          case 'dimmer':
+            return typeLower === 'dimmer';
+          case 'pan':
+            return typeLower === 'pan';
+          case 'tilt':
+            return typeLower === 'tilt';
+          case 'finepan':
             return typeLower === 'finepan' || typeLower === 'fine_pan' || typeLower === 'pan_fine';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'finetilt':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
+          case 'finetilt':
             return typeLower === 'finetilt' || typeLower === 'fine_tilt' || typeLower === 'tilt_fine';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'red':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'red')?.dmxAddress ?? -1;
-          break;
-        case 'green':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'green')?.dmxAddress ?? -1;
-          break;
-        case 'blue':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'blue')?.dmxAddress ?? -1;
-          break;
-        case 'gobo':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'gobo')?.dmxAddress ?? -1;
-          break;
-        case 'shutter':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'shutter')?.dmxAddress ?? -1;
-          break;
-        case 'goborotation':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
+          case 'red':
+            return typeLower === 'red';
+          case 'green':
+            return typeLower === 'green';
+          case 'blue':
+            return typeLower === 'blue';
+          case 'gobo':
+            return typeLower === 'gobo';
+          case 'shutter':
+            return typeLower === 'shutter';
+          case 'goborotation':
             return typeLower === 'goborotation' || typeLower === 'gobo_rotation';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'colorwheel':
-          targetChannelAddress = fixture.channels.find((c: any) => {
-            const typeLower = c.type.toLowerCase();
+          case 'colorwheel':
             return typeLower === 'colorwheel' || typeLower === 'color_wheel';
-          })?.dmxAddress ?? -1;
-          break;
-        case 'focus':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'focus')?.dmxAddress ?? -1;
-          break;
-        case 'zoom':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'zoom')?.dmxAddress ?? -1;
-          break;
-        case 'iris':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'iris')?.dmxAddress ?? -1;
-          break;
-        case 'prism':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'prism')?.dmxAddress ?? -1;
-          break;
-        case 'frost':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'frost')?.dmxAddress ?? -1;
-          break;
-        case 'macro':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'macro')?.dmxAddress ?? -1;
-          break;
-        case 'speed':
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === 'speed')?.dmxAddress ?? -1;
-          break;
-        default:
-          targetChannelAddress = fixture.channels.find((c: any) => c.type.toLowerCase() === controlTypeLower)?.dmxAddress ?? -1;
-          break;
+          case 'focus':
+            return typeLower === 'focus';
+          case 'zoom':
+            return typeLower === 'zoom';
+          case 'iris':
+            return typeLower === 'iris';
+          case 'prism':
+            return typeLower === 'prism';
+          case 'frost':
+            return typeLower === 'frost';
+          case 'macro':
+            return typeLower === 'macro';
+          case 'speed':
+            return typeLower === 'speed';
+          default:
+            return typeLower === controlTypeLower;
+        }
+      });
+      
+      if (foundChannel) {
+        // Calculate the DMX address: use dmxAddress if available, otherwise calculate from startAddress
+        const channelIndex = fixture.channels.indexOf(foundChannel);
+        targetChannelAddress = foundChannel.dmxAddress !== undefined 
+          ? foundChannel.dmxAddress 
+          : (fixture.startAddress + channelIndex - 1); // Convert 1-based to 0-based
       }
       
       if (targetChannelAddress !== -1 && targetChannelAddress !== undefined) {
-        dmxChannelsFound.push(targetChannelAddress + 1); 
+        dmxChannelsFound.push(targetChannelAddress + 1); // Convert to 1-based for display
       }
     });
     
@@ -283,10 +261,9 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
         
         fixtures.forEach(fixture => {
           const fixtureChannels: { [key: string]: number } = {};
-          let hasSelectedChannel = false;
-          fixture.channels.forEach((channel, index) => {
-            // Assuming dmxAddress is directly on channel or calculate if necessary
-            const dmxAddress = channel.dmxAddress || (fixture.startAddress + index -1) ; // Prioritize direct dmxAddress
+          let hasSelectedChannel = false;          fixture.channels.forEach((channel, index) => {
+            // Use dmxAddress if available, otherwise calculate from startAddress (convert 1-based to 0-based)
+            const dmxAddress = channel.dmxAddress !== undefined ? channel.dmxAddress : (fixture.startAddress + index - 1);
             if (selectedChannels.includes(dmxAddress)) {
               hasSelectedChannel = true;
               fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
@@ -299,22 +276,20 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
         break;
 
       case 'fixtures':
-        console.log(`${logPrefix} Mode: fixtures. Global selected fixtures (store):`, globalSelectedFixtures);
-        if (globalSelectedFixtures.length > 0) {
+        console.log(`${logPrefix} Mode: fixtures. Global selected fixtures (store):`, globalSelectedFixtures);        if (globalSelectedFixtures.length > 0) {
           affectedFixtureObjects = fixtures
             .filter(fixture => globalSelectedFixtures.includes(fixture.id))
             .map(fixture => {
               const fixtureChannels: { [key: string]: number } = {};
               fixture.channels.forEach((channel, index) => {
-                const dmxAddress = channel.dmxAddress || (fixture.startAddress + index -1);
+                // Use dmxAddress if available, otherwise calculate from startAddress (convert 1-based to 0-based)
+                const dmxAddress = channel.dmxAddress !== undefined ? channel.dmxAddress : (fixture.startAddress + index - 1);
                 fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
               });
               return { fixture, channels: fixtureChannels };
             });
         }
-        break;
-
-      case 'groups':
+        break;      case 'groups':
         console.log(`${logPrefix} Mode: groups. Selected groups (local):`, selectedGroups);
         if (selectedGroups.length > 0) {
           const targetFixtureIds = selectedGroups.flatMap(groupId => {
@@ -326,15 +301,14 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
             .map(fixture => {
               const fixtureChannels: { [key: string]: number } = {};
               fixture.channels.forEach((channel, index) => {
-                const dmxAddress = channel.dmxAddress || (fixture.startAddress + index -1);
+                // Use dmxAddress if available, otherwise calculate from startAddress (convert 1-based to 0-based)
+                const dmxAddress = channel.dmxAddress !== undefined ? channel.dmxAddress : (fixture.startAddress + index - 1);
                 fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
               });
               return { fixture, channels: fixtureChannels };
             });
         }
-        break;
-
-      case 'capabilities':
+        break;      case 'capabilities':
         console.log(`${logPrefix} Mode: capabilities. Selected capabilities (local):`, selectedCapabilities);
         if (selectedCapabilities.length > 0) {
           const capabilitiesData = getFixtureCapabilities(); // This already returns { type, fixtures: string[] }
@@ -347,7 +321,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
             .map(fixture => {
               const fixtureChannels: { [key: string]: number } = {};
               fixture.channels.forEach((channel, index) => {
-                const dmxAddress = channel.dmxAddress || (fixture.startAddress + index -1);
+                // Use dmxAddress if available, otherwise calculate from startAddress (convert 1-based to 0-based)
+                const dmxAddress = channel.dmxAddress !== undefined ? channel.dmxAddress : (fixture.startAddress + index - 1);
                 fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
               });
               return { fixture, channels: fixtureChannels };
@@ -358,11 +333,16 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
     console.log(`${logPrefix} Affected fixture objects count: ${affectedFixtureObjects.length}`, affectedFixtureObjects.map(fo => fo.fixture.id));
     return affectedFixtureObjects;
   };
-
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
     console.log(`[TouchSuperControl] applyControl: Entered. controlType=${controlType}, value=${value}`);
     const affectedFixtures = getAffectedFixtures(); // This is Array<{ fixture: any, channels: { [key:string]: number } }>
+    
+    console.log(`[TouchSuperControl] applyControl: Affected fixtures:`, affectedFixtures.map(f => ({
+      id: f.fixture.id,
+      name: f.fixture.name,
+      channels: f.channels
+    })));
     
     if (affectedFixtures.length === 0) {
       console.log('[TouchSuperControl] applyControl: No affected fixtures. Will not call setDmxChannelValue.');
@@ -404,6 +384,9 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
           targetChannel = fixtureChannelsMap['strobe'];
           break;
       }
+
+      console.log(`[TouchSuperControl] applyControl: Fixture ${fixtureName}, looking for ${controlType}, found channel: ${targetChannel}`);
+      console.log(`[TouchSuperControl] applyControl: Available channels in fixture:`, Object.keys(fixtureChannelsMap));
 
       if (targetChannel !== undefined) {
         console.log(`[TouchSuperControl] applyControl: Attempting to setDmxChannelValue for fixture ${fixtureName}, channel ${targetChannel}, value ${value}, type ${controlType}`);
@@ -666,6 +649,28 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
       // Auto-hide logic here
     }
   }, [activePanel, autoHideInterface]);
+
+  // Auto-select the first fixture if none are selected when in fixtures mode
+  useEffect(() => {
+    if (selectionMode === 'fixtures' && globalSelectedFixtures.length === 0 && fixtures.length > 0) {
+      console.log('[TouchSuperControl] Auto-selecting first fixture since none are selected');
+      toggleFixtureSelection(fixtures[0].id);
+    }
+  }, [selectionMode, globalSelectedFixtures.length, fixtures.length, fixtures, toggleFixtureSelection]);
+
+  // Debug effect to log component state when it changes
+  useEffect(() => {
+    console.log('[TouchSuperControl] Debug State Check:', {
+      selectionMode,
+      globalSelectedFixtures,
+      selectedGroups,
+      selectedCapabilities,
+      fixturesCount: fixtures.length,
+      groupsCount: groups.length,
+      affectedFixturesCount: getAffectedFixtures().length
+    });
+  }, [selectionMode, globalSelectedFixtures, selectedGroups, selectedCapabilities, fixtures.length, groups.length]);
+
   return (
     <div 
       className={`${styles.touchSuperControl} ${isFullscreen ? styles.fullscreen : ''} ${!interfaceVisible ? styles.interfaceHidden : ''}`}
