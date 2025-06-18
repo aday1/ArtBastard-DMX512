@@ -9,10 +9,10 @@ interface TransportControlsProps {
   onPlay?: () => void;
   onPause?: () => void;
   onStop?: () => void;
-  onRecord?: () => void;
+  // onRecord?: () => void; // Removed
   isPlaying?: boolean;
   isPaused?: boolean;
-  isRecording?: boolean;
+  // isRecording?: boolean; // Removed
 }
 
 // Autopilot path types
@@ -44,10 +44,10 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   onPlay,
   onPause,
   onStop,
-  onRecord,
+  // onRecord, // Removed
   isPlaying = false,
-  isPaused = false,
-  isRecording = false
+  isPaused = false
+  // isRecording = false // Removed
 }) => {
   const { 
     fixtures, 
@@ -580,9 +580,9 @@ const TransportControls: React.FC<TransportControlsProps> = ({
           <div className={styles.tabContent}>
             <div className={styles.mainControls}>
               <button
-                className={`${styles.transportButton} ${styles.recordButton} ${isRecording ? styles.active : ''}`}
-                onClick={onRecord}
-                title="Record"
+                className={`${styles.transportButton} ${styles.recordButton} ${recordingActive ? styles.active : ''}`}
+                onClick={recordingActive ? stopRecording : startRecording}
+                title={recordingActive ? "Stop Recording" : "Start Recording"}
               >
                 ⏺
               </button>
@@ -640,7 +640,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
             </div>
 
             <div className={styles.statusIndicators}>
-              {isRecording && <div className={styles.recordingIndicator}>REC</div>}
+              {recordingActive && <div className={styles.recordingIndicator}>REC</div>}
               {isPlaying && <div className={styles.playingIndicator}>PLAY</div>}
               {isPaused && <div className={styles.pausedIndicator}>PAUSE</div>}
               {autopilotActive && <div className={styles.autopilotIndicator}>AUTO</div>}
