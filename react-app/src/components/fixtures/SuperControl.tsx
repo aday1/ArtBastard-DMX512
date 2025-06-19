@@ -968,7 +968,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       setPanTiltXY({ x: xPercent, y: yPercent });
     }
   }, [autopilotTrackEnabled, autopilotTrackType, autopilotTrackPosition, autopilotTrackSize, autopilotTrackCenterX, autopilotTrackCenterY, calculateTrackPosition]);
-
   const getVisualTrackIndicatorPosition = (
     trackType: string,
     positionPercent: number, // 0-100
@@ -978,8 +977,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   ): { x: number; y: number } => {
     const visualCenterX = centerXPercent;
     const visualCenterY = centerYPercent;
-    const visualSize = sizePercent; // This is diameter for circle, width/height for square etc.
-    const radius = visualSize / 2;
+    const baseRadius = sizePercent / 2;
+    
+    // Apply the same bounds constraints as in generateTrackPath
+    const maxRadiusX = Math.min(visualCenterX, 100 - visualCenterX);
+    const maxRadiusY = Math.min(visualCenterY, 100 - visualCenterY);
+    const maxRadius = Math.min(maxRadiusX, maxRadiusY, 45); // Max 45% to leave some padding
+    const radius = Math.min(baseRadius, maxRadius);
+    const visualSize = radius * 2;
+    
     const progress = positionPercent / 100; // 0-1
 
     let x = visualCenterX;
@@ -1891,9 +1897,21 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       max="100"
                       value={autopilotTrackPosition}                      onChange={(e) => {
                         const newPosition = parseInt(e.target.value);
+                        console.log('[AUTOPILOT] Position slider changed from', autopilotTrackPosition, 'to', newPosition);
                         setAutopilotTrackPosition(newPosition);
                         // Trigger immediate update when position changes
                         console.log('[AUTOPILOT] Position changed to:', newPosition);
+                        
+                        // Debug: Check if autopilot is enabled and fixtures are selected
+                        if (!autopilotTrackEnabled) {
+                          console.warn('[AUTOPILOT] WARNING: Autopilot not enabled - DMX update will be skipped');
+                          return;
+                        }
+                        
+                        if (selectedFixtures.length === 0 && fixtures.length > 0) {
+                          console.warn('[AUTOPILOT] WARNING: No fixtures selected - consider selecting fixtures for targeted control');
+                        }
+                        
                         setTimeout(() => {
                           console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after position change');
                           updatePanTiltFromTrack();
@@ -2025,38 +2043,131 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   >
                     <LucideIcon name="Repeat" />
                     Auto Loop
-                  </button>
-                  <button
+                  </button>                  <button
                     className={styles.actionBtn}
                     onClick={() => {
-                      console.log('🔧 AUTOPILOT DEBUG REPORT');
-                      console.log('========================');
-                      console.log('Autopilot enabled:', autopilotTrackEnabled);
-                      console.log('Track type:', autopilotTrackType);
-                      console.log('Position:', autopilotTrackPosition, '%');
-                      console.log('Size:', autopilotTrackSize, '%');
-                      console.log('Center X:', autopilotTrackCenterX, '(DMX)');
-                      console.log('Center Y:', autopilotTrackCenterY, '(DMX)');
-                      console.log('Auto play:', autopilotTrackAutoPlay);
-                      console.log('Speed:', autopilotTrackSpeed, 'x');
-                      console.log('Selected fixtures:', selectedFixtures.length);
-                      console.log('Total fixtures:', fixtures.length);
+                      console.log('🔧 ENHANCED AUTOPILOT DEBUG REPORT');
+                      console.log('===================================');
+                      
+                      // Basic autopilot state
+                      console.log('📊 Autopilot State:');
+                      console.log('  Enabled:', autopilotTrackEnabled);
+                      console.log('  Track type:', autopilotTrackType);
+                      console.log('  Position:', autopilotTrackPosition, '%');
+                      console.log('  Size:', autopilotTrackSize, '%');
+                      console.log('  Center X:', autopilotTrackCenterX, '(DMX) =', Math.round((autopilotTrackCenterX / 255) * 100), '%');
+                      console.log('  Center Y:', autopilotTrackCenterY, '(DMX) =', Math.round((autopilotTrackCenterY / 255) * 100), '%');
+                      console.log('  Auto play:', autopilotTrackAutoPlay);
+                      console.log('  Speed:', autopilotTrackSpeed, 'x');
+                      
+                      // Fixture analysis
+                      console.log('\n🎯 Fixture Analysis:');
+                      console.log('  Total fixtures:', fixtures.length);
+                      console.log('  Selected fixtures:', selectedFixtures.length);
+                      
+                      if (fixtures.length === 0) {
+                        console.error('❌ CRITICAL: No fixtures loaded!');
+                        console.log('💡 Solution: Go to Fixture Creator and add fixtures');
+                        return;
+                      }
+                      
+                      if (selectedFixtures.length === 0) {
+                        console.warn('⚠️ WARNING: No fixtures selected!');
+                        console.log('💡 Solution: Select fixtures in the fixture list');
+                      }
+                      
+                      // Check fixtures for Pan/Tilt channels
+                      const targetFixtures = selectedFixtures.length > 0 
+                        ? fixtures.filter(f => selectedFixtures.includes(f.id))
+                        : fixtures;
+                        
+                      console.log('  Target fixtures for autopilot:', targetFixtures.length);
+                      
+                      let panChannels = 0;
+                      let tiltChannels = 0;
+                      
+                      targetFixtures.forEach((fixture, index) => {
+                        console.log(`    ${index + 1}. ${fixture.name} (${fixture.channels.length} channels)`);
+                        
+                        fixture.channels.forEach(channel => {
+                          if (channel.type.toLowerCase() === 'pan') {
+                            panChannels++;
+                            console.log(`      ✅ Pan channel: ${channel.name} -> DMX ${channel.dmxAddress}`);
+                          } else if (channel.type.toLowerCase() === 'tilt') {
+                            tiltChannels++;
+                            console.log(`      ✅ Tilt channel: ${channel.name} -> DMX ${channel.dmxAddress}`);
+                          }
+                        });
+                      });
+                      
+                      console.log(`  Pan channels found: ${panChannels}`);
+                      console.log(`  Tilt channels found: ${tiltChannels}`);
+                      
+                      if (panChannels === 0 || tiltChannels === 0) {
+                        console.error('❌ CRITICAL: No Pan/Tilt channels found!');
+                        console.log('💡 Solution: Ensure fixtures have channels with type "pan" and "tilt"');
+                        return;
+                      }
                       
                       // Test calculation
-                      const { pan, tilt } = calculateTrackPosition(
-                        autopilotTrackType,
-                        autopilotTrackPosition,
-                        autopilotTrackSize,
-                        autopilotTrackCenterX,
-                        autopilotTrackCenterY
-                      );
-                      console.log('Calculated Pan/Tilt:', pan, tilt);
+                      console.log('\n🧮 Track Position Calculation:');
+                      try {
+                        const { pan, tilt } = calculateTrackPosition(
+                          autopilotTrackType,
+                          autopilotTrackPosition,
+                          autopilotTrackSize,
+                          autopilotTrackCenterX,
+                          autopilotTrackCenterY
+                        );
+                        console.log('  Calculated Pan:', pan, '(DMX 0-255)');
+                        console.log('  Calculated Tilt:', tilt, '(DMX 0-255)');
+                        
+                        // Visual bounds check
+                        const visualCenterX = (autopilotTrackCenterX / 255) * 100;
+                        const visualCenterY = (autopilotTrackCenterY / 255) * 100;
+                        const baseRadius = autopilotTrackSize / 2;
+                        const maxRadiusX = Math.min(visualCenterX, 100 - visualCenterX);
+                        const maxRadiusY = Math.min(visualCenterY, 100 - visualCenterY);
+                        const maxRadius = Math.min(maxRadiusX, maxRadiusY, 45);
+                        const constrainedRadius = Math.min(baseRadius, maxRadius);
+                        
+                        console.log('\n📐 Visual Bounds Analysis:');
+                        console.log('  Visual center:', visualCenterX.toFixed(1), ',', visualCenterY.toFixed(1), '%');
+                        console.log('  Requested radius:', baseRadius, '%');
+                        console.log('  Max allowed radius:', maxRadius.toFixed(1), '%');
+                        console.log('  Constrained radius:', constrainedRadius.toFixed(1), '%');
+                        
+                        if (constrainedRadius < baseRadius) {
+                          console.warn('⚠️ Track size constrained to fit bounds');
+                        } else {
+                          console.log('✅ Track fits within bounds');
+                        }
+                        
+                      } catch (error) {
+                        console.error('❌ Calculation error:', error);
+                        return;
+                      }
                       
                       // Test DMX update
-                      console.log('Triggering test DMX update...');
-                      updatePanTiltFromTrack();
+                      console.log('\n🔌 Testing DMX Update:');
+                      console.log('  Triggering updatePanTiltFromTrack()...');
+                      try {
+                        updatePanTiltFromTrack();
+                        console.log('✅ DMX update function called successfully');
+                        console.log('💡 Check console for [STORE] updatePanTiltFromTrack messages');
+                        console.log('💡 Check Network tab for DMX HTTP requests');
+                      } catch (error) {
+                        console.error('❌ DMX update error:', error);
+                      }
+                      
+                      console.log('\n📋 Summary:');
+                      if (autopilotTrackEnabled && targetFixtures.length > 0 && panChannels > 0 && tiltChannels > 0) {
+                        console.log('✅ Autopilot should be working - check for DMX updates in console/network');
+                      } else {
+                        console.log('❌ Issues found - fix the problems listed above');
+                      }
                     }}
-                    title="Debug autopilot in console"
+                    title="Enhanced autopilot debug with full analysis"
                   >
                     <LucideIcon name="Bug" />
                     Debug
