@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DockableSuperControl from '../components/fixtures/DockableSuperControl';
 import TouchSuperControl from '../components/fixtures/TouchSuperControl';
+import SuperControlDraggableClean from '../components/fixtures/SuperControlDraggableClean';
 import { LucideIcon } from '../components/ui/LucideIcon';
 
 /**
@@ -22,6 +23,7 @@ import { LucideIcon } from '../components/ui/LucideIcon';
 const SuperControlDemo: React.FC = () => {
   const [showDockable, setShowDockable] = useState(true);
   const [showTouch, setShowTouch] = useState(false);
+  const [showDraggable, setShowDraggable] = useState(true);
   const [touchSelectionCount, setTouchSelectionCount] = useState(0);
 
   const handleTouchSelectionChange = (count: number) => {
@@ -148,6 +150,51 @@ const SuperControlDemo: React.FC = () => {
             {showTouch ? 'Hide' : 'Show'} Touch Control
           </button>
         </div>
+
+        {/* Draggable Panel Control Card */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid rgba(0, 212, 255, 0.3)'
+        }}>
+          <h2 style={{ color: '#00d4ff', marginBottom: '16px' }}>
+            <LucideIcon name="Move" style={{ marginRight: '8px' }} />
+            Draggable Panel Super Control
+          </h2>
+          <p style={{ marginBottom: '20px', opacity: 0.8 }}>
+            Advanced panel system with moveable groups of controls. Large touch-friendly sliders 
+            with MIDI Learn and OSC Address support. Perfect for custom layouts.
+          </p>
+          
+          <h3 style={{ color: '#00d4ff', fontSize: '1.1rem', marginBottom: '12px' }}>Features:</h3>
+          <ul style={{ marginBottom: '20px', opacity: 0.8 }}>
+            <li>• Draggable, resizable control panels</li>
+            <li>• Extra-large sliders for touchscreen use</li>
+            <li>• MIDI Learn on all controls</li>
+            <li>• OSC Address configuration</li>
+            <li>• Minimizable panel groups</li>
+            <li>• Custom panel positioning</li>
+            <li>• Enhanced autopilot controls</li>
+          </ul>
+
+          <button
+            onClick={() => setShowDraggable(!showDraggable)}
+            style={{
+              padding: '12px 24px',
+              background: showDraggable ? '#dc3545' : '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}
+          >
+            <LucideIcon name={showDraggable ? "EyeOff" : "Eye"} style={{ marginRight: '8px' }} />
+            {showDraggable ? 'Hide' : 'Show'} Draggable Control
+          </button>
+        </div>
       </div>
 
       {/* Usage Examples */}
@@ -267,6 +314,10 @@ const SuperControlDemo: React.FC = () => {
             onSelectionChange={handleTouchSelectionChange}
           />
         </div>
+      )}      {showDraggable && (
+        <SuperControlDraggableClean
+          isDockable={false}
+        />
       )}
     </div>
   );

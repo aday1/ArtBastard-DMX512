@@ -124,66 +124,65 @@
     min-width: 120px;
     font-size: 0.9rem;
     color: #ddd;
-    font-weight: 500;
-  }  input[type="range"] {
+    font-weight: 500;  }  input[type="range"] {
     flex: 1;
-    height: 16px;
+    height: 36px; /* Increased from 20px for better touch */
     background: linear-gradient(90deg, #333 0%, #666 100%);
-    border-radius: 8px;
+    border-radius: 18px; /* Increased radius to match height */
     outline: none;
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer !important;
     pointer-events: auto !important;
-    margin: 6px 0;
+    margin: 12px 0; /* Increased margin for better spacing */
     
     &::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 32px;
-      height: 32px;
+      width: 56px; /* Increased from 40px */
+      height: 56px; /* Increased from 40px */
       background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
       border-radius: 50%;
       cursor: pointer !important;
-      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 0.6); /* Enhanced shadow */
       transition: all 0.2s ease;
       pointer-events: auto !important;
-      border: 3px solid rgba(255, 255, 255, 0.3);
+      border: 4px solid rgba(255, 255, 255, 0.4); /* Thicker border */
       
       &:hover {
-        transform: scale(1.2);
-        box-shadow: 0 8px 20px rgba(0, 212, 255, 0.7);
+        transform: scale(1.15);
+        box-shadow: 0 12px 30px rgba(0, 212, 255, 0.8); /* Enhanced shadow */
         cursor: pointer !important;
-        border: 3px solid rgba(255, 255, 255, 0.5);
+        border: 4px solid rgba(255, 255, 255, 0.6);
       }
       
       &:active {
-        transform: scale(1.3);
-        box-shadow: 0 10px 25px rgba(0, 212, 255, 0.9);
+        transform: scale(1.25);
+        box-shadow: 0 16px 40px rgba(0, 212, 255, 1.0); /* Enhanced shadow */
       }
     }
     
     &::-moz-range-thumb {
-      width: 32px;
-      height: 32px;
+      width: 56px; /* Increased from 40px */
+      height: 56px; /* Increased from 40px */
       background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
       border-radius: 50%;
       cursor: pointer !important;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.5);
+      border: 4px solid rgba(255, 255, 255, 0.4); /* Thicker border */
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 0.6); /* Enhanced shadow */
       transition: all 0.2s ease;
       pointer-events: auto !important;
       
       &:hover {
-        transform: scale(1.2);
-        box-shadow: 0 8px 20px rgba(0, 212, 255, 0.7);
+        transform: scale(1.15);
+        box-shadow: 0 12px 30px rgba(0, 212, 255, 0.8); /* Enhanced shadow */
         cursor: pointer !important;
-        border: 3px solid rgba(255, 255, 255, 0.5);
+        border: 4px solid rgba(255, 255, 255, 0.6);
       }
       
       &:active {
-        transform: scale(1.3);
-        box-shadow: 0 10px 25px rgba(0, 212, 255, 0.9);
+        transform: scale(1.25);
+        box-shadow: 0 16px 40px rgba(0, 212, 255, 1.0); /* Enhanced shadow */
       }
     }
     
@@ -509,7 +508,7 @@
   writing-mode: bt-lr; /* IE */
   -webkit-appearance: slider-vertical; /* WebKit */
   appearance: slider-vertical;
-  width: 24px;
+  width: 32px;
   height: 150px;
   background: linear-gradient(180deg, #333 0%, #666 100%);
   outline: none;
@@ -518,23 +517,23 @@
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 30px;
-    height: 20px;
+    width: 40px;
+    height: 28px;
     background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    box-shadow: 0 3px 8px rgba(0, 212, 255, 0.5);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.6);
+    border: 3px solid rgba(255, 255, 255, 0.4);
     transition: all 0.2s ease;
     
     &:hover {
       transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.7);
+      box-shadow: 0 6px 16px rgba(0, 212, 255, 0.8);
     }
     
     &:active {
-      transform: scale(1.15);
-      box-shadow: 0 5px 15px rgba(0, 212, 255, 0.8);
+      transform: scale(1.2);
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 1.0);
     }
   }
 }
@@ -1669,52 +1668,52 @@
 
 .fineSlider {
   flex: 1;
-  height: 8px;
+  height: 12px;
   background: linear-gradient(to right, #333 0%, #666 100%);
-  border-radius: 4px;
+  border-radius: 6px;
   outline: none;
   transition: all 0.3s ease;
   
   &::-webkit-slider-thumb {
     appearance: none;
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
     cursor: pointer;
-    border: 2px solid #ffffff;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
     
     &:hover {
       transform: scale(1.15);
-      box-shadow: 0 4px 10px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 6px 12px rgba(0, 212, 255, 0.6);
     }
     
     &:active {
-      transform: scale(1.2);
-      box-shadow: 0 5px 12px rgba(0, 212, 255, 0.6);
+      transform: scale(1.25);
+      box-shadow: 0 8px 16px rgba(0, 212, 255, 0.8);
     }
   }
   
   &::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
     cursor: pointer;
-    border: 2px solid #ffffff;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
     
     &:hover {
       transform: scale(1.15);
-      box-shadow: 0 4px 10px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 6px 12px rgba(0, 212, 255, 0.6);
     }
     
     &:active {
-      transform: scale(1.2);
-      box-shadow: 0 5px 12px rgba(0, 212, 255, 0.6);
+      transform: scale(1.25);
+      box-shadow: 0 8px 16px rgba(0, 212, 255, 0.8);
     }
   }
 }
@@ -2379,5 +2378,308 @@
   }
   100% {
     box-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+  }
+}
+
+/* Draggable Panels for SuperControl */
+.draggableContainer {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: auto;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+  padding: 20px;
+}
+
+.draggablePanel {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px; /* Increased from 12px */
+  padding: 24px; /* Increased from 20px */
+  margin: 12px; /* Increased from 10px */
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); /* Enhanced shadow */
+  border: 2px solid rgba(255, 255, 255, 0.15); /* Thicker border */
+  backdrop-filter: blur(15px); /* Enhanced blur */
+  color: #ffffff;
+  min-width: 380px; /* Increased from 320px */
+  min-height: 250px; /* Increased from 200px */
+  cursor: move;
+  user-select: none;
+  transition: all 0.3s ease; /* Longer transition */
+  
+  &:hover {
+    box-shadow: 0 16px 50px rgba(0, 212, 255, 0.25); /* Enhanced hover effect */
+    border-color: rgba(0, 212, 255, 0.4);
+    transform: translateY(-2px); /* Subtle lift effect */
+  }
+  
+  &.dragging {
+    z-index: 1000;
+    transform: rotate(2deg) scale(1.02); /* Slight scale increase when dragging */
+    box-shadow: 0 24px 80px rgba(0, 212, 255, 0.5); /* Enhanced dragging shadow */
+  }
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px; /* Increased from 15px */
+  padding: 12px 0; /* Increased padding */
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15); /* Thicker border */
+  cursor: move;
+  touch-action: none; /* Better touch handling for dragging */
+  
+  h4 {
+    margin: 0;
+    color: #00d4ff;
+    font-size: 1.4rem; /* Increased from 1.2rem */
+    text-shadow: 0 0 15px rgba(0, 212, 255, 0.6); /* Enhanced text shadow */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Increased from 8px */
+  }
+}
+
+.panelControls {
+  display: flex;
+  gap: 12px; /* Increased from 8px */
+  
+  button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 8px; /* Increased from 6px */
+    padding: 12px; /* Increased from 6px */
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease; /* Longer transition */
+    min-width: 44px; /* Better touch target size */
+    min-height: 44px; /* Better touch target size */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      background: rgba(0, 212, 255, 0.3); /* Enhanced hover */
+      color: #00d4ff;
+      transform: scale(1.1); /* Slight scale on hover */
+    }
+    
+    &:active {
+      transform: scale(0.95); /* Press feedback */
+    }
+  }
+}
+
+.panelContent {
+  cursor: default;
+}
+
+/* Enhanced Slider Controls with MIDI/OSC */
+.enhancedSliderGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Increased from 8px */
+  margin-bottom: 20px; /* Increased from 16px */
+  padding: 16px; /* Increased from 12px */
+  background: rgba(255, 255, 255, 0.08); /* Slightly more opaque */
+  border-radius: 12px; /* Increased from 8px */
+  border: 2px solid rgba(255, 255, 255, 0.15); /* Thicker border */
+}
+
+.sliderMainRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  
+  .sliderLabel {
+    min-width: 80px;
+    font-size: 0.9rem;
+    color: #ddd;
+    font-weight: 500;
+  }
+  
+  .sliderContainer {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+    .valueDisplay {
+    min-width: 60px; /* Increased from 50px */
+    text-align: center;
+    font-weight: bold;
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.15); /* More opaque */
+    padding: 8px 12px; /* Increased from 6px 10px */
+    border-radius: 8px; /* Increased from 6px */
+    font-size: 1rem; /* Increased from 0.9rem */
+    border: 1px solid rgba(0, 212, 255, 0.3); /* Add border */
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.5); /* Add glow effect */
+  }
+}
+
+.sliderSecondaryRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  opacity: 0.8;
+  font-size: 0.8rem;
+}
+
+.midiLearnBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Increased from 4px */
+  padding: 8px 12px; /* Increased from 4px 8px */
+  border: none;
+  border-radius: 6px; /* Increased from 4px */
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  font-size: 0.8rem; /* Slightly larger font */
+  cursor: pointer;
+  transition: all 0.3s ease; /* Longer transition */
+  min-height: 36px; /* Better touch target */
+  font-weight: 600; /* Bolder text */
+  
+  &:hover {
+    background: rgba(255, 193, 7, 0.4); /* More prominent hover */
+    transform: translateY(-2px); /* Lift effect */
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3); /* Add shadow */
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.95); /* Press feedback */
+  }
+  
+  &.learning {
+    background: rgba(220, 53, 69, 0.4); /* More opaque */
+    color: #dc3545;
+    animation: pulse 1s infinite;
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.5); /* Glowing effect */
+  }
+  
+  &.learned {
+    background: rgba(40, 167, 69, 0.4); /* More opaque */
+    color: #28a745;
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); /* Subtle glow */
+  }
+}
+
+.oscAddressInput {
+  flex: 1;
+  min-width: 140px; /* Increased from 120px */
+  background: rgba(255, 255, 255, 0.08); /* More opaque */
+  border: 2px solid rgba(255, 255, 255, 0.25); /* Thicker border */
+  border-radius: 6px; /* Increased from 4px */
+  padding: 8px 12px; /* Increased from 4px 8px */
+  color: #fff;
+  font-size: 0.8rem; /* Slightly larger font */
+  min-height: 36px; /* Better touch target */
+  box-sizing: border-box;
+  
+  &:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.4); /* Enhanced focus glow */
+    background: rgba(255, 255, 255, 0.12); /* Brighter background on focus */
+  }
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6); /* More visible placeholder */
+  }
+}
+
+.midiStatus {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+/* Touch-friendly improvements */
+@media (max-width: 768px) {
+  .draggablePanel {
+    min-width: 280px;
+    padding: 16px;
+  }
+  
+  .enhancedSliderGroup {
+    padding: 16px;
+  }
+  
+  .sliderMainRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    
+    .sliderLabel {
+      min-width: auto;
+      text-align: center;
+    }
+    
+    .valueDisplay {
+      min-width: 60px;
+    }
+  }
+  
+  .sliderSecondaryRow {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .midiLearnBtn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .oscAddressInput {
+    min-width: auto;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Grid Layout for Panels */
+.gridLayout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+/* Panel Toggle */
+.panelToggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  gap: 8px;
+  
+  button {
+    background: rgba(0, 212, 255, 0.9);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    &:hover {
+      background: rgba(0, 212, 255, 1);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.5);
+    }
+    
+    &.active {
+      background: rgba(40, 167, 69, 0.9);
+    }
   }
 }
