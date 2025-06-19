@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autopilot DMX Debug Test Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 3px soslid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        .step {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+        .checklist {
+            list-style-type: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .checklist li:before {
+            content: "☐ ";
+            color: #3498db;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .expected-logs {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Autopilot DMX Debug Test Guide</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This test guide will help debug why DMX channels are not updating during autopilot track animation. We have added detailed logging to trace the entire flow.
+        </div>
+
+        <h2>📋 Pre-Test Setup</h2>
+        <div class="step">
+            <span class="step-number">1.</span> Open the browser's Developer Console (F12) and go to the Console tab
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Clear the console for a clean start
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> Make sure you have at least one fixture created with Pan and Tilt channels
+        </div>
+
+        <h2>🎪 Create Test Fixture (if needed)</h2>
+        <div class="step">
+            <span class="step-number">1.</span> Go to the "Fixtures" tab
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Click "Add Fixture"
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> Create a fixture with:
+            <ul>
+                <li>Name: "Test Moving Head"</li>
+                <li>Start Address: 1</li>
+                <li>Add channels: Pan (Channel 1), Tilt (Channel 2), Dimmer (Channel 3)</li>
+            </ul>
+        </div>
+        <div class="step">
+            <span class="step-number">4.</span> Save the fixture
+        </div>
+
+        <h2>🎮 SuperControl Setup</h2>
+        <div class="step">
+            <span class="step-number">1.</span> Go to the "SuperControl" tab
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Select your test fixture(s) in the fixture selector
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> Verify the fixture appears in the selected fixtures list
+        </div>
+
+        <h2>🚀 Autopilot Track Test</h2>
+        
+        <h3>Step 1: Enable Autopilot</h3>
+        <div class="step">
+            <span class="step-number">1.</span> In SuperControl, find the "Autopilot Track" section
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Click "Enable Autopilot Track" toggle
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> Verify you see the circle track visualization
+        </div>
+
+        <h3>Step 2: Manual Position Test</h3>
+        <div class="step">
+            <span class="step-number">1.</span> Use the "Position" slider to manually move the track position
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Watch the console for these expected logs:
+        </div>
+        <div class="expected-logs">
+            <strong>Expected Console Output:</strong>
+            <div class="code">[STORE] setAutopilotTrackPosition: Setting position to X.XX
+[STORE] setAutopilotTrackPosition: Calling updatePanTiltFromTrack()
+[STORE] updatePanTiltFromTrack: Entered.
+[STORE] updatePanTiltFromTrack: Calculated pan=XXX, tilt=XXX
+[STORE] updatePanTiltFromTrack: Number of targetFixtures to update: X
+[STORE] updatePanTiltFromTrack: DMX batch updates to be applied: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: Called with updates batch: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: Applied changes to local DMX state.
+[STORE] setMultipleDmxChannels: Sending HTTP POST to /api/dmx/batch with payload: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: DMX batch API call successful. Response status: 200</div>
+        </div>
+
+        <h3>Step 3: Autoplay Test</h3>
+        <div class="step">
+            <span class="step-number">1.</span> Set "Speed" to a moderate value (around 30-50)
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Click "Enable Autoplay" toggle
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> Watch the console for these expected logs:
+        </div>
+        <div class="expected-logs">
+            <strong>Expected Console Output (repeating):</strong>
+            <div class="code">[AUTOPILOT] Updating track position from X.XX to Y.YY
+[STORE] setAutopilotTrackPosition: Setting position to Y.YY
+[STORE] setAutopilotTrackPosition: Calling updatePanTiltFromTrack()
+[STORE] updatePanTiltFromTrack: Entered.
+[STORE] updatePanTiltFromTrack: Calculated pan=XXX, tilt=XXX
+[STORE] updatePanTiltFromTrack: Number of targetFixtures to update: X
+[STORE] updatePanTiltFromTrack: DMX batch updates to be applied: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: Called with updates batch: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: Applied changes to local DMX state.
+[STORE] setMultipleDmxChannels: Sending HTTP POST to /api/dmx/batch with payload: {1: XXX, 2: XXX}
+[STORE] setMultipleDmxChannels: DMX batch API call successful. Response status: 200</div>
+        </div>
+
+        <h2>🔍 Debugging Checklist</h2>
+        <ul class="checklist">
+            <li>Do you see the "[AUTOPILOT] Updating track position" logs when autoplay is enabled?</li>
+            <li>Do you see the "[STORE] setAutopilotTrackPosition" logs?</li>
+            <li>Do you see the "[STORE] updatePanTiltFromTrack: Entered" logs?</li>
+            <li>Do you see "Autopilot not enabled" messages? (This would indicate a problem)</li>
+            <li>Do you see "Number of targetFixtures to update: 0"? (This would indicate no fixtures selected)</li>
+            <li>Do you see "No DMX updates to apply"? (This would indicate channel mapping issues)</li>
+            <li>Do you see successful API calls to "/api/dmx/batch"?</li>
+            <li>Are there any error messages in the console?</li>
+            <li>Do the DMX channel values in the DMX Monitor panel change?</li>
+        </ul>
+
+        <h2>🚨 Common Issues to Check</h2>
+        
+        <div class="error">
+            <strong>Issue 1:</strong> No fixtures selected<br>
+            <strong>Solution:</strong> Make sure fixtures are selected in the fixture selector dropdown
+        </div>
+
+        <div class="error">
+            <strong>Issue 2:</strong> Fixtures don't have Pan/Tilt channels<br>
+            <strong>Solution:</strong> Verify fixtures have channels with type "pan" and "tilt" (case insensitive)
+        </div>
+
+        <div class="error">
+            <strong>Issue 3:</strong> Channel addresses are invalid<br>
+            <strong>Solution:</strong> Check that channels have valid DMX addresses (0-511) or proper start address + channel index calculation
+        </div>
+
+        <div class="error">
+            <strong>Issue 4:</strong> Backend not receiving updates<br>
+            <strong>Solution:</strong> Check network tab for failed API calls to "/api/dmx/batch"
+        </div>
+
+        <h2>📊 DMX Monitor Verification</h2>
+        <div class="step">
+            <span class="step-number">1.</span> Go to the "DMX Monitor" tab
+        </div>
+        <div class="step">
+            <span class="step-number">2.</span> Watch the channel values for your fixture's Pan and Tilt channels
+        </div>
+        <div class="step">
+            <span class="step-number">3.</span> With autoplay enabled, these values should be constantly changing
+        </div>
+
+        <div class="success">
+            <strong>✅ Success:</strong> If you see changing values in the DMX Monitor and successful API calls in the console, the autopilot is working correctly!
+        </div>
+
+        <h2>📝 Report Results</h2>
+        <div class="step">
+            Please report what you see in the console logs and any error messages. This will help identify exactly where the DMX update chain is breaking.
+        </div>
+    </div>
+</body>
+</html>

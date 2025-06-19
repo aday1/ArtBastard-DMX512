@@ -2029,11 +2029,11 @@ export const useStore = create<State>()(
 
       setAutopilotTrackType: (type) => {
         set({ autopilotTrackType: type });
-      },
-
-      setAutopilotTrackPosition: (position) => {
+      },      setAutopilotTrackPosition: (position) => {
+        console.log(`[STORE] setAutopilotTrackPosition: Setting position to ${position.toFixed(2)}`);
         set({ autopilotTrackPosition: position });
         // Automatically update pan/tilt when position changes
+        console.log('[STORE] setAutopilotTrackPosition: Calling updatePanTiltFromTrack()');
         get().updatePanTiltFromTrack();
       },
 
@@ -2161,9 +2161,7 @@ export const useStore = create<State>()(
           pan: Math.max(0, Math.min(255, Math.round(x))),
           tilt: Math.max(0, Math.min(255, Math.round(y)))
         };
-      },
-
-      updatePanTiltFromTrack: () => {
+      },      updatePanTiltFromTrack: () => {
         console.log('[STORE] updatePanTiltFromTrack: Entered.');
         const {
           autopilotTrackEnabled,
@@ -2175,6 +2173,10 @@ export const useStore = create<State>()(
           fixtures, // Main fixtures list
           selectedFixtures, // Array of selected fixture IDs
         } = get();
+
+        console.log(`[STORE] updatePanTiltFromTrack: Debug - autopilotTrackEnabled=${autopilotTrackEnabled}, fixtures.length=${fixtures.length}, selectedFixtures.length=${selectedFixtures.length}`);
+        console.log('[STORE] updatePanTiltFromTrack: Debug - selectedFixtures:', selectedFixtures);
+        console.log('[STORE] updatePanTiltFromTrack: Debug - fixtures:', fixtures.map(f => ({ id: f.id, name: f.name, channels: f.channels.length })));
 
         if (!autopilotTrackEnabled) {
           console.log('[STORE] updatePanTiltFromTrack: Autopilot not enabled, exiting.');
@@ -2203,16 +2205,23 @@ export const useStore = create<State>()(
         if (targetFixtures.length === 0) {
           console.log('[STORE] updatePanTiltFromTrack: No target fixtures for Pan/Tilt update, exiting.');
           return;
-        }
-
-        targetFixtures.forEach(fixture => {
+        }        targetFixtures.forEach(fixture => {
+          console.log(`[STORE] updatePanTiltFromTrack: Processing fixture "${fixture.name}" (ID: ${fixture.id})`);
+          console.log(`[STORE] updatePanTiltFromTrack: Fixture channels:`, fixture.channels.map(c => ({ type: c.type, dmxAddress: c.dmxAddress })));
+          
           fixture.channels.forEach(channel => {
+            console.log(`[STORE] updatePanTiltFromTrack: Checking channel type "${channel.type}" with DMX address ${channel.dmxAddress}`);
+            
             if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 0 && channel.dmxAddress < 512) {
               if (channel.type.toLowerCase() === 'pan') {
                 updates[channel.dmxAddress] = pan;
+                console.log(`[STORE] updatePanTiltFromTrack: Set Pan channel ${channel.dmxAddress} to ${pan}`);
               } else if (channel.type.toLowerCase() === 'tilt') {
                 updates[channel.dmxAddress] = tilt;
+                console.log(`[STORE] updatePanTiltFromTrack: Set Tilt channel ${channel.dmxAddress} to ${tilt}`);
               }
+            } else {
+              console.log(`[STORE] updatePanTiltFromTrack: Skipping channel "${channel.type}" - invalid DMX address: ${channel.dmxAddress}`);
             }
           });
         });

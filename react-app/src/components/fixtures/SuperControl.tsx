@@ -921,45 +921,65 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   };  // Autopilot track animation - enhanced for faster and more responsive control
   const animationFrameRef = useRef<number>(0);
   const lastUpdateTime = useRef<number>(0);
+  const currentPositionRef = useRef<number>(autopilotTrackPosition);
+
+  // Keep position ref updated
+  useEffect(() => {
+    currentPositionRef.current = autopilotTrackPosition;
+  }, [autopilotTrackPosition]);
 
   useEffect(() => {
     if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
+      console.log('[AUTOPILOT] Starting autoplay animation loop');
+      
       const animate = (currentTime: number) => {
-        // Always update DMX values on each frame for real-time responsiveness
-        updatePanTiltFromTrack();
-        
         const elapsed = currentTime - lastUpdateTime.current;
+        
+        // Only proceed if enough time has elapsed (throttle to avoid excessive updates)
+        if (elapsed < 16.67) { // ~60fps limit
+          animationFrameRef.current = requestAnimationFrame(animate);
+          return;
+        }
         
         // Calculate speed factor - higher values move faster
         // Speed ranges from 1-100, with exponential acceleration at higher values
         const speedFactor = autopilotTrackSpeed <= 50 
           ? autopilotTrackSpeed / 10  // 1-50 range maps to 0.1-5x speed
-          : Math.pow(1.08, autopilotTrackSpeed - 45);  // Exponential growth for 50-100 range
+          : Math.pow(1.08, autopilotTrackSpeed - 45);  // Exponential growth for 50-100 range        // Get current position to avoid stale closure
+        const currentPosition = currentPositionRef.current;
         
         // Calculate position update
-        let newPosition = autopilotTrackPosition + speedFactor * (elapsed / 16.67); // Base on 60fps
+        let newPosition = currentPosition + speedFactor * (elapsed / 16.67); // Base on 60fps
         if (newPosition > 100) newPosition %= 100;
-        
-        // Update position state
+          // Update position state (this will automatically trigger DMX update via store)
+        console.log(`[AUTOPILOT] Updating track position from ${currentPosition.toFixed(2)} to ${newPosition.toFixed(2)}`);
         setAutopilotTrackPosition(newPosition);
-        lastUpdateTime.current = currentTime;
-
-        // Continue animation if still enabled
+        lastUpdateTime.current = currentTime;// Continue animation if still enabled (check current props)
         if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
           animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          console.log('[AUTOPILOT] Animation stopped - autopilot disabled or autoplay turned off');
         }
       };
 
       lastUpdateTime.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(animate);
+    } else {
+      // Stop animation if autoplay is disabled
+      if (animationFrameRef.current) {
+        console.log('[AUTOPILOT] Stopping autoplay animation loop');
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
+      }
     }
     
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
       }
     };
-  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition, updatePanTiltFromTrack, setAutopilotTrackPosition]);
+  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, setAutopilotTrackPosition]);
   // Sync Pan/Tilt sliders with autopilot track position
   useEffect(() => {
     if (autopilotTrackEnabled) {
