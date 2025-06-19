@@ -918,30 +918,39 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     if (scenes.length === 0) return;
     const prevIndex = currentSceneIndex === 0 ? scenes.length - 1 : currentSceneIndex - 1;
     loadScene(prevIndex);
-  };
-  // Autopilot track animation
+  };  // Autopilot track animation - enhanced for faster and more responsive control
   const animationFrameRef = useRef<number>(0);
   const lastUpdateTime = useRef<number>(0);
 
   useEffect(() => {
     if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
-      let lastFrameTime = performance.now();
       const animate = (currentTime: number) => {
-        const elapsed = currentTime - lastFrameTime;
-        // Speed: 1 = slowest, 100 = fastest (every frame)
-        // At speed 100, update every frame; at speed 1, update every 100ms
-        const minInterval = 101 - autopilotTrackSpeed; // 100ms at 1x, 1ms at 100x
-        if (elapsed >= minInterval) {
-          let newPosition = autopilotTrackPosition + autopilotTrackSpeed * (elapsed / 16.67); // 16.67ms ~ 60fps
-          if (newPosition > 100) newPosition = newPosition % 100;
-          setAutopilotTrackPosition(newPosition);
-          updatePanTiltFromTrack();
-          lastFrameTime = currentTime;
-        }
+        // Always update DMX values on each frame for real-time responsiveness
+        updatePanTiltFromTrack();
+        
+        const elapsed = currentTime - lastUpdateTime.current;
+        
+        // Calculate speed factor - higher values move faster
+        // Speed ranges from 1-100, with exponential acceleration at higher values
+        const speedFactor = autopilotTrackSpeed <= 50 
+          ? autopilotTrackSpeed / 10  // 1-50 range maps to 0.1-5x speed
+          : Math.pow(1.08, autopilotTrackSpeed - 45);  // Exponential growth for 50-100 range
+        
+        // Calculate position update
+        let newPosition = autopilotTrackPosition + speedFactor * (elapsed / 16.67); // Base on 60fps
+        if (newPosition > 100) newPosition %= 100;
+        
+        // Update position state
+        setAutopilotTrackPosition(newPosition);
+        lastUpdateTime.current = currentTime;
+
+        // Continue animation if still enabled
         if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
           animationFrameRef.current = requestAnimationFrame(animate);
         }
       };
+
+      lastUpdateTime.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(animate);
     }
     
@@ -949,7 +958,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-    };  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition, updatePanTiltFromTrack, setAutopilotTrackPosition]);  // Sync Pan/Tilt sliders with autopilot track position
+    };
+  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, autopilotTrackPosition, updatePanTiltFromTrack, setAutopilotTrackPosition]);
+  // Sync Pan/Tilt sliders with autopilot track position
   useEffect(() => {
     if (autopilotTrackEnabled) {
       const { pan, tilt } = calculateTrackPosition(
@@ -1065,14 +1076,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         const angle1 = (positionPercent / 100) * Math.PI * 2 * 3; // Multiply for more "randomness"
         const angle2 = (positionPercent / 100) * Math.PI * 2 * 5;
         x = visualCenterX + radius * Math.cos(angle1) * (0.5 + 0.5 * Math.sin(angle2));
-        y = visualCenterY + radius * Math.sin(angle1) * (0.5 + 0.5 * Math.cos(angle2));
-        // Clamp to bounds if complex functions might exceed radius
+        y = visualCenterY + radius * Math.sin(angle1) * (0.5 + 0.5 * Math.cos(angle2));        // Clamp to bounds if complex functions might exceed radius
         const dist = Math.sqrt(Math.pow(x - visualCenterX, 2) + Math.pow(y - visualCenterY, 2));
         if (dist > radius) {
-            x = visualCenterX + (x - visualCenterX) * radius / dist;
-            y = visualCenterY + (y - visualCenterY) * radius / dist;
+          // Normalize to stay within radius
+          x = visualCenterX + (x - visualCenterX) * (radius / dist);
+          y = visualCenterY + (y - visualCenterY) * (radius / dist);
         }
         break;
+        
       default: // Circle as default
         x = visualCenterX + radius * Math.cos(progress * 2 * Math.PI - Math.PI / 2);
         y = visualCenterY + radius * Math.sin(progress * 2 * Math.PI - Math.PI / 2);
@@ -1312,17 +1324,19 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     console.log('[SuperControl] selectedFixtures from store AFTER toggle:', newSelected);
                     console.log(`[SuperControl] Does new selection include ${fixture.id}? : ${newSelected.includes(fixture.id)}`);
                   }}
-                >
-                  <div className={styles.fixtureInfo}>
+                >                  <div className={styles.fixtureInfo}>
                     <span className={styles.fixtureName}>{fixture.name}</span>
                     <span className={styles.fixtureType}>{fixture.type || 'Generic'}</span>
                   </div>
                   <div className={styles.fixtureDetails}>
-                    <span className={styles.fixtureChannels}>                      CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
-                    </span>                    <span className={styles.channelCount}>
+                    <span className={styles.fixtureChannels}>
+                      CH {fixture.startAddress}-{fixture.startAddress + fixture.channels.length - 1}
+                    </span>
+                    <span className={styles.channelCount}>
                       {fixture.channels.length} channels
                     </span>
-                  </div>                </div>
+                  </div>
+                </div>
               ))
             }
           </div>
