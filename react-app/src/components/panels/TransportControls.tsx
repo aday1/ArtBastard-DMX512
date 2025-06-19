@@ -9,24 +9,8 @@ interface TransportControlsProps {
   onPlay?: () => void;
   onPause?: () => void;
   onStop?: () => void;
-  // onRecord?: () => void; // Removed
   isPlaying?: boolean;
   isPaused?: boolean;
-  // isRecording?: boolean; // Removed
-}
-
-// Autopilot path types
-type PathType = 'circle' | 'figure8' | 'star' | 'random' | 'linear' | 'square' | 'triangle';
-
-interface AutopilotPath {
-  id: string;
-  name: string;
-  type: PathType;
-  speed: number;
-  amplitude: number;
-  centerX: number;
-  centerY: number;
-  active: boolean;
 }
 
 interface Scene {
@@ -44,15 +28,13 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   onPlay,
   onPause,
   onStop,
-  // onRecord, // Removed
   isPlaying = false,
   isPaused = false
-  // isRecording = false // Removed
 }) => {
   const { 
     fixtures, 
     getDmxChannelValue, 
-    setDmxChannelValue,    // Recording and Automation
+    setDmxChannelValue,// Recording and Automation
     recordingActive,
     recordingData,
     automationTracks,
@@ -77,27 +59,11 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     reverseAutomationDirection,
     playRecordingTimeline
   } = useStore();
-
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const transportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
-
-  // Autopilot state
-  const [autopilotActive, setAutopilotActive] = useState(false);
-  const [currentPath, setCurrentPath] = useState<AutopilotPath>({
-    id: 'circle1',
-    name: 'Circle',
-    type: 'circle',
-    speed: 1,
-    amplitude: 50,
-    centerX: 50,
-    centerY: 50,
-    active: false
-  });
-  const [pathProgress, setPathProgress] = useState(0);
-  const autopilotIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Scene management state
   const [scenes, setScenes] = useState<Scene[]>([]);
@@ -106,7 +72,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
   const [autoSceneInterval, setAutoSceneInterval] = useState(5000); // 5 seconds
   const autoSceneIntervalRef = useRef<NodeJS.Timeout | null>(null);
     // Panel tabs
-  const [activeTab, setActiveTab] = useState<'transport' | 'autopilot' | 'scenes' | 'automation'>('transport');useEffect(() => {
+  const [activeTab, setActiveTab] = useState<'transport' | 'scenes' | 'automation'>('transport');useEffect(() => {
     // Position at bottom-right by default
     if (!isDocked) {
       setPosition({ 
@@ -115,7 +81,6 @@ const TransportControls: React.FC<TransportControlsProps> = ({
       });
     }
   }, [isDocked]);
-
   // MIDI Learn state
   const [midiLearnTarget, setMidiLearnTarget] = useState<string | null>(null);
   const [midiMappings, setMidiMappings] = useState<Record<string, {
@@ -124,116 +89,6 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     cc?: number;
     type: 'note' | 'cc';
   }>>({});
-
-  // Autopilot path calculation functions
-  const calculatePathPoint = (progress: number, path: AutopilotPath): { x: number, y: number } => {
-    const { type, amplitude, centerX, centerY } = path;
-    const t = (progress / 100) * 2 * Math.PI;
-
-    switch (type) {
-      case 'circle':
-        return {
-          x: centerX + amplitude * Math.cos(t),
-          y: centerY + amplitude * Math.sin(t)
-        };
-      case 'figure8':
-        return {
-          x: centerX + amplitude * Math.sin(t),
-          y: centerY + amplitude * Math.sin(2 * t) / 2
-        };
-      case 'star':
-        const r = amplitude * (0.5 + 0.5 * Math.cos(5 * t));
-        return {
-          x: centerX + r * Math.cos(t),
-          y: centerY + r * Math.sin(t)
-        };
-      case 'square':
-        const side = Math.floor(t / (Math.PI / 2)) % 4;
-        const sideProgress = (t % (Math.PI / 2)) / (Math.PI / 2);
-        switch (side) {
-          case 0: return { x: centerX + amplitude * sideProgress, y: centerY - amplitude };
-          case 1: return { x: centerX + amplitude, y: centerY - amplitude + amplitude * 2 * sideProgress };
-          case 2: return { x: centerX + amplitude - amplitude * 2 * sideProgress, y: centerY + amplitude };
-          case 3: return { x: centerX - amplitude, y: centerY + amplitude - amplitude * 2 * sideProgress };
-          default: return { x: centerX, y: centerY };
-        }
-      case 'triangle':
-        const triSide = Math.floor(t / (2 * Math.PI / 3)) % 3;
-        const triProgress = (t % (2 * Math.PI / 3)) / (2 * Math.PI / 3);
-        switch (triSide) {
-          case 0: return { 
-            x: centerX + amplitude * triProgress, 
-            y: centerY - amplitude + amplitude * triProgress 
-          };
-          case 1: return { 
-            x: centerX + amplitude - amplitude * triProgress, 
-            y: centerY + amplitude 
-          };
-          case 2: return { 
-            x: centerX - amplitude + amplitude * triProgress, 
-            y: centerY + amplitude - amplitude * 2 * triProgress 
-          };
-          default: return { x: centerX, y: centerY };
-        }
-      case 'linear':
-        const linearX = centerX + amplitude * Math.cos(t / 2);
-        return { x: linearX, y: centerY };
-      case 'random':
-        return {
-          x: Math.max(0, Math.min(100, centerX + (Math.random() - 0.5) * amplitude * 2)),
-          y: Math.max(0, Math.min(100, centerY + (Math.random() - 0.5) * amplitude * 2))
-        };
-      default:
-        return { x: centerX, y: centerY };
-    }
-  };
-
-  const applyAutopilotToFixtures = (panValue: number, tiltValue: number) => {
-    fixtures.forEach(fixture => {
-      let panChannel = -1;
-      let tiltChannel = -1;
-
-      fixture.channels.forEach((channel, index) => {
-        const dmxAddress = fixture.startAddress + index - 1;
-        const channelType = channel.type.toLowerCase();
-        
-        if (channelType === 'pan') {
-          panChannel = dmxAddress;
-        } else if (channelType === 'tilt') {
-          tiltChannel = dmxAddress;
-        }
-      });
-
-      if (panChannel !== -1) {
-        setDmxChannelValue(panChannel, Math.round((panValue / 100) * 255));
-      }
-      if (tiltChannel !== -1) {
-        setDmxChannelValue(tiltChannel, Math.round((tiltValue / 100) * 255));
-      }
-    });
-  };
-
-  const startAutopilot = () => {
-    if (autopilotIntervalRef.current) return;
-
-    setAutopilotActive(true);
-    autopilotIntervalRef.current = setInterval(() => {
-      setPathProgress(prev => {
-        const newProgress = (prev + currentPath.speed) % 100;
-        const point = calculatePathPoint(newProgress, currentPath);
-        applyAutopilotToFixtures(point.x, point.y);
-        return newProgress;
-      });
-    }, 50); // 20 FPS
-  };
-
-  const stopAutopilot = () => {
-    if (autopilotIntervalRef.current) {
-      clearInterval(autopilotIntervalRef.current);
-      autopilotIntervalRef.current = null;
-    }
-    setAutopilotActive(false);
-  };
 
   // Scene management functions
   const captureScene = (name?: string) => {
@@ -370,15 +225,8 @@ const TransportControls: React.FC<TransportControlsProps> = ({
         } else if (mapping.type === 'cc' && messageType === 0xB0) {
           triggered = mapping.cc === data1 && data2 > 63; // CC value > 63
         }
-        
-        if (triggered) {
+          if (triggered) {
           switch (action) {
-            case 'autopilot_toggle':
-              autopilotActive ? stopAutopilot() : startAutopilot();
-              break;
-            case 'autopilot_stop':
-              stopAutopilot();
-              break;
             case 'scene_capture':
               captureScene();
               break;
@@ -402,9 +250,9 @@ const TransportControls: React.FC<TransportControlsProps> = ({
               break;
             case 'transport_stop':
               onStop?.();
-              stopAutopilot();
               stopAutoScene();
-              break;            case 'transport_record':
+              break;
+            case 'transport_record':
               // Record functionality removed
               console.log('Record triggered via MIDI (functionality disabled)');
               break;
@@ -424,18 +272,13 @@ const TransportControls: React.FC<TransportControlsProps> = ({
           });
         };
       });
-    }
-
-    // Cleanup intervals on unmount
+    }    // Cleanup intervals on unmount
     return () => {
-      if (autopilotIntervalRef.current) {
-        clearInterval(autopilotIntervalRef.current);
-      }
       if (autoSceneIntervalRef.current) {
         clearInterval(autoSceneIntervalRef.current);
       }
     };
-  }, [midiMappings, autopilotActive, autoSceneMode, scenes, currentSceneIndex, onPlay, onStop]);
+  }, [midiMappings, autoSceneMode, scenes, currentSceneIndex, onPlay, onStop]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isDocked) return;
@@ -551,19 +394,13 @@ const TransportControls: React.FC<TransportControlsProps> = ({
         </div>
       </div>      <div className={styles.transportBody}>
         {/* Tab Navigation */}
-        <div className={styles.tabContainer}>
-          <button
+        <div className={styles.tabContainer}>          <button
             className={`${styles.tab} ${activeTab === 'transport' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('transport')}
           >
             Transport
           </button>
           <button
-            className={`${styles.tab} ${activeTab === 'autopilot' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('autopilot')}
-          >
-            Autopilot
-          </button>          <button
             className={`${styles.tab} ${activeTab === 'scenes' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('scenes')}
           >
@@ -586,11 +423,9 @@ const TransportControls: React.FC<TransportControlsProps> = ({
               >
                 ⏺
               </button>
-              <button
-                className={`${styles.transportButton} ${styles.stopButton}`}
+              <button                className={`${styles.transportButton} ${styles.stopButton}`}
                 onClick={() => {
                   onStop?.();
-                  stopAutopilot();
                   stopAutoScene();
                 }}
                 title="Stop All"
@@ -637,133 +472,13 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                   M
                 </button>
               </div>
-            </div>
-
-            <div className={styles.statusIndicators}>
+            </div>            <div className={styles.statusIndicators}>
               {recordingActive && <div className={styles.recordingIndicator}>REC</div>}
               {isPlaying && <div className={styles.playingIndicator}>PLAY</div>}
               {isPaused && <div className={styles.pausedIndicator}>PAUSE</div>}
-              {autopilotActive && <div className={styles.autopilotIndicator}>AUTO</div>}
               {autoSceneMode && <div className={styles.sceneIndicator}>SCENE</div>}
             </div>
-          </div>
-        )}
-
-        {/* Autopilot Tab */}
-        {activeTab === 'autopilot' && (
-          <div className={styles.tabContent}>
-            <div className={styles.autopilotControls}>              <div className={styles.autopilotHeader}>
-                <h4>Pan/Tilt Tracking</h4>
-                <div className={styles.autopilotButtons}>
-                  <button
-                    className={`${styles.autopilotButton} ${autopilotActive ? styles.active : ''}`}
-                    onClick={autopilotActive ? stopAutopilot : startAutopilot}
-                    title={autopilotActive ? "Stop Autopilot" : "Start Autopilot"}
-                  >
-                    {autopilotActive ? "⏹" : "▶"}
-                  </button>
-                  <button
-                    className={`${styles.midiLearnButton} ${midiLearnTarget === 'autopilot_toggle' ? styles.learning : ''}`}
-                    onClick={() => startMidiLearn('autopilot_toggle')}
-                    title="MIDI Learn Autopilot Toggle"
-                  >
-                    M
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.pathSelection}>
-                <label>Path Type:</label>
-                <select
-                  value={currentPath.type}
-                  onChange={(e) => setCurrentPath(prev => ({ 
-                    ...prev, 
-                    type: e.target.value as PathType,
-                    name: e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1)
-                  }))}
-                  className={styles.pathSelect}
-                >
-                  <option value="circle">Circle</option>
-                  <option value="figure8">Figure 8</option>
-                  <option value="star">Star</option>
-                  <option value="square">Square</option>
-                  <option value="triangle">Triangle</option>
-                  <option value="linear">Linear</option>
-                  <option value="random">Random</option>
-                </select>
-              </div>
-
-              <div className={styles.pathControls}>
-                <div className={styles.controlRow}>
-                  <label>Speed:</label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="5"
-                    step="0.1"
-                    value={currentPath.speed}
-                    onChange={(e) => setCurrentPath(prev => ({ ...prev, speed: parseFloat(e.target.value) }))}
-                    className={styles.pathSlider}
-                  />
-                  <span className={styles.valueDisplay}>{currentPath.speed.toFixed(1)}</span>
-                </div>
-
-                <div className={styles.controlRow}>
-                  <label>Size:</label>
-                  <input
-                    type="range"
-                    min="10"
-                    max="100"
-                    step="5"
-                    value={currentPath.amplitude}
-                    onChange={(e) => setCurrentPath(prev => ({ ...prev, amplitude: parseInt(e.target.value) }))}
-                    className={styles.pathSlider}
-                  />
-                  <span className={styles.valueDisplay}>{currentPath.amplitude}%</span>
-                </div>
-
-                <div className={styles.controlRow}>
-                  <label>Center X:</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={currentPath.centerX}
-                    onChange={(e) => setCurrentPath(prev => ({ ...prev, centerX: parseInt(e.target.value) }))}
-                    className={styles.pathSlider}
-                  />
-                  <span className={styles.valueDisplay}>{currentPath.centerX}%</span>
-                </div>
-
-                <div className={styles.controlRow}>
-                  <label>Center Y:</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={currentPath.centerY}
-                    onChange={(e) => setCurrentPath(prev => ({ ...prev, centerY: parseInt(e.target.value) }))}
-                    className={styles.pathSlider}
-                  />
-                  <span className={styles.valueDisplay}>{currentPath.centerY}%</span>
-                </div>
-              </div>
-
-              <div className={styles.pathProgress}>
-                <label>Progress:</label>
-                <div className={styles.progressBar}>
-                  <div 
-                    className={styles.progressFill}
-                    style={{ width: `${pathProgress}%` }}
-                  />
-                </div>
-                <span className={styles.progressValue}>{Math.round(pathProgress)}%</span>
-              </div>
-            </div>
-          </div>
-        )}
+          </div>        )}
 
         {/* Scenes Tab */}
         {activeTab === 'scenes' && (

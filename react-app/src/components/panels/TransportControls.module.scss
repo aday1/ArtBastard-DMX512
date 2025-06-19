@@ -125,10 +125,20 @@
 }
 
 .transportButton.active {
-  background: linear-gradient(135deg, #4CAF50, #45a049);
-  border-color: #66BB6A;
+  background: linear-gradient(135deg, #FF6B35, #FF8C42);
+  border-color: #FF9F55;
   color: #fff;
-  box-shadow: 0 0 12px rgba(76, 175, 80, 0.4);
+  box-shadow: 0 0 16px rgba(255, 107, 53, 0.6);
+  transform: scale(1.05);
+}
+
+/* Enhanced Play Button Active State */
+.playButton.active {
+  background: linear-gradient(135deg, #00D4FF, #0099CC);
+  border-color: #33DDFF;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.6);
+  transform: scale(1.05);
 }
 
 /* Specific Button Styles */
@@ -948,12 +958,12 @@
     color: #fff;
     border-color: #888;
   }
-
   &.active {
-    background: linear-gradient(135deg, #3498db, #2980b9);
+    background: linear-gradient(135deg, #E74C3C, #C0392B);
     color: white;
-    border-color: #2980b9;
-    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+    border-color: #E74C3C;
+    box-shadow: 0 0 12px rgba(231, 76, 60, 0.6);
+    transform: scale(1.05);
   }
 }
 
