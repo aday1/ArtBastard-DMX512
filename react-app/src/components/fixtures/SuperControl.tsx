@@ -1333,11 +1333,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     </span>
                     <span className={styles.channelCount}>
                       {fixture.channels.length} channels
-                    </span>
-                  </div>
+                    </span>                  </div>
                 </div>
               ))
-            }
+            )}
           </div>
         )}
 
@@ -3202,8 +3201,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          </div>        )}
+      </div>
       </div>
     </div>
   );
