@@ -2245,3 +2245,25 @@
     color: #dc3545;
   }
 }
+
+/* Added style for fixtures with no DMX channel */
+.noDmxFixture {
+  background-color: rgba(220, 53, 69, 0.15) !important; /* Light red/warning background */
+  border-color: rgba(220, 53, 69, 0.4) !important;
+
+  &:hover {
+    background-color: rgba(220, 53, 69, 0.25) !important;
+    border-color: rgba(220, 53, 69, 0.6) !important;
+  }
+
+  .fixtureName {
+    color: #f8d7da !important; /* Lighter text for contrast */
+  }
+  .fixtureType {
+    background-color: rgba(220, 53, 69, 0.3) !important;
+    color: #f8d7da !important;
+  }
+  .fixtureDetails {
+    color: #e6a8ad !important;
+  }
+}

@@ -1297,7 +1297,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               fixtures.map(fixture => (
                 <div
                   key={fixture.id}
-                  className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
+                  className={`${styles.fixtureItem} ${
+                    selectedFixtures.includes(fixture.id) ? styles.selected : ''
+                  } ${
+                    (!fixture.startAddress || fixture.startAddress === 0 || fixture.channels.length === 0) ? styles.noDmxFixture : ''
+                  }`}
                   onClick={() => {
                     console.log('[SuperControl] Clicking fixture ID:', fixture.id, 'Current name:', fixture.name);
                     console.log('[SuperControl] Current selectedFixtures (before toggle):', useStore.getState().selectedFixtures);
