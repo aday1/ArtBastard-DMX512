@@ -1075,13 +1075,20 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       x: Math.max(0, Math.min(100, x)), 
       y: Math.max(0, Math.min(100, y)) 
     };
-  };
-  // Generate SVG path for track visualization
+  };  // Generate SVG path for track visualization
   const generateTrackPath = () => {
     // Convert DMX range (0-255) to SVG coordinates (0-100)
     const cx = (autopilotTrackCenterX / 255) * 100;
     const cy = (autopilotTrackCenterY / 255) * 100;
-    const size = autopilotTrackSize / 2;
+    const baseSize = autopilotTrackSize / 2;
+    
+    // Constrain size to keep track within bounds (0-100 SVG coordinates)
+    const maxRadiusX = Math.min(cx, 100 - cx);
+    const maxRadiusY = Math.min(cy, 100 - cy);
+    const maxRadius = Math.min(maxRadiusX, maxRadiusY, 45); // Max 45% to leave some padding
+    const size = Math.min(baseSize, maxRadius);
+    
+    console.log(`[TRACK_PATH] Center: (${cx.toFixed(1)}, ${cy.toFixed(1)}), Base size: ${baseSize}, Constrained size: ${size.toFixed(1)}`);
     
     switch (autopilotTrackType) {
       case 'circle':
@@ -1095,7 +1102,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       
       case 'figure8':
         return `M ${cx} ${cy} Q ${cx + size} ${cy - size} ${cx} ${cy} Q ${cx - size} ${cy + size} ${cx} ${cy}`;
-        case 'linear':
+        
+      case 'linear':
         return `M ${cx - size} ${cy} L ${cx + size} ${cy}`;
       
       case 'random':

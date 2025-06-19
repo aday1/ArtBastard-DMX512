@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 AutoPilot Debug & Validation Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #00ff80;
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(0, 255, 128, 0.5);
+        }
+
+        .status-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-success { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+
+        .test-section {
+            background: rgba(0, 0, 0, 0.4);
+            margin: 20px 0;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #00ff80;
+        }
+
+        .debug-step {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 3px solid #ffc107;
+        }
+
+        .code {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #333;
+        }
+
+        .expected-result {
+            background: rgba(40, 167, 69, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #28a745;
+            margin: 10px 0;
+        }
+
+        .error-result {
+            background: rgba(220, 53, 69, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #dc3545;
+            margin: 10px 0;
+        }
+
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #ffc107;
+            margin: 10px 0;
+        }
+
+        .checkbox-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checkbox-list li {
+            margin: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .checkbox-list li::before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .action-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-card:hover {
+            background: rgba(0, 255, 128, 0.1);
+            border-color: #00ff80;
+            transform: translateY(-2px);
+        }
+
+        .priority-critical {
+            border-left-color: #dc3545 !important;
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        .priority-high {
+            border-left-color: #fd7e14 !important;
+            background: rgba(253, 126, 20, 0.1);
+        }
+
+        .priority-medium {
+            border-left-color: #ffc107 !important;
+            background: rgba(255, 193, 7, 0.1);
+        }
+
+        .fix-section {
+            background: rgba(0, 255, 128, 0.1);
+            border: 1px solid rgba(0, 255, 128, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 AutoPilot Debug & Validation</h1>
+        <p>Comprehensive debugging guide for AutoPilot DMX and visual issues</p>
+        <div class="status-container">
+            <p>Issue Status:</p>
+            <div class="status-indicator status-error"></div>
+            <span>DMX Updates Not Working</span>
+            <div class="status-indicator status-error"></div>
+            <span>Visual Drawing Outside Range</span>
+        </div>
+    </div>
+
+    <div class="test-section priority-critical">
+        <h2>🚨 CRITICAL ISSUE IDENTIFICATION</h2>
+        
+        <div class="debug-step">
+            <h3>Issue #1: AutoPilot Doesn't Update DMX</h3>
+            <p><strong>User Report:</strong> Moving autopilot controls doesn't send DMX to fixtures</p>
+            
+            <h4>🔍 Debug Steps:</h4>
+            <ol>
+                <li>Open browser DevTools (F12)</li>
+                <li>Go to Console tab</li>
+                <li>Navigate to SuperControl in the app</li>
+                <li>Enable AutoPilot Track</li>
+                <li>Move the Position slider</li>
+                <li>Watch for console messages</li>
+            </ol>
+
+            <div class="expected-result">
+                <strong>✅ Expected Console Output:</strong>
+                <div class="code">
+[AUTOPILOT] Position changed to: 50
+[AUTOPILOT] Triggering updatePanTiltFromTrack after position change
+[STORE] updatePanTiltFromTrack: Entered.
+[STORE] updatePanTiltFromTrack: Calculated pan=159, tilt=95
+[STORE] updatePanTiltFromTrack: DMX batch updates to be applied: {1: 159, 2: 95}
+                </div>
+            </div>
+
+            <div class="error-result">
+                <strong>❌ Possible Error Outputs:</strong>
+                <div class="code">
+[STORE] updatePanTiltFromTrack: Autopilot not enabled, exiting.
+[STORE] updatePanTiltFromTrack: No target fixtures for Pan/Tilt update, exiting.
+[STORE] updatePanTiltFromTrack: No DMX updates to apply.
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Issue #2: Visual Drawing Outside UI Range</h3>
+            <p><strong>User Report:</strong> Track visualization appears outside XY pad boundaries</p>
+            
+            <h4>🔍 Debug Steps:</h4>
+            <ol>
+                <li>Enable AutoPilot Track</li>
+                <li>Set Size to 100%</li>
+                <li>Set Center X and Y to extreme values (0% or 100%)</li>
+                <li>Check if track path goes outside the XY pad square</li>
+            </ol>
+
+            <div class="expected-result">
+                <strong>✅ Expected Behavior:</strong>
+                <ul>
+                    <li>Track path stays within XY pad boundaries</li>
+                    <li>Position indicator (green dot) remains visible</li>
+                    <li>Track scales properly with size adjustments</li>
+                </ul>
+            </div>
+
+            <div class="error-result">
+                <strong>❌ Problem Symptoms:</strong>
+                <ul>
+                    <li>Track path extends beyond XY pad edges</li>
+                    <li>Position indicator disappears</li>
+                    <li>Track doesn't scale proportionally</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 DIAGNOSTIC TESTS</h2>
+
+        <div class="quick-actions">
+            <div class="action-card">
+                <h4>1. Fixture Selection Test</h4>
+                <p>Verify fixtures with Pan/Tilt channels are selected</p>
+                <ul class="checkbox-list">
+                    <li>Open SuperControl</li>
+                    <li>Check fixture selection display</li>
+                    <li>Verify fixtures have Pan/Tilt channels</li>
+                    <li>Use Debug button to check fixture count</li>
+                </ul>
+            </div>
+
+            <div class="action-card">
+                <h4>2. DMX Channel Mapping Test</h4>
+                <p>Confirm Pan/Tilt channels are properly mapped</p>
+                <ul class="checkbox-list">
+                    <li>Check fixture definitions</li>
+                    <li>Verify channel types: 'pan', 'tilt'</li>
+                    <li>Confirm DMX addresses are valid</li>
+                    <li>Test manual Pan/Tilt control first</li>
+                </ul>
+            </div>
+
+            <div class="action-card">
+                <h4>3. Visual Bounds Test</h4>
+                <p>Test track visualization boundaries</p>
+                <ul class="checkbox-list">
+                    <li>Set Size to 10%, 50%, 100%</li>
+                    <li>Test all center positions</li>
+                    <li>Check each track type</li>
+                    <li>Verify position indicator visibility</li>
+                </ul>
+            </div>
+
+            <div class="action-card">
+                <h4>4. Console Debug Test</h4>
+                <p>Use built-in debug button</p>
+                <ul class="checkbox-list">
+                    <li>Click Debug button in autopilot controls</li>
+                    <li>Review console output</li>
+                    <li>Check calculated Pan/Tilt values</li>
+                    <li>Verify fixture and channel counts</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 STEP-BY-STEP VALIDATION</h2>
+
+        <div class="debug-step">
+            <h3>Step 1: Basic Setup Validation</h3>
+            <p>Ensure basic requirements are met before testing autopilot</p>
+            
+            <div class="code">
+// Required setup checklist:
+1. Navigate to http://localhost:3001
+2. Go to Fixtures panel → SuperControl
+3. Verify fixtures are loaded
+4. Select at least one fixture with Pan/Tilt channels
+5. Test manual Pan/Tilt sliders work first
+6. Check DMX output is functioning
+            </div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 2: AutoPilot Activation Test</h3>
+            <p>Test the autopilot enable/disable functionality</p>
+            
+            <div class="code">
+// Test sequence:
+1. Locate "Autopilot Track" section in Pan/Tilt controls
+2. Click Start/Stop button to enable autopilot
+3. Verify autopilot controls become visible
+4. Check console for enable/disable messages
+5. Test Debug button to see current state
+            </div>
+
+            <div class="expected-result">
+                <strong>Expected Results:</strong>
+                <ul>
+                    <li>Button changes from "Start" to "Stop" when enabled</li>
+                    <li>Autopilot controls section appears</li>
+                    <li>Debug button shows autopilot enabled: true</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 3: Position Control Test</h3>
+            <p>Test manual position control and DMX output</p>
+            
+            <div class="code">
+// Test procedure:
+1. Set track type to "Circle" for predictable testing
+2. Slowly move Position slider from 0% to 100%
+3. Watch console for update messages
+4. Observe Pan/Tilt sliders and fixtures
+5. Test other track types
+            </div>
+
+            <div class="expected-result">
+                <strong>Expected Console Output per position change:</strong>
+                <div class="code">
+[AUTOPILOT] Position changed to: [value]
+[AUTOPILOT] Triggering updatePanTiltFromTrack after position change
+[STORE] updatePanTiltFromTrack: Calculated pan=[value], tilt=[value]
+[STORE] updatePanTiltFromTrack: DMX batch updates to be applied: {[channel]: [value]}
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Step 4: Visual Track Bounds Test</h3>
+            <p>Test track visualization stays within boundaries</p>
+            
+            <div class="code">
+// Test matrix:
+Size: 10%, 25%, 50%, 75%, 100%
+Center X: 0%, 25%, 50%, 75%, 100%  
+Center Y: 0%, 25%, 50%, 75%, 100%
+Track Types: Circle, Square, Figure 8, Triangle, Linear, Random
+
+// For each combination:
+1. Set the values
+2. Check track path stays in XY pad
+3. Verify position indicator is visible
+4. Test position slider 0-100%
+            </div>
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>🛠️ POTENTIAL FIXES</h2>
+
+        <div class="debug-step">
+            <h3>Fix #1: DMX Update Issues</h3>
+            <p>Common causes and solutions for DMX not updating</p>
+            
+            <div class="warning">
+                <strong>Possible Causes:</strong>
+                <ul>
+                    <li><strong>No fixtures selected:</strong> updatePanTiltFromTrack needs selected fixtures</li>
+                    <li><strong>Wrong channel types:</strong> Channels must be type 'pan' and 'tilt' (lowercase)</li>
+                    <li><strong>Invalid DMX addresses:</strong> Addresses must be 0-511</li>
+                    <li><strong>Function not called:</strong> setTimeout might not be executing</li>
+                </ul>
+            </div>
+
+            <div class="expected-result">
+                <strong>Debug Commands to Run in Console:</strong>
+                <div class="code">
+// Check store state
+console.log('Autopilot enabled:', window.useStore?.getState?.()?.autopilotTrackEnabled);
+console.log('Selected fixtures:', window.useStore?.getState?.()?.selectedFixtures);
+console.log('All fixtures:', window.useStore?.getState?.()?.fixtures);
+
+// Manual trigger test
+window.useStore?.getState?.()?.updatePanTiltFromTrack?.();
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-step">
+            <h3>Fix #2: Visual Bounds Issues</h3>
+            <p>Solutions for track visualization going outside UI range</p>
+            
+            <div class="warning">
+                <strong>Likely Issues:</strong>
+                <ul>
+                    <li><strong>Size calculation:</strong> Track size not properly constrained</li>
+                    <li><strong>Center positioning:</strong> Center + size extends beyond 100%</li>
+                    <li><strong>SVG coordinate system:</strong> Mismatch between DMX and SVG ranges</li>
+                </ul>
+            </div>
+
+            <div class="code">
+// Current coordinate conversion (should be correct):
+const cx = (autopilotTrackCenterX / 255) * 100;  // DMX to %
+const cy = (autopilotTrackCenterY / 255) * 100;  // DMX to %
+const size = autopilotTrackSize / 2;             // Radius
+
+// Bounds checking needed:
+const maxRadius = Math.min(cx, cy, 100-cx, 100-cy);
+const constrainedSize = Math.min(size, maxRadius);
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 VALIDATION CHECKLIST</h2>
+        
+        <h3>✅ DMX Update Validation:</h3>
+        <ul class="checkbox-list">
+            <li>Console shows position change messages</li>
+            <li>updatePanTiltFromTrack function executes</li>
+            <li>Pan/Tilt values are calculated correctly</li>
+            <li>DMX batch updates are applied</li>
+            <li>Fixtures move according to track pattern</li>
+            <li>Pan/Tilt sliders update in real-time</li>
+            <li>XY pad handle follows track position</li>
+        </ul>
+
+        <h3>✅ Visual Bounds Validation:</h3>
+        <ul class="checkbox-list">
+            <li>Track path stays within XY pad at all sizes</li>
+            <li>Position indicator remains visible</li>
+            <li>Track scales proportionally with size control</li>
+            <li>Center controls move track without overflow</li>
+            <li>All track types render correctly</li>
+            <li>SVG coordinates match percentage values</li>
+        </ul>
+
+        <h3>🎯 Success Criteria:</h3>
+        <div class="expected-result">
+            <p><strong>Issues are RESOLVED when:</strong></p>
+            <ol>
+                <li><strong>DMX Updates:</strong> Moving any autopilot control immediately triggers fixture movement</li>
+                <li><strong>Visual Bounds:</strong> Track visualization always stays within XY pad boundaries</li>
+                <li><strong>Synchronization:</strong> Pan/Tilt sliders and XY pad reflect autopilot calculations</li>
+                <li><strong>Consistency:</strong> All track types work correctly at all size/center combinations</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 QUICK ACCESS</h2>
+        <div class="code">
+Direct Link: <a href="http://localhost:3001" style="color: #00ff80;">http://localhost:3001</a>
+Navigation: Main App → Fixtures Panel → SuperControl → Pan/Tilt Control → Autopilot Track
+
+Debug Console Commands:
+- Check autopilot state: window.useStore?.getState?.()?.autopilotTrackEnabled
+- Manual trigger: window.useStore?.getState?.()?.updatePanTiltFromTrack?.()
+- Fixture count: window.useStore?.getState?.()?.selectedFixtures?.length
+        </div>
+    </div>
+</body>
+</html>
