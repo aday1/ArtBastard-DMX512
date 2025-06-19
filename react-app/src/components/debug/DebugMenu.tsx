@@ -3,6 +3,7 @@ import { useSocket } from '../../context/SocketContext';
 import { useStore } from '../../store';
 import { sendTestNoteOnMessage, sendTestCCMessage, testMidiLearnWorkflow } from '../../hooks/useMidiTestUtils';
 import { exportToToscFile, ExportOptions } from '../../utils/touchoscExporter';
+import { exportCrashProofToscFile, FixedExportOptions } from '../../utils/touchoscFixedExporter';
 import styles from './DebugMenu.module.scss';
 
 interface DebugMenuProps {
@@ -196,6 +197,39 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     } catch (error) {
       console.error('Error generating TouchOSC layout:', error);
       alert('Error generating TouchOSC layout: ' + error);
+    } finally {
+      setTouchOscGenerating(false);
+    }
+  };
+
+  const generateCrashProofExport = async () => {
+    setTouchOscGenerating(true);
+    try {
+      console.log('🔧 Generating crash-proof TouchOSC export...');
+      
+      const options: FixedExportOptions = {
+        resolution: 'tablet_portrait',
+        includeFixtureControls: true,
+        includeMasterSliders: true,
+        includeAllDmxChannels: false
+      };
+
+      const result = await exportCrashProofToscFile(
+        options,
+        fixtureLayout,
+        masterSliders,
+        allFixtures,
+        'ArtBastard_CrashProof.tosc'
+      );
+
+      if (result.success) {
+        alert('✅ Crash-proof TouchOSC file generated successfully!\n\nThis version includes:\n• Enhanced XML validation\n• Color format fixes\n• Boundary checking\n• OSC address validation\n\nImport this file into TouchOSC - it should not crash!');
+      } else {
+        alert(`❌ Crash-proof export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error generating crash-proof TouchOSC layout:', error);
+      alert('Error generating crash-proof TouchOSC layout: ' + error);
     } finally {
       setTouchOscGenerating(false);
     }
@@ -399,7 +433,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                             : ` MIDI Note ${mapping.channel}:${mapping.note}`}
                         </div>
                       ))
-                    )}
+                    }
                   </div>
                 </div>
 
@@ -447,7 +481,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                           {JSON.stringify(message)}
                         </div>
                       ))
-                    )}
+                    }
                   </div>
                 </div>
               </div>
@@ -564,8 +598,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
               <div className={styles.touchoscTab}>
                 <div className={styles.section}>
                   <h4>📱 TouchOSC Generation</h4>
-                  
-                  <div className={styles.buttonGrid}>
+                    <div className={styles.buttonGrid}>
                     <button
                       onClick={generateFromFixtures}
                       className={styles.generateButton}
@@ -581,9 +614,19 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                     >
                       {touchOscGenerating ? '⏳ Generating...' : '📊 Generate All 512 Channels'}
                     </button>
+                    
+                    <button
+                      onClick={generateCrashProofExport}
+                      className={`${styles.generateButton} ${styles.crashProofButton}`}
+                      disabled={touchOscGenerating}
+                      title="Enhanced export with crash prevention fixes"
+                    >
+                      {touchOscGenerating ? '⏳ Generating...' : '🔧 Generate Crash-Proof TouchOSC'}
+                    </button>
                   </div>                  <div className={styles.infoText}>
                     <p><strong>Auto-Generate from Fixtures:</strong> Creates TouchOSC layout (.tosc file) with controls for all placed fixtures, including PAN/TILT controls for moving lights and master sliders.</p>
                     <p><strong>All 512 Channels:</strong> Creates a comprehensive grid with faders for all 512 DMX channels in TouchOSC format (.tosc file).</p>
+                    <p><strong>🔧 Crash-Proof TouchOSC:</strong> Enhanced export with XML validation, color format fixes, boundary checking, and OSC address validation. Use this if TouchOSC crashes when importing regular exports.</p>
                     <p><strong>Note:</strong> Generated .tosc files can be imported directly into the TouchOSC app on your mobile device.</p>
                   </div>
                 </div>
