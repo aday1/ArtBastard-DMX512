@@ -403,9 +403,8 @@ export const NodeBasedFixtureEditor: React.FC<NodeBasedFixtureEditorProps> = ({
       )
     })
   }
-
   return (
-    <div className={styles.editorContainer}>
+    <div className={`${styles.editorContainer} ${selectedNode ? styles.hasDetailsPanel : ''}`}>
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>

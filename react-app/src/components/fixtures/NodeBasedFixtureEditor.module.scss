@@ -79,6 +79,12 @@
     font-size: 1.1rem;
     color: var(--color-primary);
   }
+
+  /* Move to right side when details panel is visible */
+  .hasDetailsPanel & {
+    left: auto;
+    right: 20px;
+  }
 }
 
 .channelGrid {
@@ -124,6 +130,27 @@
   &:active {
     cursor: grabbing;
   }
+
+  /* Add backdrop overlay when node details are visible */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+}
+
+/* Show backdrop when node details panel is visible */
+.hasDetailsPanel .canvas::before {
+  opacity: 1;
 }
 
 .node {
@@ -135,15 +162,18 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: move;
   transition: all 0.2s ease;
+  z-index: 100;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    z-index: 110;
   }
 
   &.selected {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.3);
+    z-index: 120;
   }
 
   &.fixture {
@@ -267,14 +297,15 @@
 .detailsPanel {
   position: absolute;
   top: 70px;
-  right: 20px;
-  width: 300px;
+  left: 20px;
+  width: 320px;
   background: var(--color-card-bg);
   border: 1px solid var(--color-card-border);
   border-radius: var(--border-radius);
   padding: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 150;
 
   h3 {
     margin: 0 0 1rem 0;
