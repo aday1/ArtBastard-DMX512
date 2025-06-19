@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import { SuperControlExportOptions, exportSuperControlToToscFile } from '../../utils/touchoscExporter';
+import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import styles from './SuperControl.module.scss';
 
 interface SuperControlProps {
@@ -58,7 +59,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   } = useStore();  // Selection state
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('fixtures');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
+  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);  // MIDI Learn functionality
+  const {
+    startLearn: startSuperControlMidiLearn,
+    cancelLearn: cancelSuperControlMidiLearn,
+    forgetMapping: forgetSuperControlMidiMapping,
+    isLearning: isSuperControlLearning,
+    learnStatus: superControlLearnStatus,
+    currentLearningControlName,
+    mappings: superControlMappings
+  } = useSuperControlMidiLearn();
 
   // Log fixtures prop changes
   useEffect(() => {
@@ -835,7 +845,40 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       r: Math.round((r + m) * 255),
       g: Math.round((g + m) * 255),
       b: Math.round((b + m) * 255)
-    };
+    };  };
+
+  // MIDI Learn Button Component for SuperControl
+  const renderMidiButtons = (controlName: string) => {
+    const isCurrentlyLearning = isSuperControlLearning && currentLearningControlName === controlName;
+    const hasMapping = superControlMappings[controlName];
+    
+    return (
+      <div className={styles.midiButtons}>
+        {!hasMapping ? (
+          <button
+            className={`${styles.midiLearnButton} ${isCurrentlyLearning ? styles.learning : ''}`}
+            onClick={() => startSuperControlMidiLearn(controlName)}
+            disabled={isSuperControlLearning && !isCurrentlyLearning}
+            title={isCurrentlyLearning ? 'Send MIDI CC or Note...' : 'Learn MIDI mapping'}
+          >
+            {isCurrentlyLearning ? 'Learning...' : 'Learn'}
+          </button>
+        ) : (
+          <div className={styles.midiMappingInfo}>
+            <span className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel}`}>
+              🎹 {hasMapping.controller ? `CC${hasMapping.controller}` : `N${hasMapping.note}`}
+            </span>
+            <button
+              className={styles.midiForgetButton}
+              onClick={() => forgetSuperControlMidiMapping(controlName)}
+              title="Remove MIDI mapping"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // MIDI Learn functionality
@@ -1659,9 +1702,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('focus', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('focus')}</div>
+              {renderMidiButtons('focus')}
             </div>
 
             {/* Zoom Control */}
@@ -1691,9 +1734,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('zoom', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('zoom')}</div>
+              {renderMidiButtons('zoom')}
             </div>
 
             {/* Iris Control */}
@@ -1723,9 +1766,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('iris', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('iris')}</div>
+              {renderMidiButtons('iris')}
             </div>
           </div>
         </div>
@@ -1816,9 +1859,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       applyControl('finePan', val);
                     }}
                     className={styles.fineValueInput}
-                  />
-                </div>
+                  />                </div>
                 <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('finePan')}</div>
+                {renderMidiButtons('finePan')}
               </div>
               
               <div className={styles.fineControlRow}>
@@ -1847,10 +1890,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       applyControl('fineTilt', val);
                     }}
                     className={styles.fineValueInput}
-                  />
-                </div>
+                  />                </div>
                 <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('fineTilt')}</div>
-              </div>            </div>
+                {renderMidiButtons('fineTilt')}
+              </div></div>
             
             <div className={styles.panTiltControls}>
               <button 
@@ -2281,9 +2324,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('dimmer', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('dimmer')}</div>
+              {renderMidiButtons('dimmer')}
             </div>
 
             {/* Shutter Control */}
@@ -2313,9 +2356,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('shutter', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('shutter')}</div>
+              {renderMidiButtons('shutter')}
             </div>
 
             {/* Strobe Control */}
@@ -2345,9 +2388,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('strobe', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('strobe')}</div>
+              {renderMidiButtons('strobe')}
             </div>
 
             {/* GOBO Control */}
@@ -2377,9 +2420,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('gobo', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('gobo')}</div>
+              {renderMidiButtons('gobo')}
             </div>
 
             {/* Color Wheel Control */}
@@ -2409,9 +2452,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('colorWheel', val);
                   }}
                   className={styles.valueInput}
-                />
-              </div>
+                />              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('colorWheel')}</div>
+              {renderMidiButtons('colorWheel')}
             </div>
           </div>
         </div>

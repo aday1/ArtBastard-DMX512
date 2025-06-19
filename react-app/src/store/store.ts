@@ -256,16 +256,16 @@ interface State {
     debugButton: boolean
     midiMonitor: boolean
     oscMonitor: boolean
-  }
-  // MIDI State
+  }  // MIDI State
   midiInterfaces: string[]
   activeInterfaces: string[]
-  midiMappings: Record<number, MidiMapping | undefined> 
+  midiMappings: Record<number, MidiMapping | undefined>;
   midiLearnTarget: 
     | { type: 'masterSlider'; id: string }
     | { type: 'dmxChannel'; channelIndex: number }
     | { type: 'placedControl'; fixtureId: string; controlId: string }
     | { type: 'group'; groupId: string }
+    | { type: 'superControl'; controlName: string }
     | null;
   midiLearnScene: string | null 
   midiMessages: any[]
@@ -439,7 +439,7 @@ interface State {
   reportOscActivity: (channelIndex: number, value: number) => void 
   addOscMessage: (message: OscMessage) => void; // Added for OSC Monitor
     // MIDI Actions
-  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'group', id: string }) => void;
+  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'group', id: string } | { type: 'placedControl'; fixtureId: string; controlId: string } | { type: 'superControl'; controlName: string }) => void;
   cancelMidiLearn: () => void
   addMidiMessage: (message: any) => void
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
@@ -1329,16 +1329,37 @@ export const useStore = create<State>()(
         if (get().recordingActive) {
           get().addRecordingEvent({ type: 'osc', data: message });
         }
-      },
-
-      // MIDI Actions
+      },      // MIDI Actions
       startMidiLearn: (target) => {
         set({ midiLearnTarget: target });
+        
+        let message = 'MIDI Learn started for ';
+        switch (target.type) {
+          case 'dmxChannel':
+            message += `DMX Ch: ${target.channelIndex + 1}`;
+            break;
+          case 'masterSlider':
+            message += `Master Slider: ${target.id}`;
+            break;
+          case 'group':
+            message += `Group: ${target.id}`;
+            break;
+          case 'placedControl':
+            message += `Control: ${target.controlId} on Fixture: ${target.fixtureId}`;
+            break;
+          case 'superControl':
+            message += `SuperControl: ${target.controlName}`;
+            break;
+          default:
+            message += 'Unknown target';
+        }
+        
         get().addNotification({ 
-          message: `MIDI Learn started for ${target.type === 'dmxChannel' ? 'DMX Ch: ' + (target.channelIndex + 1) : 'Master Slider: ' + target.id }`, 
+          message, 
           type: 'info', 
           priority: 'low' 
         });
+        
         if (target.type === 'dmxChannel') {
             axios.post('/api/midi/learn', { channel: target.channelIndex })
               .catch(error => {

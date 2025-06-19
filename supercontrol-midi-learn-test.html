@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperControl MIDI Learn Test Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+            border-radius: 4px;
+        }
+        .feature {
+            background: #f3e5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #9c27b0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #ff9800;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+            border-radius: 4px;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .control-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .control-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        .midi-button-demo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .learn-btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .mapped-indicator {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #4caf50;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+        .forget-btn {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            color: #f44336;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎹 SuperControl MIDI Learn Implementation Test Guide</h1>
+        <p>Complete testing guide for the new MIDI Learn and MIDI Forget functionality in SuperControl</p>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Implementation Summary</h2>
+        <div class="feature">
+            <h3>✅ Completed Features</h3>
+            <ul>
+                <li><strong>useSuperControlMidiLearn Hook:</strong> Custom React hook for MIDI Learn/Forget functionality</li>
+                <li><strong>Store Integration:</strong> Extended store's midiLearnTarget to support 'superControl' type</li>
+                <li><strong>MIDI Button UI:</strong> Learn/Forget buttons added to key SuperControl controls</li>
+                <li><strong>Visual Feedback:</strong> Learning state indicators and mapping display</li>
+                <li><strong>Value Scaling:</strong> Automatic MIDI value scaling to control ranges (0-255)</li>
+            </ul>
+        </div>
+        
+        <div class="control-list">
+            <div class="control-item">
+                <strong>Focus Control</strong><br>
+                Movement & Position section
+            </div>
+            <div class="control-item">
+                <strong>Zoom Control</strong><br>
+                Movement & Position section
+            </div>
+            <div class="control-item">
+                <strong>Iris Control</strong><br>
+                Movement & Position section
+            </div>
+            <div class="control-item">
+                <strong>Fine Pan Control</strong><br>
+                Pan/Tilt XY Control section
+            </div>
+            <div class="control-item">
+                <strong>Fine Tilt Control</strong><br>
+                Pan/Tilt XY Control section
+            </div>
+            <div class="control-item">
+                <strong>Dimmer Control</strong><br>
+                Basic Controls section
+            </div>
+            <div class="control-item">
+                <strong>Shutter Control</strong><br>
+                Basic Controls section
+            </div>
+            <div class="control-item">
+                <strong>Strobe Control</strong><br>
+                Basic Controls section
+            </div>
+            <div class="control-item">
+                <strong>GOBO Control</strong><br>
+                Basic Controls section
+            </div>
+            <div class="control-item">
+                <strong>Color Wheel Control</strong><br>
+                Basic Controls section
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Testing Procedure</h2>
+        
+        <div class="step">
+            <h3>Step 1: Start the Application</h3>
+            <code>cd react-app && npm start</code>
+            <p>Navigate to the SuperControl panel in the Fixtures section.</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Check MIDI Button Presence</h3>
+            <p>Verify that each control listed above now has MIDI Learn buttons.</p>
+            <div class="midi-button-demo">
+                <span>Control name:</span>
+                <div class="learn-btn">Learn</div>
+                <span>← Should appear next to each control</span>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test MIDI Learn Process</h3>
+            <ol>
+                <li>Click the "Learn" button on any control (e.g., Dimmer)</li>
+                <li>Button should change to "Learning..." with pulsing animation</li>
+                <li>Send a MIDI CC or Note from your MIDI controller/software</li>
+                <li>On successful mapping, button should be replaced with mapping info</li>
+            </ol>
+            <div class="midi-button-demo">
+                <span>After mapping:</span>
+                <div class="mapped-indicator">🎹 CC64</div>
+                <div class="forget-btn">✕</div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test MIDI Control</h3>
+            <ol>
+                <li>After mapping, move the MIDI controller/send MIDI messages</li>
+                <li>The SuperControl slider should respond to MIDI input</li>
+                <li>Values should scale appropriately (0-127 MIDI → 0-255 DMX)</li>
+                <li>DMX output should update accordingly</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Test MIDI Forget</h3>
+            <ol>
+                <li>Click the "✕" button next to a mapped control</li>
+                <li>Mapping indicator should disappear</li>
+                <li>"Learn" button should reappear</li>
+                <li>MIDI controller should no longer affect that control</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎛️ MIDI Learn Hook Features</h2>
+        
+        <div class="feature">
+            <h3>Automatic Value Scaling</h3>
+            <p>MIDI values (0-127) are automatically scaled to control ranges (0-255)</p>
+            <code>dmxValue = Math.round((midiValue / 127) * 255)</code>
+        </div>
+
+        <div class="feature">
+            <h3>Learning State Management</h3>
+            <ul>
+                <li><strong>isLearning:</strong> Tracks if any SuperControl is in learn mode</li>
+                <li><strong>learnStatus:</strong> 'idle' | 'learning' | 'success' | 'timeout'</li>
+                <li><strong>currentLearningControlName:</strong> Which control is currently learning</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h3>Mapping Storage</h3>
+            <p>Mappings are stored in local component state and can be extended to persist to localStorage or backend</p>
+            <code>superControlMappings: Record&lt;string, SuperControlMidiMapping&gt;</code>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Technical Implementation</h2>
+        
+        <div class="feature">
+            <h3>Files Modified/Created</h3>
+            <ul>
+                <li><code>hooks/useSuperControlMidiLearn.ts</code> - New custom hook</li>
+                <li><code>store/store.ts</code> - Extended midiLearnTarget type</li>
+                <li><code>components/fixtures/SuperControl.tsx</code> - Added MIDI buttons</li>
+                <li><code>components/fixtures/SuperControl.module.scss</code> - Added button styles</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h3>Hook API</h3>
+            <ul>
+                <li><code>startLearn(controlName: string)</code> - Start MIDI learning for a control</li>
+                <li><code>cancelLearn()</code> - Cancel current learning process</li>
+                <li><code>forgetMapping(controlName: string)</code> - Remove MIDI mapping</li>
+                <li><code>isLearning: boolean</code> - Learning state indicator</li>
+                <li><code>mappings</code> - Current MIDI mappings object</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Expected Behavior</h2>
+        
+        <div class="success">
+            <h3>✅ Success Criteria</h3>
+            <ul>
+                <li>All listed controls display MIDI Learn buttons</li>
+                <li>Learn buttons work and show visual feedback</li>
+                <li>MIDI input is captured and stored correctly</li>
+                <li>Mapped controls respond to MIDI input in real-time</li>
+                <li>Forget functionality removes mappings properly</li>
+                <li>Multiple controls can be mapped simultaneously</li>
+                <li>Learning timeout works (prevents indefinite learning state)</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ Common Issues to Check</h3>
+            <ul>
+                <li>MIDI device must be connected and recognized by the browser</li>
+                <li>Only one control can be in learning mode at a time</li>
+                <li>Learning times out after 10 seconds if no MIDI input received</li>
+                <li>Ensure MIDI permissions are granted in browser</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Next Steps & Enhancements</h2>
+        
+        <div class="feature">
+            <h3>Potential Enhancements</h3>
+            <ul>
+                <li><strong>Persistence:</strong> Save mappings to localStorage or backend</li>
+                <li><strong>More Controls:</strong> Add MIDI buttons to remaining SuperControl elements</li>
+                <li><strong>Presets:</strong> Save/load MIDI mapping presets</li>
+                <li><strong>MIDI Learn All:</strong> Bulk MIDI learning mode</li>
+                <li><strong>Range Customization:</strong> Allow custom min/max values per control</li>
+                <li><strong>MIDI Feedback:</strong> Send MIDI output when controls change</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results</h2>
+        <p>Use this space to record your test results:</p>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <h4>Test Checklist:</h4>
+            <label><input type="checkbox"> MIDI buttons visible on all controls</label><br>
+            <label><input type="checkbox"> Learn button changes to "Learning..." on click</label><br>
+            <label><input type="checkbox"> MIDI input captured successfully</label><br>
+            <label><input type="checkbox"> Control responds to MIDI after mapping</label><br>
+            <label><input type="checkbox"> Forget button removes mapping</label><br>
+            <label><input type="checkbox"> Multiple controls can be mapped</label><br>
+            <label><input type="checkbox"> No console errors during testing</label><br>
+            <label><input type="checkbox"> DMX output updates correctly</label><br>
+        </div>
+    </div>
+</body>
+</html>

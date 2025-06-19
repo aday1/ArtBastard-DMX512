@@ -2267,3 +2267,82 @@
     color: #e6a8ad !important;
   }
 }
+
+/* MIDI Learn/Forget Button Styles */
+.midiButtons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.midiLearnButton {
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 50px;
+  
+  &:hover {
+    background: linear-gradient(135deg, #357abd, #2868a3);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  &.learning {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+    animation: pulseLearn 1s infinite alternate;
+  }
+}
+
+.midiMappingInfo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.midiMappedIndicator {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid #4caf50;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.midiForgetButton {
+  background: rgba(244, 67, 54, 0.2);
+  border: 1px solid #f44336;
+  border-radius: 3px;
+  color: #f44336;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(244, 67, 54, 0.4);
+  }
+}
+
+@keyframes pulseLearn {
+  0% {
+    box-shadow: 0 0 5px rgba(255, 107, 107, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+  }
+}
