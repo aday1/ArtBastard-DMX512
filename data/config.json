@@ -32,6 +32,10 @@
       "channel": 0,
       "controller": 73
     },
+    "110": {
+      "channel": 1,
+      "controller": 73
+    },
     "999": {
       "channel": 0,
       "controller": 73
