@@ -1076,11 +1076,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       y: Math.max(0, Math.min(100, y)) 
     };
   };
-
   // Generate SVG path for track visualization
   const generateTrackPath = () => {
-    const cx = autopilotTrackCenterX;
-    const cy = autopilotTrackCenterY;
+    // Convert DMX range (0-255) to SVG coordinates (0-100)
+    const cx = (autopilotTrackCenterX / 255) * 100;
+    const cy = (autopilotTrackCenterY / 255) * 100;
     const size = autopilotTrackSize / 2;
     
     switch (autopilotTrackType) {
@@ -1703,22 +1703,21 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       strokeWidth="0.5"
                       fill="none"
                       strokeDasharray="2,2"
-                    />
-                    {/* Current position indicator */}
+                    />                    {/* Current position indicator */}
                     <circle
                       cx={getVisualTrackIndicatorPosition(
                         autopilotTrackType,
                         autopilotTrackPosition,
                         autopilotTrackSize,
-                        autopilotTrackCenterX,
-                        autopilotTrackCenterY
+                        (autopilotTrackCenterX / 255) * 100, // Convert DMX to percentage for visual
+                        (autopilotTrackCenterY / 255) * 100  // Convert DMX to percentage for visual
                       ).x}
                       cy={getVisualTrackIndicatorPosition(
                         autopilotTrackType,
                         autopilotTrackPosition,
                         autopilotTrackSize,
-                        autopilotTrackCenterX,
-                        autopilotTrackCenterY
+                        (autopilotTrackCenterX / 255) * 100, // Convert DMX to percentage for visual
+                        (autopilotTrackCenterY / 255) * 100  // Convert DMX to percentage for visual
                       ).y}
                       r="1" // Radius of the indicator dot
                       fill="rgba(0, 255, 128, 0.8)"
@@ -1855,11 +1854,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               <div className={styles.autopilotSettings}>
                 <div className={styles.controlRow}>
                   <label>Track Type</label>                    <select
-                      value={autopilotTrackType}
-                      onChange={(e) => {
+                      value={autopilotTrackType}                      onChange={(e) => {
                         setAutopilotTrackType(e.target.value as any);
                         // Trigger immediate update when track type changes
-                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                        console.log('[AUTOPILOT] Track type changed to:', e.target.value);
+                        setTimeout(() => {
+                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after track type change');
+                          updatePanTiltFromTrack();
+                        }, 50);
                       }}
                       className={styles.autopilotSelect}
                     >
@@ -1879,12 +1881,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="0"
                       max="100"
-                      value={autopilotTrackPosition}
-                      onChange={(e) => {
+                      value={autopilotTrackPosition}                      onChange={(e) => {
                         const newPosition = parseInt(e.target.value);
                         setAutopilotTrackPosition(newPosition);
                         // Trigger immediate update when position changes
-                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                        console.log('[AUTOPILOT] Position changed to:', newPosition);
+                        setTimeout(() => {
+                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after position change');
+                          updatePanTiltFromTrack();
+                        }, 50);
                       }}
                       className={styles.slider}
                     />
@@ -1915,11 +1920,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="10"
                       max="100"
-                      value={autopilotTrackSize}
-                      onChange={(e) => {
+                      value={autopilotTrackSize}                      onChange={(e) => {
                         setAutopilotTrackSize(parseInt(e.target.value));
                         // Trigger immediate update when size changes
-                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                        console.log('[AUTOPILOT] Size changed to:', e.target.value);
+                        setTimeout(() => {
+                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after size change');
+                          updatePanTiltFromTrack();
+                        }, 50);
                       }}
                       className={styles.slider}
                     />
@@ -1933,13 +1941,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="0"
                       max="100"
-                      value={(autopilotTrackCenterX / 255) * 100}
-                      onChange={(e) => {
+                      value={(autopilotTrackCenterX / 255) * 100}                      onChange={(e) => {
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(dmxValue, autopilotTrackCenterY);
                         // Trigger immediate update when center changes
-                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                        console.log('[AUTOPILOT] Center X changed to:', percentValue, '% (DMX:', dmxValue, ')');
+                        setTimeout(() => {
+                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after center X change');
+                          updatePanTiltFromTrack();
+                        }, 50);
                       }}
                       className={styles.slider}
                     />
@@ -1954,13 +1965,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="0"
                       max="100"
-                      value={(autopilotTrackCenterY / 255) * 100}
-                      onChange={(e) => {
+                      value={(autopilotTrackCenterY / 255) * 100}                      onChange={(e) => {
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(autopilotTrackCenterX, dmxValue);
                         // Trigger immediate update when center changes
-                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                        console.log('[AUTOPILOT] Center Y changed to:', percentValue, '% (DMX:', dmxValue, ')');
+                        setTimeout(() => {
+                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after center Y change');
+                          updatePanTiltFromTrack();
+                        }, 50);
                       }}
                       className={styles.slider}
                     />
@@ -1985,7 +1999,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       setAutopilotTrackSpeed(1);
                       setAutopilotTrackPosition(0);
                       // Trigger immediate update after reset
-                      setTimeout(() => updatePanTiltFromTrack(), 10);
+                      console.log('[AUTOPILOT] Reset button clicked');
+                      setTimeout(() => {
+                        console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after reset');
+                        updatePanTiltFromTrack();
+                      }, 50);
                     }}
                     title="Reset to default values"
                   >
@@ -1999,6 +2017,41 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   >
                     <LucideIcon name="Repeat" />
                     Auto Loop
+                  </button>
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => {
+                      console.log('🔧 AUTOPILOT DEBUG REPORT');
+                      console.log('========================');
+                      console.log('Autopilot enabled:', autopilotTrackEnabled);
+                      console.log('Track type:', autopilotTrackType);
+                      console.log('Position:', autopilotTrackPosition, '%');
+                      console.log('Size:', autopilotTrackSize, '%');
+                      console.log('Center X:', autopilotTrackCenterX, '(DMX)');
+                      console.log('Center Y:', autopilotTrackCenterY, '(DMX)');
+                      console.log('Auto play:', autopilotTrackAutoPlay);
+                      console.log('Speed:', autopilotTrackSpeed, 'x');
+                      console.log('Selected fixtures:', selectedFixtures.length);
+                      console.log('Total fixtures:', fixtures.length);
+                      
+                      // Test calculation
+                      const { pan, tilt } = calculateTrackPosition(
+                        autopilotTrackType,
+                        autopilotTrackPosition,
+                        autopilotTrackSize,
+                        autopilotTrackCenterX,
+                        autopilotTrackCenterY
+                      );
+                      console.log('Calculated Pan/Tilt:', pan, tilt);
+                      
+                      // Test DMX update
+                      console.log('Triggering test DMX update...');
+                      updatePanTiltFromTrack();
+                    }}
+                    title="Debug autopilot in console"
+                  >
+                    <LucideIcon name="Bug" />
+                    Debug
                   </button>
                 </div>
               </div>
