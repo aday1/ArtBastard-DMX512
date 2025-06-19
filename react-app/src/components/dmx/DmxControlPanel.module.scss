@@ -256,3 +256,34 @@
   color: var(--color-primary);
   font-weight: 500;
 }
+
+/* Channel Filter Dropdown */
+.filterSelect {
+  background-color: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  margin-left: 0.5rem;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-input-hover-bg);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-alpha);
+  }
+  
+  option {
+    background-color: var(--color-input-bg);
+    color: var(--color-text);
+    padding: 0.5rem;
+  }
+}

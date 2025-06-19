@@ -1022,8 +1022,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         animationFrameRef.current = 0;
       }
     };
-  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, setAutopilotTrackPosition]);
-  // Sync Pan/Tilt sliders with autopilot track position
+  }, [autopilotTrackEnabled, autopilotTrackAutoPlay, autopilotTrackSpeed, setAutopilotTrackPosition]);  // Sync Pan/Tilt sliders with autopilot track position
   useEffect(() => {
     if (autopilotTrackEnabled) {
       const { pan, tilt } = calculateTrackPosition(
@@ -1034,6 +1033,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         autopilotTrackCenterY
       );
       
+      console.log(`[AUTOPILOT UI] Calculated position: pan=${pan}, tilt=${tilt}`);
+      
       // Update the Pan/Tilt slider values and XY pad to reflect track position
       setPanValue(pan);
       setTiltValue(tilt);
@@ -1042,6 +1043,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       const xPercent = (pan / 255) * 100;
       const yPercent = ((255 - tilt) / 255) * 100; // Invert Y for display
       setPanTiltXY({ x: xPercent, y: yPercent });
+        // Also ensure DMX channels are updated with the calculated values
+      console.log('[AUTOPILOT UI] Applying calculated Pan/Tilt values to fixtures');
+      applyControl('pan', pan);
+      applyControl('tilt', tilt);
     }
   }, [autopilotTrackEnabled, autopilotTrackType, autopilotTrackPosition, autopilotTrackSize, autopilotTrackCenterX, autopilotTrackCenterY, calculateTrackPosition]);
   const getVisualTrackIndicatorPosition = (
@@ -1981,23 +1986,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                         const newPosition = parseInt(e.target.value);
                         console.log('[AUTOPILOT] Position slider changed from', autopilotTrackPosition, 'to', newPosition);
                         setAutopilotTrackPosition(newPosition);
-                        // Trigger immediate update when position changes
                         console.log('[AUTOPILOT] Position changed to:', newPosition);
                         
-                        // Debug: Check if autopilot is enabled and fixtures are selected
+                        // Debug: Check autopilot state
                         if (!autopilotTrackEnabled) {
                           console.warn('[AUTOPILOT] WARNING: Autopilot not enabled - DMX update will be skipped');
-                          return;
                         }
                         
                         if (selectedFixtures.length === 0 && fixtures.length > 0) {
                           console.warn('[AUTOPILOT] WARNING: No fixtures selected - consider selecting fixtures for targeted control');
                         }
                         
-                        setTimeout(() => {
-                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after position change');
-                          updatePanTiltFromTrack();
-                        }, 50);
+                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackPosition in store
                       }}
                       className={styles.slider}
                     />
@@ -2030,12 +2030,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       max="100"
                       value={autopilotTrackSize}                      onChange={(e) => {
                         setAutopilotTrackSize(parseInt(e.target.value));
-                        // Trigger immediate update when size changes
                         console.log('[AUTOPILOT] Size changed to:', e.target.value);
-                        setTimeout(() => {
-                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after size change');
-                          updatePanTiltFromTrack();
-                        }, 50);
+                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackSize in store
                       }}
                       className={styles.slider}
                     />
@@ -2053,12 +2049,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(dmxValue, autopilotTrackCenterY);
-                        // Trigger immediate update when center changes
                         console.log('[AUTOPILOT] Center X changed to:', percentValue, '% (DMX:', dmxValue, ')');
-                        setTimeout(() => {
-                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after center X change');
-                          updatePanTiltFromTrack();
-                        }, 50);
+                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackCenter in store
                       }}
                       className={styles.slider}
                     />
@@ -2077,19 +2069,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(autopilotTrackCenterX, dmxValue);
-                        // Trigger immediate update when center changes
                         console.log('[AUTOPILOT] Center Y changed to:', percentValue, '% (DMX:', dmxValue, ')');
-                        setTimeout(() => {
-                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after center Y change');
-                          updatePanTiltFromTrack();
-                        }, 50);
+                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackCenter in store
                       }}
                       className={styles.slider}
                     />
-                    <span className={styles.valueDisplay}>{Math.round((autopilotTrackCenterY / 255) * 100)}%</span>
-                  </div>
+                    <span className={styles.valueDisplay}>{Math.round((autopilotTrackCenterY / 255) * 100)}%</span>                  </div>
                 </div>
-                  <div className={styles.controlRow}>
+                
+                <div className={styles.controlRow}>
+                  <div className={styles.actionRow}>
                   <button
                     className={styles.actionBtn}
                     onClick={() => {
@@ -2249,11 +2238,49 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                         console.log('❌ Issues found - fix the problems listed above');
                       }
                     }}
-                    title="Enhanced autopilot debug with full analysis"
-                  >
+                    title="Enhanced autopilot debug with full analysis"                  >
                     <LucideIcon name="Bug" />
                     Debug
                   </button>
+                  
+                  <button
+                    className={styles.actionBtn}
+                    onClick={() => {
+                      console.log('🎯 TESTING AUTOPILOT DMX UPDATES');
+                      console.log('================================');
+                      
+                      if (!autopilotTrackEnabled) {
+                        console.error('❌ Autopilot not enabled! Enable autopilot first.');
+                        return;
+                      }
+                      
+                      // Calculate current position
+                      const { pan, tilt } = calculateTrackPosition(
+                        autopilotTrackType,
+                        autopilotTrackPosition,
+                        autopilotTrackSize,
+                        autopilotTrackCenterX,
+                        autopilotTrackCenterY
+                      );
+                      
+                      console.log(`📊 Current calculated position: pan=${pan}, tilt=${tilt}`);
+                      console.log('🔄 Triggering direct DMX update...');
+                      
+                      // Apply via SuperControl function
+                      applyControl('pan', pan);
+                      applyControl('tilt', tilt);
+                      
+                      // Also trigger store update
+                      updatePanTiltFromTrack();
+                      
+                      console.log('✅ DMX update commands sent! Check console for [STORE] messages.');
+                    }}
+                    title="Test current autopilot position with direct DMX update"
+                  >
+                    <LucideIcon name="Zap" />
+                    Test DMX
+                  </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2771,16 +2798,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.zoom}</span>
             </div>
-          </div>
-
-          {/* Iris Control */}
+          </div>          {/* Iris Control */}
           <div className={styles.controlRow}>
             <label>Iris</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
+              <input
+                type="range"
+                min="0"
+                max="255"
                 value={iris}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
@@ -2804,6 +2829,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               <span className={styles.oscAddress}>{oscAddresses.iris}</span>
             </div>
           </div>
+
+          {/* Macro Control */}
+          <div className={styles.controlRow}>
 
           {/* Prism Control */}
           <div className={styles.controlRow}>
@@ -3261,12 +3289,13 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     <LucideIcon name="Play" />
                     Load Scene
                   </button>
-                </div>
-              ))}
+                </div>              ))}
             </div>
-          </div>        )}
+          </div>
+        )}
       </div>
       </div>
+    </div>
     </div>
   );
 };

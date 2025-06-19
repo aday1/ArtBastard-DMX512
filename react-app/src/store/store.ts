@@ -2046,20 +2046,24 @@ export const useStore = create<State>()(
       },      // Autopilot Track Actions
       setAutopilotTrackEnabled: (enabled) => {
         set({ autopilotTrackEnabled: enabled });
-      },
-
-      setAutopilotTrackType: (type) => {
+      },      setAutopilotTrackType: (type) => {
+        console.log(`[STORE] setAutopilotTrackType: Setting type to ${type}`);
         set({ autopilotTrackType: type });
-      },      setAutopilotTrackPosition: (position) => {
+        // Automatically update pan/tilt when track type changes
+        console.log('[STORE] setAutopilotTrackType: Calling updatePanTiltFromTrack()');
+        get().updatePanTiltFromTrack();
+      },setAutopilotTrackPosition: (position) => {
         console.log(`[STORE] setAutopilotTrackPosition: Setting position to ${position.toFixed(2)}`);
         set({ autopilotTrackPosition: position });
         // Automatically update pan/tilt when position changes
         console.log('[STORE] setAutopilotTrackPosition: Calling updatePanTiltFromTrack()');
         get().updatePanTiltFromTrack();
-      },
-
-      setAutopilotTrackSize: (size) => {
+      },      setAutopilotTrackSize: (size) => {
+        console.log(`[STORE] setAutopilotTrackSize: Setting size to ${size}`);
         set({ autopilotTrackSize: size });
+        // Automatically update pan/tilt when size changes
+        console.log('[STORE] setAutopilotTrackSize: Calling updatePanTiltFromTrack()');
+        get().updatePanTiltFromTrack();
       },
 
       setAutopilotTrackSpeed: (speed) => {
@@ -2067,10 +2071,14 @@ export const useStore = create<State>()(
       },
 
       setAutopilotTrackCenter: (centerX, centerY) => {
+        console.log(`[STORE] setAutopilotTrackCenter: Setting center to (${centerX}, ${centerY})`);
         set({ 
           autopilotTrackCenterX: centerX,
           autopilotTrackCenterY: centerY 
         });
+        // Automatically update pan/tilt when center changes
+        console.log('[STORE] setAutopilotTrackCenter: Calling updatePanTiltFromTrack()');
+        get().updatePanTiltFromTrack();
       },
 
       setAutopilotTrackAutoPlay: (autoPlay) => {

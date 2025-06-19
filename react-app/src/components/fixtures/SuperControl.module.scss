@@ -126,51 +126,65 @@
     color: #ddd;
     font-weight: 500;
   }
-    input[type="range"] {
+  input[type="range"] {
     flex: 1;
-    height: 6px;
+    height: 12px;
     background: linear-gradient(90deg, #333 0%, #666 100%);
-    border-radius: 3px;
+    border-radius: 6px;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer !important;
     pointer-events: auto !important;
+    margin: 4px 0;
     
     &::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 24px;
+      height: 24px;
       background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
       border-radius: 50%;
       cursor: pointer !important;
-      box-shadow: 0 2px 6px rgba(0, 212, 255, 0.4);
+      box-shadow: 0 3px 8px rgba(0, 212, 255, 0.4);
       transition: all 0.2s ease;
       pointer-events: auto !important;
+      border: 2px solid rgba(255, 255, 255, 0.2);
       
       &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 4px 12px rgba(0, 212, 255, 0.6);
+        transform: scale(1.15);
+        box-shadow: 0 6px 16px rgba(0, 212, 255, 0.6);
         cursor: pointer !important;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+      }
+      
+      &:active {
+        transform: scale(1.2);
+        box-shadow: 0 8px 20px rgba(0, 212, 255, 0.8);
       }
     }
     
     &::-moz-range-thumb {
-      width: 18px;
-      height: 18px;
+      width: 24px;
+      height: 24px;
       background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
       border-radius: 50%;
       cursor: pointer !important;
-      border: none;
-      box-shadow: 0 2px 6px rgba(0, 212, 255, 0.4);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 3px 8px rgba(0, 212, 255, 0.4);
       transition: all 0.2s ease;
       pointer-events: auto !important;
       
       &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 4px 12px rgba(0, 212, 255, 0.6);
+        transform: scale(1.15);
+        box-shadow: 0 6px 16px rgba(0, 212, 255, 0.6);
         cursor: pointer !important;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+      }
+      
+      &:active {
+        transform: scale(1.2);
+        box-shadow: 0 8px 20px rgba(0, 212, 255, 0.8);
       }
     }
     
