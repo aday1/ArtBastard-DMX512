@@ -55,9 +55,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     setAutopilotTrackCenter,
     setAutopilotTrackAutoPlay,
     updatePanTiltFromTrack
-  } = useStore();
-  // Selection state
-  const [selectionMode, setSelectionMode] = useState<SelectionMode>('channels');
+  } = useStore();  // Selection state
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>('fixtures');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
 
@@ -70,8 +69,22 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   useEffect(() => {
     console.log('[SuperControl] selectedFixtures state updated:', selectedFixtures);
   }, [selectedFixtures]);
+  // Auto-select first fixture if none are selected in fixtures mode
+  useEffect(() => {
+    if (selectionMode === 'fixtures' && fixtures.length > 0 && selectedFixtures.length === 0) {
+      console.log('[SuperControl] Auto-selecting first fixture:', fixtures[0].id);
+      setSelectedFixtures([fixtures[0].id]);
+    }
+  }, [selectionMode, fixtures, selectedFixtures, setSelectedFixtures]);
 
-  // Control values state  const [dimmer, setDimmer] = useState(255);  // Basic Control State
+  // Debug selection mode changes
+  useEffect(() => {
+    console.log('[SuperControl] Selection mode changed to:', selectionMode);
+    console.log('[SuperControl] Current selectedFixtures:', selectedFixtures);
+    console.log('[SuperControl] Available fixtures:', fixtures.map(f => ({ id: f.id, name: f.name })));
+  }, [selectionMode, selectedFixtures, fixtures]);
+
+  // Basic Control State
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
   const [tiltValue, setTiltValue] = useState(127);
@@ -340,83 +353,100 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     
     let updateCount = 0;
     let errorCount = 0;
-    
-    affectedFixtures.forEach((fixture, index) => {
+      affectedFixtures.forEach((fixture, index) => {
       const channels = fixture.channels;
-      let targetChannel = -1;
       
-      // Find the target channel based on control type
-      switch (controlType) {        case 'dimmer':
-          targetChannel = channels.find(c => c.type === 'dimmer')?.dmxAddress ?? -1;
-          break;        case 'pan':
-          targetChannel = channels.find(c => c.type === 'pan')?.dmxAddress ?? -1;
+      // Find the channel by type first  
+      let foundChannel: any = null;
+      
+      // Enhanced channel finding with multiple matching patterns
+      switch (controlType) {
+        case 'dimmer':
+          foundChannel = channels.find(c => c.type === 'dimmer');
+          break;
+        case 'pan':
+          foundChannel = channels.find(c => c.type === 'pan');
           break;
         case 'finePan':
-          targetChannel = channels.find(c => c.type === 'finePan' || c.type === 'fine_pan' || c.type === 'pan_fine')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'finePan' || c.type === 'fine_pan' || c.type === 'pan_fine');
           break;
         case 'tilt':
-          targetChannel = channels.find(c => c.type === 'tilt')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'tilt');
           break;
         case 'fineTilt':
-          targetChannel = channels.find(c => c.type === 'fineTilt' || c.type === 'fine_tilt' || c.type === 'tilt_fine')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'fineTilt' || c.type === 'fine_tilt' || c.type === 'tilt_fine');
           break;
         case 'red':
-          targetChannel = channels.find(c => c.type === 'red')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'red');
           break;
         case 'green':
-          targetChannel = channels.find(c => c.type === 'green')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'green');
           break;
         case 'blue':
-          targetChannel = channels.find(c => c.type === 'blue')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'blue');
           break;
         case 'gobo':
-          targetChannel = channels.find(c => c.type === 'gobo')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'gobo');
           break;
         case 'goboRotation':
-          targetChannel = channels.find(c => c.type === 'goboRotation' || c.type === 'gobo_rotation')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'goboRotation' || c.type === 'gobo_rotation');
           break;
         case 'gobo2':
-          targetChannel = channels.find(c => c.type === 'gobo2')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'gobo2');
           break;
         case 'shutter':
-          targetChannel = channels.find(c => c.type === 'shutter')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'shutter');
           break;
         case 'strobe':
-          targetChannel = channels.find(c => c.type === 'strobe')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'strobe');
           break;
         case 'lamp':
-          targetChannel = channels.find(c => c.type === 'lamp')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'lamp');
           break;
         case 'reset':
-          targetChannel = channels.find(c => c.type === 'reset')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'reset');
           break;
         case 'focus':
-          targetChannel = channels.find(c => c.type === 'focus')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'focus');
           break;
         case 'zoom':
-          targetChannel = channels.find(c => c.type === 'zoom')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'zoom');
           break;
         case 'iris':
-          targetChannel = channels.find(c => c.type === 'iris')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'iris');
           break;
         case 'prism':
-          targetChannel = channels.find(c => c.type === 'prism')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'prism');
           break;
         case 'colorWheel':
-          targetChannel = channels.find(c => c.type === 'colorWheel' || c.type === 'color_wheel')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'colorWheel' || c.type === 'color_wheel');
           break;
         case 'frost':
-          targetChannel = channels.find(c => c.type === 'frost')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'frost');
           break;
         case 'macro':
-          targetChannel = channels.find(c => c.type === 'macro')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'macro');
           break;
         case 'speed':
-          targetChannel = channels.find(c => c.type === 'speed')?.dmxAddress ?? -1;
+          foundChannel = channels.find(c => c.type === 'speed');
           break;
         default:
           console.warn(`[SuperControl] ⚠️ Unknown control type: ${controlType}`);
           break;
+      }
+      
+      let targetChannel = -1;
+      
+      if (foundChannel) {
+        // Calculate DMX address if missing
+        if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null) {
+          targetChannel = foundChannel.dmxAddress;
+        } else {
+          // Calculate DMX address: startAddress + channel index
+          const channelIndex = channels.indexOf(foundChannel);
+          targetChannel = (fixture.startAddress || 1) + channelIndex - 1; // 0-based calculation
+          console.log(`[SuperControl] Calculated DMX address for ${fixture.name} channel ${foundChannel.type}: ${targetChannel} (startAddress: ${fixture.startAddress}, index: ${channelIndex})`);
+        }
       }
       
       if (targetChannel >= 0) {        console.log(`[DMX] 📡 Setting channel ${targetChannel} to ${value} for ${controlType} on fixture "${fixture.name}"`);
@@ -473,87 +503,103 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     }
     
     const channels: number[] = [];
-    affectedFixtures.forEach(fixture => {
-      console.log(`${logPrefix} Processing fixture - ID: ${fixture.id}, Name: ${fixture.name}`);
+    affectedFixtures.forEach(fixture => {      console.log(`${logPrefix} Processing fixture - ID: ${fixture.id}, Name: ${fixture.name}`);
       console.log(`${logPrefix} Fixture channels for ${fixture.name}:`, fixture.channels.map((ch: any) => ({ type: ch.type, dmxAddress: ch.dmxAddress })));
-      let targetChannel = -1;
+      
+      // Find the channel by type first
+      let foundChannel: any = null;
       const controlTypeLower = controlType.toLowerCase();
       
-      switch (controlTypeLower) { // Switch on the lowercased controlType for case-insensitivity at the switch level
+      // Enhanced channel finding with multiple matching patterns
+      switch (controlTypeLower) {
         case 'dimmer':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'dimmer')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'dimmer');
           break;
         case 'pan':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'pan')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'pan');
           break;
         case 'tilt':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'tilt')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'tilt');
           break;
-        case 'finepan': // Assuming controlType might come as 'finePan' or 'finepan'
-          targetChannel = fixture.channels.find((c: any) => {
+        case 'finepan':
+          foundChannel = fixture.channels.find((c: any) => {
             const typeLower = c.type.toLowerCase();
             return typeLower === 'finepan' || typeLower === 'fine_pan' || typeLower === 'pan_fine';
-          })?.dmxAddress ?? -1;
+          });
           break;
-        case 'finetilt': // Assuming controlType might come as 'fineTilt' or 'finetilt'
-          targetChannel = fixture.channels.find((c: any) => {
+        case 'finetilt':
+          foundChannel = fixture.channels.find((c: any) => {
             const typeLower = c.type.toLowerCase();
             return typeLower === 'finetilt' || typeLower === 'fine_tilt' || typeLower === 'tilt_fine';
-          })?.dmxAddress ?? -1;
+          });
           break;
         case 'red':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'red')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'red');
           break;
         case 'green':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'green')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'green');
           break;
         case 'blue':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'blue')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'blue');
           break;
         case 'gobo':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'gobo')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'gobo');
           break;
         case 'shutter':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'shutter')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'shutter');
           break;
         case 'goborotation':
-          targetChannel = fixture.channels.find((c: any) => {
+          foundChannel = fixture.channels.find((c: any) => {
             const typeLower = c.type.toLowerCase();
             return typeLower === 'goborotation' || typeLower === 'gobo_rotation';
-          })?.dmxAddress ?? -1;
+          });
           break;
         case 'colorwheel':
-          targetChannel = fixture.channels.find((c: any) => {
+          foundChannel = fixture.channels.find((c: any) => {
             const typeLower = c.type.toLowerCase();
             return typeLower === 'colorwheel' || typeLower === 'color_wheel';
-          })?.dmxAddress ?? -1;
+          });
           break;
         case 'focus':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'focus')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'focus');
           break;
         case 'zoom':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'zoom')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'zoom');
           break;
         case 'iris':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'iris')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'iris');
           break;
         case 'prism':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'prism')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'prism');
           break;
         case 'frost':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'frost')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'frost');
           break;
         case 'macro':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'macro')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'macro');
           break;
         case 'speed':
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'speed')?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === 'speed');
           break;
         default:
-          // Case-insensitive search for the default case as well
-          targetChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === controlTypeLower)?.dmxAddress ?? -1;
+          foundChannel = fixture.channels.find((c: any) => c.type.toLowerCase() === controlTypeLower);
           break;
       }
+      
+      let targetChannel = -1;
+      
+      if (foundChannel) {
+        // Calculate DMX address if missing
+        if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null) {
+          targetChannel = foundChannel.dmxAddress;
+        } else {
+          // Calculate DMX address: startAddress + channel index
+          const channelIndex = fixture.channels.indexOf(foundChannel);
+          targetChannel = (fixture.startAddress || 1) + channelIndex - 1; // 0-based calculation
+          console.log(`${logPrefix} Calculated DMX address for ${fixture.name} channel ${foundChannel.type}: ${targetChannel} (startAddress: ${fixture.startAddress}, index: ${channelIndex})`);
+        }
+      }
+      
       console.log(`${logPrefix} Target channel for ${fixture.name} (type: ${controlType}, searched as: ${controlTypeLower}): ${targetChannel}`);
       
       if (targetChannel >= 0) {
@@ -1236,8 +1282,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     </span>                    <span className={styles.channelCount}>
                       {fixture.channels.length} channels
                     </span>
-                  </div>
-                </div>              ))
+                  </div>                </div>
+              ))
             )}
           </div>
         )}

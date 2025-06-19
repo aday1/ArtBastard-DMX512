@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperControl DMX Channel Fix Test Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #00d4ff;
+            border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .fix-section {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .step {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #00d4ff;
+            border-radius: 4px;
+        }
+        .expected {
+            background: rgba(40, 167, 69, 0.2);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }
+        .issue {
+            background: rgba(220, 53, 69, 0.2);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+            border-radius: 4px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-x: auto;
+        }
+        .warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            color: #28a745;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .checklist {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .checklist input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: #00d4ff;
+        }
+        .debug-log {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎛️ SuperControl DMX Channel Fix Test Guide</h1>
+    <p>This guide helps you test the fixes for SuperControl fixture selection and DMX channel issues that were causing "No DMX Channels" errors.</p>
+
+    <div class="success">
+        <h3>✅ What Was Fixed</h3>
+        <ul>
+            <li><strong>Default Selection Mode:</strong> Changed from 'channels' to 'fixtures' for better UX</li>
+            <li><strong>Auto-Selection:</strong> Automatically selects first fixture if none are selected in fixtures mode</li>
+            <li><strong>DMX Address Calculation:</strong> Enhanced to calculate DMX address if missing from channel objects</li>
+            <li><strong>Channel Finding Logic:</strong> Improved channel type matching in both applyControl() and getDmxChannelForControl()</li>
+            <li><strong>Debug Logging:</strong> Added comprehensive logging for troubleshooting</li>
+        </ul>
+    </div>
+
+    <div class="fix-section">
+        <h2>🔧 Technical Fixes Applied</h2>
+
+        <h3>1. Selection Mode Default</h3>
+        <div class="issue">
+            <strong>Issue:</strong> Default was 'channels' mode which was confusing and not working properly
+        </div>
+        <div class="expected">
+            <strong>Fix:</strong> Changed default to 'fixtures' mode which is more intuitive
+        </div>
+        <div class="code">
+// OLD: const [selectionMode, setSelectionMode] = useState&lt;SelectionMode&gt;('channels');
+// NEW: const [selectionMode, setSelectionMode] = useState&lt;SelectionMode&gt;('fixtures');
+        </div>
+
+        <h3>2. Auto-Selection Logic</h3>
+        <div class="issue">
+            <strong>Issue:</strong> No fixtures were selected by default, causing "No fixtures selected" errors
+        </div>
+        <div class="expected">
+            <strong>Fix:</strong> Added useEffect to auto-select first fixture when in fixtures mode
+        </div>
+        <div class="code">
+useEffect(() => {
+  if (selectionMode === 'fixtures' && fixtures.length > 0 && selectedFixtures.length === 0) {
+    console.log('[SuperControl] Auto-selecting first fixture:', fixtures[0].id);
+    setSelectedFixtures([fixtures[0].id]);
+  }
+}, [selectionMode, fixtures, selectedFixtures, setSelectedFixtures]);
+        </div>
+
+        <h3>3. Enhanced DMX Address Calculation</h3>
+        <div class="issue">
+            <strong>Issue:</strong> Code expected dmxAddress property to exist on channel objects, but calculated it if missing
+        </div>
+        <div class="expected">
+            <strong>Fix:</strong> Enhanced channel finding to calculate DMX address: startAddress + channelIndex - 1
+        </div>
+        <div class="code">
+// Enhanced channel finding with DMX address calculation
+if (foundChannel) {
+  if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null) {
+    targetChannel = foundChannel.dmxAddress;
+  } else {
+    // Calculate DMX address: startAddress + channel index
+    const channelIndex = channels.indexOf(foundChannel);
+    targetChannel = (fixture.startAddress || 1) + channelIndex - 1; // 0-based calculation
+  }
+}
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>🧪 Test Procedures</h2>
+
+        <h3>1. Basic Fixture Selection Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Open SuperControl component
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Check that fixtures mode is selected by default (should be highlighted blue)
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Verify that at least one fixture is auto-selected if fixtures exist
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Header should show "X fixture(s) selected" not "0 selected"
+        </div>
+
+        <h3>2. DMX Channel Display Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Look at the channel displays next to each control slider
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Should show "Ch X" or "Ch X, Y, Z" instead of "No channels"
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Check multiple control types: Dimmer, Pan, Tilt, RGB colors
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> All controls should show proper DMX channel numbers
+        </div>
+
+        <h3>3. Slider Control Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Select a fixture in the fixture list
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Move the Dimmer slider
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Check console for DMX output messages
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Should see DMX channel updates being sent, no errors about missing channels
+        </div>
+
+        <h3>4. Pan/Tilt Control Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Use the XY Pad for Pan/Tilt control
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Move the individual Pan and Tilt sliders
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Check console for proper channel targeting
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Pan/Tilt movements should send DMX values to correct channels
+        </div>
+
+        <h3>5. Multi-Fixture Selection Test</h3>
+        <div class="step">
+            <strong>Step 1:</strong> Click "Select All" or select multiple fixtures individually
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> Move any control slider
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> Verify all selected fixtures receive the control values
+        </div>
+        <div class="expected">
+            <strong>Expected:</strong> Control should apply to all selected fixtures simultaneously
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>🔍 Debug Console Messages</h2>
+        <p>Watch for these console messages to verify fixes are working:</p>
+
+        <h3>Auto-Selection Messages</h3>
+        <div class="debug-log">
+[SuperControl] Auto-selecting first fixture: fixture-id-123
+[SuperControl] Selection mode changed to: fixtures
+[SuperControl] Current selectedFixtures: ["fixture-id-123"]
+        </div>
+
+        <h3>DMX Channel Calculation Messages</h3>
+        <div class="debug-log">
+[SuperControl] Calculated DMX address for FixtureName channel dimmer: 15 (startAddress: 15, index: 0)
+[DMX] 📡 Setting channel 15 to 255 for dimmer on fixture "FixtureName"
+[DMX] ✅ Verification SUCCESS: Channel 15 = 255 (dimmer)
+        </div>
+
+        <h3>Control Application Messages</h3>
+        <div class="debug-log">
+[SuperControl] ✅ Applying dimmer=255 to 2 fixtures:
+  - Moving Head 1 (channels: 15-30)
+  - Moving Head 2 (channels: 31-46)
+[SuperControl] 📊 Control application summary: 2 successful updates, 0 errors
+        </div>
+    </div>
+
+    <div class="fix-section">
+        <h2>✅ Test Checklist</h2>
+        <div class="checklist">
+            <label><input type="checkbox"> SuperControl opens with fixtures mode selected</label><br>
+            <label><input type="checkbox"> At least one fixture is auto-selected if available</label><br>
+            <label><input type="checkbox"> Header shows correct number of selected fixtures</label><br>
+            <label><input type="checkbox"> Control sliders show "Ch X" instead of "No channels"</label><br>
+            <label><input type="checkbox"> Dimmer slider sends DMX values when moved</label><br>
+            <label><input type="checkbox"> Pan/Tilt controls send proper DMX values</label><br>
+            <label><input type="checkbox"> RGB color controls work and show channels</label><br>
+            <label><input type="checkbox"> Multi-fixture selection applies controls to all</label><br>
+            <label><input type="checkbox"> Console shows successful DMX verifications</label><br>
+            <label><input type="checkbox"> No "No DMX Channels" or similar errors appear</label><br>
+        </div>
+    </div>
+
+    <div class="warning">
+        <h3>⚠️ Troubleshooting</h3>
+        <p>If issues persist:</p>
+        <ul>
+            <li><strong>Check Fixture Definitions:</strong> Ensure fixtures have proper channel types (dimmer, pan, tilt, red, etc.)</li>
+            <li><strong>Verify Start Addresses:</strong> Make sure fixtures have valid startAddress properties</li>
+            <li><strong>Console Debugging:</strong> Open browser dev tools and check for detailed error messages</li>
+            <li><strong>Hard Refresh:</strong> Clear cache (Ctrl+F5) to ensure changes are loaded</li>
+            <li><strong>Check Store State:</strong> Verify that fixture selection state is properly synced</li>
+        </ul>
+    </div>
+
+    <div class="fix-section">
+        <h2>🔧 Files Modified</h2>
+        <ul>
+            <li><strong>SuperControl.tsx:</strong> Enhanced fixture selection, DMX calculation, and control application logic</li>
+        </ul>
+
+        <h3>Key Changes Summary</h3>
+        <div class="code">
+// 1. Default selection mode changed to 'fixtures'
+const [selectionMode, setSelectionMode] = useState&lt;SelectionMode&gt;('fixtures');
+
+// 2. Auto-selection effect added
+useEffect(() => {
+  if (selectionMode === 'fixtures' && fixtures.length > 0 && selectedFixtures.length === 0) {
+    setSelectedFixtures([fixtures[0].id]);
+  }
+}, [selectionMode, fixtures, selectedFixtures, setSelectedFixtures]);
+
+// 3. Enhanced DMX address calculation in both applyControl() and getDmxChannelForControl()
+if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null) {
+  targetChannel = foundChannel.dmxAddress;
+} else {
+  const channelIndex = channels.indexOf(foundChannel);
+  targetChannel = (fixture.startAddress || 1) + channelIndex - 1;
+}
+        </div>
+    </div>
+</body>
+</html>
