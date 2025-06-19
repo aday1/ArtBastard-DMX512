@@ -925,21 +925,23 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
 
   useEffect(() => {
     if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
-      const animate = (currentTime: number) => {        if (currentTime - lastUpdateTime.current >= (110 - autopilotTrackSpeed) * 10) {
-          const newPosition = (autopilotTrackPosition + 1) % 100;
+      let lastFrameTime = performance.now();
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - lastFrameTime;
+        // Speed: 1 = slowest, 100 = fastest (every frame)
+        // At speed 100, update every frame; at speed 1, update every 100ms
+        const minInterval = 101 - autopilotTrackSpeed; // 100ms at 1x, 1ms at 100x
+        if (elapsed >= minInterval) {
+          let newPosition = autopilotTrackPosition + autopilotTrackSpeed * (elapsed / 16.67); // 16.67ms ~ 60fps
+          if (newPosition > 100) newPosition = newPosition % 100;
           setAutopilotTrackPosition(newPosition);
-          
-          // Trigger the store's updatePanTiltFromTrack function
           updatePanTiltFromTrack();
-          
-          lastUpdateTime.current = currentTime;
+          lastFrameTime = currentTime;
         }
-        
         if (autopilotTrackEnabled && autopilotTrackAutoPlay) {
           animationFrameRef.current = requestAnimationFrame(animate);
         }
       };
-      
       animationFrameRef.current = requestAnimationFrame(animate);
     }
     
@@ -1322,7 +1324,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     </span>
                   </div>                </div>
               ))
-            )}
+            }
           </div>
         )}
 
@@ -1755,6 +1757,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             
             {/* Fine Controls underneath XY Pad */}
             <div className={styles.fineControls}>
+            <div className={styles.fineControls}>
               <div className={styles.fineControlRow}>
                 <label>Fine Pan</label>
                 <div className={styles.fineControlInputs}>
@@ -1932,14 +1935,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   <div className={styles.controlInputs}>
                     <input
                       type="range"
-                      min="0.1"
-                      max="5"
-                      step="0.1"
+                      min="1"
+                      max="100"
+                      step="1"
                       value={autopilotTrackSpeed}
                       onChange={(e) => setAutopilotTrackSpeed(parseFloat(e.target.value))}
                       className={styles.slider}
                     />
-                    <span className={styles.valueDisplay}>{autopilotTrackSpeed.toFixed(1)}x</span>
+                    <span className={styles.valueDisplay}>{autopilotTrackSpeed.toFixed(0)}x</span>
                   </div>
                 </div>
                 
