@@ -169,11 +169,10 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
         }}
         min={0}
         max={255}
-        icon="Sun"
-        midiMapping={midiMappings.dimmer ? {
+        icon="Sun"        midiMapping={midiMappings.dimmer ? {
           channel: midiMappings.dimmer.channel,
           note: midiMappings.dimmer.note,
-          cc: midiMappings.dimmer.cc,
+          controller: midiMappings.dimmer.controller,
           minValue: midiMappings.dimmer.minValue || 0,
           maxValue: midiMappings.dimmer.maxValue || 255
         } : undefined}
