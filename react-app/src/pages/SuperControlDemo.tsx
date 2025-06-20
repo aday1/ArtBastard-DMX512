@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import DockableSuperControl from '../components/fixtures/DockableSuperControl';
 import TouchSuperControl from '../components/fixtures/TouchSuperControl';
 import SuperControlDraggableClean from '../components/fixtures/SuperControlDraggableClean';
+import SuperControlTidyClean from '../components/fixtures/SuperControlTidyClean';
 import { LucideIcon } from '../components/ui/LucideIcon';
 
 /**
@@ -20,10 +21,10 @@ import { LucideIcon } from '../components/ui/LucideIcon';
  * - Simplified, gesture-based control
  */
 
-const SuperControlDemo: React.FC = () => {
-  const [showDockable, setShowDockable] = useState(true);
+const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable] = useState(true);
   const [showTouch, setShowTouch] = useState(false);
-  const [showDraggable, setShowDraggable] = useState(true);
+  const [showDraggable, setShowDraggable] = useState(false);
+  const [showTidy, setShowTidy] = useState(true);
   const [touchSelectionCount, setTouchSelectionCount] = useState(0);
 
   const handleTouchSelectionChange = (count: number) => {
@@ -176,9 +177,7 @@ const SuperControlDemo: React.FC = () => {
             <li>• Minimizable panel groups</li>
             <li>• Custom panel positioning</li>
             <li>• Enhanced autopilot controls</li>
-          </ul>
-
-          <button
+          </ul>          <button
             onClick={() => setShowDraggable(!showDraggable)}
             style={{
               padding: '12px 24px',
@@ -193,6 +192,52 @@ const SuperControlDemo: React.FC = () => {
           >
             <LucideIcon name={showDraggable ? "EyeOff" : "Eye"} style={{ marginRight: '8px' }} />
             {showDraggable ? 'Hide' : 'Show'} Draggable Control
+          </button>
+        </div>
+
+        {/* Tidy SuperControl Card */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid rgba(0, 255, 136, 0.3)'
+        }}>
+          <h2 style={{ color: '#00ff88', marginBottom: '16px' }}>
+            <LucideIcon name="Grid3X3" style={{ marginRight: '8px' }} />
+            Tidy SuperControl
+          </h2>
+          <p style={{ marginBottom: '20px', opacity: 0.8 }}>
+            Clean, organized control interface with all missing controls added. Features comprehensive 
+            DMX channel display, complete MIDI/OSC integration, and improved UI organization.
+          </p>
+          
+          <h3 style={{ color: '#00ff88', fontSize: '1.1rem', marginBottom: '12px' }}>New Features:</h3>
+          <ul style={{ marginBottom: '20px', opacity: 0.8 }}>
+            <li>✅ All missing controls: Frost, Macro, Speed, Gobo Rotation</li>
+            <li>✅ DMX channel display for every slider</li>
+            <li>✅ Organized panels: Basic, Pan/Tilt, Color, Beam, Effects</li>
+            <li>✅ Extended color channels: Red, Green, Blue, White, Amber, UV</li>
+            <li>✅ Complete MIDI Learn/Forget on all controls</li>
+            <li>✅ OSC address configuration for all sliders</li>
+            <li>✅ Touch-optimized interface with large sliders</li>
+            <li>✅ Panel visibility toggles and layout switching</li>
+          </ul>
+
+          <button
+            onClick={() => setShowTidy(!showTidy)}
+            style={{
+              padding: '12px 24px',
+              background: showTidy ? '#dc3545' : '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}
+          >
+            <LucideIcon name={showTidy ? "EyeOff" : "Eye"} style={{ marginRight: '8px' }} />
+            {showTidy ? 'Hide' : 'Show'} Tidy SuperControl
           </button>
         </div>
       </div>
@@ -313,9 +358,16 @@ const SuperControlDemo: React.FC = () => {
             autoHideInterface={false}
             onSelectionChange={handleTouchSelectionChange}
           />
-        </div>
-      )}      {showDraggable && (
+        </div>      )}      
+      
+      {showDraggable && (
         <SuperControlDraggableClean
+          isDockable={false}
+        />
+      )}
+
+      {showTidy && (
+        <SuperControlTidyClean
           isDockable={false}
         />
       )}

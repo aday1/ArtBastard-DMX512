@@ -7,8 +7,8 @@ interface EnhancedSliderProps {
   value: number;
   onChange: (value: number) => void;
   min?: number;
-  max?: number;
-  step?: number;  midiMapping?: {
+  max?: number;  step?: number;
+  midiMapping?: {
     channel?: number;
     note?: number;
     cc?: number;
@@ -19,8 +19,10 @@ interface EnhancedSliderProps {
   onMidiLearn?: () => void;
   onMidiForget?: () => void;
   onOscAddressChange?: (address: string) => void;
-  isMidiLearning?: boolean;  disabled?: boolean;
+  isMidiLearning?: boolean;
+  disabled?: boolean;
   icon?: string;
+  dmxChannels?: number[]; // Array of DMX channels this control affects
 }
 
 export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
@@ -37,7 +39,8 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
   onOscAddressChange,
   isMidiLearning = false,
   disabled = false,
-  icon
+  icon,
+  dmxChannels = []
 }) => {
   const [localOscAddress, setLocalOscAddress] = useState(oscAddress);
 
@@ -46,7 +49,6 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
     setLocalOscAddress(newAddress);
     onOscAddressChange?.(newAddress);
   };
-
   const getMidiStatusText = () => {
     if (!midiMapping) return 'No MIDI';
     if (midiMapping.cc !== undefined) {
@@ -58,9 +60,16 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
     return 'MIDI Set';
   };
 
+  const getDmxChannelsText = () => {
+    if (!dmxChannels || dmxChannels.length === 0) return 'No DMX';
+    if (dmxChannels.length === 1) return `DMX ${dmxChannels[0]}`;
+    if (dmxChannels.length <= 3) return `DMX ${dmxChannels.join(', ')}`;
+    return `DMX ${dmxChannels[0]}-${dmxChannels[dmxChannels.length - 1]} (${dmxChannels.length})`;
+  };
   return (
     <div className={styles.enhancedSliderGroup}>
-      <div className={styles.sliderMainRow}>        <div className={styles.sliderLabel}>
+      <div className={styles.sliderMainRow}>
+        <div className={styles.sliderLabel}>
           {icon && <LucideIcon name={icon as any} />}
           {label}
         </div>
@@ -79,6 +88,15 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
         
         <div className={styles.valueDisplay}>
           {value}
+        </div>
+      </div>
+      
+      <div className={styles.sliderInfoRow}>
+        <div className={styles.dmxChannelInfo}>
+          {getDmxChannelsText()}
+        </div>
+        <div className={styles.midiStatusSmall}>
+          {getMidiStatusText()}
         </div>
       </div>
       

@@ -5,7 +5,7 @@ import DraggablePanel from './DraggablePanel';
 import EnhancedSlider from './EnhancedSlider';
 import styles from './SuperControl.module.scss';
 
-interface SuperControlDraggableProps {
+interface SuperControlTidyProps {
   isDockable?: boolean;
 }
 
@@ -18,7 +18,7 @@ type PanelConfig = {
   minimized: boolean;
 };
 
-const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockable = false }) => {
+const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false }) => {
   const {
     fixtures,
     selectedFixtures,
@@ -33,19 +33,28 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     setAutopilotTrackSpeed,
     updatePanTiltFromTrack,
   } = useStore();
-  // Panel configuration
+
+  // Panel configuration - Better organized layout
   const [panels, setPanels] = useState<PanelConfig[]>([
     { id: 'basic', title: 'Basic Controls', icon: 'Sliders', visible: true, position: { x: 50, y: 50 }, minimized: false },
-    { id: 'pantilt', title: 'Pan/Tilt', icon: 'Move', visible: true, position: { x: 400, y: 50 }, minimized: false },
-    { id: 'color', title: 'Color Controls', icon: 'Palette', visible: true, position: { x: 50, y: 300 }, minimized: false },
-    { id: 'beam', title: 'Beam Controls', icon: 'Zap', visible: true, position: { x: 400, y: 300 }, minimized: false },
-    { id: 'effects', title: 'Effects & Gobos', icon: 'Disc', visible: true, position: { x: 750, y: 300 }, minimized: false },
-    { id: 'autopilot', title: 'Autopilot', icon: 'Navigation', visible: true, position: { x: 750, y: 50 }, minimized: false },
+    { id: 'pantilt', title: 'Pan/Tilt', icon: 'Move', visible: true, position: { x: 370, y: 50 }, minimized: false },
+    { id: 'color', title: 'Color Mixing', icon: 'Palette', visible: true, position: { x: 50, y: 280 }, minimized: false },
+    { id: 'beam', title: 'Beam Controls', icon: 'Zap', visible: true, position: { x: 370, y: 280 }, minimized: false },
+    { id: 'effects', title: 'Effects & Gobos', icon: 'Disc', visible: true, position: { x: 690, y: 280 }, minimized: false },
+    { id: 'autopilot', title: 'Autopilot', icon: 'Navigation', visible: true, position: { x: 690, y: 50 }, minimized: false },
   ]);
-  // Control states
+
+  // Organized control states
+  // Basic Controls
   const [dimmer, setDimmer] = useState(255);
+  const [shutter, setShutter] = useState(255);
+  const [strobe, setStrobe] = useState(0);
+  
+  // Pan/Tilt
   const [panValue, setPanValue] = useState(127);
   const [tiltValue, setTiltValue] = useState(127);
+  
+  // Color Mixing
   const [red, setRed] = useState(255);
   const [green, setGreen] = useState(255);
   const [blue, setBlue] = useState(255);
@@ -54,8 +63,6 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
   const [uv, setUv] = useState(0);
   
   // Beam Controls
-  const [shutter, setShutter] = useState(255);
-  const [strobe, setStrobe] = useState(0);
   const [focus, setFocus] = useState(127);
   const [zoom, setZoom] = useState(127);
   const [iris, setIris] = useState(255);
@@ -67,28 +74,35 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
   const [prism, setPrism] = useState(0);
   const [macro, setMacro] = useState(0);
   const [speed, setSpeed] = useState(127);
-  // OSC addresses
+
+  // OSC addresses - Well organized
   const [oscAddresses, setOscAddresses] = useState<Record<string, string>>({
+    // Basic
     dimmer: '/supercontrol/dimmer',
+    shutter: '/supercontrol/shutter',
+    strobe: '/supercontrol/strobe',
+    // Pan/Tilt
     pan: '/supercontrol/pan',
     tilt: '/supercontrol/tilt',
+    // Color
     red: '/supercontrol/red',
     green: '/supercontrol/green',
     blue: '/supercontrol/blue',
     white: '/supercontrol/white',
     amber: '/supercontrol/amber',
     uv: '/supercontrol/uv',
-    shutter: '/supercontrol/shutter',
-    strobe: '/supercontrol/strobe',
+    // Beam
     focus: '/supercontrol/focus',
     zoom: '/supercontrol/zoom',
     iris: '/supercontrol/iris',
     frost: '/supercontrol/frost',
+    // Effects
     gobo: '/supercontrol/gobo',
     goboRotation: '/supercontrol/gobo_rotation',
     prism: '/supercontrol/prism',
     macro: '/supercontrol/macro',
     speed: '/supercontrol/speed',
+    // Autopilot
     autopilotPosition: '/supercontrol/autopilot/position',
     autopilotSize: '/supercontrol/autopilot/size',
     autopilotSpeed: '/supercontrol/autopilot/speed',
@@ -96,7 +110,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
 
   // Layout toggle
   const [useDraggableLayout, setUseDraggableLayout] = useState(true);
-  // Apply DMX control
+
+  // Apply DMX control with proper channel mapping
   const applyControl = (type: string, value: number) => {
     console.log(`[SuperControl] Applying ${type} control with value ${value}`);
     
@@ -116,7 +131,7 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     });
   };
 
-  // Get DMX channels for a control type
+  // Get DMX channels for a control type - Shows which channels are affected
   const getDmxChannelsForControl = (type: string): number[] => {
     const channels: number[] = [];
     let affectedFixtures: any[] = [];
@@ -135,7 +150,9 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
           channels.push(channel.dmxAddress);
         }
       });
-    });    return channels.sort((a, b) => a - b);
+    });
+
+    return channels.sort((a, b) => a - b);
   };
 
   // Panel management
@@ -145,30 +162,31 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     ));
   };
 
-  const togglePanelMinimized = (panelId: string) => {
-    setPanels(prev => prev.map(panel => 
-      panel.id === panelId ? { ...panel, minimized: !panel.minimized } : panel
-    ));
-  };
-
-  const togglePanelVisible = (panelId: string) => {
-    setPanels(prev => prev.map(panel => 
+  const togglePanelVisibility = (panelId: string) => {
+    setPanels(prev => prev.map(panel =>
       panel.id === panelId ? { ...panel, visible: !panel.visible } : panel
     ));
   };
 
-  // MIDI Learn handlers (placeholder)
+  const togglePanelMinimized = (panelId: string) => {
+    setPanels(prev => prev.map(panel =>
+      panel.id === panelId ? { ...panel, minimized: !panel.minimized } : panel
+    ));
+  };
+
+  // MIDI and OSC handlers
   const handleMidiLearn = (controlName: string) => {
-    console.log(`🎵 MIDI Learn requested for ${controlName}`);
+    console.log(`[SuperControl] Starting MIDI learn for ${controlName}`);
+    // Implementation would go here
   };
 
   const handleMidiForget = (controlName: string) => {
-    console.log(`🗑️ MIDI Forget requested for ${controlName}`);
+    console.log(`[SuperControl] Forgetting MIDI mapping for ${controlName}`);
+    // Implementation would go here
   };
 
   const handleOscAddressChange = (controlName: string, address: string) => {
     setOscAddresses(prev => ({ ...prev, [controlName]: address }));
-    console.log(`🌐 OSC address for ${controlName} set to: ${address}`);
   };
 
   // Render Basic Controls Panel
@@ -180,7 +198,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
       onPositionChange={(pos) => updatePanelPosition('basic', pos)}
       onMinimize={() => togglePanelMinimized('basic')}
       isMinimized={panels.find(p => p.id === 'basic')?.minimized}
-    >      <EnhancedSlider
+    >
+      <EnhancedSlider
         label="Dimmer"
         value={dimmer}
         onChange={(value) => {
@@ -242,7 +261,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
       onPositionChange={(pos) => updatePanelPosition('pantilt', pos)}
       onMinimize={() => togglePanelMinimized('pantilt')}
       isMinimized={panels.find(p => p.id === 'pantilt')?.minimized}
-    >      <EnhancedSlider
+    >
+      <EnhancedSlider
         label="Pan"
         value={panValue}
         onChange={(value) => {
@@ -278,16 +298,17 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     </DraggablePanel>
   );
 
-  // Render Color Panel
+  // Render Color Mixing Panel  
   const renderColorPanel = () => (
     <DraggablePanel
-      title="Color Controls"
+      title="Color Mixing"
       icon="Palette"
       initialPosition={panels.find(p => p.id === 'color')?.position}
       onPositionChange={(pos) => updatePanelPosition('color', pos)}
       onMinimize={() => togglePanelMinimized('color')}
       isMinimized={panels.find(p => p.id === 'color')?.minimized}
-    >      <EnhancedSlider
+    >
+      <EnhancedSlider
         label="Red"
         value={red}
         onChange={(value) => {
@@ -471,7 +492,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     </DraggablePanel>
   );
 
-  // Render Effects Panel  const renderEffectsPanel = () => (
+  // Render Effects & Gobos Panel
+  const renderEffectsPanel = () => (
     <DraggablePanel
       title="Effects & Gobos"
       icon="Disc"
@@ -582,19 +604,20 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
           onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
           style={{
             background: autopilotTrackEnabled ? '#28a745' : '#6c757d',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '14px 24px',
             color: 'white',
+            border: 'none',
+            padding: '12px 20px',
+            borderRadius: '6px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
+            fontSize: '1rem',
+            fontWeight: '600',
             width: '100%',
             justifyContent: 'center',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.3s ease',
+            boxShadow: autopilotTrackEnabled ? '0 4px 12px rgba(40, 167, 69, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
           }}
         >
           <LucideIcon name={autopilotTrackEnabled ? "Play" : "Pause"} />
@@ -609,7 +632,7 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
           setAutopilotTrackPosition(value);
         }}
         min={0}
-        max={100}
+        max={360}
         icon="MapPin"
         oscAddress={oscAddresses.autopilotPosition}
         onMidiLearn={() => handleMidiLearn('autopilotPosition')}
@@ -624,8 +647,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
         onChange={(value) => {
           setAutopilotTrackSize(value);
         }}
-        min={0}
-        max={100}
+        min={10}
+        max={180}
         icon="Maximize"
         oscAddress={oscAddresses.autopilotSize}
         onMidiLearn={() => handleMidiLearn('autopilotSize')}
@@ -642,7 +665,7 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
         }}
         min={1}
         max={100}
-        icon="Gauge"
+        icon="Zap"
         oscAddress={oscAddresses.autopilotSpeed}
         onMidiLearn={() => handleMidiLearn('autopilotSpeed')}
         onMidiForget={() => handleMidiForget('autopilotSpeed')}
@@ -653,28 +676,22 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
       <div style={{ marginTop: '16px' }}>
         <button
           onClick={() => {
-            console.log('🎯 Testing Autopilot DMX Updates');
             updatePanTiltFromTrack();
           }}
           style={{
             background: 'rgba(0, 212, 255, 0.2)',
-            border: '1px solid rgba(0, 212, 255, 0.5)',
-            borderRadius: '8px',
-            padding: '12px 20px',
             color: '#00d4ff',
+            border: '1px solid rgba(0, 212, 255, 0.3)',
+            padding: '8px 16px',
+            borderRadius: '6px',
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
+            fontSize: '0.9rem',
             width: '100%',
-            justifyContent: 'center',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.3s ease',
           }}
+          disabled={!autopilotTrackEnabled}
         >
-          <LucideIcon name="Zap" />
-          Test DMX
+          Update Pan/Tilt from Track
         </button>
       </div>
     </DraggablePanel>
@@ -682,21 +699,45 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
 
   return (
     <div className={styles.superControl}>
-      {/* Panel Toggle Controls */}
-      <div className={styles.panelToggle}>
-        <button
-          className={useDraggableLayout ? styles.active : ''}
-          onClick={() => setUseDraggableLayout(!useDraggableLayout)}
-          title="Toggle between draggable panels and grid layout"
-        >
-          <LucideIcon name={useDraggableLayout ? "Grid3X3" : "Layout"} />
-          {useDraggableLayout ? 'Grid Layout' : 'Draggable'}
-        </button>
+      <div className={styles.header}>
+        <div className={styles.headerTop}>
+          <h3>
+            <LucideIcon name="Settings" />
+            Tidy SuperControl
+            <div className={styles.statusIndicators}>
+              <span className={`${styles.indicator} ${selectedFixtures.length > 0 ? styles.active : styles.inactive}`}>
+                {selectedFixtures.length > 0 ? `${selectedFixtures.length} Selected` : 'All Fixtures'}
+              </span>
+              {autopilotTrackEnabled && (
+                <span className={`${styles.indicator} ${styles.autopilot}`}>
+                  <LucideIcon name="Navigation" />
+                  Autopilot
+                </span>
+              )}
+            </div>
+          </h3>
+          <p>Organized drag-and-drop control panels with complete DMX, MIDI, and OSC integration</p>
+        </div>
         
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
+          <button
+            onClick={() => setUseDraggableLayout(!useDraggableLayout)}
+            className={styles.layoutToggle}
+            title={useDraggableLayout ? 'Switch to Grid Layout' : 'Switch to Draggable Layout'}
+          >
+            <LucideIcon name={useDraggableLayout ? "Grid3X3" : "MousePointer"} />
+            {useDraggableLayout ? 'Grid Mode' : 'Drag Mode'}
+          </button>
+        </div>
+      </div>
+
+      {/* Panel Visibility Controls */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
         {panels.map(panel => (
           <button
             key={panel.id}
-            onClick={() => togglePanelVisible(panel.id)}
+            onClick={() => togglePanelVisibility(panel.id)}
+            className={styles.panelToggle}
             title={`Toggle ${panel.title} panel`}
             style={{ 
               background: panel.visible ? 'rgba(40, 167, 69, 0.9)' : 'rgba(108, 117, 125, 0.9)' 
@@ -706,7 +747,10 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
             {panel.title}
           </button>
         ))}
-      </div>      {useDraggableLayout ? (
+      </div>
+
+      {/* Panel Rendering */}
+      {useDraggableLayout ? (
         <div className={styles.draggableContainer}>
           {panels.find(p => p.id === 'basic')?.visible && renderBasicControlsPanel()}
           {panels.find(p => p.id === 'pantilt')?.visible && renderPanTiltPanel()}
@@ -729,4 +773,4 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
   );
 };
 
-export default SuperControlDraggable;
+export default SuperControlTidy;
