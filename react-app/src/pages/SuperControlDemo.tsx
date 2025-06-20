@@ -299,13 +299,11 @@ const SuperControlDemo: React.FC = () => {
         </div>
       </div>
 
-      {/* Component Renders */}
-      {showDockable && (
+      {/* Component Renders */}      {showDockable && (
         <DockableSuperControl
-          initialDockSide="right"
-          enableGridMode={true}
-          showVolumeControl={true}
-          enableAutopilot={true}
+          initialPosition="right"
+          isCollapsed={false}
+          showMinimizeButton={true}
         />
       )}
 
