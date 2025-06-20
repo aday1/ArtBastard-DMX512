@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import DraggablePanel from './DraggablePanel';
 import EnhancedSlider from './EnhancedSlider';
+import TimelineEditor from '../automation/TimelineEditor';
 import styles from './SuperControl.module.scss';
 
 interface SuperControlTidyProps {
