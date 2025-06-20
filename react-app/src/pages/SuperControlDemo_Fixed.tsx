@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import DockableSuperControl from '../components/fixtures/DockableSuperControl';
 import TouchSuperControl from '../components/fixtures/TouchSuperControl';
-import SuperControlDraggableClean from '../components/fixtures/SuperControlDraggableClean';
 import SuperControlTidyClean from '../components/fixtures/SuperControlTidyClean';
 import { LucideIcon } from '../components/ui/LucideIcon';
 
 /**
- * SuperControlDemo - Example showing how to integrate both DockableSuperControl and TouchSuperControl
+ * SuperControlDemo - Example showing how to integrate SuperControl variants
  * 
  * DockableSuperControl is perfect for:
  * - Main UI panels that can be docked to edges
@@ -19,11 +18,17 @@ import { LucideIcon } from '../components/ui/LucideIcon';
  * - Tablet/phone control surfaces
  * - Fullscreen touch experiences
  * - Simplified, gesture-based control
+ * 
+ * SuperControlTidyClean is perfect for:
+ * - Organized, professional control interface
+ * - Complete DMX channel visibility
+ * - Full MIDI Learn/OSC integration
+ * - Touch-optimized with all controls
  */
 
-const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable] = useState(true);
+const SuperControlDemo: React.FC = () => {
+  const [showDockable, setShowDockable] = useState(true);
   const [showTouch, setShowTouch] = useState(false);
-  const [showDraggable, setShowDraggable] = useState(false);
   const [showTidy, setShowTidy] = useState(true);
   const [touchSelectionCount, setTouchSelectionCount] = useState(0);
 
@@ -49,10 +54,11 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
 
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
         gap: '30px',
         marginBottom: '40px'
       }}>
+        
         {/* Dockable Control Card */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.05)',
@@ -65,18 +71,16 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
             Dockable Super Control
           </h2>
           <p style={{ marginBottom: '20px', opacity: 0.8 }}>
-            Perfect for main UI panels. Can be docked to screen edges, collapsed, minimized, 
-            and dragged around. Ideal for desktop/mouse interactions.
+            Traditional desktop control interface with dockable panels. Perfect for main application 
+            window with collapsible sections and clean organization.
           </p>
           
           <h3 style={{ color: '#00d4ff', fontSize: '1.1rem', marginBottom: '12px' }}>Features:</h3>
           <ul style={{ marginBottom: '20px', opacity: 0.8 }}>
-            <li>• Dockable to screen edges (top, bottom, left, right)</li>
-            <li>• Collapsible with smart status display</li>
-            <li>• Draggable and resizable</li>
-            <li>• Minimize/restore functionality</li>
-            <li>• Full SuperControl functionality</li>
-            <li>• Perfect for multi-monitor setups</li>
+            <li>• Dockable to window edges</li>
+            <li>• Collapsible control sections</li>
+            <li>• Desktop-optimized interactions</li>
+            <li>• Compact for multi-window setups</li>
           </ul>
 
           <button
@@ -102,37 +106,25 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
           background: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '12px',
           padding: '24px',
-          border: '1px solid rgba(0, 212, 255, 0.3)'
+          border: '1px solid rgba(255, 193, 7, 0.3)'
         }}>
-          <h2 style={{ color: '#00d4ff', marginBottom: '16px' }}>
+          <h2 style={{ color: '#ffc107', marginBottom: '16px' }}>
             <LucideIcon name="Smartphone" style={{ marginRight: '8px' }} />
             Touch Super Control
           </h2>
           <p style={{ marginBottom: '20px', opacity: 0.8 }}>
-            Optimized for touchscreen interfaces. Large touch targets, gesture support, 
-            haptic feedback, and auto-hide interface for distraction-free control.
+            Full-screen touch interface optimized for external monitors and tablets. 
+            Features gesture controls and large touch targets.
           </p>
           
-          <h3 style={{ color: '#00d4ff', fontSize: '1.1rem', marginBottom: '12px' }}>Features:</h3>
+          <h3 style={{ color: '#ffc107', fontSize: '1.1rem', marginBottom: '12px' }}>Features:</h3>
           <ul style={{ marginBottom: '20px', opacity: 0.8 }}>
-            <li>• Large, touch-friendly controls</li>
+            <li>• Full-screen touch interface</li>
+            <li>• Gesture-based controls</li>
             <li>• Haptic feedback support</li>
-            <li>• Auto-hide interface</li>
-            <li>• Gesture-based navigation</li>
-            <li>• Enhanced quick actions</li>
-            <li>• Perfect for external monitors</li>
+            <li>• Auto-hiding interface</li>
+            <li>• Real-time selection count: {touchSelectionCount}</li>
           </ul>
-
-          <div style={{ marginBottom: '16px' }}>
-            <span style={{ 
-              background: 'rgba(0, 212, 255, 0.2)', 
-              padding: '4px 12px', 
-              borderRadius: '6px',
-              fontSize: '0.9rem'
-            }}>
-              Selected: {touchSelectionCount} fixtures
-            </span>
-          </div>
 
           <button
             onClick={() => setShowTouch(!showTouch)}
@@ -149,49 +141,6 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
           >
             <LucideIcon name={showTouch ? "EyeOff" : "Eye"} style={{ marginRight: '8px' }} />
             {showTouch ? 'Hide' : 'Show'} Touch Control
-          </button>
-        </div>
-
-        {/* Draggable Panel Control Card */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '12px',
-          padding: '24px',
-          border: '1px solid rgba(0, 212, 255, 0.3)'
-        }}>
-          <h2 style={{ color: '#00d4ff', marginBottom: '16px' }}>
-            <LucideIcon name="Move" style={{ marginRight: '8px' }} />
-            Draggable Panel Super Control
-          </h2>
-          <p style={{ marginBottom: '20px', opacity: 0.8 }}>
-            Advanced panel system with moveable groups of controls. Large touch-friendly sliders 
-            with MIDI Learn and OSC Address support. Perfect for custom layouts.
-          </p>
-          
-          <h3 style={{ color: '#00d4ff', fontSize: '1.1rem', marginBottom: '12px' }}>Features:</h3>
-          <ul style={{ marginBottom: '20px', opacity: 0.8 }}>
-            <li>• Draggable, resizable control panels</li>
-            <li>• Extra-large sliders for touchscreen use</li>
-            <li>• MIDI Learn on all controls</li>
-            <li>• OSC Address configuration</li>
-            <li>• Minimizable panel groups</li>
-            <li>• Custom panel positioning</li>
-            <li>• Enhanced autopilot controls</li>
-          </ul>          <button
-            onClick={() => setShowDraggable(!showDraggable)}
-            style={{
-              padding: '12px 24px',
-              background: showDraggable ? '#dc3545' : '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold'
-            }}
-          >
-            <LucideIcon name={showDraggable ? "EyeOff" : "Eye"} style={{ marginRight: '8px' }} />
-            {showDraggable ? 'Hide' : 'Show'} Draggable Control
           </button>
         </div>
 
@@ -262,66 +211,101 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
               background: 'rgba(0, 0, 0, 0.3)', 
               padding: '16px', 
               borderRadius: '8px',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               overflow: 'auto'
             }}>
-{`import DockableSuperControl from './DockableSuperControl';
-
-// Basic usage
-<DockableSuperControl />
-
-// Advanced usage
-<DockableSuperControl
-  id="my-super-control"
-  width="900px"
-  height="700px"
-  initialPosition={{
-    zone: 'right',
-    offset: { x: 0, y: 50 }
-  }}
-  isCollapsed={false}
-  onCollapsedChange={(collapsed) => 
-    console.log('Collapsed:', collapsed)
-  }
+{`<DockableSuperControl
+  initialDockSide="right"
+  enableGridMode={true}
+  showVolumeControl={true}
+  enableAutopilot={true}
 />`}
             </pre>
           </div>
-          
+
           <div>
-            <h3 style={{ color: '#00d4ff', marginBottom: '12px' }}>TouchSuperControl</h3>
+            <h3 style={{ color: '#ffc107', marginBottom: '12px' }}>TouchSuperControl</h3>
             <pre style={{ 
               background: 'rgba(0, 0, 0, 0.3)', 
               padding: '16px', 
               borderRadius: '8px',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               overflow: 'auto'
             }}>
-{`import TouchSuperControl from './TouchSuperControl';
-
-// Basic usage
-<TouchSuperControl />
-
-// Advanced usage
-<TouchSuperControl
+{`<TouchSuperControl
   isFullscreen={true}
   enableHapticFeedback={true}
-  autoHideInterface={true}
-  onSelectionChange={(count) => 
-    console.log('Selected:', count)
-  }
+  autoHideInterface={false}
+  onSelectionChange={handleChange}
 />`}
             </pre>
           </div>
         </div>
+
+        <div style={{ marginTop: '20px' }}>
+          <h3 style={{ color: '#00ff88', marginBottom: '12px' }}>SuperControlTidyClean</h3>
+          <pre style={{ 
+            background: 'rgba(0, 0, 0, 0.3)', 
+            padding: '16px', 
+            borderRadius: '8px',
+            fontSize: '0.8rem',
+            overflow: 'auto'
+          }}>
+{`<SuperControlTidyClean
+  isDockable={false}
+  // Features all controls with DMX channel display
+  // Complete MIDI Learn and OSC address support
+  // Touch-optimized with organized panel layout
+/>`}
+          </pre>
+        </div>
       </div>
 
-      {/* Render the actual components */}
+      {/* Integration Notes */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '12px',
+        padding: '24px',
+        border: '1px solid rgba(0, 212, 255, 0.3)',
+        marginBottom: '30px'
+      }}>
+        <h2 style={{ color: '#00d4ff', marginBottom: '20px' }}>
+          <LucideIcon name="Info" style={{ marginRight: '8px' }} />
+          Integration Notes
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div>
+            <h3 style={{ color: '#00d4ff', marginBottom: '12px' }}>Best Practices</h3>
+            <ul style={{ opacity: 0.8 }}>
+              <li>• Use DockableSuperControl for main application windows</li>
+              <li>• Use TouchSuperControl for external touch displays</li>
+              <li>• Use SuperControlTidyClean for professional lighting control</li>
+              <li>• All components share the same store state</li>
+              <li>• Can be used simultaneously without conflicts</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 style={{ color: '#00d4ff', marginBottom: '12px' }}>State Management</h3>
+            <ul style={{ opacity: 0.8 }}>
+              <li>• All controls use the same Zustand store</li>
+              <li>• Real-time synchronization between interfaces</li>
+              <li>• Fixture selection is shared across components</li>
+              <li>• DMX values update in real-time</li>
+              <li>• MIDI and OSC mappings are persistent</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Component Renders */}
       {showDockable && (
         <DockableSuperControl
-          id="demo-dockable-control"
-          initialPosition={{ zone: 'floating', offset: { x: 50, y: 100 } }}
-          width="800px"
-          height="600px"
+          initialDockSide="right"
+          enableGridMode={true}
+          showVolumeControl={true}
+          enableAutopilot={true}
         />
       )}
 
@@ -332,8 +316,8 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 2000,
-          background: 'rgba(0, 0, 0, 0.9)'
+          zIndex: 1000,
+          background: 'rgba(0, 0, 0, 0.95)'
         }}>
           <button
             onClick={() => setShowTouch(false)}
@@ -341,12 +325,14 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
               position: 'absolute',
               top: '20px',
               right: '20px',
-              zIndex: 2001,
-              padding: '12px',
-              background: 'rgba(220, 53, 69, 0.8)',
+              zIndex: 1001,
+              background: 'rgba(220, 53, 69, 0.9)',
               color: 'white',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '50%',
+              width: '50px',
+              height: '50px',
+              fontSize: '1.5rem',
               cursor: 'pointer'
             }}
           >
@@ -358,12 +344,7 @@ const SuperControlDemo: React.FC = () => {  const [showDockable, setShowDockable
             autoHideInterface={false}
             onSelectionChange={handleTouchSelectionChange}
           />
-        </div>      )}      
-      
-      {showDraggable && (
-        <SuperControlDraggableClean
-          isDockable={false}
-        />
+        </div>
       )}
 
       {showTidy && (

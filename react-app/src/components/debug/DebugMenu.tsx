@@ -421,8 +421,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
 
                 <div className={styles.section}>
                   <h4>🗺️ MIDI Mappings</h4>
-                  <div className={styles.mappingsList}>
-                    {Object.keys(midiMappings).length === 0 ? (
+                  <div className={styles.mappingsList}>                    {Object.keys(midiMappings).length === 0 ? (
                       <div className={styles.noMappings}>No MIDI mappings configured</div>
                     ) : (
                       Object.entries(midiMappings).map(([channel, mapping]) => (
@@ -433,7 +432,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                             : ` MIDI Note ${mapping.channel}:${mapping.note}`}
                         </div>
                       ))
-                    }
+                    )}
                   </div>
                 </div>
 
@@ -472,8 +471,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
 
                 <div className={styles.section}>
                   <h4>📋 Recent MIDI Messages</h4>
-                  <div className={styles.messageList}>
-                    {midiMessages.length === 0 ? (
+                  <div className={styles.messageList}>                    {midiMessages.length === 0 ? (
                       <div className={styles.noMessages}>No recent MIDI messages</div>
                     ) : (
                       midiMessages.slice(-5).map((message, idx) => (
@@ -481,7 +479,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                           {JSON.stringify(message)}
                         </div>
                       ))
-                    }
+                    )}
                   </div>
                 </div>
               </div>
