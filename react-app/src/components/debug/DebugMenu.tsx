@@ -36,10 +36,10 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
   const [activeTab, setActiveTab] = useState<'system' | 'midi' | 'osc' | 'dmx' | 'touchosc'>('system');
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({} as SystemInfo);
   const [oscTestAddress, setOscTestAddress] = useState('/dmx/channel/1');
-  const [oscTestValue, setOscTestValue] = useState('127');
-  const [dmxTestChannel, setDmxTestChannel] = useState('1');
+  const [oscTestValue, setOscTestValue] = useState('127');  const [dmxTestChannel, setDmxTestChannel] = useState('1');
   const [dmxTestValue, setDmxTestValue] = useState('255');
-  const [touchOscGenerating, setTouchOscGenerating] = useState(false);  const { 
+  const [touchOscGenerating, setTouchOscGenerating] = useState(false);
+  const [showNetworkPanel, setShowNetworkPanel] = useState(false);const { 
     midiMessages, 
     midiMappings, 
     midiLearnTarget,
@@ -347,11 +347,10 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                 </button>
               ))}
             </div>
-          )}
-
-          {/* Tab Content - only show when not minimized */}
+          )}          {/* Tab Content - only show when not minimized */}
           {!isMinimized && (
-            <div className={styles.tabContent}>            {/* System Tab */}
+            <div className={styles.tabContent}>
+            {/* System Tab */}
             {activeTab === 'system' && (
               <div className={styles.systemTab}>
                 <div className={styles.section}>
@@ -404,9 +403,10 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            )}            {/* MIDI Tab */}
+                )}              </div>
+            )}
+
+            {/* MIDI Tab */}
             {activeTab === 'midi' && (
               <div className={styles.midiTab}>
                 <div className={styles.section}>
@@ -587,16 +587,36 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                     <div>Total Fixtures: {fixtureLayout.length}</div>
                     <div>Max Channel Used: {Math.max(...dmxChannels.map((v, i) => v > 0 ? i + 1 : 0))}</div>
                   </div>
-                </div>
-              </div>
+                </div>              </div>
             )}
 
             {/* TouchOSC Tab */}
             {activeTab === 'touchosc' && (
               <div className={styles.touchoscTab}>
                 <div className={styles.section}>
-                  <h4>📱 TouchOSC Generation</h4>
-                    <div className={styles.buttonGrid}>
+                  <h4>🌐 TouchOSC Network Transmission</h4>
+                  <p>Send your DMX interface directly to TouchOSC Editor via network - no file export needed!</p>
+                  
+                  <div className={styles.buttonGrid}>
+                    <button
+                      onClick={() => setShowNetworkPanel(!showNetworkPanel)}
+                      className={`${styles.generateButton} ${styles.networkButton}`}
+                      style={{ backgroundColor: showNetworkPanel ? '#0d7377' : '#2563eb' }}
+                    >
+                      {showNetworkPanel ? '📱 Hide Network Panel' : '🌐 Show Network Panel'}
+                    </button>
+                  </div>                  {showNetworkPanel && (
+                    <div style={{ marginTop: '1rem', border: '1px solid #333', borderRadius: '8px', padding: '1rem' }}>
+                      <TouchOSCNetworkPanel isVisible={true} />
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.section}>
+                  <h4>📱 Legacy TouchOSC File Export</h4>
+                  <p>Generate .touchosc files for manual import (legacy method)</p>
+                  
+                  <div className={styles.buttonGrid}>
                     <button
                       onClick={generateFromFixtures}
                       className={styles.generateButton}
@@ -612,8 +632,7 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                     >
                       {touchOscGenerating ? '⏳ Generating...' : '📊 Generate All 512 Channels'}
                     </button>
-                    
-                    <button
+                      <button
                       onClick={generateCrashProofExport}
                       className={`${styles.generateButton} ${styles.crashProofButton}`}
                       disabled={touchOscGenerating}
@@ -621,12 +640,19 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                     >
                       {touchOscGenerating ? '⏳ Generating...' : '🔧 Generate Crash-Proof TouchOSC'}
                     </button>
-                  </div>                  <div className={styles.infoText}>
+                  </div>
+
+                  <div className={styles.infoText}>
                     <p><strong>Auto-Generate from Fixtures:</strong> Creates TouchOSC layout (.tosc file) with controls for all placed fixtures, including PAN/TILT controls for moving lights and master sliders.</p>
                     <p><strong>All 512 Channels:</strong> Creates a comprehensive grid with faders for all 512 DMX channels in TouchOSC format (.tosc file).</p>
                     <p><strong>🔧 Crash-Proof TouchOSC:</strong> Enhanced export with XML validation, color format fixes, boundary checking, and OSC address validation. Use this if TouchOSC crashes when importing regular exports.</p>
                     <p><strong>Note:</strong> Generated .tosc files can be imported directly into the TouchOSC app on your mobile device.</p>
                   </div>
+                </div><div className={styles.infoText}>
+                    <p><strong>Auto-Generate from Fixtures:</strong> Creates TouchOSC layout (.tosc file) with controls for all placed fixtures, including PAN/TILT controls for moving lights and master sliders.</p>
+                    <p><strong>All 512 Channels:</strong> Creates a comprehensive grid with faders for all 512 DMX channels in TouchOSC format (.tosc file).</p>
+                    <p><strong>🔧 Crash-Proof TouchOSC:</strong> Enhanced export with XML validation, color format fixes, boundary checking, and OSC address validation. Use this if TouchOSC crashes when importing regular exports.</p>
+                    <p><strong>Note:</strong> Generated .tosc files can be imported directly into the TouchOSC app on your mobile device.</p>                  </div>
                 </div>
 
                 <div className={styles.section}>
@@ -638,7 +664,8 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
                       const fixture = allFixtures.find(f => f.id === pf.fixtureId);
                       return fixture?.channels.some(ch => ch.type === 'pan' || ch.type === 'tilt');
                     }).length}</div>
-                  </div>                </div>
+                  </div>
+                </div>
               </div>
             )}
             </div>

@@ -19,22 +19,14 @@ type PanelConfig = {
   minimized: boolean;
 };
 
-const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false }) => {
-  const {
+const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false }) => {  const {
     fixtures,
     selectedFixtures,
     setDmxChannelValue,
-    autopilotTrackEnabled,
-    autopilotTrackPosition,
-    autopilotTrackSize,
-    autopilotTrackSpeed,
-    setAutopilotTrackEnabled,
-    setAutopilotTrackPosition,
-    setAutopilotTrackSize,
-    setAutopilotTrackSpeed,
-    updatePanTiltFromTrack,
+    getDmxChannelValue,
+    scenes,
+    loadScene,
   } = useStore();
-
   // Panel configuration - Better organized layout
   const [panels, setPanels] = useState<PanelConfig[]>([
     { id: 'basic', title: 'Basic Controls', icon: 'Sliders', visible: true, position: { x: 50, y: 50 }, minimized: false },
@@ -42,7 +34,7 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
     { id: 'color', title: 'Color Mixing', icon: 'Palette', visible: true, position: { x: 50, y: 280 }, minimized: false },
     { id: 'beam', title: 'Beam Controls', icon: 'Zap', visible: true, position: { x: 370, y: 280 }, minimized: false },
     { id: 'effects', title: 'Effects & Gobos', icon: 'Disc', visible: true, position: { x: 690, y: 280 }, minimized: false },
-    { id: 'autopilot', title: 'Autopilot', icon: 'Navigation', visible: true, position: { x: 690, y: 50 }, minimized: false },
+    { id: 'automation', title: 'Automation & Scenes', icon: 'Clock', visible: true, position: { x: 690, y: 50 }, minimized: false },
   ]);
 
   // Organized control states
@@ -75,7 +67,6 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
   const [prism, setPrism] = useState(0);
   const [macro, setMacro] = useState(0);
   const [speed, setSpeed] = useState(127);
-
   // OSC addresses - Well organized
   const [oscAddresses, setOscAddresses] = useState<Record<string, string>>({
     // Basic
@@ -103,10 +94,6 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
     prism: '/supercontrol/prism',
     macro: '/supercontrol/macro',
     speed: '/supercontrol/speed',
-    // Autopilot
-    autopilotPosition: '/supercontrol/autopilot/position',
-    autopilotSize: '/supercontrol/autopilot/size',
-    autopilotSpeed: '/supercontrol/autopilot/speed',
   });
 
   // Layout toggle
@@ -589,114 +576,246 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
       />
     </DraggablePanel>
   );
+  // Render Automation Panel
+  const renderAutomationPanel = () => {
+    const [activeTab, setActiveTab] = useState<'automation' | 'scenes'>('automation');
+    const [savedScenes, setSavedScenes] = useState<Array<{
+      id: string;
+      name: string;
+      values: Record<number, number>;
+      timestamp: number;
+    }>>([]);
 
-  // Render Autopilot Panel
-  const renderAutopilotPanel = () => (
-    <DraggablePanel
-      title="Autopilot"
-      icon="Navigation"
-      initialPosition={panels.find(p => p.id === 'autopilot')?.position}
-      onPositionChange={(pos) => updatePanelPosition('autopilot', pos)}
-      onMinimize={() => togglePanelMinimized('autopilot')}
-      isMinimized={panels.find(p => p.id === 'autopilot')?.minimized}
-    >
-      <div style={{ marginBottom: '16px' }}>
-        <button
-          onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
-          style={{
-            background: autopilotTrackEnabled ? '#28a745' : '#6c757d',
-            color: 'white',
-            border: 'none',
-            padding: '12px 20px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '1rem',
-            fontWeight: '600',
-            width: '100%',
-            justifyContent: 'center',
-            transition: 'all 0.3s ease',
-            boxShadow: autopilotTrackEnabled ? '0 4px 12px rgba(40, 167, 69, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
-          }}
-        >
-          <LucideIcon name={autopilotTrackEnabled ? "Play" : "Pause"} />
-          {autopilotTrackEnabled ? 'Autopilot ON' : 'Autopilot OFF'}
-        </button>
-      </div>
+    // Capture current scene
+    const captureScene = (name: string) => {
+      const sceneValues: Record<number, number> = {};
+      
+      // Capture current DMX values for all fixtures
+      for (let i = 1; i <= 512; i++) {
+        const value = getDmxChannelValue?.(i) || 0;
+        if (value > 0) {
+          sceneValues[i] = value;
+        }
+      }
 
-      <EnhancedSlider
-        label="Position"
-        value={autopilotTrackPosition}
-        onChange={(value) => {
-          setAutopilotTrackPosition(value);
-        }}
-        min={0}
-        max={360}
-        icon="MapPin"
-        oscAddress={oscAddresses.autopilotPosition}
-        onMidiLearn={() => handleMidiLearn('autopilotPosition')}
-        onMidiForget={() => handleMidiForget('autopilotPosition')}
-        onOscAddressChange={(address) => handleOscAddressChange('autopilotPosition', address)}
-        disabled={!autopilotTrackEnabled}
-      />
+      const newScene = {
+        id: `scene-${Date.now()}`,
+        name: name || `Scene ${savedScenes.length + 1}`,
+        values: sceneValues,
+        timestamp: Date.now()
+      };
 
-      <EnhancedSlider
-        label="Size"
-        value={autopilotTrackSize}
-        onChange={(value) => {
-          setAutopilotTrackSize(value);
-        }}
-        min={10}
-        max={180}
-        icon="Maximize"
-        oscAddress={oscAddresses.autopilotSize}
-        onMidiLearn={() => handleMidiLearn('autopilotSize')}
-        onMidiForget={() => handleMidiForget('autopilotSize')}
-        onOscAddressChange={(address) => handleOscAddressChange('autopilotSize', address)}
-        disabled={!autopilotTrackEnabled}
-      />
+      setSavedScenes(prev => [...prev, newScene]);
+    };
 
-      <EnhancedSlider
-        label="Speed"
-        value={autopilotTrackSpeed}
-        onChange={(value) => {
-          setAutopilotTrackSpeed(value);
-        }}
-        min={1}
-        max={100}
-        icon="Zap"
-        oscAddress={oscAddresses.autopilotSpeed}
-        onMidiLearn={() => handleMidiLearn('autopilotSpeed')}
-        onMidiForget={() => handleMidiForget('autopilotSpeed')}
-        onOscAddressChange={(address) => handleOscAddressChange('autopilotSpeed', address)}
-        disabled={!autopilotTrackEnabled}
-      />
+    // Load scene
+    const loadScene = (sceneId: string) => {
+      const scene = savedScenes.find(s => s.id === sceneId);
+      if (scene && setDmxChannelValue) {
+        Object.entries(scene.values).forEach(([channel, value]) => {
+          setDmxChannelValue(parseInt(channel), value);
+        });
+      }
+    };
 
-      <div style={{ marginTop: '16px' }}>
-        <button
-          onClick={() => {
-            updatePanTiltFromTrack();
-          }}
-          style={{
-            background: 'rgba(0, 212, 255, 0.2)',
-            color: '#00d4ff',
-            border: '1px solid rgba(0, 212, 255, 0.3)',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            width: '100%',
-            transition: 'all 0.3s ease',
-          }}
-          disabled={!autopilotTrackEnabled}
-        >
-          Update Pan/Tilt from Track
-        </button>
-      </div>
-    </DraggablePanel>
-  );
+    // Delete scene
+    const deleteScene = (sceneId: string) => {
+      setSavedScenes(prev => prev.filter(s => s.id !== sceneId));
+    };
+
+    return (
+      <DraggablePanel
+        title="Automation & Scenes"
+        icon="Clock"
+        initialPosition={panels.find(p => p.id === 'automation')?.position}
+        onPositionChange={(pos) => updatePanelPosition('automation', pos)}
+        onMinimize={() => togglePanelMinimized('automation')}
+        isMinimized={panels.find(p => p.id === 'automation')?.minimized}
+      >
+        {/* Tab Navigation */}
+        <div style={{ 
+          display: 'flex', 
+          marginBottom: '16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <button
+            onClick={() => setActiveTab('automation')}
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              background: activeTab === 'automation' ? 'rgba(0, 212, 255, 0.2)' : 'transparent',
+              color: activeTab === 'automation' ? '#00d4ff' : '#888',
+              border: 'none',
+              borderBottom: activeTab === 'automation' ? '2px solid #00d4ff' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <LucideIcon name="Clock" style={{ marginRight: '8px' }} />
+            Automation
+          </button>
+          <button
+            onClick={() => setActiveTab('scenes')}
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              background: activeTab === 'scenes' ? 'rgba(0, 212, 255, 0.2)' : 'transparent',
+              color: activeTab === 'scenes' ? '#00d4ff' : '#888',
+              border: 'none',
+              borderBottom: activeTab === 'scenes' ? '2px solid #00d4ff' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <LucideIcon name="Camera" style={{ marginRight: '8px' }} />
+            Scenes
+          </button>
+        </div>
+
+        {/* Automation Tab */}
+        {activeTab === 'automation' && (
+          <div style={{ height: '400px' }}>
+            <TimelineEditor
+              duration={60}
+              onSave={(tracks) => {
+                localStorage.setItem('artbastard-automation-tracks', JSON.stringify(tracks));
+              }}
+              onLoad={() => {
+                try {
+                  const saved = localStorage.getItem('artbastard-automation-tracks');
+                  return saved ? JSON.parse(saved) : [];
+                } catch {
+                  return [];
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Scenes Tab */}
+        {activeTab === 'scenes' && (
+          <div>
+            {/* Scene Capture */}
+            <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(0, 0, 0, 0.2)', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Scene Name"
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '4px',
+                    color: 'white'
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      captureScene((e.target as HTMLInputElement).value);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.querySelector('input[placeholder="Scene Name"]') as HTMLInputElement;
+                    captureScene(input?.value || '');
+                    if (input) input.value = '';
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <LucideIcon name="Camera" />
+                  Capture
+                </button>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                Captures current DMX values as a scene
+              </div>
+            </div>
+
+            {/* Scene List */}
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {savedScenes.length === 0 ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '20px', 
+                  color: '#666',
+                  fontStyle: 'italic' 
+                }}>
+                  No scenes captured yet
+                </div>
+              ) : (
+                savedScenes.map(scene => (
+                  <div
+                    key={scene.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      margin: '4px 0',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: '#00d4ff' }}>
+                        {scene.name}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#888' }}>
+                        {Object.keys(scene.values).length} channels • {new Date(scene.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        onClick={() => loadScene(scene.id)}
+                        style={{
+                          padding: '4px 8px',
+                          background: '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem'
+                        }}
+                      >
+                        <LucideIcon name="Play" />
+                      </button>
+                      <button
+                        onClick={() => deleteScene(scene.id)}
+                        style={{
+                          padding: '4px 8px',
+                          background: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem'
+                        }}
+                      >
+                        <LucideIcon name="Trash2" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </DraggablePanel>
+    );
+  };
 
   return (
     <div className={styles.superControl}>
@@ -704,17 +823,10 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
         <div className={styles.headerTop}>
           <h3>
             <LucideIcon name="Settings" />
-            Tidy SuperControl
-            <div className={styles.statusIndicators}>
+            Tidy SuperControl            <div className={styles.statusIndicators}>
               <span className={`${styles.indicator} ${selectedFixtures.length > 0 ? styles.active : styles.inactive}`}>
                 {selectedFixtures.length > 0 ? `${selectedFixtures.length} Selected` : 'All Fixtures'}
               </span>
-              {autopilotTrackEnabled && (
-                <span className={`${styles.indicator} ${styles.autopilot}`}>
-                  <LucideIcon name="Navigation" />
-                  Autopilot
-                </span>
-              )}
             </div>
           </h3>
           <p>Organized drag-and-drop control panels with complete DMX, MIDI, and OSC integration</p>
@@ -748,9 +860,7 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
             {panel.title}
           </button>
         ))}
-      </div>
-
-      {/* Panel Rendering */}
+      </div>      {/* Panel Rendering */}
       {useDraggableLayout ? (
         <div className={styles.draggableContainer}>
           {panels.find(p => p.id === 'basic')?.visible && renderBasicControlsPanel()}
@@ -758,7 +868,7 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
           {panels.find(p => p.id === 'color')?.visible && renderColorPanel()}
           {panels.find(p => p.id === 'beam')?.visible && renderBeamPanel()}
           {panels.find(p => p.id === 'effects')?.visible && renderEffectsPanel()}
-          {panels.find(p => p.id === 'autopilot')?.visible && renderAutopilotPanel()}
+          {panels.find(p => p.id === 'automation')?.visible && renderAutomationPanel()}
         </div>
       ) : (
         <div className={styles.gridLayout}>
@@ -767,7 +877,7 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
           {panels.find(p => p.id === 'color')?.visible && renderColorPanel()}
           {panels.find(p => p.id === 'beam')?.visible && renderBeamPanel()}
           {panels.find(p => p.id === 'effects')?.visible && renderEffectsPanel()}
-          {panels.find(p => p.id === 'autopilot')?.visible && renderAutopilotPanel()}
+          {panels.find(p => p.id === 'automation')?.visible && renderAutomationPanel()}
         </div>
       )}
     </div>

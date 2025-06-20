@@ -7,6 +7,7 @@ import { ToastContainer } from './ToastContainer'
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
 import { DebugMenu } from '../debug/DebugMenu'
+import TouchOSCMenuButton from '../debug/TouchOSCMenuButton'
 import { Sparkles } from './Sparkles'
 import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
@@ -78,6 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {  const { theme,
             </main>
             
             <DebugMenu position="top-right" />
+            <TouchOSCMenuButton position="bottom-right" />
           </div>
         </div>
         
