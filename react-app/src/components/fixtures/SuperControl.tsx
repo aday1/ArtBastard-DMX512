@@ -2927,9 +2927,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.frost}</span>
             </div>
-          </div>
-
-          {/* Macro Control */}
+          </div>          {/* Macro Control */}
           <div className={styles.controlRow}>
             <label>Macro</label>
             <div className={styles.controlInputs}>
@@ -2959,9 +2957,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.macro}</span>
             </div>
-          </div>
-
-          {/* Speed Control */}
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('macro')}</div>
+            {renderMidiButtons('macro')}
+          </div>          {/* Speed Control */}
           <div className={styles.controlRow}>
             <label>Speed</label>
             <div className={styles.controlInputs}>
@@ -2991,6 +2989,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.speed}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('speed')}</div>
+            {renderMidiButtons('speed')}
           </div>
         </div>
       </div>
