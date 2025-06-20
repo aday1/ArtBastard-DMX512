@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useStore } from '../store'
 import { exportToToscFile, ExportOptions } from '../utils/touchoscExporter'
+import TouchOSCNetworkPanel from '../components/touchosc/TouchOSCNetworkPanel'
+import TouchOSCControlPanel from '../components/debug/TouchOSCControlPanel'
 import styles from './Pages.module.scss'
 
 const RemoteControlPage: React.FC = () => {
@@ -371,7 +373,24 @@ const RemoteControlPage: React.FC = () => {
                   <p>Export and load the custom .tosc layout file using the button above</p>
                 </div>
               </div>
-            </div>
+            </div>          </div>
+
+          {/* TouchOSC Network Transmission Panel */}
+          <div className={styles.networkPanel}>
+            <h3>
+              <i className="fas fa-wifi"></i>
+              TouchOSC Network Transmission
+            </h3>
+            <TouchOSCNetworkPanel />
+          </div>
+
+          {/* TouchOSC Advanced Controls */}
+          <div className={styles.controlPanel}>
+            <h3>
+              <i className="fas fa-cogs"></i>
+              TouchOSC Advanced Controls
+            </h3>
+            <TouchOSCControlPanel />
           </div>
         </div>
       </div>

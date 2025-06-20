@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { useSocket } from '../../context/SocketContext'
 import { useChromaticEnergyManipulatorSettings } from '../../context/ChromaticEnergyManipulatorContext'
 import { MidiLearnButton } from '../midi/MidiLearnButton'
+import { DebugMenu } from '../debug/DebugMenu'
 
 import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version';
 import { ReleaseNotes } from './ReleaseNotes'
@@ -739,36 +740,30 @@ export const UnifiedSettings: React.FC = () => {
               </div>
             )}
 
-            {/* Debug Settings */}
+            {/* Debug Section */}
             {activeSection === 'debug' && (
               <div className={styles.settingsSection}>
-                <h3><i className="fas fa-bug"></i> Debug Tools Visibility</h3>
-                <p className={styles.sectionDescription}>
-                  Control which debug tools and monitors are visible in the interface
-                </p>
+                <h3><i className="fas fa-bug"></i> Debug & Development Tools</h3>
                 
-                <div className={styles.toggleGrid}>
-                  {Object.entries(localDebugTools).map(([key, value]) => (
-                    <div key={key} className={styles.toggleItem}>
-                      <div className={styles.toggleSwitch}>
-                        <input
-                          type="checkbox"
-                          id={`debug-${key}`}
-                          checked={value}
-                          onChange={() => handleDebugToolsChange(key as keyof typeof debugTools)}
-                        />
-                        <label htmlFor={`debug-${key}`} className={styles.toggleLabel}>
-                          <span className={styles.toggleSlider}></span>
-                        </label>
-                      </div>
-                      <span className={styles.toggleText}>{
-                        key === 'debugButton' ? 'Debug Button' :
-                        key === 'midiMonitor' ? 'MIDI Monitor' :
-                        key === 'oscMonitor' ? 'OSC Monitor' :
-                        key
-                      }</span>
-                    </div>
-                  ))}
+                <div className={styles.settingGroup}>
+                  <label className={styles.settingLabel}>
+                    <i className="fas fa-tools"></i>
+                    Debug Menu
+                  </label>
+                  <p className={styles.settingDescription}>
+                    Comprehensive debugging tools for MIDI, OSC, DMX, and TouchOSC functionality.
+                  </p>
+                  
+                  {/* Embedded Debug Menu without overlay */}
+                  <div style={{ 
+                    border: '1px solid var(--border-color, #333)', 
+                    borderRadius: '8px', 
+                    padding: '1rem',
+                    backgroundColor: 'var(--card-background, rgba(255,255,255,0.05))',
+                    marginTop: '1rem'
+                  }}>
+                    <DebugMenu position="embedded" />
+                  </div>
                 </div>
               </div>
             )}

@@ -6,8 +6,6 @@ import { Navbar } from './Navbar'
 import { ToastContainer } from './ToastContainer'
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
-import { DebugMenu } from '../debug/DebugMenuSimple'
-import TouchOSCMenuButton from '../debug/TouchOSCMenuButton'
 import { Sparkles } from './Sparkles'
 import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
@@ -72,14 +70,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {  const { theme,
             
             {theme === 'artsnob' && (
               <FancyQuotes intervalSeconds={30} animate={true} />
-            )}
-            
+            )}            
             <main className={styles.contentArea}>
               <PageRouter />
             </main>
             
-            <DebugMenu position="top-right" />
-            <TouchOSCMenuButton position="bottom-right" />
           </div>
         </div>
         

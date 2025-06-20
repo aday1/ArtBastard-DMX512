@@ -7,7 +7,7 @@ import { exportCrashProofToscFile, FixedExportOptions } from '../../utils/toucho
 import styles from './DebugMenu.module.scss';
 
 interface DebugMenuProps {
-  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'embedded';
 }
 
 interface SystemInfo {
@@ -278,402 +278,253 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
-
-  // Don't render if debugButton is disabled in debugTools
-  if (!debugTools.debugButton) {
+  // Don't render if debugButton is disabled in debugTools (unless embedded)
+  if (!debugTools.debugButton && position !== 'embedded') {
     return null;
   }
 
-  return (
-    <>
-      {/* Toggle button */}
-      <button
-        onClick={() => setIsVisible(!isVisible)}
-        className={styles.toggleButton}
-        style={{
-          position: 'fixed',
-          ...positionStyles[position],
-          zIndex: 10000,
-        }}
-        title="Debug Menu (Ctrl+D)"
-      >
-        {isVisible ? '🔧 Hide Debug' : '🔧 Debug Menu'}
-      </button>      {/* Debug panel */}
-      {isVisible && (
-        <div
-          className={styles.debugPanel}
-          style={{
-            position: 'fixed',
-            top: position.includes('top') ? '50px' : 'auto',
-            bottom: position.includes('bottom') ? '50px' : 'auto',
-            left: position.includes('left') ? '10px' : 'auto',
-            right: position.includes('right') ? '240px' : 'auto', // Moved to avoid navbar overlap
-            zIndex: 1000, // Lower than navbar z-index (1001)
-          }}
-        ><div className={styles.header}>
-            <h3>🚀 ArtBastard Debug Menu</h3>
-            <div className={styles.headerControls}>
-              <button 
-                onClick={() => setIsMinimized(!isMinimized)}
-                className={styles.minimizeButton}
-                title={isMinimized ? "Maximize" : "Minimize"}
-              >
-                {isMinimized ? '🔼' : '🔽'}
-              </button>
-              <button 
-                onClick={() => setIsVisible(false)}
-                className={styles.closeButton}
-              >
-                ✕
-              </button>
-            </div>          </div>
+  // Embedded mode - render without overlay
+  if (position === 'embedded') {
+    return (
+      <div className={styles.debugPanel} style={{ position: 'relative', zIndex: 'auto' }}>
+        <div className={styles.header}>
+          <h3>🚀 ArtBastard Debug Menu</h3>
+        </div>
 
-          {/* Tab Navigation - only show when not minimized */}
-          {!isMinimized && (
-            <div className={styles.tabNav}>
-              {[
-                { id: 'system', label: '🖥️ System', icon: '🖥️' },
-                { id: 'midi', label: '🎹 MIDI', icon: '🎹' },
-                { id: 'osc', label: '📡 OSC', icon: '📡' },
-                { id: 'dmx', label: '💡 DMX', icon: '💡' },
-                { id: 'touchosc', label: '📱 TouchOSC', icon: '📱' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
-                >
-                  {tab.icon} {tab.label}
-                </button>
-              ))}
+        {/* Tab Navigation */}
+        <div className={styles.tabNav}>
+          {[
+            { id: 'system', label: '🖥️ System', icon: '🖥️' },
+            { id: 'midi', label: '🎹 MIDI', icon: '🎹' },
+            { id: 'osc', label: '📡 OSC', icon: '📡' },
+            { id: 'dmx', label: '💡 DMX', icon: '💡' },
+            { id: 'touchosc', label: '📱 TouchOSC', icon: '📱' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>        {/* Tab Content */}
+        <div className={styles.tabContent}>
+          {/* System Tab */}
+          {activeTab === 'system' && (
+            <div className={styles.systemTab}>
+              <div className={styles.section}>
+                <h4>🔧 Environment</h4>
+                <div className={styles.infoGrid}>
+                  <div>NODE_ENV: {systemInfo.nodeEnv}</div>
+                  <div>React: {systemInfo.reactVersion}</div>
+                  <div>Document State: {systemInfo.documentReadyState}</div>
+                  <div>Window Loaded: {systemInfo.windowLoaded ? '✅' : '❌'}</div>
+                  <div>Socket.IO: {connected ? '✅ Connected' : '❌ Disconnected'}</div>
+                  <div>WebMIDI: {systemInfo.webMidiSupported ? '✅' : '❌'}</div>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <h4>📊 Performance & Memory</h4>
+                <div className={styles.infoGrid}>
+                  <div>JS Heap Used: {formatBytes(systemInfo.memoryUsage?.usedJSHeapSize)}</div>
+                  <div>JS Heap Total: {formatBytes(systemInfo.memoryUsage?.totalJSHeapSize)}</div>
+                  <div>JS Heap Limit: {formatBytes(systemInfo.memoryUsage?.jsHeapSizeLimit)}</div>
+                  <div>Navigation Type: {systemInfo.performance?.navigation || 'N/A'}</div>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <h4>🌐 Network & Status</h4>
+                <div className={styles.infoGrid}>
+                  <div>Current URL: {systemInfo.currentUrl}</div>
+                  <div>User Agent: {systemInfo.userAgent?.substring(0, 50)}...</div>
+                  <div>Last Update: {systemInfo.timestamp}</div>
+                  <div>Load Time: {systemInfo.performance?.timing ? 
+                    `${systemInfo.performance.timing.loadEventEnd - systemInfo.performance.timing.navigationStart}ms` : 'N/A'}</div>
+                </div>
+              </div>
+
+              {systemInfo.errors?.length > 0 && (
+                <div className={styles.section}>
+                  <h4>🚨 Recent Errors</h4>
+                  <div className={styles.errorList}>
+                    {systemInfo.errors.slice(-3).map((error: any, index: number) => (
+                      <div key={index} className={styles.error}>
+                        <div className={styles.errorMessage}>{error.message}</div>
+                        <div className={styles.errorDetails}>
+                          {error.filename}:{error.lineno}:{error.colno}
+                        </div>
+                        <div className={styles.errorTime}>
+                          {new Date(error.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}          {/* Tab Content - only show when not minimized */}
-          {!isMinimized && (
-            <div className={styles.tabContent}>
-            {/* System Tab */}
-            {activeTab === 'system' && (
-              <div className={styles.systemTab}>
-                <div className={styles.section}>
-                  <h4>🔧 Environment</h4>
-                  <div className={styles.infoGrid}>
-                    <div>NODE_ENV: {systemInfo.nodeEnv}</div>
-                    <div>React: {systemInfo.reactVersion}</div>
-                    <div>Document State: {systemInfo.documentReadyState}</div>
-                    <div>Window Loaded: {systemInfo.windowLoaded ? '✅' : '❌'}</div>
-                    <div>Socket.IO: {connected ? '✅ Connected' : '❌ Disconnected'}</div>
-                    <div>WebMIDI: {systemInfo.webMidiSupported ? '✅' : '❌'}</div>
-                  </div>
-                </div>
+          )}
 
-                <div className={styles.section}>
-                  <h4>📊 Performance & Memory</h4>
-                  <div className={styles.infoGrid}>
-                    <div>JS Heap Used: {formatBytes(systemInfo.memoryUsage?.usedJSHeapSize)}</div>
-                    <div>JS Heap Total: {formatBytes(systemInfo.memoryUsage?.totalJSHeapSize)}</div>
-                    <div>JS Heap Limit: {formatBytes(systemInfo.memoryUsage?.jsHeapSizeLimit)}</div>
-                    <div>Navigation Type: {systemInfo.performance?.navigation || 'N/A'}</div>
-                  </div>
-                </div>
-
-                <div className={styles.section}>
-                  <h4>🌐 Network & Status</h4>
-                  <div className={styles.infoGrid}>
-                    <div>Current URL: {systemInfo.currentUrl}</div>
-                    <div>User Agent: {systemInfo.userAgent?.substring(0, 50)}...</div>
-                    <div>Last Update: {systemInfo.timestamp}</div>
-                    <div>Load Time: {systemInfo.performance?.timing ? 
-                      `${systemInfo.performance.timing.loadEventEnd - systemInfo.performance.timing.navigationStart}ms` : 'N/A'}</div>
-                  </div>
-                </div>
-
-                {systemInfo.errors?.length > 0 && (
-                  <div className={styles.section}>
-                    <h4>🚨 Recent Errors</h4>
-                    <div className={styles.errorList}>
-                      {systemInfo.errors.slice(-3).map((error: any, index: number) => (
-                        <div key={index} className={styles.error}>
-                          <div className={styles.errorMessage}>{error.message}</div>
-                          <div className={styles.errorDetails}>
-                            {error.filename}:{error.lineno}:{error.colno}
-                          </div>
-                          <div className={styles.errorTime}>
-                            {new Date(error.timestamp).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}              </div>
-            )}
-
-            {/* MIDI Tab */}
-            {activeTab === 'midi' && (
-              <div className={styles.midiTab}>
-                <div className={styles.section}>
-                  <h4>🎹 MIDI Status</h4>
-                  <div className={styles.infoGrid}>
-                    <div>Learn Target: {midiLearnTarget !== null ? JSON.stringify(midiLearnTarget) : 'None'}</div>
-                    <div>Active Mappings: {Object.keys(midiMappings).length}</div>
-                    <div>Recent Messages: {midiMessages.length}</div>
-                    <div>WebMIDI Support: {typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator ? '✅' : '❌'}</div>
-                  </div>
-                </div>
-
-                <div className={styles.section}>
-                  <h4>🗺️ MIDI Mappings</h4>
-                  <div className={styles.mappingsList}>                    {Object.keys(midiMappings).length === 0 ? (
-                      <div className={styles.noMappings}>No MIDI mappings configured</div>
-                    ) : (
-                      Object.entries(midiMappings).map(([channel, mapping]) => (
-                        <div key={channel} className={styles.mappingItem}>
-                          <strong>DMX Ch {channel}:</strong> 
-                          {mapping.controller !== undefined 
-                            ? ` MIDI CC ${mapping.channel}:${mapping.controller}` 
-                            : ` MIDI Note ${mapping.channel}:${mapping.note}`}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.section}>
-                  <h4>🧪 MIDI Test Functions</h4>
-                  <div className={styles.buttonGrid}>
-                    <button
-                      onClick={() => sendTestNoteOnMessage(0, 60, 127)}
-                      className={styles.testButton}
-                    >
-                      🎵 Test Note (C4)
-                    </button>
-                    <button
-                      onClick={() => sendTestCCMessage(0, 7, 127)}
-                      className={styles.testButton}
-                    >
-                      🎛️ Test CC (Volume)
-                    </button>
-                    <button
-                      onClick={() => {
-                        const channel = prompt('Enter DMX channel to test (0-511):', '0');
-                        if (channel !== null) {
-                          const dmxChannel = parseInt(channel, 10);
-                          if (!isNaN(dmxChannel) && dmxChannel >= 0 && dmxChannel <= 511) {
-                            const msgType = prompt('Enter MIDI message type (note/cc):', 'note');
-                            testMidiLearnWorkflow(dmxChannel, msgType === 'cc' ? 'cc' : 'note');
-                          }
-                        }
-                      }}
-                      className={styles.testButton}
-                    >
-                      🔄 Test MIDI Learn
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.section}>
-                  <h4>📋 Recent MIDI Messages</h4>
-                  <div className={styles.messageList}>                    {midiMessages.length === 0 ? (
-                      <div className={styles.noMessages}>No recent MIDI messages</div>
-                    ) : (
-                      midiMessages.slice(-5).map((message, idx) => (
-                        <div key={idx} className={styles.message}>
-                          {JSON.stringify(message)}
-                        </div>
-                      ))
-                    )}
-                  </div>
+          {/* MIDI Tab */}
+          {activeTab === 'midi' && (
+            <div className={styles.midiTab}>
+              <div className={styles.section}>
+                <h4>🎹 MIDI Status</h4>
+                <div className={styles.infoGrid}>
+                  <div>Learn Target: {midiLearnTarget !== null ? JSON.stringify(midiLearnTarget) : 'None'}</div>
+                  <div>Active Mappings: {Object.keys(midiMappings).length}</div>
+                  <div>Recent Messages: {midiMessages.length}</div>
+                  <div>WebMIDI Support: {typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator ? '✅' : '❌'}</div>
                 </div>
               </div>
-            )}
 
-            {/* OSC Tab */}
-            {activeTab === 'osc' && (
-              <div className={styles.oscTab}>
-                <div className={styles.section}>
-                  <h4>📡 OSC Test Functions</h4>
-                  
-                  <div className={styles.inputGroup}>
-                    <label>OSC Address:</label>
-                    <input
-                      type="text"
-                      value={oscTestAddress}
-                      onChange={(e) => setOscTestAddress(e.target.value)}
-                      placeholder="/dmx/channel/1"
-                      className={styles.input}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label>Value:</label>
-                    <input
-                      type="text"
-                      value={oscTestValue}
-                      onChange={(e) => setOscTestValue(e.target.value)}
-                      placeholder="127"
-                      className={styles.input}
-                    />
-                  </div>
-
-                  <div className={styles.buttonGrid}>
-                    <button
-                      onClick={sendOscTestMessage}
-                      className={styles.testButton}
-                      disabled={!connected}
-                    >
-                      📤 Send OSC Message
-                    </button>
-                    <button
-                      onClick={requestOscTestMessage}
-                      className={styles.testButton}
-                      disabled={!connected}
-                    >
-                      📥 Request OSC Test
-                    </button>
-                  </div>
-
-                  <div className={styles.connectionStatus}>
-                    Socket Status: {connected ? '✅ Connected' : '❌ Disconnected'}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* DMX Tab */}
-            {activeTab === 'dmx' && (
-              <div className={styles.dmxTab}>
-                <div className={styles.section}>
-                  <h4>💡 DMX Debug Functions</h4>
-                  
-                  <div className={styles.inputGroup}>
-                    <label>DMX Channel (1-512):</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="512"
-                      value={dmxTestChannel}
-                      onChange={(e) => setDmxTestChannel(e.target.value)}
-                      className={styles.input}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label>Value (0-255):</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={dmxTestValue}
-                      onChange={(e) => setDmxTestValue(e.target.value)}
-                      className={styles.input}
-                    />
-                  </div>
-
+              <div className={styles.section}>
+                <h4>🧪 MIDI Test Functions</h4>
+                <div className={styles.buttonGrid}>
                   <button
-                    onClick={sendDmxTestMessage}
+                    onClick={() => sendTestNoteOnMessage(0, 60, 127)}
+                    className={styles.testButton}
+                  >
+                    🎵 Test Note (C4)
+                  </button>
+                  <button
+                    onClick={() => sendTestCCMessage(0, 7, 127)}
+                    className={styles.testButton}
+                  >
+                    🎛️ Test CC (Volume)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* OSC Tab */}
+          {activeTab === 'osc' && (
+            <div className={styles.oscTab}>
+              <div className={styles.section}>
+                <h4>📡 OSC Test Functions</h4>
+                <div className={styles.inputGroup}>
+                  <label>OSC Address:</label>
+                  <input
+                    type="text"
+                    value={oscTestAddress}
+                    onChange={(e) => setOscTestAddress(e.target.value)}
+                    placeholder="/test/address"
+                    className={styles.input}
+                  />
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>Value:</label>
+                  <input
+                    type="number"
+                    value={oscTestValue}
+                    onChange={(e) => setOscTestValue(e.target.value)}
+                    step="0.01"
+                    className={styles.input}
+                  />
+                </div>
+
+                <div className={styles.buttonGrid}>
+                  <button
+                    onClick={sendOscTestMessage}
                     className={styles.testButton}
                     disabled={!connected}
                   >
-                    💡 Send DMX Channel Debug
+                    📡 Send OSC Message
                   </button>
-
-                  <div className={styles.connectionStatus}>
-                    Socket Status: {connected ? '✅ Connected' : '❌ Disconnected'}
-                  </div>
+                  <button
+                    onClick={requestOscTestMessage}
+                    className={styles.testButton}
+                    disabled={!connected}
+                  >
+                    📥 Request OSC Test
+                  </button>
                 </div>
 
-                <div className={styles.section}>
-                  <h4>📊 DMX Status</h4>
-                  <div className={styles.infoGrid}>
-                    <div>Active Channels: {dmxChannels.filter(v => v > 0).length}</div>
-                    <div>Total Fixtures: {fixtureLayout.length}</div>
-                    <div>Max Channel Used: {Math.max(...dmxChannels.map((v, i) => v > 0 ? i + 1 : 0))}</div>
-                  </div>
-                </div>              </div>
-            )}
-
-            {/* TouchOSC Tab */}
-            {activeTab === 'touchosc' && (
-              <div className={styles.touchoscTab}>
-                <div className={styles.section}>
-                  <h4>🌐 TouchOSC Network Transmission</h4>
-                  <p>Send your DMX interface directly to TouchOSC Editor via network - no file export needed!</p>
-                  
-                  <div className={styles.buttonGrid}>
-                    <button
-                      onClick={() => setShowNetworkPanel(!showNetworkPanel)}
-                      className={`${styles.generateButton} ${styles.networkButton}`}
-                      style={{ backgroundColor: showNetworkPanel ? '#0d7377' : '#2563eb' }}
-                    >
-                      {showNetworkPanel ? '📱 Hide Network Panel' : '🌐 Show Network Panel'}
-                    </button>
-                  </div>                  {showNetworkPanel && (
-                    <div style={{ marginTop: '1rem', border: '1px solid #333', borderRadius: '8px', padding: '1rem' }}>
-                      <TouchOSCNetworkPanel isVisible={true} />
-                    </div>
-                  )}
-                </div>
-
-                <div className={styles.section}>
-                  <h4>📱 Legacy TouchOSC File Export</h4>
-                  <p>Generate .touchosc files for manual import (legacy method)</p>
-                  
-                  <div className={styles.buttonGrid}>
-                    <button
-                      onClick={generateFromFixtures}
-                      className={styles.generateButton}
-                      disabled={touchOscGenerating}
-                    >
-                      {touchOscGenerating ? '⏳ Generating...' : '🎯 Auto-Generate from Fixtures'}
-                    </button>
-                    
-                    <button
-                      onClick={generate512Channels}
-                      className={styles.generateButton}
-                      disabled={touchOscGenerating}
-                    >
-                      {touchOscGenerating ? '⏳ Generating...' : '📊 Generate All 512 Channels'}
-                    </button>
-                      <button
-                      onClick={generateCrashProofExport}
-                      className={`${styles.generateButton} ${styles.crashProofButton}`}
-                      disabled={touchOscGenerating}
-                      title="Enhanced export with crash prevention fixes"
-                    >
-                      {touchOscGenerating ? '⏳ Generating...' : '🔧 Generate Crash-Proof TouchOSC'}
-                    </button>
-                  </div>
-
-                  <div className={styles.infoText}>
-                    <p><strong>Auto-Generate from Fixtures:</strong> Creates TouchOSC layout (.tosc file) with controls for all placed fixtures, including PAN/TILT controls for moving lights and master sliders.</p>
-                    <p><strong>All 512 Channels:</strong> Creates a comprehensive grid with faders for all 512 DMX channels in TouchOSC format (.tosc file).</p>
-                    <p><strong>🔧 Crash-Proof TouchOSC:</strong> Enhanced export with XML validation, color format fixes, boundary checking, and OSC address validation. Use this if TouchOSC crashes when importing regular exports.</p>
-                    <p><strong>Note:</strong> Generated .tosc files can be imported directly into the TouchOSC app on your mobile device.</p>
-                  </div>
-                </div><div className={styles.infoText}>
-                    <p><strong>Auto-Generate from Fixtures:</strong> Creates TouchOSC layout (.tosc file) with controls for all placed fixtures, including PAN/TILT controls for moving lights and master sliders.</p>
-                    <p><strong>All 512 Channels:</strong> Creates a comprehensive grid with faders for all 512 DMX channels in TouchOSC format (.tosc file).</p>
-                    <p><strong>🔧 Crash-Proof TouchOSC:</strong> Enhanced export with XML validation, color format fixes, boundary checking, and OSC address validation. Use this if TouchOSC crashes when importing regular exports.</p>
-                    <p><strong>Note:</strong> Generated .tosc files can be imported directly into the TouchOSC app on your mobile device.</p>                  </div>
-                </div>
-
-                <div className={styles.section}>
-                  <h4>📊 Current Layout</h4>
-                  <div className={styles.infoGrid}>
-                    <div>Placed Fixtures: {fixtureLayout.length}</div>
-                    <div>Available Fixture Types: {allFixtures.length}</div>
-                    <div>Pan/Tilt Fixtures: {fixtureLayout.filter(pf => {
-                      const fixture = allFixtures.find(f => f.id === pf.fixtureId);
-                      return fixture?.channels.some(ch => ch.type === 'pan' || ch.type === 'tilt');
-                    }).length}</div>
-                  </div>
+                <div className={styles.connectionStatus}>
+                  Socket Status: {connected ? '✅ Connected' : '❌ Disconnected'}
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* DMX Tab */}
+          {activeTab === 'dmx' && (
+            <div className={styles.dmxTab}>
+              <div className={styles.section}>
+                <h4>💡 DMX Test Functions</h4>
+                <div className={styles.inputGroup}>
+                  <label>DMX Channel (1-512):</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="512"
+                    value={dmxTestChannel}
+                    onChange={(e) => setDmxTestChannel(e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>Value (0-255):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    value={dmxTestValue}
+                    onChange={(e) => setDmxTestValue(e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+
+                <button
+                  onClick={sendDmxTestMessage}
+                  className={styles.testButton}
+                  disabled={!connected}
+                >
+                  💡 Send DMX Channel Debug
+                </button>
+
+                <div className={styles.connectionStatus}>
+                  Socket Status: {connected ? '✅ Connected' : '❌ Disconnected'}
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <h4>📊 DMX Status</h4>
+                <div className={styles.infoGrid}>
+                  <div>Active Channels: {dmxChannels.filter(v => v > 0).length}</div>
+                  <div>Total Fixtures: {fixtureLayout.length}</div>
+                  <div>Max Channel Used: {Math.max(...dmxChannels.map((v, i) => v > 0 ? i + 1 : 0))}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TouchOSC Tab */}
+          {activeTab === 'touchosc' && (
+            <div className={styles.touchoscTab}>
+              <div className={styles.section}>
+                <h4>📱 TouchOSC Controls</h4>
+                <p>TouchOSC functionality has been moved to the Remote Control page for better organization.</p>
+                
+                <div className={styles.infoText}>
+                  <p><strong>🌐 Network Transmission:</strong> Visit the "Remote Control" page to access the new network-based transmission system.</p>
+                  <p><strong>� Legacy Export:</strong> The Remote Control page includes all legacy file export functions.</p>
+                  <p><strong>💡 Benefits:</strong> Direct network transmission to TouchOSC Editor, real-time updates, and integrated OSC configuration.</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
-      )}
-    </>
-  );
+      </div>
+    );  }
+
+  // If not embedded mode, return null (no overlay functionality)
+  return null;
 };
 
 export default DebugMenu;
