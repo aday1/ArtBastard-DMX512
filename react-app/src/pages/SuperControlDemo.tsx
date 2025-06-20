@@ -301,7 +301,7 @@ const SuperControlDemo: React.FC = () => {
 
       {/* Component Renders */}      {showDockable && (
         <DockableSuperControl
-          initialPosition="right"
+          initialPosition={{ zone: 'right-center' }}
           isCollapsed={false}
           showMinimizeButton={true}
         />
