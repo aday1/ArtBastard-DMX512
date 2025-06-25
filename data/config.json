@@ -13,8 +13,8 @@
       "controller": 74
     },
     "2": {
-      "channel": 0,
-      "controller": 71
+      "channel": 1,
+      "controller": 74
     },
     "3": {
       "channel": 0,
@@ -32,9 +32,21 @@
       "channel": 0,
       "controller": 73
     },
+    "103": {
+      "channel": 1,
+      "controller": 71
+    },
+    "104": {
+      "channel": 1,
+      "controller": 71
+    },
     "110": {
       "channel": 1,
       "controller": 73
+    },
+    "114": {
+      "channel": 1,
+      "controller": 74
     },
     "999": {
       "channel": 0,
