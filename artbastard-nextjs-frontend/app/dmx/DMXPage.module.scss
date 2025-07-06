@@ -1,0 +1,28 @@
+@import '../styles/variables';
+
+.dmxPageContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%; // Fill available space from MainLayout content area
+}
+
+.pageHeader {
+  padding-bottom: $spacing-unit * 2;
+  margin-bottom: $spacing-unit * 2;
+  border-bottom: 1px solid $background-dark-tertiary;
+
+  h1 {
+    font-size: $font-size-xxl;
+    margin-bottom: $spacing-unit;
+    color: $primary-color;
+  }
+
+  p {
+    font-size: $font-size-base;
+    color: $text-color-muted;
+    margin-bottom: 0;
+  }
+}
+
+// DMXChannelGrid will handle its own scrolling if content overflows its bounds
+// Ensure the DMXPageContainer allows DMXChannelGrid to flex and grow.
