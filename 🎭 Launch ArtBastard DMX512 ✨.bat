@@ -71,29 +71,54 @@ if %ERRORLEVEL% EQU 0 (
     echo    ================================================================
     echo.
     echo    *** ARTBASTARD DMX512 IS NOW READY FOR YOUR CREATIVE VISION! ***
+    echo.    echo    *** BROWSER SELECTION MENU ***
     echo.
-    echo    *** LAUNCHING CHROME BROWSER...
+    echo    Choose your browser for the ultimate ArtBastard experience:
     echo.
-    
+    echo    1. Chrome (Recommended for best performance)
+    echo    2. Firefox (Great alternative)
+    echo    3. Default Browser (Whatever is set as default)
+    echo    4. Skip browser launch (I'll open it manually)
+    echo.
+    set /p browser_choice="Enter your choice (1-4): "
+    echo.    
     :: Wait a moment for the backend to fully initialize
     timeout /t 3 >nul
-      :: Launch Chrome with the main interface
-    echo    *** Opening ArtBastard DMX512 in Chrome...
     
-    :: Try Chrome first, then fallback to default browser
-    start chrome "http://localhost:3001" 2>nul || (
-        echo    *** Chrome not found, opening in default browser...
+    :: Launch selected browser
+    if "%browser_choice%"=="1" (
+        echo    *** Opening ArtBastard DMX512 in Chrome...
+        start chrome "http://localhost:3001" 2>nul || (
+            echo    *** Chrome not found, opening in default browser...
+            start "http://localhost:3001"
+        )
+    ) else if "%browser_choice%"=="2" (
+        echo    *** Opening ArtBastard DMX512 in Firefox...
+        start firefox "http://localhost:3001" 2>nul || (
+            echo    *** Firefox not found, opening in default browser...
+            start "http://localhost:3001"
+        )
+    ) else if "%browser_choice%"=="3" (
+        echo    *** Opening ArtBastard DMX512 in default browser...
+        start "http://localhost:3001"
+    ) else if "%browser_choice%"=="4" (
+        echo    *** Skipping browser launch - you can manually open http://localhost:3001
+    ) else (
+        echo    *** Invalid choice, opening in default browser...
         start "http://localhost:3001"
     )
     
     :: Brief delay then show success message
-    timeout /t 2 >nul    echo.
-    echo    +---------------------------------------------------------------+
+    timeout /t 2 >nul    echo.    echo    +---------------------------------------------------------------+
     echo    ^|                    WEB ACCESS PORTALS                       ^|
     echo    +---------------------------------------------------------------+
     echo    ^|                                                             ^|
     echo    ^|  MAIN INTERFACE:     http://localhost:3001                  ^|
-    echo    ^|  ^(CHROME LAUNCHED AUTOMATICALLY^)                            ^|
+    if not "%browser_choice%"=="4" (
+        echo    ^|  ^(BROWSER LAUNCHED AUTOMATICALLY^)                          ^|
+    ) else (
+        echo    ^|  ^(OPEN MANUALLY IN YOUR BROWSER^)                          ^|
+    )
     echo    ^|                                                             ^|
     echo    ^|  TOUCH CONTROL:      http://localhost:3001/external         ^|
     echo    ^|                                                             ^|
@@ -106,11 +131,19 @@ if %ERRORLEVEL% EQU 0 (
     echo    *** IMPORTANT NEXT STEPS:
     echo    ============================================================
     echo.
-    echo    1.  *** CHROME IS OPENING AUTOMATICALLY! ***
-    echo.
-    echo    2.  *** ARTBASTARD DMX512 WILL LOAD IN YOUR BROWSER ***
-    echo.
-    echo    3.  *** BEGIN YOUR LUMINOUS JOURNEY! ***
+    if not "%browser_choice%"=="4" (
+        echo    1.  *** YOUR BROWSER IS OPENING AUTOMATICALLY! ***
+        echo.
+        echo    2.  *** ARTBASTARD DMX512 WILL LOAD IN YOUR BROWSER ***
+        echo.
+        echo    3.  *** BEGIN YOUR LUMINOUS JOURNEY! ***
+    ) else (
+        echo    1.  *** OPEN YOUR BROWSER MANUALLY ***
+        echo.
+        echo    2.  *** NAVIGATE TO: http://localhost:3001 ***
+        echo.
+        echo    3.  *** BEGIN YOUR LUMINOUS JOURNEY! ***
+    )
     echo.
     echo    +-------------------------------------------------------------+
     echo    ^|  PRO TIP: The backend server is running in a separate      ^|
