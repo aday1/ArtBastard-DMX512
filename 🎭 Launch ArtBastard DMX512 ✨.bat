@@ -72,11 +72,28 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo    *** ARTBASTARD DMX512 IS NOW READY FOR YOUR CREATIVE VISION! ***
     echo.
+    echo    *** LAUNCHING CHROME BROWSER...
+    echo.
+    
+    :: Wait a moment for the backend to fully initialize
+    timeout /t 3 >nul
+      :: Launch Chrome with the main interface
+    echo    *** Opening ArtBastard DMX512 in Chrome...
+    
+    :: Try Chrome first, then fallback to default browser
+    start chrome "http://localhost:3001" 2>nul || (
+        echo    *** Chrome not found, opening in default browser...
+        start "http://localhost:3001"
+    )
+    
+    :: Brief delay then show success message
+    timeout /t 2 >nul    echo.
     echo    +---------------------------------------------------------------+
     echo    ^|                    WEB ACCESS PORTALS                       ^|
     echo    +---------------------------------------------------------------+
     echo    ^|                                                             ^|
     echo    ^|  MAIN INTERFACE:     http://localhost:3001                  ^|
+    echo    ^|  ^(CHROME LAUNCHED AUTOMATICALLY^)                            ^|
     echo    ^|                                                             ^|
     echo    ^|  TOUCH CONTROL:      http://localhost:3001/external         ^|
     echo    ^|                                                             ^|
@@ -89,11 +106,11 @@ if %ERRORLEVEL% EQU 0 (
     echo    *** IMPORTANT NEXT STEPS:
     echo    ============================================================
     echo.
-    echo    1.  OPEN YOUR WEB BROWSER (Chrome, Firefox, or Edge)
+    echo    1.  *** CHROME IS OPENING AUTOMATICALLY! ***
     echo.
-    echo    2.  NAVIGATE TO: http://localhost:3001
+    echo    2.  *** ARTBASTARD DMX512 WILL LOAD IN YOUR BROWSER ***
     echo.
-    echo    3.  BEGIN YOUR LUMINOUS JOURNEY!
+    echo    3.  *** BEGIN YOUR LUMINOUS JOURNEY! ***
     echo.
     echo    +-------------------------------------------------------------+
     echo    ^|  PRO TIP: The backend server is running in a separate      ^|
