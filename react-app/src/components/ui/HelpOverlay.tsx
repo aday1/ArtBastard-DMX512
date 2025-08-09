@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './HelpOverlay.module.scss';
 import { MidiMonitor } from '../midi/MidiMonitor';
 import { OscMonitor } from '../osc/OscMonitor';
+import { DipSwitchSimulator } from './DipSwitchSimulator';
+import { PdfAddressSheet } from './PdfAddressSheet';
 
-type HelpTab = 'overview' | 'dmx-basics' | 'midi-setup' | 'osc-integration' | 'scene-management' | 'shortcuts';
+type HelpTab = 'overview' | 'dmx-basics' | 'dip-simulator' | 'midi-setup' | 'osc-integration' | 'scene-management' | 'shortcuts' | 'address-sheet';
 
 export const HelpOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -45,11 +47,11 @@ export const HelpOverlay: React.FC = () => {
   const filteredContent = (content: string) => {
     if (!searchQuery) return content;
     return content.toLowerCase().includes(searchQuery.toLowerCase());
-  };
-
-  const tabs: Array<{id: HelpTab, label: string, icon: string}> = [
+  };  const tabs: Array<{id: HelpTab, label: string, icon: string}> = [
     { id: 'overview', label: 'Getting Started', icon: '🚀' },
     { id: 'dmx-basics', label: 'DMX Control', icon: '💡' },
+    { id: 'address-sheet', label: 'Address Sheet', icon: '📋' },
+    { id: 'dip-simulator', label: 'DIP Simulator', icon: '🔧' },
     { id: 'midi-setup', label: 'MIDI Setup', icon: '🎹' },
     { id: 'osc-integration', label: 'OSC Control', icon: '📡' },
     { id: 'scene-management', label: 'Scene Management', icon: '🎬' },
@@ -144,6 +146,15 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>Partial Control:</strong> Check fixture mode matches your configuration</li>
               </ul>
             </div>
+          </div>        );
+
+      case 'dip-simulator':
+        return (
+          <div className={styles.tabContent}>
+            <h4>🔧 DMX DIP Switch Calculator</h4>
+            <p>Calculate which DIP switches to set ON for your DMX512 fixtures. Enter your desired DMX address and see the binary representation!</p>
+            
+            <DipSwitchSimulator />
           </div>
         );
 
@@ -491,7 +502,13 @@ export const HelpOverlay: React.FC = () => {
                   <span>Toggle Fullscreen</span>
                 </div>
               </div>
-            </div>
+            </div>          </div>
+        );
+
+      case 'address-sheet':
+        return (
+          <div className={styles.tabContent}>
+            <PdfAddressSheet />
           </div>
         );
 
