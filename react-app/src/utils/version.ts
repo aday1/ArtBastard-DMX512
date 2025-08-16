@@ -13,30 +13,29 @@ export interface VersionInfo {
 
 // Current version info - update this for each release
 export const CURRENT_VERSION: VersionInfo = {
-  version: '5.1.3',
-  buildDate: '2025-06-16',
+  version: '5.12.0',
+  buildDate: '2025-08-16',
   releaseType: 'stable',
   features: [
-    'Touch-Friendly Manual Resize Handles for External Monitor Components',
-    'Native React-Grid-Layout Manual Corner Drag Resizing',
-    'Large, Visible Touch-Optimized Resize Handles with Custom CSS',
-    'Eliminated Button-Based Resizing for Better Touch Experience',
-    'Enhanced Visual Feedback with Prominent Corner Handles',
-    'Improved Touch Interaction on Professional Touch Screens',
-    'Cross-Platform Touch Compatibility for Desktop and Tablet Use',
-    'Streamlined UI with Intuitive Drag-to-Resize Functionality',
-    'Professional-Grade Touch Interface for External Monitor Setups'
+    'Streamlined Documentation Architecture - Organized /DOCS/ directory structure',
+    'Enhanced French Artsy Navigation Labels - Élégant interface terminology',
+    'Professional Dark Theme Refinement - Theatrical purple-black color scheme',
+    'Concise Help System Overhaul - Focused, actionable guidance',
+    'Comprehensive Markdown Cleanup - Removed 65+ redundant documentation files',
+    'Modern UI Polish - Refined aesthetics without complexity bloat',
+    'Improved User Experience - Self-documenting interface design',
+    'Performance Optimizations - Cleaner codebase with better maintainability'
   ],
   changelog: [
-    'Luminous Mastery Edition - Touch-Friendly Manual Resize Implementation',
-    'Replaced button-based resizing with native manual corner drag resizing',
-    'Added large, touch-optimized resize handles using custom CSS styling',
-    'Enhanced .react-resizable-handle-se with 20px size and visual prominence',
-    'Improved touch interaction for professional touchscreen external monitors',
-    'Eliminated redundant resize buttons for cleaner, more intuitive interface',
-    'Enhanced visual feedback with contrasting colors and hover effects',
-    'Optimized for cross-platform touch compatibility (desktop + tablet)',
-    'Implemented professional-grade touch interface standards for external displays'
+    'Photonic Supremacy Edition - Complete Documentation & UI Overhaul',
+    'Created organized /DOCS/ directory with categorized documentation',
+    'Replaced 1100+ line README with concise 200-line professional overview',
+    'Enhanced artsnob navigation with proper French terminology',
+    'Refined dark theme with theatrical lighting-appropriate colors',
+    'Streamlined help content for production usability',
+    'Removed bloated legacy documentation (65+ redundant markdown files)',
+    'Updated version throughout codebase to maintain consistency',
+    'Improved overall user experience with self-documenting design'
   ]
 };
 
@@ -44,6 +43,32 @@ export const CURRENT_VERSION: VersionInfo = {
  * Version history for tracking releases
  */
 export const VERSION_HISTORY: VersionInfo[] = [
+  {
+    version: '5.12.0',
+    buildDate: '2025-08-16',
+    releaseType: 'stable',
+    features: [
+      'Streamlined Documentation Architecture - Organized /DOCS/ directory structure',
+      'Enhanced French Artsy Navigation Labels - Élégant interface terminology',
+      'Professional Dark Theme Refinement - Theatrical purple-black color scheme',
+      'Concise Help System Overhaul - Focused, actionable guidance',
+      'Comprehensive Markdown Cleanup - Removed 65+ redundant documentation files',
+      'Modern UI Polish - Refined aesthetics without complexity bloat',
+      'Improved User Experience - Self-documenting interface design',
+      'Performance Optimizations - Cleaner codebase with better maintainability'
+    ],
+    changelog: [
+      'Photonic Supremacy Edition - Complete Documentation & UI Overhaul',
+      'Created organized /DOCS/ directory with categorized documentation',
+      'Replaced 1100+ line README with concise 200-line professional overview',
+      'Enhanced artsnob navigation with proper French terminology',
+      'Refined dark theme with theatrical lighting-appropriate colors',
+      'Streamlined help content for production usability',
+      'Removed bloated legacy documentation (65+ redundant markdown files)',
+      'Updated version throughout codebase to maintain consistency',
+      'Improved overall user experience with self-documenting design'
+    ]
+  },
   {
     version: '5.1.3',
     buildDate: '2025-06-16',
