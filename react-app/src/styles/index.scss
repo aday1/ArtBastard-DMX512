@@ -53,45 +53,45 @@
   --transition-speed: 0.2s;
 }
 
-// Dark mode colors
+// Dark mode colors - Enhanced for professional lighting environments
 [data-theme="dark"] {
-  --color-background: #1d1d1f;
-  --color-text: #f5f5f7;
-  --color-primary: #0a84ff;
-  --color-secondary: #86868b;
-  --color-accent: #ff453a;
-  --color-success: #30d158;
-  --color-warning: #ff9f0a;
-  --color-error: #ff453a;
-  --color-card-bg: #2c2c2e;
-  --color-card-border: #3a3a3c;
-  --color-slider-track: #3a3a3c;
-  --color-slider-thumb: #0a84ff;
-  --color-button-bg: #0a84ff;
-  --color-button-text: #f0f0f0;
-  --color-nav-active: #0a84ff;
-  --color-nav-inactive: #86868b;
-  --color-channel-bg: #2c2c2e;
-  --color-channel-border: #3a3a3c;
-  --color-channel-selected: rgba(10, 132, 255, 0.3);
-  --color-status-connected: #30d158;
-  --color-status-disconnected: #ff453a;
-  --color-status-inactive: #3a3a3c;
-  --color-status-active: #30d158;
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    // Additional UI variables for dark mode
+  --color-background: #1a1620; /* Deep theatrical purple-black */
+  --color-text: #e8e1d6; /* Warm white for readability */
+  --color-primary: #8b5cf6; /* Rich purple primary */
+  --color-secondary: #7c7089; /* Muted purple-gray */
+  --color-accent: #f59e0b; /* Warm amber accent */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-card-bg: #2a2635; /* Darker purple-tinted cards */
+  --color-card-border: #3f3b4a; /* Subtle borders */
+  --color-slider-track: #3f3b4a;
+  --color-slider-thumb: #8b5cf6;
+  --color-button-bg: #8b5cf6;
+  --color-button-text: #f8fafc;
+  --color-nav-active: #8b5cf6;
+  --color-nav-inactive: #7c7089;
+  --color-channel-bg: #2a2635;
+  --color-channel-border: #3f3b4a;
+  --color-channel-selected: rgba(139, 92, 246, 0.25);
+  --color-status-connected: #10b981;
+  --color-status-disconnected: #ef4444;
+  --color-status-inactive: #64748b;
+  --color-status-active: #10b981;
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  
+  // Enhanced UI variables for professional dark mode
   --bg-primary: var(--color-background);
   --bg-secondary: var(--color-card-bg);
-  --bg-tertiary: #1a1a1c;
-  --bg-hover: #3a3a3c;
+  --bg-tertiary: #1f1b26;
+  --bg-hover: #34303f;
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
-  --accent-color: #4ecdc4;
+  --accent-color: #f59e0b; /* Professional amber */
   --border-color: var(--color-card-border);
-  --header-bg: #2c2c2e;
-  --input-bg: #1a1a1c;
+  --header-bg: #241f2e;
+  --input-bg: #1f1b26;
   --error-color: var(--color-error);
-  --system-sans: var(--font-body);
 }
 
 // Art Snob theme overrides

@@ -25,7 +25,7 @@ const navItems: Array<{
     id: 'main',
     icon: 'Layout',
     title: {
-      artsnob: 'Main Interface',
+      artsnob: 'Tableau Principal',
       standard: 'Dashboard',
       minimal: 'Main'
     }
@@ -34,7 +34,7 @@ const navItems: Array<{
     id: 'midiOsc',
     icon: 'Sliders',
     title: {
-      artsnob: 'Control Setup',
+      artsnob: 'Contrôle Sophistiqué',
       standard: 'MIDI & OSC',
       minimal: 'I/O'
     }
@@ -42,7 +42,7 @@ const navItems: Array<{
     id: 'fixture',
     icon: 'LampDesk',
     title: {
-      artsnob: 'Fixture Library',
+      artsnob: 'Bibliothèque Lumineuse',
       standard: 'Fixtures',
       minimal: 'Fix'
     }
@@ -51,7 +51,7 @@ const navItems: Array<{
     id: 'planner',
     icon: 'MapPin',
     title: {
-      artsnob: 'Universe Planner: From Zero to Hero',
+      artsnob: 'Architecte Photonique',
       standard: 'DMX Planner',
       minimal: 'Plan'
     }
@@ -60,7 +60,7 @@ const navItems: Array<{
     id: 'canvas',
     icon: 'PaintBucket',
     title: {
-      artsnob: 'Luminous Canvas',
+      artsnob: 'Toile Chromatique',
       standard: '2D Canvas',
       minimal: '2D'
     }
@@ -69,7 +69,7 @@ const navItems: Array<{
     id: 'scenes',
     icon: 'Store',
     title: {
-      artsnob: 'Scene Library',
+      artsnob: 'Galerie des Moments',
       standard: 'Scenes',
       minimal: 'Scn'
     }
@@ -78,7 +78,7 @@ const navItems: Array<{
     id: 'audio',
     icon: 'WaveformCircle',
     title: {
-      artsnob: 'Audio Analysis',
+      artsnob: 'Analyse Harmonique',
       standard: 'Audio',
       minimal: 'FFT'
     }
@@ -87,7 +87,7 @@ const navItems: Array<{
     id: 'touchosc',
     icon: 'Smartphone',
     title: {
-      artsnob: 'Remote Control',
+      artsnob: 'Commande à Distance',
       standard: 'TouchOSC',
       minimal: 'OSC'
     }
@@ -96,7 +96,7 @@ const navItems: Array<{
     id: 'misc',
     icon: 'Settings',
     title: {
-      artsnob: 'Configuration',
+      artsnob: 'Configuration Élégante',
       standard: 'Settings',
       minimal: 'Cfg'
     }
