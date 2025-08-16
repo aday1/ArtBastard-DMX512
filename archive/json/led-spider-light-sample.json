@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-06-15T12:20:00.000Z",
+  "fixtures": [
+    {
+      "name": "LED Spider #1",
+      "type": "LED Spider Light",
+      "manufacturer": "Generic",
+      "model": "Dual Motor RGBW",
+      "mode": "15-Channel",
+      "channels": [
+        { "name": "Motor 1 Rotate", "type": "pan" },
+        { "name": "Motor 2 Rotate", "type": "tilt" },
+        { "name": "Master Dimmer", "type": "dimmer" },
+        { "name": "Strobe", "type": "strobe" },
+        { "name": "Motor 1 Red", "type": "red" },
+        { "name": "Motor 1 Green", "type": "green" },
+        { "name": "Motor 1 Blue", "type": "blue" },
+        { "name": "Motor 1 White", "type": "white" },
+        { "name": "Motor 2 Red", "type": "red" },
+        { "name": "Motor 2 Green", "type": "green" },
+        { "name": "Motor 2 Blue", "type": "blue" },
+        { "name": "Motor 2 White", "type": "white" },
+        { "name": "Effect Programs", "type": "macro" },
+        { "name": "Effect Speed", "type": "speed" },
+        { "name": "Reset", "type": "reset" }
+      ],
+      "notes": "LED Spider Light - Dual Motor RGBW Effect Fixture\n\nDMX Channel Specifications:\nCH1-2 - Motor Control: 60°-150° rotation range per motor (90° total movement)\nCH3 - Master Dimmer: 0-100% global intensity control\nCH4 - Strobe: 10-255 speed from slow to fast\n\nCH5-8 - Motor 1 RGBW: Independent color mixing\n- Red (CH5): 0-100% intensity\n- Green (CH6): 0-100% intensity  \n- Blue (CH7): 0-100% intensity\n- White (CH8): 0-100% intensity\n\nCH9-12 - Motor 2 RGBW: Independent color mixing\n- Red (CH9): 0-100% intensity\n- Green (CH10): 0-100% intensity\n- Blue (CH11): 0-100% intensity\n- White (CH12): 0-100% intensity\n\nCH13 - Effect Programs (Advanced Macros):\n0-7: No effect\n8-18: Full brightness\n19-29: Stroboscopic\n30-40: Forward flow water\n41-51: Reverse flow\n52-62: Double flowing water\n63-73: Double reverse glow\n74-84: Saltus step\n85-95: Monochromatic cycle\n96-106: Two-color cycle\n107-117: Reverse monochromatic cycle\n118-128: Reverse two-color cycle\n129-139: V-cycle\n140-150: Double V-cycle\n151-195: Cycle\n196-206: Fast cycle\n207-216: U-cycle\n217-226: Cycle variation\n227-236: Self-propelled\n237-247: Y-axis self-propelled\n248-255: Voice control (sound reactive)\n\nCH14 - Effect Speed: 0-255 speed control for macro effects\nCH15 - Reset: 0-240 no effect, 241-250 reset function, 251-255 no effect\n\nKey Features:\n- Dual independent motor control (60°-150° each)\n- Separate RGBW color mixing per motor head\n- 20+ pre-programmed effect patterns\n- Professional strobe and dimming control\n- Voice control mode for sound-reactive operation\n- Advanced flow and cycle patterns for dynamic effects\n\nApplications:\n- Club and venue lighting\n- Architectural accent lighting\n- Mobile DJ effects\n- Stage and concert lighting\n- Sound-reactive installations"
+    }
+  ]
+}
