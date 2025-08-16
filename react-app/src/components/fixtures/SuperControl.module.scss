@@ -29,36 +29,38 @@
     font-size: 1.5rem;
     color: #00d4ff;
     text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-    position: relative;
-    flex-wrap: wrap;
-  }
-  
-  p {
-    margin: 0;
-    opacity: 0.8;
-    font-size: 0.9rem;
-    color: #ccc;
-  }
-}
 
-.statusIndicators {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-  flex-wrap: wrap;
-}
+  /* Compact mode reduces padding and hides some panels to reduce visual clutter */
+  .compact {
+    padding: 8px;
+    margin: 6px 0;
 
-.statusBadge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  
+    .header {
+      h3 { font-size: 1.1rem; }
+      p { display: none; }
+    }
+
+    .draggableContainer, .gridLayout {
+      display: block;
+    }
+
+    .draggablePanel, .section {
+      padding: 8px;
+      border-radius: 6px;
+    }
+  }
+
+  /* Minimal style for compact toggle button if needed */
+  .compactToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
   svg {
     width: 12px;
     height: 12px;

@@ -98,6 +98,8 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
 
   // Layout toggle
   const [useDraggableLayout, setUseDraggableLayout] = useState(true);
+  // Compact mode to simplify UI for less scattered experience
+  const [compactMode, setCompactMode] = useState(false);
 
   // Apply DMX control with proper channel mapping
   const applyControl = (type: string, value: number) => {
@@ -818,7 +820,7 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
   };
 
   return (
-    <div className={styles.superControl}>
+    <div className={`${styles.superControl} ${compactMode ? styles.compact : ''}`}>
       <div className={styles.header}>
         <div className={styles.headerTop}>
           <h3>
@@ -840,6 +842,15 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
           >
             <LucideIcon name={useDraggableLayout ? "Grid3X3" : "MousePointer"} />
             {useDraggableLayout ? 'Grid Mode' : 'Drag Mode'}
+          </button>
+          <button
+            onClick={() => setCompactMode(prev => !prev)}
+            className={styles.layoutToggle}
+            title={compactMode ? 'Show full SuperControl' : 'Switch to compact SuperControl'}
+            style={{ marginLeft: 8 }}
+          >
+            <LucideIcon name={compactMode ? 'Maximize2' : 'Minimize2'} />
+            {compactMode ? 'Full' : 'Compact'}
           </button>
         </div>
       </div>
