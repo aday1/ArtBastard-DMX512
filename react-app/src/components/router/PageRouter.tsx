@@ -3,6 +3,7 @@ import { useRouter } from '../../context/RouterContext'
 import MainPage from '../../pages/MainPage'
 import ControlSetupPage from '../../pages/ControlSetupPage'
 import FixturePage from '../../pages/FixturePage'
+import PlannerPage from '../../pages/PlannerPage'
 import CanvasPage from '../../pages/CanvasPage'
 import SceneLibraryPage from '../../pages/SceneLibraryPage'
 import AudioAnalysisPage from '../../pages/AudioAnalysisPage'
@@ -19,6 +20,8 @@ const PageRouter: React.FC = () => {
         return <ControlSetupPage />
       case 'fixture':
         return <FixturePage />
+      case 'planner':
+        return <PlannerPage />
       case 'canvas':
         return <CanvasPage />
       case 'scenes':
