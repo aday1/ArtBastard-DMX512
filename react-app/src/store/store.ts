@@ -288,6 +288,7 @@ interface State {
   fixtures: Fixture[]
   groups: Group[]
   selectedFixtures: string[] // Array of fixture IDs for selection
+  addFixture: (fixture: Fixture) => void;
   
   // Scenes
   scenes: Scene[]
@@ -1434,6 +1435,19 @@ export const useStore = create<State>()(
           })
       },
       
+      // Fixture Actions
+      addFixture: (fixture) => {
+        set(state => ({
+          fixtures: [...state.fixtures, fixture]
+        }));
+        // Optionally, save to backend here
+        axios.post('/api/fixtures', fixture)
+          .catch(error => {
+            console.error('Failed to save new fixture to backend:', error);
+            get().addNotification({ message: 'Failed to save new fixture to server', type: 'error' });
+          });
+      },
+
       // Scene Actions
       saveScene: (name, oscAddress) => {
         const dmxChannels = get().dmxChannels
@@ -1670,6 +1684,7 @@ export const useStore = create<State>()(
 
       setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
       setBpm: (bpm: number) => set({ bpm }),
+
       setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
       setMidiActivity: (activity: number) => set({ midiActivity: activity }),
       setFixtureLayout: (layout: PlacedFixture[]) => {
@@ -1755,7 +1770,7 @@ export const useStore = create<State>()(
            addNotification({
             message: 'Cannot change Master Clock: Not connected to server.',
             type: 'error',
-                   });
+          });
         } else { // This path handles direct state update (e.g., from WebSocket handler)
           set({ selectedMidiClockHostId: hostId });
           // Avoid sending notification if it's just reflecting a state update from backend
@@ -2985,7 +3000,8 @@ export const useStore = create<State>()(
               const steps = Math.max(10, Math.floor(duration / 100));
               
               for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
+                const t = i / steps;
+                const time = t * duration;
                 const radians = (2 * Math.PI * frequency * t / duration) + (phase * Math.PI / 180);
                 const value = Math.round((Math.sin(radians) + 1) * (amplitude / 2));
                 
