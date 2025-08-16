@@ -10,7 +10,7 @@ async function validateTouchOSCExport() {
 
     try {
         // Import the fixed TouchOSC exporter
-        const { generateTouchOscLayout, exportToToscFile } = require('./react-app/src/utils/touchoscExporter.js');
+        const { generateTouchOscLayout, exportCrashProofToscFile } = require('./react-app/dist-tsc/utils/touchoscFixedExporter.js');
         
         // Test data that simulates real application state
         const mockAllFixtures = [

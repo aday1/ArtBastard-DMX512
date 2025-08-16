@@ -17,6 +17,7 @@ import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
 import { FixtureCanvas2DWrapper } from '../fixtures/FixtureCanvas2DWrapper';
 import TimelineEditor from './TimelineEditor';
+import TouchOSCDemo from '../demo/TouchOSCDemo';
 
 export interface ComponentDefinition {
   type: string;
@@ -185,6 +186,15 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-timeline',
     component: TimelineEditor,
     minSize: { width: 800, height: 500 },
+  },
+  'touchosc-demo': {
+    type: 'touchosc-demo',
+    title: 'TouchOSC Export Demo',
+    description: 'Test and generate crash-proof TouchOSC layout files',
+    category: 'setup',
+    icon: 'fas fa-mobile-alt',
+    component: TouchOSCDemo,
+    minSize: { width: 600, height: 400 },
   },
 };
 
