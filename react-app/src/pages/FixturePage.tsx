@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { FixtureSetup } from '../components/fixtures/FixtureSetup'
-import SuperControl from '../components/fixtures/SuperControl'
+import SuperControl from '../components/dmx/SuperControl'
 import { useTheme } from '../context/ThemeContext'
 import styles from './Pages.module.scss'
 

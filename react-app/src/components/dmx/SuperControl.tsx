@@ -195,20 +195,24 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         break;
     }
 
-    return targetFixtures.map(fixtureId => {
-      const fixture = fixtures.find(f => f.id === fixtureId);
-      if (!fixture) return null;      const fixtureChannels: { [key: string]: number } = {};
-      fixture.channels.forEach((channel, index) => {
-        const dmxAddress = fixture.startAddress + index - 1;
-        fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
-      });
+    return targetFixtures
+      .map(fixtureId => {
+        const fixture = fixtures.find(f => f.id === fixtureId);
+        if (!fixture) return null;      
+        const fixtureChannels: { [key: string]: number } = {};
+        fixture.channels.forEach((channel, index) => {
+          const dmxAddress = fixture.startAddress + index - 1;
+          fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
+        });
 
-      return {
-        fixture,
-        channels: fixtureChannels
-      };
-    }).filter(Boolean);
+        return {
+          fixture,
+          channels: fixtureChannels
+        };
+      })
+      .filter((item): item is { fixture: any; channels: { [key: string]: number } } => item !== null);
   };
+
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
     const affectedFixtures = getAffectedFixtures();
@@ -1611,7 +1615,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                   {selectedChannels.map(channelAddress => {
                     const currentValue = getDmxChannelValue(channelAddress);
                     
-                    let channelInfo = null;
+                    let channelInfo: { fixture: string; type: string; name: string } | null = null;
                     fixtures.forEach(fixture => {
                       fixture.channels.forEach((channel, index) => {
                         const fixtureChannelAddress = fixture.startAddress + index - 1;
