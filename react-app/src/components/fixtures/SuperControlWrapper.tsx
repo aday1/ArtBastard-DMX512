@@ -1,26 +1,14 @@
 import React from 'react';
+import SuperControlTidyClean from './SuperControlTidyClean';
+import SuperControlFallback from './SuperControlFallback';
 
 interface SuperControlProps {
   isDockable?: boolean;
 }
 
-// Try to import the main SuperControl component
-let SuperControlMain: React.FC<SuperControlProps>;
-let SuperControlFallback: React.FC<SuperControlProps>;
-let hasMainComponentError = false; // Main component is now working
-
-try {
-  SuperControlMain = require('./SuperControl').default;
-} catch (error) {
-  console.error('SuperControl main component failed to load:', error);
-  hasMainComponentError = true;
-}
-
-try {
-  SuperControlFallback = require('./SuperControlFallback').default;
-} catch (error) {
-  console.error('SuperControl fallback component failed to load:', error);
-}
+// Use the cleaner implementation as the primary component
+const SuperControlMain = SuperControlTidyClean;
+const hasMainComponentError = false;
 
 const SuperControlWrapper: React.FC<SuperControlProps> = (props) => {
   // Check if user wants to force fallback mode

@@ -301,12 +301,7 @@ const SuperControlDemo: React.FC = () => {
 
       {/* Component Renders */}
       {showDockable && (
-        <DockableSuperControl
-          initialDockSide="right"
-          enableGridMode={true}
-          showVolumeControl={true}
-          enableAutopilot={true}
-        />
+        <DockableSuperControl />
       )}
 
       {showTouch && (
