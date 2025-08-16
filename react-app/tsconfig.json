@@ -19,7 +19,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vitest/globals", "node"],
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -29,7 +28,8 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "checkJs": false,
-    "allowJs": true
+    "allowJs": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": [
     "src",

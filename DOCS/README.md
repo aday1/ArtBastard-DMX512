@@ -17,17 +17,17 @@ Professional DMX512 lighting control that doesn't insult your intelligence. Buil
 - **Live Performance Interface** - Touch-optimized control surfaces
 
 ### 🎪 **V5.12 "Photonic Supremacy" Enhancements**
-- **Streamlined Documentation** - No more bloated manifestos
+- **Unified Tooling** - Single PowerShell script + optional WPF GUI
+- **Streamlined Documentation** - Focused, accurate, current
 - **Enhanced UI Polish** - Refined aesthetic without sacrificing power
-- **Intelligent Help System** - Concise guidance when needed
-- **Professional Color Schemes** - Élite visual themes
 - **Optimized Performance** - Smoother operation across devices
 
 ## 🚀 **Quick Start**
-1. **[Install](./INSTALL.md)** - Get running in minutes
-2. **[Setup Fixtures](./FIXTURES.md)** - Configure your luminaires
-3. **[Usage Guide](./USAGE.md)** - Master the interface
-4. **[Features](./FEATURES.md)** - Explore capabilities
+1. **[Install](./INSTALL.md)**
+2. **[Setup Fixtures](./FIXTURES.md)**
+3. **[Usage Guide](./USAGE.md)**
+4. **[Features](./FEATURES.md)**
+5. Run `UNIFIED-TOOLS.ps1` or launch `TOOLS-GUI.ps1` for dev workflow
 
 ## 🎭 **Philosophy**
 *"Light is not merely illumination - it is emotion made visible. ArtBastard gives you the tools; you provide the vision."*

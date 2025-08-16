@@ -11,8 +11,8 @@ export const SignalFlashIndicator: React.FC<SignalFlashIndicatorProps> = ({
 }) => {
   const [midiFlash, setMidiFlash] = useState(false)
   const [oscFlash, setOscFlash] = useState(false)
-  const midiFlashTimeoutRef = useRef<NodeJS.Timeout>()
-  const oscFlashTimeoutRef = useRef<NodeJS.Timeout>()
+  const midiFlashTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const oscFlashTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Get MIDI/OSC activity from store (adjust based on your store structure)
   const midiActivity = useStore(state => state.midiActivity || 0)

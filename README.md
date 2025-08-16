@@ -27,7 +27,8 @@ Built for theaters, clubs, installations, and anywhere photons need proper disci
 ```bash
 git clone https://github.com/aday1/ArtBastard-DMX512.git
 cd ArtBastard-DMX512
-npm run install-all
+npm install
+cd react-app && npm install && cd ..
 npm run build
 npm start
 ```
@@ -45,13 +46,13 @@ npm start
 - **Touch Screens**: Optimized interface scaling
 
 ## 📚 **Documentation**
-Comprehensive guides organized for actual use:
+Current docs reflect the lean environment (extraneous validation assets removed):
 
-- **[Installation](./DOCS/INSTALL.md)** - Get running quickly
-- **[Fixture Setup](./DOCS/FIXTURES.md)** - Configure your lights  
-- **[Usage Guide](./DOCS/USAGE.md)** - Master the interface
-- **[Features](./DOCS/FEATURES.md)** - Explore capabilities
-- **[History](./DOCS/HISTORY.md)** - The ArtBastard chronicles
+- **[Installation](./DOCS/INSTALL.md)**
+- **[Fixture Setup](./DOCS/FIXTURES.md)**  
+- **[Usage Guide](./DOCS/USAGE.md)**
+- **[Features](./DOCS/FEATURES.md)**
+- **[History](./DOCS/HISTORY.md)**
 
 ## 🎛️ **Core Control Features**
 
@@ -138,11 +139,13 @@ graph TB
 ### **Project Structure**
 ```
 ArtBastard-DMX512/
-├── DOCS/                 # Documentation
-├── src/                  # Backend source
-├── react-app/           # Frontend application
-├── package.json         # Dependencies
-└── README.md           # This file
+├── DOCS/                # Documentation
+├── src/                 # Backend source
+├── react-app/           # Frontend (React)
+├── UNIFIED-TOOLS.ps1    # Power dev script (kill/clean/build/start)
+├── TOOLS-GUI.ps1        # WPF GUI wrapper for common tasks
+├── package.json         # Dependencies & scripts
+└── README.md            # This file
 ```
 
 ---

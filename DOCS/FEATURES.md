@@ -90,4 +90,9 @@
 - **Show control** - Part of larger production systems
 
 ---
+### 🧰 **Developer Tooling**
+- **UNIFIED-TOOLS.ps1** core build/dev commands
+- **TOOLS-GUI.ps1** optional WPF control surface
+
+---
 **Next:** [History](./HISTORY.md) | Back to [README](./README.md)

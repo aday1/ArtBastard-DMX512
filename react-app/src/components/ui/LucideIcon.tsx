@@ -28,7 +28,7 @@ export const LucideIcon = ({
   const IconComponent = Icons[name] as React.ComponentType<LucideProps>;
   
   if (!IconComponent) {
-    console.error(`Icon "${name}" does not exist in lucide-react package.`);
+    console.error(`Icon "${String(name)}" does not exist in lucide-react package.`);
     console.log('Available icons:', Object.keys(Icons).slice(0, 20).join(', ') + '...');
     return <span className={className}>❓</span>;
   }
@@ -47,7 +47,7 @@ export const LucideIcon = ({
       </span>
     );
   } catch (error) {
-    console.error(`Error rendering icon "${name}":`, error);
+    console.error(`Error rendering icon "${String(name)}":`, error);
     return <span className={className}>⚠️</span>;
   }
 };

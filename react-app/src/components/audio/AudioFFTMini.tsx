@@ -12,7 +12,7 @@ export const AudioFFTMini: React.FC<AudioFFTMiniProps> = ({
   onCollapsedChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [isActive, setIsActive] = useState(false);

@@ -14,7 +14,8 @@
 ```bash
 git clone https://github.com/aday1/ArtBastard-DMX512.git
 cd ArtBastard-DMX512
-npm run install-all
+npm install
+cd react-app && npm install && cd ..
 ```
 
 ### 2. **Build & Launch**
@@ -33,9 +34,10 @@ Navigate to: `http://localhost:3000`
 
 ### Build Issues
 ```bash
-# Clean rebuild
-npm run cleanup
-npm run install-all
+# Clean rebuild (manual minimal)
+pwsh ./UNIFIED-TOOLS.ps1 clean --full
+npm install
+cd react-app && npm install && cd ..
 npm run build
 ```
 
@@ -58,3 +60,6 @@ For professional touch consoles:
 
 ---
 **Next:** [Fixture Setup](./FIXTURES.md) | [Usage Guide](./USAGE.md)
+
+For developer convenience you can optionally launch the WPF helper:
+`pwsh ./TOOLS-GUI.ps1`

@@ -49,10 +49,6 @@ The early code was written exclusively between 2 AM and 4 AM, when the creative 
 ## 🎪 **V5.12 - "Photonic Supremacy"**
 
 ### **The Great Documentation Rebellion**
-By 2025, ArtBastard had accumulated approximately 847 different README files, each more artistically overwrought than the last. Users began reporting cases of "README fatigue" and "documentation overwhelm syndrome."
-
-In a moment of rare practical consideration, *Le Créateur* made the radical decision to organize the documentation into something resembling actual utility. 
-
 *"Mes amis,"* they declared while adjusting their artisanal lighting scarf, *"perhaps it is time to serve both art AND function. Revolutionary, non?"*
 
 ### **The Minimalist Manifesto**
