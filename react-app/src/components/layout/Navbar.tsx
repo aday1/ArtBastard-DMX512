@@ -9,7 +9,7 @@ import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
 import * as Icons from 'lucide-react'
 
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'audio' | 'touchosc' | 'misc'
+type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'audio' | 'touchosc' | 'misc' | 'state'
 
 // Updated navigation items with Lucide icon names
 const navItems: Array<{
@@ -99,6 +99,15 @@ const navItems: Array<{
       artsnob: 'Configuration Élégante',
       standard: 'Settings',
       minimal: 'Cfg'
+    }
+  },
+  {
+    id: 'state',
+    icon: 'Database',
+    title: {
+      artsnob: 'Gestion d’État',
+      standard: 'State Management',
+      minimal: 'State'
     }
   }
 ]

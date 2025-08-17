@@ -9,6 +9,9 @@ import SceneLibraryPage from '../../pages/SceneLibraryPage'
 import AudioAnalysisPage from '../../pages/AudioAnalysisPage'
 import RemoteControlPage from '../../pages/RemoteControlPage'
 import SettingsPage from '../../pages/SettingsPage'
+import StateManagementPage from '../../pages/StateManagementPage'
+
+export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'audio' | 'touchosc' | 'misc' | 'state'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
@@ -32,6 +35,8 @@ const PageRouter: React.FC = () => {
         return <RemoteControlPage />
       case 'misc':
         return <SettingsPage />
+      case 'state':
+        return <StateManagementPage />
       default:
         return <MainPage />
     }
