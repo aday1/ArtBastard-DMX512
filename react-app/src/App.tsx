@@ -17,6 +17,7 @@ import { UIResetButton } from './components/layout/UIResetButton';
 import './utils/midiTestUtils'
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
 import ErrorBoundary from './components/ErrorBoundary';
+import { StateManager } from './utils/stateManager';
 
 function App() {
   // All hooks must be at the top level, outside of try-catch blocks
@@ -59,6 +60,12 @@ function App() {
   useEffect(() => {
     // Fetch initial state
     fetchInitialState()
+    
+    // Initialize auto-save functionality
+    const cleanup = StateManager.enableAutoSave(5); // Auto-save every 5 minutes
+    console.log('💾 ArtBastard auto-save initialized');
+    
+    return cleanup;
   }, [fetchInitialState])
   
   // Scene Transition Animation is handled by useSceneTransitionAnimation hook

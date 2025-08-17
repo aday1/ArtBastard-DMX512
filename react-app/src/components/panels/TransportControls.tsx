@@ -51,13 +51,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     startAutomationPlayback,
     stopAutomationPlayback,
     setAutomationPosition,
-    applyAutomationPreset,
-    // Advanced Playback Modes
-    setAutomationPlaybackMode,
-    setAutomationLoop,
-    setAutomationSpeed,
-    reverseAutomationDirection,
-    playRecordingTimeline
+    applyAutomationPreset
   } = useStore();
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -639,46 +633,6 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                     {recordingActive ? 'Recording...' : `${recordingData.length} events recorded`}
                   </span>
                 </div>
-                
-                {/* Recording Timeline Visualization */}
-                {recordingData.length > 0 && (
-                  <div className={styles.recordingTimeline}>
-                    <h5>Recording Timeline</h5>
-                    <div className={styles.timelineContainer}>
-                      <div className={styles.timelineTrack}>
-                        {recordingData.map((event, index) => {
-                          const maxTime = Math.max(...recordingData.map(e => e.timestamp));
-                          const position = maxTime > 0 ? (event.timestamp / maxTime) * 100 : 0;
-                          return (
-                            <div
-                              key={index}
-                              className={`${styles.timelineEvent} ${styles[`event-${event.type}`]}`}
-                              style={{ left: `${position}%` }}
-                              title={`${event.type.toUpperCase()}: Ch${event.channel} = ${event.value} @ ${(event.timestamp / 1000).toFixed(2)}s`}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div className={styles.timelineLabels}>
-                        <span>0s</span>
-                        <span>{recordingData.length > 0 ? `${(Math.max(...recordingData.map(e => e.timestamp)) / 1000).toFixed(1)}s` : '0s'}</span>
-                      </div>
-                    </div>
-                    <div className={styles.recordingStats}>
-                      <div className={styles.eventTypeStats}>
-                        <span className={styles.dmxEvents}>
-                          🎚 DMX: {recordingData.filter(e => e.type === 'dmx').length}
-                        </span>
-                        <span className={styles.midiEvents}>
-                          🎹 MIDI: {recordingData.filter(e => e.type === 'midi').length}
-                        </span>
-                        <span className={styles.oscEvents}>
-                          🔗 OSC: {recordingData.filter(e => e.type === 'osc').length}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Automation Playback Section */}
@@ -706,15 +660,6 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                       {(automationPlayback.position * 100).toFixed(1)}%
                     </span>
                   </div>
-                    {/* Recording Timeline Playback */}
-                  <button
-                    className={styles.playRecordingButton}
-                    onClick={playRecordingTimeline}
-                    disabled={recordingData.length === 0}
-                    title="Play recorded timeline"
-                  >
-                    🎬 Play Recording
-                  </button>
                 </div>
 
                 {/* TODO: Re-enable advanced playback controls after fixing syntax issues */}
@@ -760,7 +705,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                         checked={automationPlayback.loop}
                         onChange={(e) => setAutomationLoop(e.target.checked)}
                       />
-                      Loop Timeline
+                      Loop Recording
                     </label>
                     
                     <div className={styles.speedControl}>

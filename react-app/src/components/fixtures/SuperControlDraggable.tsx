@@ -27,13 +27,18 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     setDmxChannelValue,
     // Autopilot
     autopilotTrackEnabled,
+    autopilotTrackType,
     autopilotTrackPosition,
     autopilotTrackSize,
     autopilotTrackSpeed,
+    autopilotTrackCenterX,
+    autopilotTrackCenterY,
     setAutopilotTrackEnabled,
+    setAutopilotTrackType,
     setAutopilotTrackPosition,
     setAutopilotTrackSize,
     setAutopilotTrackSpeed,
+    setAutopilotTrackCenter,
     updatePanTiltFromTrack,
   } = useStore();
   // MIDI Learn functionality
@@ -93,6 +98,41 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
 
   // Layout toggle
   const [useDraggableLayout, setUseDraggableLayout] = useState(true);
+
+  // Autopilot animation
+  const autopilotIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-animation effect for autopilot
+  useEffect(() => {
+    if (autopilotTrackEnabled) {
+      console.log('🚀 Starting autopilot animation');
+      const interval = 50; // Update every 50ms for smooth animation
+      const increment = autopilotTrackSpeed / 1000; // Speed control
+
+      autopilotIntervalRef.current = setInterval(() => {
+        // Increment position based on speed
+        const newPosition = (autopilotTrackPosition + increment) % 1;
+        setAutopilotTrackPosition(newPosition);
+        
+        // Update DMX values
+        updatePanTiltFromTrack();
+      }, interval);
+
+      return () => {
+        if (autopilotIntervalRef.current) {
+          console.log('⏹️ Stopping autopilot animation');
+          clearInterval(autopilotIntervalRef.current);
+          autopilotIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Clean up interval when disabled
+      if (autopilotIntervalRef.current) {
+        clearInterval(autopilotIntervalRef.current);
+        autopilotIntervalRef.current = null;
+      }
+    }
+  }, [autopilotTrackEnabled, autopilotTrackSpeed, autopilotTrackPosition, setAutopilotTrackPosition, updatePanTiltFromTrack]);
 
   // Apply DMX control
   const applyControl = (type: string, value: number) => {
@@ -449,7 +489,20 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
     >
       <div style={{ marginBottom: '16px' }}>
         <button
-          onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
+          onClick={() => {
+            const newState = !autopilotTrackEnabled;
+            setAutopilotTrackEnabled(newState);
+            
+            // If enabling autopilot, immediately apply current position
+            if (newState) {
+              console.log('🤖 Autopilot enabled - applying initial position');
+              setTimeout(() => {
+                updatePanTiltFromTrack();
+              }, 100);
+            } else {
+              console.log('🛑 Autopilot disabled');
+            }
+          }}
           style={{
             background: autopilotTrackEnabled ? '#28a745' : '#6c757d',
             border: 'none',
@@ -469,11 +522,47 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
         </button>
       </div>
 
+      {/* Track Type Selection */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+          Track Pattern
+        </label>
+        <select
+          value={autopilotTrackType}
+          onChange={(e) => {
+            setAutopilotTrackType(e.target.value as any);
+            // Apply new pattern immediately if autopilot is enabled
+            if (autopilotTrackEnabled) {
+              setTimeout(() => updatePanTiltFromTrack(), 50);
+            }
+          }}
+          style={{
+            width: '100%',
+            padding: '6px',
+            borderRadius: '4px',
+            border: '1px solid #555',
+            background: '#2a2a2a',
+            color: '#fff'
+          }}
+        >
+          <option value="circle">Circle</option>
+          <option value="square">Square</option>
+          <option value="figure8">Figure 8</option>
+          <option value="triangle">Triangle</option>
+          <option value="linear">Linear</option>
+          <option value="random">Random</option>
+        </select>
+      </div>
+
       <EnhancedSlider
         label="Position"
         value={autopilotTrackPosition}
         onChange={(value) => {
           setAutopilotTrackPosition(value);
+          // Apply position change immediately if autopilot is enabled
+          if (autopilotTrackEnabled) {
+            setTimeout(() => updatePanTiltFromTrack(), 10);
+          }
         }}
         min={0}
         max={100}
@@ -506,6 +595,28 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
       />
 
       <EnhancedSlider
+        label="Track Size"
+        value={autopilotTrackSize}
+        onChange={(value) => {
+          setAutopilotTrackSize(value);
+          // Apply size change immediately if autopilot is enabled
+          if (autopilotTrackEnabled) {
+            setTimeout(() => updatePanTiltFromTrack(), 10);
+          }
+        }}
+        min={10}
+        max={100}
+        icon="Maximize"
+        midiMapping={midiMappings.autopilotSize}
+        oscAddress={oscAddresses.autopilotSize}
+        onMidiLearn={() => handleMidiLearn('autopilotSize')}
+        onMidiForget={() => handleMidiForget('autopilotSize')}
+        onOscAddressChange={(address) => handleOscAddressChange('autopilotSize', address)}
+        isMidiLearning={isMidiLearning && currentLearningControlName === 'autopilotSize'}
+        disabled={!autopilotTrackEnabled}
+      />
+
+      <EnhancedSlider
         label="Speed"
         value={autopilotTrackSpeed}
         onChange={(value) => {
@@ -523,10 +634,66 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
         disabled={!autopilotTrackEnabled}
       />
 
+      {/* Center Position Controls */}
+      <div style={{ marginTop: '16px', marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#ccc' }}>
+          Center Position
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div>
+            <label style={{ fontSize: '11px', color: '#aaa' }}>X (Pan)</label>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={autopilotTrackCenterX}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                setAutopilotTrackCenter(value, autopilotTrackCenterY);
+                if (autopilotTrackEnabled) {
+                  setTimeout(() => updatePanTiltFromTrack(), 10);
+                }
+              }}
+              style={{ width: '100%' }}
+              disabled={!autopilotTrackEnabled}
+            />
+            <span style={{ fontSize: '10px', color: '#888' }}>{autopilotTrackCenterX}</span>
+          </div>
+          <div>
+            <label style={{ fontSize: '11px', color: '#aaa' }}>Y (Tilt)</label>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={autopilotTrackCenterY}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                setAutopilotTrackCenter(autopilotTrackCenterX, value);
+                if (autopilotTrackEnabled) {
+                  setTimeout(() => updatePanTiltFromTrack(), 10);
+                }
+              }}
+              style={{ width: '100%' }}
+              disabled={!autopilotTrackEnabled}
+            />
+            <span style={{ fontSize: '10px', color: '#888' }}>{autopilotTrackCenterY}</span>
+          </div>
+        </div>
+      </div>
+
       <div style={{ marginTop: '16px' }}>
         <button
           onClick={() => {
             console.log('🎯 Testing Autopilot DMX Updates');
+            console.log('Current autopilot state:', {
+              enabled: autopilotTrackEnabled,
+              type: autopilotTrackType,
+              position: autopilotTrackPosition,
+              size: autopilotTrackSize,
+              centerX: autopilotTrackCenterX,
+              centerY: autopilotTrackCenterY,
+              selectedFixtures: selectedFixtures.length
+            });
             updatePanTiltFromTrack();
           }}
           style={{

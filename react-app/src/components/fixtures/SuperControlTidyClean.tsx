@@ -3,7 +3,6 @@ import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import DraggablePanel from './DraggablePanel';
 import EnhancedSlider from './EnhancedSlider';
-import TimelineEditor from '../automation/TimelineEditor';
 import styles from './SuperControl.module.scss';
 
 interface SuperControlTidyProps {
@@ -673,26 +672,6 @@ const SuperControlTidy: React.FC<SuperControlTidyProps> = ({ isDockable = false 
             Scenes
           </button>
         </div>
-
-        {/* Automation Tab */}
-        {activeTab === 'automation' && (
-          <div style={{ height: '400px' }}>
-            <TimelineEditor
-              duration={60}
-              onSave={(tracks) => {
-                localStorage.setItem('artbastard-automation-tracks', JSON.stringify(tracks));
-              }}
-              onLoad={() => {
-                try {
-                  const saved = localStorage.getItem('artbastard-automation-tracks');
-                  return saved ? JSON.parse(saved) : [];
-                } catch {
-                  return [];
-                }
-              }}
-            />
-          </div>
-        )}
 
         {/* Scenes Tab */}
         {activeTab === 'scenes' && (

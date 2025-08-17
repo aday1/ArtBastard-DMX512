@@ -10,7 +10,6 @@ import { Sparkles } from './Sparkles'
 import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
 import PageRouter from '../router/PageRouter'
-import TransportControls from '../panels/TransportControls'
 import { useStore } from '../../store'
 import styles from './Layout.module.scss'
 
@@ -18,35 +17,14 @@ interface LayoutProps {
   children?: React.ReactNode
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {  const { theme, darkMode, toggleDarkMode } = useTheme()
+export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { theme, darkMode, toggleDarkMode } = useTheme()
   const { 
-    automationPlayback,
-    startAutomationPlayback, 
-    stopAutomationPlayback
+    // Remove automation-related imports since we're removing transport controls
   } = useStore()
   
-  const [transportVisible, setTransportVisible] = useState(true)
-  const [transportDocked, setTransportDocked] = useState(true)
-  const handlePlay = () => {
-    if (automationPlayback.active) {
-      stopAutomationPlayback()
-    } else {
-      startAutomationPlayback()
-    }
-    console.log('Transport: Play/Stop Automation')
-  }
-
-  const handlePause = () => {
-    if (automationPlayback.active) {
-      stopAutomationPlayback()
-    }
-    console.log('Transport: Pause Automation')
-  }
-  const handleStop = () => {
-    stopAutomationPlayback()
-    console.log('Transport: Stop Automation')
-  }
-
+  // Remove transport-related state since we're removing the transport panel
+  
   return (
     <RouterProvider>
       <div className={`${styles.layout} ${styles[theme]} ${darkMode ? styles.dark : styles.light}`} 
@@ -78,17 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {  const { theme,
           </div>
         </div>
         
-        <StatusBar />        {/* Transport Controls for TouchBad Panel functionality */}
-        <TransportControls
-          isVisible={transportVisible}
-          isDocked={transportDocked}
-          onToggleVisibility={() => setTransportVisible(!transportVisible)}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          onStop={handleStop}
-          isPlaying={automationPlayback.active}
-          isPaused={false}
-        />
+        <StatusBar />
       </div>
     </RouterProvider>
   )

@@ -5,6 +5,7 @@ import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { SettingsPanel } from '../settings/SettingsPanel';
 
 const ResponsiveGridLayout = WidthProvider(Responsive) as any;
 
@@ -24,8 +25,26 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     fixtures, 
     groups,
     selectedChannels,
+    selectedFixtures,
+    setSelectedFixtures,
     getDmxChannelValue, 
-    setDmxChannelValue
+    setDmxChannelValue,
+    // Autopilot functions
+    autopilotTrackEnabled,
+    autopilotTrackType,
+    autopilotTrackPosition,
+    autopilotTrackSize,
+    autopilotTrackSpeed,
+    autopilotTrackCenterX,
+    autopilotTrackCenterY,
+    setAutopilotTrackEnabled,
+    setAutopilotTrackType,
+    setAutopilotTrackPosition,
+    setAutopilotTrackSize,
+    setAutopilotTrackSpeed,
+    setAutopilotTrackCenter,
+    updatePanTiltFromTrack,
+    calculateTrackPosition, // Added this missing function
   } = useStore();
 
   // Layout state
@@ -40,15 +59,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     }
     return {
       lg: [
-        { i: 'selection', x: 0, y: 0, w: 3, h: 5 },
-        { i: 'monitoring', x: 3, y: 0, w: 9, h: 5 },
-        { i: 'midi-osc', x: 0, y: 5, w: 12, h: 4 },
-        { i: 'scenes', x: 6, y: 9, w: 6, h: 8 },
-        { i: 'basic-controls', x: 0, y: 9, w: 6, h: 3 },
-        { i: 'pan-tilt', x: 6, y: 17, w: 6, h: 6 },
-        { i: 'rgb', x: 0, y: 12, w: 6, h: 6 },
-        { i: 'effects', x: 0, y: 18, w: 6, h: 7 },
-        { i: 'dmx-channels', x: 0, y: 25, w: 12, h: 5 },
+        { i: 'selection', x: 0, y: 0, w: 4, h: 6 },
+        { i: 'monitoring', x: 4, y: 0, w: 8, h: 6 },
+        { i: 'autopilot', x: 0, y: 6, w: 6, h: 12 }, // Enhanced autopilot with visual feedback
+        { i: 'color-autopilot', x: 6, y: 6, w: 6, h: 8 }, // New color autopilot panel
+        { i: 'basic-controls', x: 6, y: 14, w: 6, h: 4 },
+        { i: 'pan-tilt', x: 0, y: 18, w: 6, h: 8 },
+        { i: 'rgb', x: 6, y: 18, w: 6, h: 8 },
+        { i: 'effects', x: 0, y: 26, w: 6, h: 8 },
+        { i: 'scenes', x: 6, y: 26, w: 6, h: 8 },
+        { i: 'settings', x: 0, y: 34, w: 4, h: 8 }, // Settings panel
+        { i: 'midi-osc', x: 4, y: 34, w: 8, h: 6 },
+        { i: 'dmx-channels', x: 0, y: 42, w: 12, h: 8 },
       ]
     };
   });
@@ -62,9 +84,74 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     }
   };
 
+  // Template layouts for different use cases
+  const applyTemplate = (templateName: string) => {
+    let template;
+    
+    switch (templateName) {
+      case 'autopilot-focus':
+        template = {
+          lg: [
+            { i: 'selection', x: 0, y: 0, w: 3, h: 4 },
+            { i: 'autopilot', x: 3, y: 0, w: 9, h: 12 }, // Large autopilot panel
+            { i: 'basic-controls', x: 0, y: 4, w: 3, h: 4 },
+            { i: 'pan-tilt', x: 0, y: 8, w: 6, h: 8 },
+            { i: 'monitoring', x: 6, y: 8, w: 6, h: 4 },
+            { i: 'rgb', x: 0, y: 16, w: 6, h: 6 },
+            { i: 'effects', x: 6, y: 12, w: 6, h: 6 },
+            { i: 'scenes', x: 6, y: 18, w: 4, h: 6 },
+            { i: 'settings', x: 10, y: 18, w: 2, h: 6 },
+            { i: 'midi-osc', x: 0, y: 22, w: 12, h: 4 },
+            { i: 'dmx-channels', x: 0, y: 26, w: 12, h: 6 },
+          ]
+        };
+        break;
+      case 'performance':
+        template = {
+          lg: [
+            { i: 'selection', x: 0, y: 0, w: 2, h: 4 },
+            { i: 'basic-controls', x: 2, y: 0, w: 4, h: 4 },
+            { i: 'pan-tilt', x: 6, y: 0, w: 6, h: 8 },
+            { i: 'rgb', x: 0, y: 4, w: 6, h: 8 },
+            { i: 'scenes', x: 0, y: 12, w: 6, h: 8 },
+            { i: 'effects', x: 6, y: 8, w: 6, h: 6 },
+            { i: 'autopilot', x: 6, y: 14, w: 4, h: 6 },
+            { i: 'settings', x: 10, y: 14, w: 2, h: 6 },
+            { i: 'monitoring', x: 0, y: 20, w: 12, h: 4 },
+            { i: 'midi-osc', x: 0, y: 24, w: 12, h: 4 },
+            { i: 'dmx-channels', x: 0, y: 28, w: 12, h: 6 },
+          ]
+        };
+        break;
+      default: // 'balanced'
+        template = {
+          lg: [
+            { i: 'selection', x: 0, y: 0, w: 4, h: 6 },
+            { i: 'monitoring', x: 4, y: 0, w: 8, h: 6 },
+            { i: 'autopilot', x: 0, y: 6, w: 6, h: 12 },
+            { i: 'basic-controls', x: 6, y: 6, w: 6, h: 4 },
+            { i: 'pan-tilt', x: 6, y: 10, w: 6, h: 8 },
+            { i: 'rgb', x: 0, y: 18, w: 6, h: 8 },
+            { i: 'effects', x: 6, y: 18, w: 6, h: 8 },
+            { i: 'scenes', x: 0, y: 26, w: 8, h: 8 },
+            { i: 'settings', x: 8, y: 26, w: 4, h: 8 },
+            { i: 'midi-osc', x: 0, y: 34, w: 12, h: 6 },
+            { i: 'dmx-channels', x: 0, y: 40, w: 12, h: 8 },
+          ]
+        };
+    }
+    
+    localStorage.removeItem('superControlLayouts');
+    setLayouts(template);
+  };
+
+  // Reset to default layout
+  const resetLayout = () => {
+    applyTemplate('balanced');
+  };
+
   // Selection state
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('channels');
-  const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
   // Control values state
@@ -606,6 +693,20 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setSelectionMode('fixtures');
   };
 
+  // Auto-animation for autopilot
+  useEffect(() => {
+    if (!autopilotTrackEnabled) return;
+
+    const interval = setInterval(() => {
+      // Animate autopilot for selected fixtures
+      selectedFixtures.forEach(fixtureId => {
+        updatePanTiltFromTrack();
+      });
+    }, 50); // 20fps animation
+
+    return () => clearInterval(interval);
+  }, [autopilotTrackEnabled, selectedFixtures, updatePanTiltFromTrack]);
+
   const selectNextGroup = () => {
     if (groups.length === 0) return;
     const nextIndex = (currentGroupIndex + 1) % groups.length;
@@ -763,11 +864,86 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
-        <h3>
-          <LucideIcon name="Settings" />
-          Super Control
-        </h3>
-        <p>{getSelectionInfo()}</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <LucideIcon name="Settings" />
+              Super Control
+            </h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#ccc' }}>{getSelectionInfo()}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                onClick={() => applyTemplate('autopilot-focus')}
+                style={{
+                  background: '#28a745',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '11px'
+                }}
+                title="Autopilot-focused layout"
+              >
+                <LucideIcon name="Navigation" />
+                Autopilot
+              </button>
+              <button
+                onClick={() => applyTemplate('performance')}
+                style={{
+                  background: '#dc3545',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '11px'
+                }}
+                title="Performance-focused layout"
+              >
+                <LucideIcon name="Zap" />
+                Live
+              </button>
+              <button
+                onClick={() => applyTemplate('balanced')}
+                style={{
+                  background: '#6f42c1',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '11px'
+                }}
+                title="Balanced layout"
+              >
+                <LucideIcon name="Grid3X3" />
+                Balanced
+              </button>
+            </div>
+            <button
+              onClick={resetLayout}
+              style={{
+                background: '#007acc',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 12px',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px'
+              }}
+              title="Reset panel layout to default"
+            >
+              <LucideIcon name="RotateCcw" />
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
 
       <ResponsiveGridLayout
@@ -775,9 +951,13 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         layouts={layouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={30}
+        rowHeight={40} // Increased from 30 to 40 for better spacing
         onLayoutChange={onLayoutChange}
         draggableHandle={`.${styles.gridItemHeader}`}
+        isResizable={true} // Enable resizing
+        resizeHandles={['se', 's', 'e']} // Southeast, South, East resize handles
+        margin={[10, 10]} // Add margin between panels
+        compactType={null} // Disable auto-compacting for better control
       >
         <div key="selection" className={styles.gridItem}>
           <div className={styles.gridItemHeader}>
@@ -824,11 +1004,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       key={fixture.id}
                       className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
                       onClick={() => {
-                        setSelectedFixtures(prev => 
-                          prev.includes(fixture.id) 
-                            ? prev.filter(id => id !== fixture.id)
-                            : [...prev, fixture.id]
-                        );
+                        const newSelection = selectedFixtures.includes(fixture.id) 
+                          ? selectedFixtures.filter(id => id !== fixture.id)
+                          : [...selectedFixtures, fixture.id];
+                        setSelectedFixtures(newSelection);
                       }}
                     >
                       <span className={styles.fixtureName}>{fixture.name}</span>
@@ -1696,6 +1875,481 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             </div>
           </div>
         )}
+
+        {/* Enhanced Autopilot Panel */}
+        <div key="autopilot" className={styles.gridItem}>
+          <div className={styles.gridItemHeader}>
+            <LucideIcon name="Navigation" /> Enhanced Autopilot
+          </div>
+          <div className={styles.gridItemContent}>
+            {/* Autopilot Enable/Disable */}
+            <div style={{ marginBottom: '16px' }}>
+              <button
+                onClick={() => {
+                  const newState = !autopilotTrackEnabled;
+                  setAutopilotTrackEnabled(newState);
+                  
+                  // If enabling autopilot, immediately apply current position
+                  if (newState) {
+                    console.log('🤖 Autopilot enabled - applying initial position');
+                    setTimeout(() => {
+                      updatePanTiltFromTrack();
+                    }, 100);
+                  } else {
+                    console.log('🛑 Autopilot disabled');
+                  }
+                }}
+                style={{
+                  background: autopilotTrackEnabled ? '#28a745' : '#6c757d',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  justifyContent: 'center'
+                }}
+              >
+                <LucideIcon name={autopilotTrackEnabled ? "Play" : "Pause"} />
+                {autopilotTrackEnabled ? 'Autopilot ON' : 'Autopilot OFF'}
+              </button>
+            </div>
+
+            {/* Path Visualization Canvas */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#ccc' }}>
+                Path Visualization
+              </label>
+              <div style={{ 
+                position: 'relative',
+                width: '100%',
+                height: '200px',
+                background: '#1a1a1a',
+                border: '1px solid #444',
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}>
+                <canvas
+                  ref={(canvas) => {
+                    if (canvas) {
+                      const ctx = canvas.getContext('2d');
+                      if (ctx) {
+                        // Set canvas size
+                        canvas.width = 300;
+                        canvas.height = 200;
+                        
+                        // Clear canvas
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Draw path
+                        ctx.strokeStyle = '#58a6ff';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        
+                        const centerX = canvas.width / 2;
+                        const centerY = canvas.height / 2;
+                        const scale = Math.min(canvas.width, canvas.height) * 0.3 * (autopilotTrackSize / 100);
+                        
+                        // Draw different path types
+                        switch (autopilotTrackType) {
+                          case 'circle':
+                            ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+                            break;
+                          case 'square':
+                            ctx.moveTo(centerX - scale, centerY - scale);
+                            ctx.lineTo(centerX + scale, centerY - scale);
+                            ctx.lineTo(centerX + scale, centerY + scale);
+                            ctx.lineTo(centerX - scale, centerY + scale);
+                            ctx.closePath();
+                            break;
+                          case 'triangle':
+                            ctx.moveTo(centerX, centerY - scale);
+                            ctx.lineTo(centerX + scale * 0.866, centerY + scale * 0.5);
+                            ctx.lineTo(centerX - scale * 0.866, centerY + scale * 0.5);
+                            ctx.closePath();
+                            break;
+                          case 'figure8':
+                            // Figure 8 path
+                            for (let t = 0; t <= 2 * Math.PI; t += 0.1) {
+                              const x = centerX + scale * Math.sin(t);
+                              const y = centerY + scale * Math.sin(t) * Math.cos(t);
+                              if (t === 0) ctx.moveTo(x, y);
+                              else ctx.lineTo(x, y);
+                            }
+                            break;
+                          case 'linear':
+                            ctx.moveTo(centerX - scale, centerY);
+                            ctx.lineTo(centerX + scale, centerY);
+                            break;
+                          default:
+                            ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+                        }
+                        ctx.stroke();
+                        
+                        // Draw current position indicator
+                        if (autopilotTrackEnabled) {
+                          const pos = calculateTrackPosition(
+                            autopilotTrackType, 
+                            autopilotTrackPosition, 
+                            autopilotTrackSize,
+                            autopilotTrackCenterX,
+                            autopilotTrackCenterY
+                          );
+                          
+                          // Convert DMX values (0-255) to canvas coordinates
+                          const posX = (pos.pan / 255) * canvas.width;
+                          const posY = (pos.tilt / 255) * canvas.height;
+                          
+                          // Draw position indicator
+                          ctx.fillStyle = '#ff6b6b';
+                          ctx.beginPath();
+                          ctx.arc(posX, posY, 8, 0, 2 * Math.PI);
+                          ctx.fill();
+                          
+                          // Draw crosshairs
+                          ctx.strokeStyle = '#ff6b6b';
+                          ctx.lineWidth = 1;
+                          ctx.beginPath();
+                          ctx.moveTo(posX - 12, posY);
+                          ctx.lineTo(posX + 12, posY);
+                          ctx.moveTo(posX, posY - 12);
+                          ctx.lineTo(posX, posY + 12);
+                          ctx.stroke();
+                        }
+                        
+                        // Draw center point
+                        const centerPosX = (autopilotTrackCenterX / 255) * canvas.width;
+                        const centerPosY = (autopilotTrackCenterY / 255) * canvas.height;
+                        ctx.fillStyle = '#ffd93d';
+                        ctx.beginPath();
+                        ctx.arc(centerPosX, centerPosY, 4, 0, 2 * Math.PI);
+                        ctx.fill();
+                      }
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    imageRendering: 'pixelated'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Track Type Selection with Custom Option */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Track Pattern
+              </label>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <select
+                  value={autopilotTrackType}
+                  onChange={(e) => {
+                    setAutopilotTrackType(e.target.value as any);
+                    // Apply new pattern immediately if autopilot is enabled
+                    if (autopilotTrackEnabled) {
+                      setTimeout(() => updatePanTiltFromTrack(), 50);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    borderRadius: '4px',
+                    border: '1px solid #555',
+                    background: '#2a2a2a',
+                    color: '#fff'
+                  }}
+                >
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="figure8">Figure 8</option>
+                  <option value="triangle">Triangle</option>
+                  <option value="linear">Linear</option>
+                  <option value="random">Random</option>
+                  <option value="custom">Custom Path</option>
+                </select>
+                {autopilotTrackType === 'custom' && (
+                  <button
+                    onClick={() => {
+                      // TODO: Open custom path editor
+                      alert('Custom path editor coming soon!');
+                    }}
+                    style={{
+                      background: '#7c3aed',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '6px 12px',
+                      color: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <LucideIcon name="Edit" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Live Position Sliders - These move automatically when autopilot is running */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Position: {autopilotTrackPosition.toFixed(1)}% 
+                {autopilotTrackEnabled && <span style={{ color: '#28a745', marginLeft: '8px' }}>● LIVE</span>}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={autopilotTrackPosition}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  setAutopilotTrackPosition(value);
+                  if (autopilotTrackEnabled) {
+                    setTimeout(() => updatePanTiltFromTrack(), 10);
+                  }
+                }}
+                style={{ 
+                  width: '100%',
+                  background: autopilotTrackEnabled ? 'linear-gradient(90deg, #28a745 0%, #28a745 ' + autopilotTrackPosition + '%, #444 ' + autopilotTrackPosition + '%)' : undefined
+                }}
+              />
+            </div>
+
+            {/* Real-time Pan/Tilt Value Display */}
+            {autopilotTrackEnabled && (
+              <div style={{ 
+                marginBottom: '12px',
+                padding: '8px',
+                background: 'rgba(40, 167, 69, 0.1)',
+                border: '1px solid rgba(40, 167, 69, 0.3)',
+                borderRadius: '4px'
+              }}>
+                <div style={{ fontSize: '11px', color: '#28a745', marginBottom: '4px' }}>
+                  Live DMX Values:
+                </div>
+                {(() => {
+                  const pos = calculateTrackPosition(
+                    autopilotTrackType,
+                    autopilotTrackPosition,
+                    autopilotTrackSize,
+                    autopilotTrackCenterX,
+                    autopilotTrackCenterY
+                  );
+                  return (
+                    <div style={{ fontSize: '12px', color: '#ccc' }}>
+                      Pan: {pos.pan} | Tilt: {pos.tilt}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Size Slider */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Size: {autopilotTrackSize}
+              </label>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                value={autopilotTrackSize}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setAutopilotTrackSize(value);
+                  if (autopilotTrackEnabled) {
+                    setTimeout(() => updatePanTiltFromTrack(), 10);
+                  }
+                }}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Speed Slider */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Speed: {autopilotTrackSpeed}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value={autopilotTrackSpeed}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setAutopilotTrackSpeed(value);
+                }}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Center Position Controls */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#ccc' }}>
+                Center Position
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#aaa' }}>X (Pan): {autopilotTrackCenterX}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={autopilotTrackCenterX}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setAutopilotTrackCenter(value, autopilotTrackCenterY);
+                      if (autopilotTrackEnabled) {
+                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#aaa' }}>Y (Tilt): {autopilotTrackCenterY}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={autopilotTrackCenterY}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setAutopilotTrackCenter(autopilotTrackCenterX, value);
+                      if (autopilotTrackEnabled) {
+                        setTimeout(() => updatePanTiltFromTrack(), 10);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Test Button */}
+            <button
+              onClick={() => {
+                if (autopilotTrackEnabled) {
+                  updatePanTiltFromTrack();
+                  console.log('🎯 Manual position update triggered');
+                } else {
+                  alert('Enable autopilot first!');
+                }
+              }}
+              disabled={!autopilotTrackEnabled}
+              style={{
+                background: autopilotTrackEnabled ? '#28a745' : '#6c757d',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                color: 'white',
+                cursor: autopilotTrackEnabled ? 'pointer' : 'not-allowed',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <LucideIcon name="Target" />
+              Test Position
+            </button>
+          </div>
+        </div>
+
+        {/* Color Autopilot Panel */}
+        <div key="color-autopilot" className={styles.gridItem}>
+          <div className={styles.gridItemHeader}>
+            <LucideIcon name="Palette" /> Color Autopilot
+          </div>
+          <div className={styles.gridItemContent}>
+            <div style={{ marginBottom: '12px' }}>
+              <button
+                onClick={() => {
+                  // TODO: Implement color autopilot
+                  alert('Color Autopilot coming soon! This will automatically cycle through colors, create rainbow effects, and sync with music.');
+                }}
+                style={{
+                  background: '#7c3aed',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  justifyContent: 'center'
+                }}
+              >
+                <LucideIcon name="Palette" />
+                Enable Color Auto
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Color Pattern
+              </label>
+              <select
+                style={{
+                  width: '100%',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  border: '1px solid #555',
+                  background: '#2a2a2a',
+                  color: '#fff'
+                }}
+              >
+                <option value="rainbow">Rainbow Cycle</option>
+                <option value="strobe">Color Strobe</option>
+                <option value="fade">Smooth Fade</option>
+                <option value="chase">Color Chase</option>
+                <option value="pulse">Pulse Effects</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Speed: 50%
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value="50"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ 
+              padding: '8px',
+              background: 'rgba(124, 58, 237, 0.1)',
+              border: '1px solid rgba(124, 58, 237, 0.3)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#7c3aed'
+            }}>
+              Coming Soon: Automatic color effects, music sync, and custom color sequences!
+            </div>
+          </div>
+        </div>
+
+        {/* Settings Panel */}
+        <div key="settings" className={styles.gridItem}>
+          <div className={styles.gridItemHeader}>
+            <LucideIcon name="Settings" /> Settings
+          </div>
+          <div className={styles.gridItemContent}>
+            <SettingsPanel />
+          </div>
+        </div>
+
       </ResponsiveGridLayout>
     </div>
   );

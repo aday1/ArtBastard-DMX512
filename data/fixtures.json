@@ -1,5 +1,103 @@
 {
-  "groups": [],
-  "fixtureLayout": [],
-  "masterSliders": []
+  "groups": [
+    {
+      "id": "moving-heads",
+      "name": "Moving Heads", 
+      "fixtureIndices": [0, 1, 2, 3],
+      "lastStates": [],
+      "isMuted": false,
+      "isSolo": false,
+      "masterValue": 255,
+      "ignoreSceneChanges": false,
+      "ignoreMasterFader": false,
+      "panOffset": 0,
+      "tiltOffset": 0,
+      "zoomValue": 0
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "mh1",
+      "name": "Moving Head 1",
+      "type": "Moving Head",
+      "manufacturer": "Generic",
+      "model": "Pan/Tilt Fixture",
+      "startAddress": 1,
+      "channels": [
+        { "type": "pan", "name": "Pan" },
+        { "type": "tilt", "name": "Tilt" },
+        { "type": "dimmer", "name": "Dimmer" },
+        { "type": "red", "name": "Red" },
+        { "type": "green", "name": "Green" },
+        { "type": "blue", "name": "Blue" },
+        { "type": "shutter", "name": "Shutter" }
+      ]
+    },
+    {
+      "id": "mh2",
+      "name": "Moving Head 2",
+      "type": "Moving Head",
+      "manufacturer": "Generic", 
+      "model": "Pan/Tilt Fixture",
+      "startAddress": 11,
+      "channels": [
+        { "type": "pan", "name": "Pan" },
+        { "type": "tilt", "name": "Tilt" },
+        { "type": "dimmer", "name": "Dimmer" },
+        { "type": "red", "name": "Red" },
+        { "type": "green", "name": "Green" },
+        { "type": "blue", "name": "Blue" },
+        { "type": "shutter", "name": "Shutter" }
+      ]
+    },
+    {
+      "id": "mh3",
+      "name": "Moving Head 3",
+      "type": "Moving Head",
+      "manufacturer": "Generic",
+      "model": "Pan/Tilt Fixture", 
+      "startAddress": 21,
+      "channels": [
+        { "type": "pan", "name": "Pan" },
+        { "type": "tilt", "name": "Tilt" },
+        { "type": "dimmer", "name": "Dimmer" },
+        { "type": "red", "name": "Red" },
+        { "type": "green", "name": "Green" },
+        { "type": "blue", "name": "Blue" },
+        { "type": "shutter", "name": "Shutter" }
+      ]
+    },
+    {
+      "id": "mh4",
+      "name": "Moving Head 4",
+      "type": "Moving Head",
+      "manufacturer": "Generic",
+      "model": "Pan/Tilt Fixture",
+      "startAddress": 31,
+      "channels": [
+        { "type": "pan", "name": "Pan" },
+        { "type": "tilt", "name": "Tilt" },
+        { "type": "dimmer", "name": "Dimmer" },
+        { "type": "red", "name": "Red" },
+        { "type": "green", "name": "Green" },
+        { "type": "blue", "name": "Blue" },
+        { "type": "shutter", "name": "Shutter" }
+      ]
+    }
+  ],
+  "fixtureLayout": [
+    { "fixtureId": "mh1", "position": { "x": 100, "y": 100 } },
+    { "fixtureId": "mh2", "position": { "x": 300, "y": 100 } },
+    { "fixtureId": "mh3", "position": { "x": 100, "y": 300 } },
+    { "fixtureId": "mh4", "position": { "x": 300, "y": 300 } }
+  ],
+  "masterSliders": [
+    {
+      "id": "master-dimmer",
+      "name": "Master Dimmer",
+      "value": 255,
+      "targets": [],
+      "position": { "x": 100, "y": 50 }
+    }
+  ]
 }

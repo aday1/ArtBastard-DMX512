@@ -9,6 +9,8 @@
   height: 100%; // Take full available height
   min-height: 600px; // Ensure minimum height
   overflow: visible; // Changed from hidden to allow canvas to display fully
+  align-items: center; // Center-align canvas horizontally
+  justify-content: center; // Center-align canvas vertically when space allows
   
   // Fullscreen styles
   &.fullscreen {
@@ -85,17 +87,31 @@
   }
 }
 
+// Canvas container for better centering control
+.canvasContainer {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 400px;
+  padding: 1rem 0;
+}
+
 .fixtureCanvas {
   border: 1px solid var(--border-color-strong, #ccc);
   border-radius: var(--border-radius-sm, 4px);
   background-color: #f0f0f0; // Explicit background for the canvas itself
   cursor: crosshair; // Indicate it's a drawing surface
-  // Make canvas responsive and flexible
-  width: 100%;
+  // Centered canvas with proper sizing
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: auto;
-  min-height: 400px; // Ensure minimum height
-  flex: 1; // Allow canvas to grow and fill available space
+  min-width: 600px;
+  min-height: 400px;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); // Add subtle shadow for better visual separation
   
   &.dragging {
     cursor: grabbing;
@@ -536,6 +552,7 @@
   flex-wrap: wrap; // Allow wrapping on smaller screens
   min-height: 500px; // Increased from 400px for better canvas display
   flex: 1; // Allow wrapper to grow and fill available space
+  justify-content: center; // Center the canvas horizontally within the wrapper
   
   // Responsive behavior for fullscreen and smaller viewports
   @media (max-width: 1200px) {
@@ -549,6 +566,7 @@
     align-items: flex-start;
     min-height: calc(100vh - 150px); // Maximize space in fullscreen with reduced offset
     gap: 0.5rem; // Reduce gap in fullscreen for more canvas space
+    justify-content: center; // Keep centering in fullscreen
   }
 }
 

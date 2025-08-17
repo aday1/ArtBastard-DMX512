@@ -51,11 +51,33 @@ export interface Group {
   zoomValue?: number;
 }
 
+export interface AutopilotConfig {
+  enabled: boolean;
+  type: 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth';
+  speed: number; // BPM multiplier (0.1 to 10)
+  range: { min: number; max: number }; // DMX value range
+  syncToBPM: boolean;
+  phase: number; // Phase offset in degrees (0-360)
+}
+
+export interface PanTiltAutopilotConfig {
+  enabled: boolean;
+  pathType: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'custom';
+  size: number; // 0-100 percentage
+  speed: number; // BPM multiplier
+  centerX: number; // 0-255 DMX value
+  centerY: number; // 0-255 DMX value
+  syncToBPM: boolean;
+  customPath?: Array<{ x: number; y: number }>;
+}
+
 export interface Scene {
   name: string
   channelValues: number[]
   oscAddress: string
   midiMapping?: MidiMapping
+  autopilots?: { [channelIndex: number]: AutopilotConfig };
+  panTiltAutopilot?: PanTiltAutopilotConfig;
 }
 
 export interface ArtNetConfig {
@@ -359,6 +381,12 @@ interface State {
   pendingSmoothUpdates: { [channel: number]: number }; // Pending smooth updates
   lastSmoothUpdateTime: number;
 
+  // Autopilot System State
+  channelAutopilots: { [channelIndex: number]: AutopilotConfig };
+  panTiltAutopilot: PanTiltAutopilotConfig;
+  autopilotUpdateInterval: number | null;
+  lastAutopilotUpdate: number;
+
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -498,6 +526,15 @@ interface State {
 
   // Smooth DMX Actions
   setSmoothDmxEnabled: (enabled: boolean) => void;
+
+  // Autopilot Actions
+  setChannelAutopilot: (channelIndex: number, config: AutopilotConfig) => void;
+  removeChannelAutopilot: (channelIndex: number) => void;
+  setPanTiltAutopilot: (config: Partial<PanTiltAutopilotConfig>) => void;
+  togglePanTiltAutopilot: () => void;
+  updateAutopilotValues: () => void;
+  startAutopilotSystem: () => void;
+  stopAutopilotSystem: () => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -518,6 +555,22 @@ const initializeDarkMode = (): boolean => {
 };
 
 // Helper function to initialize UI settings from localStorage
+const initializeUiSettings = (): { sparklesEnabled: boolean } => {
+  try {
+    const stored = localStorage.getItem('uiSettings');
+    const defaultSettings = { sparklesEnabled: true };
+    
+    if (stored) {
+      const parsedSettings = JSON.parse(stored);
+      return { ...defaultSettings, ...parsedSettings };
+    }
+    
+    return defaultSettings;
+  } catch (error) {
+    console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
+    return { sparklesEnabled: true };
+  }
+};
 
 export const useStore = create<State>()(
   devtools(
@@ -647,9 +700,31 @@ export const useStore = create<State>()(
       automationPlayback: {
         active: false,
         startTime: null,
-        duration: 10000, // Default 10 seconds        position: 0
-      },      // Smooth DMX Output System Initial State  
+        duration: 10000, // Default 10 seconds
+        position: 0
+      },
+      
+      // Smooth DMX Output System Initial State  
       smoothDmxEnabled: true, // Enable by default for better performance
+      smoothDmxUpdateRate: 30, // 30fps default
+      smoothDmxThreshold: 1,
+      pendingSmoothUpdates: {},
+      lastSmoothUpdateTime: Date.now(),
+
+      // Autopilot System State
+      channelAutopilots: {},
+      panTiltAutopilot: {
+        enabled: false,
+        pathType: 'circle',
+        speed: 0.5,
+        size: 50, // 50% of maximum range
+        centerX: 128,
+        centerY: 128,
+        syncToBPM: false,
+        phase: 0
+      },
+      autopilotUpdateInterval: null,
+      lastAutopilotUpdate: Date.now(),
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
@@ -1263,21 +1338,22 @@ export const useStore = create<State>()(
 
       // Scene Actions
       saveScene: (name, oscAddress) => {
-        const dmxChannels = get().dmxChannels
+        const { dmxChannels, channelAutopilots, panTiltAutopilot } = get();
         const newScene: Scene = {
           name,
           channelValues: [...dmxChannels],
-          oscAddress
-        }
+          oscAddress,
+          autopilots: { ...channelAutopilots },
+          panTiltAutopilot: { ...panTiltAutopilot }
+        };
         
-        const scenes = [...get().scenes]
-        const existingIndex = scenes.findIndex(s => s.name === name)
+        const scenes = [...get().scenes];
+        const existingIndex = scenes.findIndex(s => s.name === name);
         
         if (existingIndex !== -1) {
-          scenes[existingIndex] = newScene
+          scenes[existingIndex] = newScene;
         } else {
-          scenes.push(newScene
-          )
+          scenes.push(newScene);
         }
         
         set({ scenes })
@@ -1329,6 +1405,31 @@ export const useStore = create<State>()(
             toDmxValues: targetDmxValues,
             transitionStartTime: Date.now(),
           });
+
+          // Restore autopilot settings if they exist in the scene
+          if (scene.autopilots) {
+            // Stop existing autopilots first
+            get().stopAutopilotSystem();
+            
+            // Set new channel autopilots
+            Object.entries(scene.autopilots).forEach(([channelStr, config]) => {
+              get().setChannelAutopilot(parseInt(channelStr), config);
+            });
+          } else {
+            // Clear all channel autopilots if scene doesn't have them
+            const { channelAutopilots } = get();
+            Object.keys(channelAutopilots).forEach(channelStr => {
+              get().removeChannelAutopilot(parseInt(channelStr));
+            });
+          }
+
+          // Restore pan/tilt autopilot settings
+          if (scene.panTiltAutopilot) {
+            get().setPanTiltAutopilot({ ...scene.panTiltAutopilot });
+          } else {
+            // Disable pan/tilt autopilot if scene doesn't have it
+            get().setPanTiltAutopilot({ enabled: false });
+          }
           
           get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
           axios.post('/api/scenes/load', { name }) 
@@ -2248,18 +2349,6 @@ export const useStore = create<State>()(
             automationPlayback: { ...state.automationPlayback, position }
           }));
           
-          // Apply automation to channels
-          automationTracks.forEach(track => {
-            if (!track.enabled) return;
-            
-            const currentTime = elapsed;
-            const value = interpolateKeyframes(track.keyframes, currentTime);
-            
-            if (value !== null) {
-              setDmxChannelValue(track.channel, Math.round(value));
-            }
-          });
-          
           // Continue if not finished
           if (position < 1) {
             requestAnimationFrame(updateAutomation);
@@ -2482,685 +2571,270 @@ export const useStore = create<State>()(
         console.log('Smooth DMX mode disabled');
       },
 
-      // Timeline Sequence Management Actions
-      saveTimelineSequence: (name, description) => {
-        const { recordingData } = get();
-        
-        if (recordingData.length === 0) {
-          console.warn('No recording data to save as timeline sequence');
-          return '';
-        }
-
-        const sequenceId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const maxTime = Math.max(...recordingData.map(e => e.timestamp));
-        
-        // Group events by channel
-        const channelGroups: { [channel: number]: TimelineKeyframe[] } = {};
-        
-        recordingData
-          .filter(event => event.type === 'dmx' && event.channel !== undefined && event.value !== undefined)
-          .forEach(event => {
-            const channel = event.channel!;
-            const keyframe: TimelineKeyframe = {
-              time: event.timestamp,
-              value: event.value!,
-              curve: 'smooth'
-            };
-            
-            if (!channelGroups[channel]) {
-              channelGroups[channel] = [];
-            }
-            channelGroups[channel].push(keyframe);
-          });
-
-        const newSequence: TimelineSequence = {
-          id: sequenceId,
-          name,
-          description: description || `Recorded sequence with ${recordingData.length} events`,
-          duration: maxTime,
-          channels: Object.entries(channelGroups).map(([channel, keyframes]) => ({
-            channel: parseInt(channel),
-            keyframes: keyframes.sort((a, b) => a.time - b.time)
-          })),
-          tags: ['recorded'],
-          createdAt: Date.now(),
-          modifiedAt: Date.now()
-        };
-
+      setChannelAutopilot: (channelIndex, config) => {
         set(state => ({
-          timelineSequences: [...state.timelineSequences, newSequence],
-          activeTimelineSequence: sequenceId
-        }));
-
-        console.log(`Timeline sequence "${name}" saved with ID: ${sequenceId}`);
-        return sequenceId;
-      },
-
-      loadTimelineSequence: (sequenceId) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found`);
-          return;
-        }
-
-        set({ activeTimelineSequence: sequenceId });
-        console.log(`Timeline sequence "${sequence.name}" loaded`);
-      },
-
-      deleteTimelineSequence: (sequenceId) => {
-        set(state => ({
-          timelineSequences: state.timelineSequences.filter(s => s.id !== sequenceId),
-          activeTimelineSequence: state.activeTimelineSequence === sequenceId ? null : state.activeTimelineSequence
-        }));
-        console.log(`Timeline sequence ${sequenceId} deleted`);
-      },
-
-      updateTimelineSequence: (sequenceId, updates) => {
-        set(state => ({
-          timelineSequences: state.timelineSequences.map(s => 
-            s.id === sequenceId 
-              ? { ...s, ...updates, modifiedAt: Date.now() }
-              : s
-          )
-        }));
-      },
-
-      // Timeline Export/Import Actions
-      exportTimelineSequence: (sequenceId) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for export`);
-          return;
-        }
-
-        const exportData = {
-          version: '1.0',
-          type: 'artbastard-timeline-sequence',
-          exported: Date.now(),
-          sequence
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${sequence.name.replace(/[^a-z0-9]/gi, '_')}_timeline.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        console.log(`Timeline sequence "${sequence.name}" exported`);
-      },
-
-      importTimelineSequence: (sequenceData) => {
-        // Generate new ID to avoid conflicts
-        const newId = `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const importedSequence: TimelineSequence = {
-          ...sequenceData,
-          id: newId,
-          createdAt: Date.now(),
-          modifiedAt: Date.now(),
-          name: `${sequenceData.name} (Imported)`
-        };
-
-        set(state => ({
-          timelineSequences: [...state.timelineSequences, importedSequence],
-          activeTimelineSequence: newId
-        }));
-
-        console.log(`Timeline sequence "${importedSequence.name}" imported with ID: ${newId}`);
-      },
-
-      // Timeline Smoothing Action
-      smoothTimelineSequence: (sequenceId, smoothingFactor) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for smoothing`);
-          return;
-        }
-
-        const smoothedChannels = sequence.channels.map(channel => {
-          if (channel.keyframes.length < 3) {
-            return channel; // Not enough keyframes to smooth
+          channelAutopilots: {
+            ...state.channelAutopilots,
+            [channelIndex]: config
           }
+        }));
 
-          const smoothedKeyframes = channel.keyframes.map((keyframe, index) => {
-            if (index === 0 || index === channel.keyframes.length - 1) {
-              return keyframe; // Don't smooth first or last keyframe
-            }
+        // Start autopilot system if not running
+        if (!get().autopilotUpdateInterval) {
+          get().startAutopilotSystem();
+        }
 
-            const prevKeyframe = channel.keyframes[index - 1];
-            const nextKeyframe = channel.keyframes[index + 1];
-            
-            // Apply smoothing using weighted average
-            const weight = smoothingFactor; // 0 = no smoothing, 1 = full smoothing
-            const smoothedValue = 
-              keyframe.value * (1 - weight) + 
-              ((prevKeyframe.value + nextKeyframe.value) / 2) * weight;
+        get().addNotification({
+          message: `Channel ${channelIndex + 1} autopilot enabled (${config.type})`,
+          type: 'success'
+        });
+      },
 
-            return {
-              ...keyframe,
-              value: Math.max(0, Math.min(255, Math.round(smoothedValue))),
-              curve: 'smooth' as const
-            };
-          });
-
-          return {
-            ...channel,
-            keyframes: smoothedKeyframes
-          };
+      removeChannelAutopilot: (channelIndex) => {
+        set(state => {
+          const newAutopilots = { ...state.channelAutopilots };
+          delete newAutopilots[channelIndex];
+          return { channelAutopilots: newAutopilots };
         });
 
-        const smoothedSequence: TimelineSequence = {
-          ...sequence,
-          channels: smoothedChannels,
-          modifiedAt: Date.now()
-        };
-
-        set(state => ({
-          timelineSequences: state.timelineSequences.map(s => 
-            s.id === sequenceId ? smoothedSequence : s
-          )
-        }));
-
-        console.log(`Timeline sequence "${sequence.name}" smoothed with factor ${smoothingFactor}`);
-      },
-
-      // Timeline Playback Actions
-      playTimelineSequence: (sequenceId, options = {}) => {
-        const { timelineSequences } = get();
-        const sequence = timelineSequences.find(s => s.id === sequenceId);
-        
-        if (!sequence) {
-          console.error(`Timeline sequence with ID ${sequenceId} not found for playback`);
-          return;
+        // Stop system if no autopilots are active
+        const { channelAutopilots, panTiltAutopilot } = get();
+        if (Object.keys(channelAutopilots).length === 0 && !panTiltAutopilot.enabled) {
+          get().stopAutopilotSystem();
         }
 
-        // Stop any existing playback
-        get().stopTimelinePlayback();
+        get().addNotification({
+          message: `Channel ${channelIndex + 1} autopilot disabled`,
+          type: 'info'
+        });
+      },
 
-        const startTime = Date.now();
-        set({
-          timelinePlayback: {
-            active: true,
-            sequenceId,
-            startTime,
-            position: 0,
-            loop: options.loop || false,
-            speed: options.speed || 1,
-            direction: options.direction || 'forward',
-            pingPong: options.pingPong || false,
-          },
+      setPanTiltAutopilot: (config) => {
+        set(state => ({
+          panTiltAutopilot: {
+            ...state.panTiltAutopilot,
+            ...config
+          }
+        }));
+
+        // Start autopilot system if enabled and not running
+        const updatedConfig = get().panTiltAutopilot;
+        if (updatedConfig.enabled && !get().autopilotUpdateInterval) {
+          get().startAutopilotSystem();
+        }
+
+        if (config.enabled !== undefined) {
+          get().addNotification({
+            message: `Pan/Tilt autopilot ${config.enabled ? 'enabled' : 'disabled'}`,
+            type: 'success'
+          });
+        }
+      },
+
+      togglePanTiltAutopilot: () => {
+        const { panTiltAutopilot } = get();
+        get().setPanTiltAutopilot({ enabled: !panTiltAutopilot.enabled });
+      },
+
+      updateAutopilotValues: () => {
+        const state = get();
+        const { channelAutopilots, panTiltAutopilot, bpm, lastAutopilotUpdate } = state;
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - lastAutopilotUpdate) / 1000; // Convert to seconds
+
+        let hasUpdates = false;
+        const updates: { [channel: number]: number } = {};
+
+        // Update channel autopilots
+        Object.entries(channelAutopilots).forEach(([channelStr, config]) => {
+          const channelIndex = parseInt(channelStr);
+          const autopilotConfig = config as AutopilotConfig;
+          
+          // Calculate BPM-based or time-based phase
+          let phaseIncrement = autopilotConfig.speed * deltaTime;
+          if (autopilotConfig.syncToBPM && bpm > 0) {
+            phaseIncrement = (bpm / 60) * deltaTime * autopilotConfig.speed;
+          }
+
+          const newPhase = (autopilotConfig.phase + phaseIncrement) % (2 * Math.PI);
+          autopilotConfig.phase = newPhase;
+
+          // Calculate value based on pattern
+          let value = 0;
+          const intensityRange = autopilotConfig.range.max - autopilotConfig.range.min;
+          
+          switch (autopilotConfig.type) {
+            case 'sine':
+              value = Math.sin(newPhase) * (intensityRange / 2) + (autopilotConfig.range.min + intensityRange / 2);
+              break;
+            case 'ping-pong':
+              value = Math.abs(Math.sin(newPhase)) * intensityRange + autopilotConfig.range.min;
+              break;
+            case 'cycle':
+              value = ((newPhase / (2 * Math.PI)) % 1) * intensityRange + autopilotConfig.range.min;
+              break;
+            case 'triangle':
+              const triPhase = (newPhase / (2 * Math.PI)) % 1;
+              value = (triPhase < 0.5 ? triPhase * 2 : 2 - triPhase * 2) * intensityRange + autopilotConfig.range.min;
+              break;
+            case 'sawtooth':
+              value = ((newPhase / (2 * Math.PI)) % 1) * intensityRange + autopilotConfig.range.min;
+              break;
+            case 'random':
+              if (Math.random() < 0.1) { // 10% chance to change
+                value = Math.random() * intensityRange + autopilotConfig.range.min;
+              } else {
+                return; // Keep previous value
+              }
+              break;
+          }
+
+          // Convert to DMX range (0-255)
+          const dmxValue = Math.round(Math.min(255, Math.max(0, value)));
+          updates[channelIndex] = dmxValue;
+          hasUpdates = true;
         });
 
-        // Start playback loop
-        const playbackInterval = setInterval(() => {
-          const state = get();
-          if (!state.timelinePlayback.active || state.timelinePlayback.sequenceId !== sequenceId) {
-            clearInterval(playbackInterval);
-            return;
+        // Update pan/tilt autopilot
+        if (panTiltAutopilot.enabled) {
+          const fixtures = state.fixtures.filter(f => 
+            f.channels.some(c => c.type === 'pan' || c.type === 'tilt')
+          );
+
+          // Calculate phase increment once for all fixtures
+          let phaseIncrement = panTiltAutopilot.speed * deltaTime;
+          if (panTiltAutopilot.syncToBPM && bpm > 0) {
+            phaseIncrement = (bpm / 60) * deltaTime * panTiltAutopilot.speed;
           }
 
-          const elapsed = Date.now() - state.timelinePlayback.startTime!;
-          const position = elapsed / sequence.duration;
+          const newPhase = (panTiltAutopilot.phase + phaseIncrement) % (2 * Math.PI);
 
-          if (position >= 1) {
-            if (state.timelinePlayback.loop) {
-              // Restart sequence
-              set(state => ({
-                timelinePlayback: {
-                  ...state.timelinePlayback,
-                  startTime: Date.now(),
-                  position: 0
-                }
-              }));
-            } else {
-              // Stop playback
-              get().stopTimelinePlayback();
-              clearInterval(playbackInterval);
-              return;
-            }
-          } else {
-            set(state => ({
-              timelinePlayback: {
-                ...state.timelinePlayback,
-                position
+          fixtures.forEach(fixture => {
+            const panChannel = fixture.channels.find(c => c.type === 'pan');
+            const tiltChannel = fixture.channels.find(c => c.type === 'tilt');
+
+            if (panChannel && tiltChannel) {
+              let panValue = panTiltAutopilot.centerX;
+              let tiltValue = panTiltAutopilot.centerY;
+              
+              const radius = (panTiltAutopilot.size / 100) * 127; // Convert percentage to DMX range
+
+              // Calculate position based on pattern
+              switch (panTiltAutopilot.pathType) {
+                case 'circle':
+                  panValue += Math.sin(newPhase) * radius;
+                  tiltValue += Math.cos(newPhase) * radius;
+                  break;
+                case 'figure8':
+                  panValue += Math.sin(newPhase * 2) * radius;
+                  tiltValue += Math.sin(newPhase) * radius;
+                  break;
+                case 'square':
+                  const t = (newPhase / (2 * Math.PI)) % 1;
+                  if (t < 0.25) {
+                    panValue += radius;
+                    tiltValue += radius;
+                  } else if (t < 0.5) {
+                    panValue -= radius;
+                    tiltValue += radius;
+                  } else if (t < 0.75) {
+                    panValue -= radius;
+                    tiltValue -= radius;
+                  } else {
+                    panValue += radius;
+                    tiltValue -= radius;
+                  }
+                  break;
+                case 'triangle':
+                  const triT = (newPhase / (2 * Math.PI)) % 1;
+                  if (triT < 1/3) {
+                    panValue += radius;
+                    tiltValue += (triT * 3) * radius;
+                  } else if (triT < 2/3) {
+                    const subT = (triT - 1/3) * 3;
+                    panValue += (1 - subT * 2) * radius;
+                    tiltValue += radius;
+                  } else {
+                    const subT = (triT - 2/3) * 3;
+                    panValue -= radius;
+                    tiltValue += (1 - subT) * radius;
+                  }
+                  break;
+                case 'linear':
+                  const linearT = (newPhase / (2 * Math.PI)) % 1;
+                  panValue += (linearT * 2 - 1) * radius; // -1 to 1 range
+                  break;
+                case 'custom':
+                  if (panTiltAutopilot.customPath && panTiltAutopilot.customPath.length > 0) {
+                    const pathIndex = Math.floor((newPhase / (2 * Math.PI)) * panTiltAutopilot.customPath.length);
+                    const point = panTiltAutopilot.customPath[pathIndex % panTiltAutopilot.customPath.length];
+                    panValue = point.x;
+                    tiltValue = point.y;
+                  }
+                  break;
               }
-            }));
-          }
 
-          // Apply DMX values from timeline
-          sequence.channels.forEach(channel => {
-            const value = interpolateKeyframes(channel.keyframes, elapsed);
-            if (value !== null) {
-              state.setDmxChannel(channel.channel, value);
+              // Clamp values to DMX range
+              const panDmx = Math.round(Math.min(255, Math.max(0, panValue)));
+              const tiltDmx = Math.round(Math.min(255, Math.max(0, tiltValue)));
+
+              const panDmxAddress = panChannel.dmxAddress - 1; // Convert to 0-indexed
+              const tiltDmxAddress = tiltChannel.dmxAddress - 1;
+
+              updates[panDmxAddress] = panDmx;
+              updates[tiltDmxAddress] = tiltDmx;
+              hasUpdates = true;
             }
           });
-        }, 16); // ~60fps
 
-        console.log(`Timeline sequence "${sequence.name}" started playback`);
-      },
-
-      stopTimelinePlayback: () => {
-        set({
-          timelinePlayback: {
-            active: false,
-            sequenceId: null,
-            startTime: null,
-            position: 0,
-            loop: false,
-            speed: 1,
-            direction: 'forward',
-            pingPong: false,
-          }
-        });
-        console.log('Timeline playback stopped');
-      },
-
-      // Timeline Control Functions
-      setTimelineLooping: (loop: boolean) => {
-        set(state => ({
-          timelinePlayback: {
-            ...state.timelinePlayback,
-            loop
-          }
-        }));
-      },
-
-      setTimelineSpeed: (speed: number) => {
-        set(state => ({
-          timelinePlayback: {
-            ...state.timelinePlayback,
-            speed
-          }
-        }));
-      },
-
-      setTimelineDirection: (direction: 'forward' | 'reverse') => {
-        set(state => ({
-          timelinePlayback: {
-            ...state.timelinePlayback,
-            direction
-          }
-        }));
-      },
-
-      setTimelinePingPong: (enabled: boolean) => {
-        set(state => ({
-          timelinePlayback: {
-            ...state.timelinePlayback,
-            pingPong: enabled
-          }
-        }));
-      },
-
-      // Timeline Preset Generation
-      generateTimelinePresets: () => {
-        const presets: TimelinePreset[] = [
-          {
-            id: 'sine',
-            name: 'Sine Wave',
-            description: 'Smooth sine wave pattern',
-            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(10, Math.floor(duration / 100));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = i / steps;
-                const time = t * duration;
-                const radians = (2 * Math.PI * frequency * t / duration) + (phase * Math.PI / 180);
-                const value = Math.round((Math.sin(radians) + 1) * (amplitude / 2));
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'smooth'
-                });
-              }
-              
-              return keyframes;
-            }
-          },
-          {
-            id: 'square',
-            name: 'Square Wave',
-            description: 'Sharp on/off square wave pattern',
-            generator: (duration, amplitude = 255, frequency = 1, phase = 0) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const period = duration / frequency;
-              const phaseOffset = (phase / 360) * period;
-              
-              for (let cycle = 0; cycle < frequency; cycle++) {
-                const cycleStart = cycle * period + phaseOffset;
-                const cycleHalf = cycleStart + period / 2;
-                const cycleEnd = cycleStart + period;
-                
-                if (cycleStart >= 0 && cycleStart <= duration) {
-                  keyframes.push({ time: cycleStart, value: amplitude, curve: 'step' });
-                }
-                if (cycleHalf >= 0 && cycleHalf <= duration) {
-                  keyframes.push({ time: cycleHalf, value: 0, curve: 'step' });
-                }
-                if (cycleEnd >= 0 && cycleEnd <= duration) {
-                  keyframes.push({ time: cycleEnd, value: amplitude, curve: 'step' });
-                }
-              }
-              
-              return keyframes.sort((a, b) => a.time - b.time);
-            }
-          },
-          {
-            id: 'eclipse',
-            name: 'Eclipse Curve',
-            description: 'Smooth fade in and out like an eclipse',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(20, Math.floor(duration / 50));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const normalizedTime = (t / duration) * 2 - 1; // -1 to 1
-                const value = Math.round(amplitude * Math.max(0, 1 - normalizedTime * normalizedTime));
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'smooth'
-                });
-              }
-              
-              return keyframes;
-            }
-          },
-          {
-            id: 'soft-in',
-            name: 'Soft In',
-            description: 'Gentle fade in from 0 to full',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(10, Math.floor(duration / 100));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const progress = t / duration;
-                const value = Math.round(amplitude * progress * progress); // Quadratic ease-in
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'ease-in'
-                });
-              }
-              
-              return keyframes;
-            }
-          },
-          {
-            id: 'soft-out',
-            name: 'Soft Out',
-            description: 'Gentle fade out from full to 0',
-            generator: (duration, amplitude = 255) => {
-              const keyframes: TimelineKeyframe[] = [];
-              const steps = Math.max(10, Math.floor(duration / 100));
-              
-              for (let i = 0; i <= steps; i++) {
-                const t = (i / steps) * duration;
-                const progress = 1 - (t / duration);
-                const value = Math.round(amplitude * progress * progress); // Quadratic ease-out
-                
-                keyframes.push({
-                  time: t,
-                  value: Math.max(0, Math.min(255, value)),
-                  curve: 'ease-out'
-                });
-              }
-              
-              return keyframes;
-            }
-          }
-        ];
-
-        set({ timelinePresets: presets });
-        console.log('Timeline presets generated');
-      },
-
-      createTimelineFromPreset: (presetId, channels, duration, amplitude = 255, frequency = 1, phase = 0) => {
-        const { timelinePresets } = get();
-        const preset = timelinePresets.find(p => p.id === presetId);
-        
-        if (!preset) {
-          console.error(`Timeline preset with ID ${presetId} not found`);
-          return;
-        }
-
-        const sequenceId = `preset-${presetId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const keyframes = preset.generator(duration, amplitude, frequency, phase);
-        
-        const newSequence: TimelineSequence = {
-          id: sequenceId,
-          name: `${preset.name} (${channels.join(',')})`,
-          description: `Generated from ${preset.name} preset`,
-          duration,
-          channels: channels.map(channel => ({
-            channel,
-            keyframes: [...keyframes]
-          })),
-          tags: ['preset', presetId],
-          createdAt: Date.now(),
-          modifiedAt: Date.now()
-        };
-
-        set(state => ({
-          timelineSequences: [...state.timelineSequences, newSequence],
-          activeTimelineSequence: sequenceId
-        }));
-
-        console.log(`Timeline sequence "${newSequence.name}" created from preset "${preset.name}"`);
-      },
-
-      // Timeline MIDI Control Functions
-      setTimelineMidiTrigger: (sequenceId, mapping) => {
-        if (mapping) {
+          // Update phase for next iteration
           set(state => ({
-            timelineMidiMappings: {
-              ...state.timelineMidiMappings,
-              [sequenceId]: mapping
+            panTiltAutopilot: {
+              ...state.panTiltAutopilot,
+              phase: newPhase
             }
           }));
-          get().addNotification({ 
-            message: `MIDI trigger assigned to timeline sequence`, 
-            type: 'success' 
-          });
-        } else {
-          // Remove mapping
-          set(state => {
-            const newMappings = { ...state.timelineMidiMappings };
-            delete newMappings[sequenceId];
-            return { timelineMidiMappings: newMappings };
-          });
-          get().addNotification({ 
-            message: `MIDI trigger removed from timeline sequence`, 
-            type: 'info' 
-          });
         }
+
+        // Apply all updates at once
+        if (hasUpdates) {
+          get().setMultipleDmxChannels(updates);
+        }
+
+        // Update timestamp
+        set({ lastAutopilotUpdate: currentTime });
       },
 
-      triggerTimelineFromMidi: (midiChannel, note, controller) => {
-        const { timelineMidiMappings, timelineSequences } = get();
+      startAutopilotSystem: () => {
+        const { autopilotUpdateInterval } = get();
         
-        // Find matching timeline sequence
-        const matchingSequenceId = Object.keys(timelineMidiMappings).find(sequenceId => {
-          const mapping = timelineMidiMappings[sequenceId];
-          return mapping.channel === midiChannel && 
-                 ((note !== undefined && mapping.note === note) ||
-                  (controller !== undefined && mapping.controller === controller));
-        });
+        // Don't start if already running
+        if (autopilotUpdateInterval) return;
 
-        if (matchingSequenceId) {
-          const sequence = timelineSequences.find(s => s.id === matchingSequenceId);
-          if (sequence) {
-            // Toggle playback - if already playing this sequence, stop it; otherwise start it
-            const { timelinePlayback } = get();
-            if (timelinePlayback.active && timelinePlayback.sequenceId === matchingSequenceId) {
-              get().stopTimelinePlayback();
-              get().addNotification({ 
-                message: `Timeline "${sequence.name}" stopped via MIDI`, 
-                type: 'info' 
-              });
-            } else {
-              get().playTimelineSequence(matchingSequenceId);
-              get().addNotification({ 
-                message: `Timeline "${sequence.name}" triggered via MIDI`, 
-                type: 'success' 
-              });
-            }
-          }
-        }
-      },
+        const interval = setInterval(() => {
+          get().updateAutopilotValues();
+        }, 50); // 20 FPS update rate
 
-      clearTimelineMidiMappings: () => {
-        set({ timelineMidiMappings: {} });
-        get().addNotification({ 
-          message: 'All timeline MIDI mappings cleared', 
-          type: 'info' 
-        });
-      },
-
-      // Timeline Playback Control MIDI Functions
-      setTimelineControlMidiMapping: (controlType, mapping) => {
-        if (mapping) {
-          set(state => ({
-            timelineControlMidiMappings: {
-              ...state.timelineControlMidiMappings,
-              [controlType]: mapping
-            }
-          }));
-          get().addNotification({ 
-            message: `MIDI mapping assigned to ${controlType} control`, 
-            type: 'success' 
-          });
-        } else {
-          // Remove mapping
-          set(state => {
-            const newMappings = { ...state.timelineControlMidiMappings };
-            delete newMappings[controlType];
-            return { timelineControlMidiMappings: newMappings };
-          });
-          get().addNotification({ 
-            message: `MIDI mapping removed from ${controlType} control`, 
-            type: 'info' 
-          });
-        }
-      },
-
-      triggerTimelineControlFromMidi: (midiChannel, note, controller) => {
-        const { timelineControlMidiMappings, timelinePlayback } = get();
+        set({ autopilotUpdateInterval: interval });
         
-        // Find matching control mapping
-        const matchingEntry = Object.entries(timelineControlMidiMappings).find(([, mapping]) => {
-          const midiMapping = mapping as MidiMapping;
-          return midiMapping.channel === midiChannel && 
-                 ((note !== undefined && midiMapping.note === note) ||
-                  (controller !== undefined && midiMapping.controller === controller));
+        get().addNotification({
+          message: 'Autopilot system started',
+          type: 'success'
         });
+      },
 
-        if (matchingEntry) {
-          const [controlType] = matchingEntry;
-
-          switch (controlType) {
-            case 'play':
-              if (timelinePlayback.active) {
-                get().stopTimelinePlayback();
-                get().addNotification({ 
-                  message: `Playback stopped via MIDI`, 
-                  type: 'info' 
-                });
-              } else if (timelinePlayback.sequenceId) {
-                get().playTimelineSequence(timelinePlayback.sequenceId);
-                get().addNotification({ 
-                  message: `Playback started via MIDI`, 
-                  type: 'success' 
-                });
-              }
-              break;
-            case 'loop':
-              set(state => ({
-                timelinePlayback: {
-                  ...state.timelinePlayback,
-                  loop: !state.timelinePlayback.loop
-                }
-              }));
-              get().addNotification({ 
-                message: `Timeline looping ${get().timelinePlayback.loop ? 'enabled' : 'disabled'} via MIDI`, 
-                type: 'info' 
-              });
-              break;
-            case 'bounce':
-            case 'reverse':
-              // These would require additional playback state properties to implement fully
-              get().addNotification({ 
-                message: `${controlType} control triggered via MIDI (not fully implemented)`, 
-                type: 'info' 
-              });
-              break;
-          }
+      stopAutopilotSystem: () => {
+        const { autopilotUpdateInterval } = get();
+        
+        if (autopilotUpdateInterval) {
+          clearInterval(autopilotUpdateInterval);
+          set({ autopilotUpdateInterval: null });
+          
+          get().addNotification({
+            message: 'Autopilot system stopped',
+            type: 'info'
+          });
         }
-      },
-
-      clearTimelineControlMidiMappings: () => {
-        set({ timelineControlMidiMappings: {} as Record<'play' | 'loop' | 'bounce' | 'reverse', MidiMapping> });
-        get().addNotification({ 
-          message: 'All timeline control MIDI mappings cleared', 
-          type: 'info' 
-        });
-      },
-
-      // Automation Functions (stub implementations)
-      setAutomationPlaybackMode: (mode: 'forward' | 'reverse' | 'ping-pong') => {
-        console.log(`Automation playback mode set to: ${mode}`);
-        get().addNotification({ 
-          message: `Automation playback mode: ${mode}`, 
-          type: 'info' 
-        });
-      },
-
-      setAutomationLoop: (loop: boolean) => {
-        console.log(`Automation loop set to: ${loop}`);
-        get().addNotification({ 
-          message: `Automation loop: ${loop ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-
-      setAutomationSpeed: (speed: number) => {
-        console.log(`Automation speed set to: ${speed}`);
-        get().addNotification({ 
-          message: `Automation speed: ${speed}x`, 
-          type: 'info' 
-        });
-      },
-
-      reverseAutomationDirection: () => {
-        console.log('Automation direction reversed');
-        get().addNotification({ 
-          message: 'Automation direction reversed', 
-          type: 'info' 
-        });
-      },
-
-      playRecordingTimeline: () => {
-        console.log('Recording timeline playback started');
-        get().addNotification({ 
-          message: 'Recording timeline playback started', 
-          type: 'info' 
-        });
       },
     })
   )
