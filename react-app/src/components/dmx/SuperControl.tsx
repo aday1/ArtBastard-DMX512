@@ -169,6 +169,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const xyPadRef = useRef<HTMLDivElement>(null);
   const [isDraggingXY, setIsDraggingXY] = useState(false);
 
+  // Canvas ref for path visualization
+  const pathCanvasRef = useRef<HTMLCanvasElement>(null);
+
   // Color wheel state
   const [colorHue, setColorHue] = useState(0);
   const [colorSaturation, setColorSaturation] = useState(100);
@@ -718,6 +721,231 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
     return () => clearInterval(interval);
   }, [autopilotTrackEnabled, selectedFixtures, updatePanTiltFromTrack, bpm, autopilotTrackSpeed, autopilotTrackPosition, setAutopilotTrackPosition]);
+
+  // Path visualization canvas drawing effect
+  useEffect(() => {
+    const canvas = pathCanvasRef.current;
+    if (!canvas) return;
+
+    const drawPath = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Get container dimensions and set canvas size to match
+      const container = canvas.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const width = rect.width || 300;
+      const height = rect.height || 200;
+      
+      // Set canvas dimensions to match container
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Clear canvas with background
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Draw grid for reference
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      
+      // Vertical grid lines
+      for (let i = 1; i < 4; i++) {
+        const x = (width / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      
+      // Horizontal grid lines  
+      for (let i = 1; i < 3; i++) {
+        const y = (height / 3) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      
+      ctx.setLineDash([]); // Reset line dash
+      
+      // Calculate center position from DMX values (0-255) to canvas coordinates
+      const centerX = (autopilotTrackCenterX / 255) * width;
+      const centerY = (autopilotTrackCenterY / 255) * height;
+      
+      // Calculate scale based on track size and canvas dimensions
+      const maxRadius = Math.min(width, height) * 0.35;
+      const scale = maxRadius * (autopilotTrackSize / 100);
+      
+      // Draw the path based on type
+      ctx.strokeStyle = '#58a6ff';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.beginPath();
+      
+      switch (autopilotTrackType) {
+        case 'circle':
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          break;
+          
+        case 'square':
+          const halfScale = scale * 0.707; // Adjust for square inscribed in circle
+          ctx.moveTo(centerX - halfScale, centerY - halfScale);
+          ctx.lineTo(centerX + halfScale, centerY - halfScale);
+          ctx.lineTo(centerX + halfScale, centerY + halfScale);
+          ctx.lineTo(centerX - halfScale, centerY + halfScale);
+          ctx.closePath();
+          break;
+          
+        case 'triangle':
+          const triScale = scale * 0.8;
+          ctx.moveTo(centerX, centerY - triScale);
+          ctx.lineTo(centerX + triScale * 0.866, centerY + triScale * 0.5);
+          ctx.lineTo(centerX - triScale * 0.866, centerY + triScale * 0.5);
+          ctx.closePath();
+          break;
+          
+        case 'figure8':
+          // Improved figure-8 path with better proportions
+          let firstPoint = true;
+          for (let t = 0; t <= 4 * Math.PI; t += 0.05) {
+            const x = centerX + scale * 0.8 * Math.sin(t);
+            const y = centerY + scale * 0.6 * Math.sin(t * 0.5) * Math.cos(t * 0.5);
+            if (firstPoint) {
+              ctx.moveTo(x, y);
+              firstPoint = false;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          break;
+          
+        case 'linear':
+          ctx.moveTo(centerX - scale, centerY);
+          ctx.lineTo(centerX + scale, centerY);
+          break;
+          
+        case 'random':
+          // Draw a wavy random-looking path
+          ctx.moveTo(centerX - scale, centerY);
+          for (let i = 0; i <= 20; i++) {
+            const t = (i / 20) * 2 * Math.PI;
+            const x = centerX + scale * Math.cos(t) + scale * 0.3 * Math.sin(t * 3.7);
+            const y = centerY + scale * Math.sin(t) + scale * 0.2 * Math.cos(t * 2.3);
+            ctx.lineTo(x, y);
+          }
+          break;
+          
+        case 'custom':
+          // For now, draw a basic path - could be extended to support user-defined paths
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          ctx.moveTo(centerX - scale * 0.5, centerY);
+          ctx.lineTo(centerX + scale * 0.5, centerY);
+          ctx.moveTo(centerX, centerY - scale * 0.5);
+          ctx.lineTo(centerX, centerY + scale * 0.5);
+          break;
+          
+        default:
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          break;
+      }
+      
+      ctx.stroke();
+      
+      // Draw current position indicator if autopilot is active
+      if (autopilotTrackEnabled) {
+        const pos = calculateTrackPosition(
+          autopilotTrackType, 
+          autopilotTrackPosition, 
+          autopilotTrackSize,
+          autopilotTrackCenterX,
+          autopilotTrackCenterY
+        );
+        
+        // Convert DMX values (0-255) to canvas coordinates
+        const posX = (pos.pan / 255) * width;
+        const posY = (pos.tilt / 255) * height;
+        
+        // Draw position indicator with glow effect
+        ctx.shadowColor = '#ff6b6b';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(posX, posY, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
+        
+        // Draw inner dot
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(posX, posY, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw crosshairs
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(posX - 20, posY);
+        ctx.lineTo(posX + 20, posY);
+        ctx.moveTo(posX, posY - 20);
+        ctx.lineTo(posX, posY + 20);
+        ctx.stroke();
+      }
+      
+      // Draw center point indicator
+      ctx.fillStyle = '#ffd93d';
+      ctx.shadowColor = '#ffd93d';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Reset shadow
+      ctx.shadowBlur = 0;
+      
+      // Draw center point label
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('CENTER', centerX, centerY - 15);
+    };
+    
+    // Draw initial path
+    drawPath();
+    
+    // Set up animation frame for smooth updates when autopilot is active
+    let animationFrameId: number;
+    
+    if (autopilotTrackEnabled) {
+      const animate = () => {
+        drawPath();
+        animationFrameId = requestAnimationFrame(animate);
+      };
+      animate();
+    }
+    
+    // Cleanup function
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [
+    autopilotTrackType, 
+    autopilotTrackSize, 
+    autopilotTrackCenterX, 
+    autopilotTrackCenterY, 
+    autopilotTrackPosition, 
+    autopilotTrackEnabled,
+    calculateTrackPosition
+  ]);
 
   const selectNextGroup = () => {
     if (groups.length === 0) return;
@@ -1945,108 +2173,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 overflow: 'hidden'
               }}>
                 <canvas
-                  ref={(canvas) => {
-                    if (canvas) {
-                      const ctx = canvas.getContext('2d');
-                      if (ctx) {
-                        // Set canvas size
-                        canvas.width = 300;
-                        canvas.height = 200;
-                        
-                        // Clear canvas
-                        ctx.fillStyle = '#1a1a1a';
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        
-                        // Draw path
-                        ctx.strokeStyle = '#58a6ff';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        
-                        const centerX = canvas.width / 2;
-                        const centerY = canvas.height / 2;
-                        const scale = Math.min(canvas.width, canvas.height) * 0.3 * (autopilotTrackSize / 100);
-                        
-                        // Draw different path types
-                        switch (autopilotTrackType) {
-                          case 'circle':
-                            ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
-                            break;
-                          case 'square':
-                            ctx.moveTo(centerX - scale, centerY - scale);
-                            ctx.lineTo(centerX + scale, centerY - scale);
-                            ctx.lineTo(centerX + scale, centerY + scale);
-                            ctx.lineTo(centerX - scale, centerY + scale);
-                            ctx.closePath();
-                            break;
-                          case 'triangle':
-                            ctx.moveTo(centerX, centerY - scale);
-                            ctx.lineTo(centerX + scale * 0.866, centerY + scale * 0.5);
-                            ctx.lineTo(centerX - scale * 0.866, centerY + scale * 0.5);
-                            ctx.closePath();
-                            break;
-                          case 'figure8':
-                            // Figure 8 path
-                            for (let t = 0; t <= 2 * Math.PI; t += 0.1) {
-                              const x = centerX + scale * Math.sin(t);
-                              const y = centerY + scale * Math.sin(t) * Math.cos(t);
-                              if (t === 0) ctx.moveTo(x, y);
-                              else ctx.lineTo(x, y);
-                            }
-                            break;
-                          case 'linear':
-                            ctx.moveTo(centerX - scale, centerY);
-                            ctx.lineTo(centerX + scale, centerY);
-                            break;
-                          default:
-                            ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
-                        }
-                        ctx.stroke();
-                        
-                        // Draw current position indicator
-                        if (autopilotTrackEnabled) {
-                          const pos = calculateTrackPosition(
-                            autopilotTrackType, 
-                            autopilotTrackPosition, 
-                            autopilotTrackSize,
-                            autopilotTrackCenterX,
-                            autopilotTrackCenterY
-                          );
-                          
-                          // Convert DMX values (0-255) to canvas coordinates
-                          const posX = (pos.pan / 255) * canvas.width;
-                          const posY = (pos.tilt / 255) * canvas.height;
-                          
-                          // Draw position indicator
-                          ctx.fillStyle = '#ff6b6b';
-                          ctx.beginPath();
-                          ctx.arc(posX, posY, 8, 0, 2 * Math.PI);
-                          ctx.fill();
-                          
-                          // Draw crosshairs
-                          ctx.strokeStyle = '#ff6b6b';
-                          ctx.lineWidth = 1;
-                          ctx.beginPath();
-                          ctx.moveTo(posX - 12, posY);
-                          ctx.lineTo(posX + 12, posY);
-                          ctx.moveTo(posX, posY - 12);
-                          ctx.lineTo(posX, posY + 12);
-                          ctx.stroke();
-                        }
-                        
-                        // Draw center point
-                        const centerPosX = (autopilotTrackCenterX / 255) * canvas.width;
-                        const centerPosY = (autopilotTrackCenterY / 255) * canvas.height;
-                        ctx.fillStyle = '#ffd93d';
-                        ctx.beginPath();
-                        ctx.arc(centerPosX, centerPosY, 4, 0, 2 * Math.PI);
-                        ctx.fill();
-                      }
-                    }
-                  }}
+                  ref={pathCanvasRef}
                   style={{
                     width: '100%',
                     height: '100%',
-                    imageRendering: 'pixelated'
+                    display: 'block'
                   }}
                 />
               </div>
