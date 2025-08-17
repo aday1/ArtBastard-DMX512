@@ -516,9 +516,9 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         const fillHeight = sliderHeight * valuePercent;
         ctx.fillRect(
           slider.position.x - sliderWidth / 2,
-          slider.position.y + sliderHeight / 2,
+          slider.position.y + sliderHeight / 2 - fillHeight,
           sliderWidth,
-          -fillHeight // Negative height to draw upward
+          fillHeight
         );
       } else {
         // For horizontal sliders, fill from left to right
@@ -560,46 +560,23 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       const learnButtonY = slider.position.y - buttonSize / 2 - 15;
       const forgetButtonY = slider.position.y + buttonSize / 2 + 15;
 
-      // MIDI Learn button with improved visibility
-      const isLearning = midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id;
-      
-      // Button background with glowing effect
-      ctx.fillStyle = isLearning ? '#ff4444' : '#4CAF50';
+      // MIDI Learn button
+      ctx.fillStyle = (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) 
+        ? '#ff4444' : '#4CAF50';
       ctx.fillRect(learnButtonX, learnButtonY, buttonSize, buttonSize / 2);
-      
-      if (isLearning) {
-        // Add glow effect for learning state
-        ctx.shadowColor = '#ff4444';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(learnButtonX, learnButtonY, buttonSize, buttonSize / 2);
-        ctx.shadowBlur = 0;
-      }
-      
-      // Button text
       ctx.fillStyle = '#ffffff';
-      ctx.font = '10px Arial';
+      ctx.font = '8px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(isLearning ? '...' : 'L', learnButtonX + buttonSize / 2, learnButtonY + buttonSize / 4 + 2);
+      ctx.fillText('L', learnButtonX + buttonSize / 2, learnButtonY + buttonSize / 4 + 2);
 
       // MIDI Forget button (only show if there's a mapping)
       if (slider.midiMapping) {
-        // Button background with subtle gradient
-        const gradient = ctx.createLinearGradient(forgetButtonX, forgetButtonY, forgetButtonX, forgetButtonY + buttonSize / 2);
-        gradient.addColorStop(0, '#f44336');
-        gradient.addColorStop(1, '#d32f2f');
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = '#f44336';
         ctx.fillRect(forgetButtonX, forgetButtonY, buttonSize, buttonSize / 2);
-        
-        // Add a subtle border
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(forgetButtonX, forgetButtonY, buttonSize, buttonSize / 2);
-        
-        // Improved text
         ctx.fillStyle = '#ffffff';
-        ctx.font = '10px Arial';
+        ctx.font = '8px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('×', forgetButtonX + buttonSize / 2, forgetButtonY + buttonSize / 4 + 2);
+        ctx.fillText('F', forgetButtonX + buttonSize / 2, forgetButtonY + buttonSize / 4 + 2);
       }
 
       // Draw orientation toggle button
@@ -925,9 +902,10 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
             channelNameInFixture: channel.name,
             type: 'slider',
             label: channel.name.substring(0, 12),
-            xOffset: 0,
-            yOffset: controlYOffset,
+            xOffset: controlYOffset + 60, // Place horizontally next to fixture
+            yOffset: 0,
             currentValue: 0,
+            orientation: 'horizontal', // Default to horizontal
           });
           controlYOffset += PLACED_CONTROL_HEIGHT + 8;
         }
@@ -977,19 +955,11 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       const learnButtonY = slider.position.y - buttonSize / 2 - 15;
       if (mousePos.x >= learnButtonX && mousePos.x <= learnButtonX + buttonSize &&
           mousePos.y >= learnButtonY && mousePos.y <= learnButtonY + buttonSize / 2) {
-        console.log('MIDI Learn button clicked for slider:', slider.id);
         // Toggle MIDI learn mode
         if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) {
-          console.log('Cancelling MIDI learn mode');
           cancelMidiLearn();
         } else {
-          console.log('Starting MIDI learn mode');
           startMidiLearn({ type: 'masterSlider', id: slider.id });
-          addNotification({
-            message: `MIDI Learn started for ${slider.name}. Send a MIDI CC or Note.`,
-            type: 'info',
-            priority: 'normal'
-          });
         }
         return;
       }
@@ -999,19 +969,12 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
         const forgetButtonY = slider.position.y + buttonSize / 2 + 15;
         if (mousePos.x >= learnButtonX && mousePos.x <= learnButtonX + buttonSize &&
             mousePos.y >= forgetButtonY && mousePos.y <= forgetButtonY + buttonSize / 2) {
-          // Remove MIDI mapping with confirmation
-          if (window.confirm('Remove MIDI mapping for ' + slider.name + '?')) {
-            updateMasterSlider(slider.id, { midiMapping: undefined });
-            addNotification({
-              message: `MIDI mapping removed from ${slider.name}`,
-              type: 'info',
-              priority: 'normal'
-            });
-            // Also cancel MIDI learn if it was active
-            if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) {
-              cancelMidiLearn();
-            }
-          }
+          // Remove MIDI mapping
+          updateMasterSlider(slider.id, { midiMapping: undefined });
+          addNotification({
+            message: `MIDI mapping removed from ${slider.name}`,
+            type: 'info'
+          });
           return;
         }
       }
@@ -1047,7 +1010,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
           let valuePercent;
           if (isVertical) {
             // For vertical sliders, bottom is 0, top is 1
-            valuePercent = Math.max(0, Math.min(1, (valueBarBounds.bottom - mousePos.y) / sliderHeight));
+            valuePercent = Math.max(0, Math.min(1, 1 - (mousePos.y - valueBarBounds.top) / sliderHeight));
           } else {
             // For horizontal sliders, left is 0, right is 1
             valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / sliderWidth));

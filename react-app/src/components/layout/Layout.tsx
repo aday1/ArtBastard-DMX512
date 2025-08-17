@@ -36,10 +36,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* <SignalFlashIndicator position="bottom-left" /> */}
         
         <Navbar />
+        <BPMDashboard />
         <ToastContainer /> 
         
         <div className={styles.contentWrapper}>
-          <BPMDashboard />
           <div className={styles.mainContent}>
             <h1 className={styles.title}>
               ArtBastard DMX512FTW: 

@@ -185,6 +185,7 @@ export interface PlacedControl {
   xOffset: number;                // X position relative to the fixture icon's center
   yOffset: number;                // Y position relative to the fixture icon's center
   currentValue: number;           // Current value of this control (0-255), for sliders only
+  orientation?: 'horizontal' | 'vertical'; // Slider orientation (optional)
   // XY Pad specific fields
   panValue?: number;              // Pan value (0-255) for xypad controls
   tiltValue?: number;             // Tilt value (0-255) for xypad controls

@@ -5,7 +5,6 @@ import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import CustomPathEditor from '../automation/CustomPathEditor';
 
 const ResponsiveGridLayout = WidthProvider(Responsive) as any;
 
@@ -20,7 +19,7 @@ interface FixtureCapability {
   fixtures: string[];
 }
 
-export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
+const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const { 
     fixtures, 
     groups,
@@ -191,28 +190,6 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
     oscAddress?: string;
   }>>({});
 
-  const [isPathEditorOpen, setIsPathEditorOpen] = useState(false);
-  const [activeAutopilotIndexForEditor, setActiveAutopilotIndexForEditor] = useState<number | null>(null);
-
-  const handleSaveCustomPath = (path: { x: number; y: number }[]) => {
-    if (activeAutopilotIndexForEditor !== null) {
-      // This assumes a method to update a specific autopilot's settings
-      // You might need to implement this in your Zustand store
-      // For now, let's assume `setAutopilotSettings` can take an index
-      // and partial settings.
-      // setAutopilotSettings(activeAutopilotIndexForEditor, { customPath: path });
-      console.log(`Saving custom path for autopilot ${activeAutopilotIndexForEditor}`, path);
-    }
-  };
-
-  const openPathEditor = (autopilotIndex: number) => {
-    // const settings = getAutopilotSettings(autopilotIndex);
-    // setCurrentCustomPath(settings?.customPath || []);
-    setActiveAutopilotIndexForEditor(autopilotIndex);
-    setIsPathEditorOpen(true);
-  };
-
-
   // Fixture/Group navigation state
   const [currentFixtureIndex, setCurrentFixtureIndex] = useState(0);
   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
@@ -363,10 +340,7 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
           break;
         case 'reset':
           targetChannel = channels['reset'] || channels['reset_control'] || channels['function'];
-          break;
-      }
-
-      if (targetChannel !== undefined) {
+          break;      }      if (targetChannel !== undefined) {
         console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
         setDmxChannelValue(targetChannel, value);
         
@@ -568,26 +542,93 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
             midiValue = data2;
           }
         }
-        
-        if (triggered) {
-          // Handle the MIDI trigger - map the value and execute the action
-          const mappedValue = mapping.minValue + ((midiValue / 127) * (mapping.maxValue - mapping.minValue));
+          if (triggered) {
+          // Scale MIDI value (0-127) to control range
+          const scaledValue = Math.round(
+            mapping.minValue + (midiValue / 127) * (mapping.maxValue - mapping.minValue)
+          );
           
-          // Execute the appropriate action based on the control type
+          console.log(`MIDI triggered for ${action}: value=${midiValue}, scaled=${scaledValue}`);
+          
+          // Check affected fixtures before applying control
+          const affectedFixtures = getAffectedFixtures();
+          console.log(`Affected fixtures for ${action}:`, affectedFixtures.length, affectedFixtures);
+          
+          // Apply the action based on the control type
           switch (action) {
             case 'dimmer':
-              setDimmer(Math.round(mappedValue));
-              applyControl('dimmer', Math.round(mappedValue));
+              setDimmer(scaledValue);
+              applyControl('dimmer', scaledValue);
               break;
             case 'pan':
-              setPanValue(Math.round(mappedValue));
-              applyControl('pan', Math.round(mappedValue));
+              setPanValue(scaledValue);
+              setPanTiltXY(prev => ({ ...prev, x: (scaledValue / 255) * 100 }));
+              applyControl('pan', scaledValue);
               break;
             case 'tilt':
-              setTiltValue(Math.round(mappedValue));
-              applyControl('tilt', Math.round(mappedValue));
+              setTiltValue(scaledValue);
+              setPanTiltXY(prev => ({ ...prev, y: (scaledValue / 255) * 100 }));
+              applyControl('tilt', scaledValue);
               break;
-            // Add more control types as needed
+            case 'red':
+              setRed(scaledValue);
+              applyControl('red', scaledValue);
+              break;
+            case 'green':
+              setGreen(scaledValue);
+              applyControl('green', scaledValue);
+              break;
+            case 'blue':
+              setBlue(scaledValue);
+              applyControl('blue', scaledValue);
+              break;
+            case 'gobo':
+              setGobo(scaledValue);
+              applyControl('gobo', scaledValue);
+              break;
+            case 'shutter':
+              setShutter(scaledValue);
+              applyControl('shutter', scaledValue);
+              break;
+            case 'strobe':
+              setStrobe(scaledValue);
+              applyControl('strobe', scaledValue);
+              break;
+            case 'lamp':
+              setLamp(scaledValue);
+              applyControl('lamp', scaledValue);
+              break;
+            case 'reset':
+              setReset(scaledValue);
+              applyControl('reset', scaledValue);
+              break;case 'fixture_next':
+              if (midiValue > 63) selectNextFixture();
+              break;
+            case 'fixture_prev':
+            case 'fixture_previous':
+              if (midiValue > 63) selectPreviousFixture();
+              break;
+            case 'group_next':
+              if (midiValue > 63) selectNextGroup();
+              break;
+            case 'group_prev':
+            case 'group_previous':
+              if (midiValue > 63) selectPreviousGroup();
+              break;
+            case 'scene_next':
+              if (midiValue > 63) selectNextScene();
+              break;
+            case 'scene_prev':
+            case 'scene_previous':
+              if (midiValue > 63) selectPreviousScene();
+              break;
+            case 'scene_save':
+            case 'scene_capture':
+              if (midiValue > 63) captureCurrentScene();
+              break;
+            case 'scene_load':
+              if (midiValue > 63) loadScene(currentSceneIndex);
+              break;
           }
         }
       });
@@ -651,6 +692,234 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
     setSelectedFixtures([fixtures[prevIndex].id]);
     setSelectionMode('fixtures');
   };
+
+  // Auto-animation for autopilot is now handled in the store
+  // This was removed to prevent conflicts with the centralized animation system
+
+  // Path visualization canvas drawing effect
+  useEffect(() => {
+    const canvas = pathCanvasRef.current;
+    if (!canvas) return;
+
+    const drawPath = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Get container dimensions and set canvas size to match
+      const container = canvas.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const width = rect.width || 300;
+      const height = rect.height || 200;
+      
+      // Set canvas dimensions to match container
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Clear canvas with background
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Draw grid for reference
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      
+      // Vertical grid lines
+      for (let i = 1; i < 4; i++) {
+        const x = (width / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      
+      // Horizontal grid lines  
+      for (let i = 1; i < 3; i++) {
+        const y = (height / 3) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      
+      ctx.setLineDash([]); // Reset line dash
+      
+      // Calculate center position from DMX values (0-255) to canvas coordinates
+      const centerX = (autopilotTrackCenterX / 255) * width;
+      const centerY = (autopilotTrackCenterY / 255) * height;
+      
+      // Calculate scale based on track size and canvas dimensions
+      const maxRadius = Math.min(width, height) * 0.35;
+      const scale = maxRadius * (autopilotTrackSize / 100);
+      
+      // Draw the path based on type
+      ctx.strokeStyle = '#58a6ff';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.beginPath();
+      
+      switch (autopilotTrackType) {
+        case 'circle':
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          break;
+          
+        case 'square':
+          const halfScale = scale * 0.707; // Adjust for square inscribed in circle
+          ctx.moveTo(centerX - halfScale, centerY - halfScale);
+          ctx.lineTo(centerX + halfScale, centerY - halfScale);
+          ctx.lineTo(centerX + halfScale, centerY + halfScale);
+          ctx.lineTo(centerX - halfScale, centerY + halfScale);
+          ctx.closePath();
+          break;
+          
+        case 'triangle':
+          const triScale = scale * 0.8;
+          ctx.moveTo(centerX, centerY - triScale);
+          ctx.lineTo(centerX + triScale * 0.866, centerY + triScale * 0.5);
+          ctx.lineTo(centerX - triScale * 0.866, centerY + triScale * 0.5);
+          ctx.closePath();
+          break;
+          
+        case 'figure8':
+          // Improved figure-8 path with better proportions
+          let firstPoint = true;
+          for (let t = 0; t <= 4 * Math.PI; t += 0.05) {
+            const x = centerX + scale * 0.8 * Math.sin(t);
+            const y = centerY + scale * 0.6 * Math.sin(t * 0.5) * Math.cos(t * 0.5);
+            if (firstPoint) {
+              ctx.moveTo(x, y);
+              firstPoint = false;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          break;
+          
+        case 'linear':
+          ctx.moveTo(centerX - scale, centerY);
+          ctx.lineTo(centerX + scale, centerY);
+          break;
+          
+        case 'random':
+          // Draw a wavy random-looking path
+          ctx.moveTo(centerX - scale, centerY);
+          for (let i = 0; i <= 20; i++) {
+            const t = (i / 20) * 2 * Math.PI;
+            const x = centerX + scale * Math.cos(t) + scale * 0.3 * Math.sin(t * 3.7);
+            const y = centerY + scale * Math.sin(t) + scale * 0.2 * Math.cos(t * 2.3);
+            ctx.lineTo(x, y);
+          }
+          break;
+          
+        case 'custom':
+          // For now, draw a basic path - could be extended to support user-defined paths
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          ctx.moveTo(centerX - scale * 0.5, centerY);
+          ctx.lineTo(centerX + scale * 0.5, centerY);
+          ctx.moveTo(centerX, centerY - scale * 0.5);
+          ctx.lineTo(centerX, centerY + scale * 0.5);
+          break;
+          
+        default:
+          ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+          break;
+      }
+      
+      ctx.stroke();
+      
+      // Draw current position indicator if autopilot is active
+      if (autopilotTrackEnabled) {
+        const pos = calculateTrackPosition(
+          autopilotTrackType, 
+          autopilotTrackPosition, 
+          autopilotTrackSize,
+          autopilotTrackCenterX,
+          autopilotTrackCenterY
+        );
+        
+        // Convert DMX values (0-255) to canvas coordinates
+        const posX = (pos.pan / 255) * width;
+        const posY = (pos.tilt / 255) * height;
+        
+        // Draw position indicator with glow effect
+        ctx.shadowColor = '#ff6b6b';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(posX, posY, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowBlur = 0;
+        
+        // Draw inner dot
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(posX, posY, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw crosshairs
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(posX - 20, posY);
+        ctx.lineTo(posX + 20, posY);
+        ctx.moveTo(posX, posY - 20);
+        ctx.lineTo(posX, posY + 20);
+        ctx.stroke();
+      }
+      
+      // Draw center point indicator
+      ctx.fillStyle = '#ffd93d';
+      ctx.shadowColor = '#ffd93d';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Reset shadow
+      ctx.shadowBlur = 0;
+      
+      // Draw center point label
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('CENTER', centerX, centerY - 15);
+    };
+    
+    // Draw initial path
+    drawPath();
+    
+    // Set up animation frame for smooth updates when autopilot is active
+    let animationFrameId: number;
+    
+    if (autopilotTrackEnabled) {
+      const animate = () => {
+        drawPath();
+        animationFrameId = requestAnimationFrame(animate);
+      };
+      animate();
+    }
+    
+    // Cleanup function
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [
+    autopilotTrackType, 
+    autopilotTrackSize, 
+    autopilotTrackCenterX, 
+    autopilotTrackCenterY, 
+    autopilotTrackPosition, 
+    autopilotTrackEnabled,
+    calculateTrackPosition
+  ]);
 
   const selectNextGroup = () => {
     if (groups.length === 0) return;
@@ -805,116 +1074,6 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, [isDraggingXY, isDraggingColor]);
-
-  // Autopilot path visualization effect
-  useEffect(() => {
-    if (!pathCanvasRef.current) return;
-    
-    const canvas = pathCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Set canvas size
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Set drawing style
-    ctx.strokeStyle = '#00d4ff';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
-    
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const scale = Math.min(canvas.width, canvas.height) * 0.3 * (autopilotTrackSize / 100);
-    
-    ctx.beginPath();
-    
-    switch (autopilotTrackType) {
-      case 'circle':
-        ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
-        break;
-      case 'square':
-        const halfScale = scale * 0.707;
-        ctx.moveTo(centerX - halfScale, centerY - halfScale);
-        ctx.lineTo(centerX + halfScale, centerY - halfScale);
-        ctx.lineTo(centerX + halfScale, centerY + halfScale);
-        ctx.lineTo(centerX - halfScale, centerY + halfScale);
-        ctx.closePath();
-        break;
-      case 'triangle':
-        const triScale = scale * 0.8;
-        ctx.moveTo(centerX, centerY - triScale);
-        ctx.lineTo(centerX + triScale * 0.866, centerY + triScale * 0.5);
-        ctx.lineTo(centerX - triScale * 0.866, centerY + triScale * 0.5);
-        ctx.closePath();
-        break;
-      case 'figure8': {
-        let firstPoint = true;
-        for (let t = 0; t <= 4 * Math.PI; t += 0.05) {
-          const x = centerX + scale * 0.8 * Math.sin(t);
-          const y = centerY + scale * 0.6 * Math.sin(t * 0.5) * Math.cos(t * 0.5);
-          if (firstPoint) {
-            ctx.moveTo(x, y);
-            firstPoint = false;
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        break;
-      }
-      case 'linear':
-        ctx.moveTo(centerX - scale, centerY);
-        ctx.lineTo(centerX + scale, centerY);
-        break;
-      case 'custom': {
-        // Draw custom path if available - for now, draw a simple placeholder
-        // TODO: Implement custom path storage and retrieval once store interface is fixed
-        ctx.moveTo(centerX - scale * 0.8, centerY);
-        ctx.lineTo(centerX, centerY - scale * 0.8);
-        ctx.lineTo(centerX + scale * 0.8, centerY);
-        ctx.lineTo(centerX, centerY + scale * 0.8);
-        ctx.closePath();
-        break;
-      }
-    }
-    
-    // Draw path
-    ctx.stroke();
-    ctx.fill();
-    
-    // Draw current position indicator
-    if (autopilotTrackEnabled) {
-      const pos = calculateTrackPosition(
-        autopilotTrackType,
-        autopilotTrackPosition,
-        autopilotTrackSize,
-        autopilotTrackCenterX,
-        autopilotTrackCenterY
-      );
-      
-      // Convert DMX values to canvas position
-      const posX = centerX + ((pos.pan - 127) / 127) * scale;
-      const posY = centerY + ((pos.tilt - 127) / 127) * scale;
-      
-      ctx.fillStyle = '#ff4444';
-      ctx.beginPath();
-      ctx.arc(posX, posY, 6, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Draw crosshair
-      ctx.strokeStyle = '#ff4444';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(posX - 10, posY);
-      ctx.lineTo(posX + 10, posY);
-      ctx.moveTo(posX, posY - 10);
-      ctx.lineTo(posX, posY + 10);
-      ctx.stroke();
-    }
-  }, [autopilotTrackType, autopilotTrackSize, autopilotTrackPosition, autopilotTrackEnabled, autopilotTrackCenterX, autopilotTrackCenterY, calculateTrackPosition]);
 
   return (
     <div className={styles.superControl}>
@@ -2033,7 +2192,8 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
                 {autopilotTrackType === 'custom' && (
                   <button
                     onClick={() => {
-                      openPathEditor(0);
+                      // TODO: Open custom path editor
+                      alert('Custom path editor coming soon!');
                     }}
                     style={{
                       background: '#7c3aed',
@@ -2298,14 +2458,6 @@ export const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }
         </div>
 
       </ResponsiveGridLayout>
-
-      {/* Custom Path Editor - New feature for advanced users */}
-      <CustomPathEditor
-        isOpen={isPathEditorOpen}
-        onClose={() => setIsPathEditorOpen(false)}
-        onSave={handleSaveCustomPath}
-        initialPath={[]} // Simplified for now
-      />
     </div>
   );
 };
