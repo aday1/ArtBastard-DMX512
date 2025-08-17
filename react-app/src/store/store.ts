@@ -139,37 +139,6 @@ export interface MasterSlider {
   midiMapping?: MidiMapping; // Re-use existing MidiMapping type
 }
 
-// Timeline Sequence Management
-export interface TimelineKeyframe {
-  time: number; // milliseconds from start
-  value: number; // 0-255
-  curve: 'linear' | 'smooth' | 'step' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'bezier';
-  // For bezier curves
-  controlPoint1?: { x: number; y: number };
-  controlPoint2?: { x: number; y: number };
-}
-
-export interface TimelineSequence {
-  id: string;
-  name: string;
-  description?: string;
-  duration: number; // Total duration in milliseconds
-  channels: Array<{
-    channel: number;
-    keyframes: TimelineKeyframe[];
-  }>;
-  tags?: string[];
-  createdAt: number;
-  modifiedAt: number;
-}
-
-export interface TimelinePreset {
-  id: string;
-  name: string;
-  description: string;
-  generator: (duration: number, amplitude?: number, frequency?: number, phase?: number) => TimelineKeyframe[];
-}
-
 // Notification type definition (used in State and actions)
 export interface Notification {
   id: string;
@@ -390,25 +359,6 @@ interface State {
   pendingSmoothUpdates: { [channel: number]: number }; // Pending smooth updates
   lastSmoothUpdateTime: number;
 
-  // Timeline Sequence Management
-  timelineSequences: TimelineSequence[];
-  activeTimelineSequence: string | null; // Currently loaded/selected sequence
-  timelineEditMode: boolean;
-  timelinePresets: TimelinePreset[];      timelinePlayback: {
-        active: boolean;
-        sequenceId: string | null;
-        startTime: number | null;
-        position: number; // 0-1
-        loop: boolean;
-        speed: number;
-        direction: 'forward' | 'reverse';
-        pingPong: boolean;
-      };
-  
-  // Timeline MIDI Control Mappings
-  timelineMidiMappings: Record<string, MidiMapping>; // sequenceId -> MidiMapping
-  timelineControlMidiMappings: Record<'play' | 'loop' | 'bounce' | 'reverse', MidiMapping>; // control type -> MidiMapping
-
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -548,49 +498,6 @@ interface State {
 
   // Smooth DMX Actions
   setSmoothDmxEnabled: (enabled: boolean) => void;
-  setSmoothDmxUpdateRate: (rate: number) => void;
-  setSmoothDmxThreshold: (threshold: number) => void;
-  setSmoothDmxChannelValue: (channel: number, value: number) => void;  flushSmoothDmxUpdates: () => void;
-  enableSmoothDmxMode: () => void;
-  disableSmoothDmxMode: () => void;
-  // Timeline Sequence Management
-  saveTimelineSequence: (name: string, description?: string) => string; // Returns sequence ID
-  loadTimelineSequence: (sequenceId: string) => void;
-  deleteTimelineSequence: (sequenceId: string) => void;
-  updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => void;
-  exportTimelineSequence: (sequenceId: string) => void;
-  importTimelineSequence: (sequenceData: TimelineSequence) => void;
-  smoothTimelineSequence: (sequenceId: string, smoothingFactor: number) => void;
-  playTimelineSequence: (sequenceId: string, options?: {
-    loop?: boolean;
-    speed?: number;
-    direction?: 'forward' | 'reverse';
-    pingPong?: boolean;
-  }) => void;
-  stopTimelinePlayback: () => void;
-  setTimelineLooping: (loop: boolean) => void;
-  setTimelineSpeed: (speed: number) => void;
-  setTimelineDirection: (direction: 'forward' | 'reverse') => void;
-  setTimelinePingPong: (enabled: boolean) => void;
-  generateTimelinePresets: () => void;
-  createTimelineFromPreset: (presetId: string, channels: number[], duration: number, amplitude?: number, frequency?: number, phase?: number) => void;
-  
-  // Timeline MIDI Control Functions
-  setTimelineMidiTrigger: (sequenceId: string, mapping?: MidiMapping) => void;
-  triggerTimelineFromMidi: (midiChannel: number, note?: number, controller?: number) => void;
-  clearTimelineMidiMappings: () => void;
-  
-  // Timeline Playback Control MIDI Functions
-  setTimelineControlMidiMapping: (controlType: 'play' | 'loop' | 'bounce' | 'reverse', mapping?: MidiMapping) => void;
-  triggerTimelineControlFromMidi: (midiChannel: number, note?: number, controller?: number) => void;
-  clearTimelineControlMidiMappings: () => void;
-  
-  // Automation Functions (stub implementations)
-  setAutomationPlaybackMode: (mode: 'forward' | 'reverse' | 'ping-pong') => void;
-  setAutomationLoop: (loop: boolean) => void;
-  setAutomationSpeed: (speed: number) => void;
-  reverseAutomationDirection: () => void;
-  playRecordingTimeline: () => void;
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -611,76 +518,6 @@ const initializeDarkMode = (): boolean => {
 };
 
 // Helper function to initialize UI settings from localStorage
-const initializeUiSettings = (): { sparklesEnabled: boolean } => {
-  try {
-    const stored = localStorage.getItem('uiSettings');
-    const defaultSettings = { sparklesEnabled: true };
-    
-    if (stored) {
-      const parsedSettings = JSON.parse(stored);
-      return { ...defaultSettings, ...parsedSettings };
-    }
-    
-    return defaultSettings;
-  } catch (error) {
-    console.warn('Failed to read uiSettings from localStorage, using defaults:', error);
-    return { sparklesEnabled: true };  }
-};
-
-// Helper function to interpolate between keyframes
-const interpolateKeyframes = (keyframes: Array<{ time: number; value: number; curve: string }>, currentTime: number): number | null => {
-  if (keyframes.length === 0) return null;
-  if (keyframes.length === 1) return keyframes[0].value;
-  
-  // Find surrounding keyframes
-  let prevKeyframe = keyframes[0];
-  let nextKeyframe = keyframes[keyframes.length - 1];
-  
-  for (let i = 0; i < keyframes.length - 1; i++) {
-    if (currentTime >= keyframes[i].time && currentTime <= keyframes[i + 1].time) {
-      prevKeyframe = keyframes[i];
-      nextKeyframe = keyframes[i + 1];
-      break;
-    }
-  }
-  
-  // Handle edge cases
-  if (currentTime <= prevKeyframe.time) return prevKeyframe.value;
-  if (currentTime >= nextKeyframe.time) return nextKeyframe.value;
-  
-  // Calculate interpolation factor
-  const timeDiff = nextKeyframe.time - prevKeyframe.time;
-  if (timeDiff === 0) return prevKeyframe.value;
-  
-  const t = (currentTime - prevKeyframe.time) / timeDiff;
-  const valueDiff = nextKeyframe.value - prevKeyframe.value;
-  
-  // Apply curve
-  let easedT = t;
-  switch (prevKeyframe.curve) {
-    case 'step':
-      easedT = 0; // Use previous value until next keyframe
-      break;
-    case 'ease-in':
-      easedT = t * t;
-      break;
-    case 'ease-out':
-      easedT = 1 - (1 - t) * (1 - t);
-      break;
-    case 'ease-in-out':
-      easedT = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
-      break;
-    case 'smooth':
-      easedT = t * t * (3 - 2 * t); // Smoothstep
-      break;
-    case 'linear':
-    default:
-      easedT = t;
-      break;
-  }
-  
-  return prevKeyframe.value + valueDiff * easedT;
-};
 
 export const useStore = create<State>()(
   devtools(
@@ -813,30 +650,6 @@ export const useStore = create<State>()(
         duration: 10000, // Default 10 seconds        position: 0
       },      // Smooth DMX Output System Initial State  
       smoothDmxEnabled: true, // Enable by default for better performance
-      smoothDmxUpdateRate: 30, // 30 FPS update rate
-      smoothDmxThreshold: 1, // Minimum change of 1 DMX unit
-      pendingSmoothUpdates: {},
-      lastSmoothUpdateTime: 0,
-
-      // Timeline Sequence Management Initial State
-      timelineSequences: [],
-      activeTimelineSequence: null,
-      timelineEditMode: false,
-      timelinePresets: [],
-      timelinePlayback: {
-        active: false,
-        sequenceId: null,
-        startTime: null,
-        position: 0,
-        loop: false,
-        speed: 1,
-        direction: 'forward',
-        pingPong: false,
-      },
-      
-      // Timeline MIDI Control Mappings Initial State
-      timelineMidiMappings: {},
-      timelineControlMidiMappings: {} as Record<'play' | 'loop' | 'bounce' | 'reverse', MidiMapping>,
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
