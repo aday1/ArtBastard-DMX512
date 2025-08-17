@@ -24,7 +24,7 @@ const navItems: Array<{
     id: 'main',
     icon: 'Layout',
     title: {
-      artsnob: 'Tableau Principal',
+    artsnob: "The Most Prestigious Dashboard",
       standard: 'Dashboard',
       minimal: 'Main'
     }
@@ -33,7 +33,7 @@ const navItems: Array<{
     id: 'midiOsc',
     icon: 'Sliders',
     title: {
-      artsnob: 'Contrôle Sophistiqué',
+    artsnob: "MIDI & OSC for the Enlightened",
       standard: 'MIDI & OSC',
       minimal: 'I/O'
     }
@@ -41,7 +41,7 @@ const navItems: Array<{
     id: 'fixture',
     icon: 'LampDesk',
     title: {
-      artsnob: 'Bibliothèque Lumineuse',
+    artsnob: "Fixtures for the Discerning",
       standard: 'Fixtures',
       minimal: 'Fix'
     }
@@ -50,7 +50,7 @@ const navItems: Array<{
     id: 'planner',
     icon: 'MapPin',
     title: {
-      artsnob: 'Architecte Photonique',
+    artsnob: "The Distinguished DMX Planner",
       standard: 'DMX Planner',
       minimal: 'Plan'
     }
@@ -59,7 +59,7 @@ const navItems: Array<{
     id: 'canvas',
     icon: 'PaintBucket',
     title: {
-      artsnob: 'Toile Chromatique',
+    artsnob: "The Canvas of Higher Art",
       standard: '2D Canvas',
       minimal: '2D'
     }
@@ -68,7 +68,7 @@ const navItems: Array<{
     id: 'scenes',
     icon: 'Store',
     title: {
-      artsnob: 'Galerie des Moments',
+    artsnob: "Les Scènes (Pas Pour Les Amateurs)",
       standard: 'Scenes',
       minimal: 'Scn'
     }
@@ -77,7 +77,7 @@ const navItems: Array<{
     id: 'audio',
     icon: 'WaveformCircle',
     title: {
-      artsnob: 'Analyse Harmonique',
+    artsnob: "L'Audio Pour Les Oreilles Fines",
       standard: 'Audio',
       minimal: 'FFT'
     }
@@ -86,7 +86,7 @@ const navItems: Array<{
     id: 'touchosc',
     icon: 'Smartphone',
     title: {
-      artsnob: 'Commande à Distance',
+    artsnob: "TouchOSC (Parce Que Pourquoi Pas)",
       standard: 'TouchOSC',
       minimal: 'OSC'
     }
@@ -95,7 +95,7 @@ const navItems: Array<{
     id: 'misc',
     icon: 'Settings',
     title: {
-      artsnob: 'Configuration Élégante',
+    artsnob: "Les Settings Pour Les Esthètes",
       standard: 'Settings',
       minimal: 'Cfg'
     }
@@ -104,7 +104,7 @@ const navItems: Array<{
     id: 'state',
     icon: 'Database',
     title: {
-      artsnob: 'Gestion d’État',
+    artsnob: "Le State Management du Patron",
       standard: 'State Management',
       minimal: 'State'
     }
