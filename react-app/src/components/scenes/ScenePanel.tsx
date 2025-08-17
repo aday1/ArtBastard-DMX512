@@ -171,27 +171,49 @@ export const ScenePanel: React.FC<ScenePanelProps> = ({
               <p className={styles.noScenes}>No scenes saved</p>
             ) : (
               <div className={styles.scenes}>
-                {scenes.map((scene) => (
-                  <div key={scene.name} className={styles.sceneItem}>
-                    <span className={styles.sceneName}>{scene.name}</span>
-                    <div className={styles.sceneButtons}>
-                      <button
-                        onClick={() => handleLoadScene(scene.name)}
-                        className={styles.loadButton}
-                        title="Load Scene"
-                      >
-                        Load
-                      </button>
-                      <button
-                        onClick={() => handleDeleteScene(scene.name)}
-                        className={styles.deleteButton}
-                        title="Delete Scene"
-                      >
-                        ×
-                      </button>
+                {scenes.map((scene) => {
+                  // Count active automation modules in this scene
+                  const hasModularAutomation = scene.modularAutomation;
+                  const activeModules = hasModularAutomation ? 
+                    Object.values(scene.modularAutomation).filter(module => 
+                      typeof module === 'object' && module.enabled
+                    ).length : 0;
+                  
+                  return (
+                    <div key={scene.name} className={styles.sceneItem}>
+                      <div className={styles.sceneInfo}>
+                        <span className={styles.sceneName}>{scene.name}</span>
+                        {hasModularAutomation && activeModules > 0 && (
+                          <div className={styles.automationBadge} title={`${activeModules} automation modules active`}>
+                            <span className={styles.automationIcon}>⚡</span>
+                            <span className={styles.automationCount}>{activeModules}</span>
+                          </div>
+                        )}
+                        {scene.autopilots && Object.keys(scene.autopilots).length > 0 && (
+                          <div className={styles.legacyAutopilotBadge} title="Legacy autopilots active">
+                            <span className={styles.legacyIcon}>🔄</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.sceneButtons}>
+                        <button
+                          onClick={() => handleLoadScene(scene.name)}
+                          className={styles.loadButton}
+                          title={`Load Scene${hasModularAutomation && activeModules > 0 ? ` (${activeModules} automation modules)` : ''}`}
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteScene(scene.name)}
+                          className={styles.deleteButton}
+                          title="Delete Scene"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

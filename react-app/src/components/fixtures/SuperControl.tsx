@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import { SuperControlExportOptions, exportSuperControlToToscFile } from '../../utils/touchoscExporter';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
+import ModularAutomation from '../automation/ModularAutomation';
 import styles from './SuperControl.module.scss';
 
 interface SuperControlProps {
@@ -2232,6 +2233,17 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 </div>
               </div>
             )}
+          </div>
+
+          {/* New Modular Automation System */}
+          <div className={styles.controlsSection}>
+            <div className={styles.sectionHeader}>
+              <h4>
+                <LucideIcon name="Zap" />
+                Modular Automation
+              </h4>
+            </div>
+            <ModularAutomation />
           </div>
 
           {/* RGB Color Wheel Control */}

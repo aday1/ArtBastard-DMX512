@@ -71,6 +71,53 @@ export interface PanTiltAutopilotConfig {
   customPath?: Array<{ x: number; y: number }>;
 }
 
+// New Modular Automation System Interfaces
+export interface ColorAutomationConfig {
+  enabled: boolean;
+  type: 'rainbow' | 'pulse' | 'strobe' | 'cycle' | 'breathe' | 'wave' | 'random';
+  speed: number; // BPM multiplier (0.1 to 10)
+  colors?: Array<{ r: number; g: number; b: number; w?: number }>; // For cycle mode
+  intensity: number; // 0-100 percentage
+  syncToBPM: boolean;
+  hueRange?: { start: number; end: number }; // For rainbow mode (0-360)
+  saturation?: number; // 0-100 for rainbow/wave modes
+  brightness?: number; // 0-100 base brightness
+  phase?: number; // Phase offset in degrees for wave patterns
+}
+
+export interface DimmerAutomationConfig {
+  enabled: boolean;
+  type: 'pulse' | 'breathe' | 'strobe' | 'ramp' | 'random' | 'chase';
+  speed: number; // BPM multiplier
+  range: { min: number; max: number }; // DMX value range (0-255)
+  syncToBPM: boolean;
+  pattern?: 'smooth' | 'sharp' | 'exponential'; // Curve type
+  phase?: number; // Phase offset for multiple fixtures
+}
+
+export interface EffectsAutomationConfig {
+  enabled: boolean;
+  type: 'gobo_cycle' | 'prism_rotate' | 'iris_breathe' | 'zoom_bounce' | 'focus_sweep';
+  speed: number; // BPM multiplier
+  range?: { min: number; max: number }; // Value range for applicable effects
+  syncToBPM: boolean;
+  direction?: 'forward' | 'reverse' | 'ping-pong';
+}
+
+export interface ModularAutomationState {
+  color: ColorAutomationConfig;
+  dimmer: DimmerAutomationConfig;
+  panTilt: PanTiltAutopilotConfig;
+  effects: EffectsAutomationConfig;
+  // Animation control
+  animationIds: {
+    color: number | null;
+    dimmer: number | null;
+    panTilt: number | null;
+    effects: number | null;
+  };
+}
+
 export interface Scene {
   name: string
   channelValues: number[]
@@ -78,6 +125,8 @@ export interface Scene {
   midiMapping?: MidiMapping
   autopilots?: { [channelIndex: number]: AutopilotConfig };
   panTiltAutopilot?: PanTiltAutopilotConfig;
+  // New: Modular Automation States for Scenes
+  modularAutomation?: ModularAutomationState;
 }
 
 export interface ArtNetConfig {
@@ -338,7 +387,7 @@ interface State {
   autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
   autoSceneIsFlashing: boolean; // Shared flashing state for downbeat border flash
 
-  // Autopilot Track System State
+  // Autopilot Track System State (Legacy - kept for compatibility)
   autopilotTrackEnabled: boolean;
   autopilotTrackType: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'random' | 'custom';
   autopilotTrackPosition: number; // 0-100, position along the track
@@ -348,6 +397,9 @@ interface State {
   autopilotTrackCenterY: number; // 0-255, center point Y for the track
   autopilotTrackAutoPlay: boolean; // Auto-advance along track  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
   autopilotTrackAnimationId: number | null; // Animation frame ID for centralized control
+
+  // New Modular Automation System State
+  modularAutomation: ModularAutomationState;
 
   // Recording and Automation System State
   recordingActive: boolean;
@@ -500,7 +552,7 @@ interface State {
   bulkAddFlag: (fixtureIds: string[], flag: FixtureFlag) => void;
   bulkRemoveFlag: (fixtureIds: string[], flagId: string) => void;
 
-  // Autopilot Track Actions
+  // Legacy Autopilot Track Actions (kept for compatibility)
   setAutopilotTrackEnabled: (enabled: boolean) => void;
   setAutopilotTrackType: (type: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'random' | 'custom') => void;
   setAutopilotTrackPosition: (position: number) => void;
@@ -512,6 +564,20 @@ interface State {
   updatePanTiltFromTrack: () => void;
   startAutopilotTrackAnimation: () => void;
   stopAutopilotTrackAnimation: () => void;
+
+  // New Modular Automation Actions
+  setColorAutomation: (config: Partial<ColorAutomationConfig>) => void;
+  setDimmerAutomation: (config: Partial<DimmerAutomationConfig>) => void;
+  setPanTiltAutomation: (config: Partial<PanTiltAutopilotConfig>) => void;
+  setEffectsAutomation: (config: Partial<EffectsAutomationConfig>) => void;
+  toggleColorAutomation: () => void;
+  toggleDimmerAutomation: () => void;
+  togglePanTiltAutomation: () => void;
+  toggleEffectsAutomation: () => void;
+  startModularAnimation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects') => void;
+  stopModularAnimation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects') => void;
+  stopAllModularAnimations: () => void;
+  applyModularAutomation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects', fixtureId: string, progress: number) => void;
 
   // Recording and Automation Actions
   startRecording: () => void;
@@ -686,7 +752,7 @@ export const useStore = create<State>()(
         };
       })(),
 
-      // Autopilot Track System Initial State
+      // Autopilot Track System Initial State (Legacy - kept for compatibility)
       autopilotTrackEnabled: false,
       autopilotTrackType: 'circle',
       autopilotTrackPosition: 0,
@@ -696,6 +762,61 @@ export const useStore = create<State>()(
       autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
       autopilotTrackCustomPoints: [],
       autopilotTrackAnimationId: null,
+
+      // New Modular Automation System Initial State
+      modularAutomation: {
+        color: {
+          enabled: false,
+          type: 'rainbow',
+          speed: 1.0,
+          colors: [
+            { r: 255, g: 0, b: 0 },
+            { r: 0, g: 255, b: 0 },
+            { r: 0, g: 0, b: 255 },
+            { r: 255, g: 255, b: 0 },
+            { r: 255, g: 0, b: 255 },
+            { r: 0, g: 255, b: 255 }
+          ],
+          intensity: 100,
+          syncToBPM: true,
+          hueRange: { start: 0, end: 360 },
+          saturation: 100,
+          brightness: 100,
+          phase: 0
+        },
+        dimmer: {
+          enabled: false,
+          type: 'breathe',
+          speed: 0.5,
+          range: { min: 0, max: 255 },
+          syncToBPM: true,
+          pattern: 'smooth',
+          phase: 0
+        },
+        panTilt: {
+          enabled: false,
+          pathType: 'circle',
+          size: 50,
+          speed: 1.0,
+          centerX: 127,
+          centerY: 127,
+          syncToBPM: true
+        },
+        effects: {
+          enabled: false,
+          type: 'gobo_cycle',
+          speed: 0.8,
+          range: { min: 0, max: 255 },
+          syncToBPM: true,
+          direction: 'forward'
+        },
+        animationIds: {
+          color: null,
+          dimmer: null,
+          panTilt: null,
+          effects: null
+        }
+      },
 
       // Recording and Automation System Initial State
       recordingActive: false,
@@ -1343,13 +1464,26 @@ export const useStore = create<State>()(
 
       // Scene Actions
       saveScene: (name, oscAddress) => {
-        const { dmxChannels, channelAutopilots, panTiltAutopilot } = get();
+        const { dmxChannels, channelAutopilots, panTiltAutopilot, modularAutomation } = get();
         const newScene: Scene = {
           name,
           channelValues: [...dmxChannels],
           oscAddress,
           autopilots: { ...channelAutopilots },
-          panTiltAutopilot: { ...panTiltAutopilot }
+          panTiltAutopilot: { ...panTiltAutopilot },
+          // Save modular automation states (exclude animation IDs as they're runtime state)
+          modularAutomation: {
+            color: { ...modularAutomation.color },
+            dimmer: { ...modularAutomation.dimmer },
+            panTilt: { ...modularAutomation.panTilt },
+            effects: { ...modularAutomation.effects },
+            animationIds: {
+              color: null,
+              dimmer: null,
+              panTilt: null,
+              effects: null
+            }
+          }
         };
         
         const scenes = [...get().scenes];
@@ -1357,8 +1491,10 @@ export const useStore = create<State>()(
         
         if (existingIndex !== -1) {
           scenes[existingIndex] = newScene;
+          console.log(`[SCENES] Updated scene "${name}" with modular automation states`);
         } else {
           scenes.push(newScene);
+          console.log(`[SCENES] Created new scene "${name}" with modular automation states`);
         }
         
         set({ scenes })
@@ -1434,6 +1570,44 @@ export const useStore = create<State>()(
           } else {
             // Disable pan/tilt autopilot if scene doesn't have it
             get().setPanTiltAutopilot({ enabled: false });
+          }
+
+          // Restore modular automation states
+          if (scene.modularAutomation) {
+            console.log(`[SCENES] Restoring modular automation states from scene "${name}"`);
+            
+            // Stop all current animations first
+            get().stopAllModularAnimations();
+            
+            // Restore each module's configuration
+            get().setColorAutomation(scene.modularAutomation.color);
+            get().setDimmerAutomation(scene.modularAutomation.dimmer);
+            get().setPanTiltAutomation(scene.modularAutomation.panTilt);
+            get().setEffectsAutomation(scene.modularAutomation.effects);
+            
+            // Start animations for enabled modules
+            if (scene.modularAutomation.color.enabled) {
+              get().startModularAnimation('color');
+            }
+            if (scene.modularAutomation.dimmer.enabled) {
+              get().startModularAnimation('dimmer');
+            }
+            if (scene.modularAutomation.panTilt.enabled) {
+              get().startModularAnimation('panTilt');
+            }
+            if (scene.modularAutomation.effects.enabled) {
+              get().startModularAnimation('effects');
+            }
+            
+            console.log('[SCENES] Modular automation states restored successfully');
+          } else {
+            // Disable all modular automation if scene doesn't have it
+            console.log(`[SCENES] No modular automation in scene "${name}", disabling all modules`);
+            get().setColorAutomation({ enabled: false });
+            get().setDimmerAutomation({ enabled: false });
+            get().setPanTiltAutomation({ enabled: false });
+            get().setEffectsAutomation({ enabled: false });
+            get().stopAllModularAnimations();
           }
           
           get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
@@ -2934,6 +3108,374 @@ export const useStore = create<State>()(
           set({ autopilotTrackAnimationId: null });
         }
       },
+
+      // New Modular Automation Actions Implementation
+      setColorAutomation: (config) => {
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            color: { ...state.modularAutomation.color, ...config }
+          }
+        }));
+      },
+
+      setDimmerAutomation: (config) => {
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            dimmer: { ...state.modularAutomation.dimmer, ...config }
+          }
+        }));
+      },
+
+      setPanTiltAutomation: (config) => {
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            panTilt: { ...state.modularAutomation.panTilt, ...config }
+          }
+        }));
+      },
+
+      setEffectsAutomation: (config) => {
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            effects: { ...state.modularAutomation.effects, ...config }
+          }
+        }));
+      },
+
+      toggleColorAutomation: () => {
+        const { modularAutomation } = get();
+        const newEnabled = !modularAutomation.color.enabled;
+        
+        get().setColorAutomation({ enabled: newEnabled });
+        
+        if (newEnabled) {
+          get().startModularAnimation('color');
+        } else {
+          get().stopModularAnimation('color');
+        }
+      },
+
+      toggleDimmerAutomation: () => {
+        const { modularAutomation } = get();
+        const newEnabled = !modularAutomation.dimmer.enabled;
+        
+        get().setDimmerAutomation({ enabled: newEnabled });
+        
+        if (newEnabled) {
+          get().startModularAnimation('dimmer');
+        } else {
+          get().stopModularAnimation('dimmer');
+        }
+      },
+
+      togglePanTiltAutomation: () => {
+        const { modularAutomation } = get();
+        const newEnabled = !modularAutomation.panTilt.enabled;
+        
+        get().setPanTiltAutomation({ enabled: newEnabled });
+        
+        if (newEnabled) {
+          get().startModularAnimation('panTilt');
+        } else {
+          get().stopModularAnimation('panTilt');
+        }
+      },
+
+      toggleEffectsAutomation: () => {
+        const { modularAutomation } = get();
+        const newEnabled = !modularAutomation.effects.enabled;
+        
+        get().setEffectsAutomation({ enabled: newEnabled });
+        
+        if (newEnabled) {
+          get().startModularAnimation('effects');
+        } else {
+          get().stopModularAnimation('effects');
+        }
+      },
+
+      startModularAnimation: (type) => {
+        const { modularAutomation, selectedFixtures, bpm } = get();
+        const config = modularAutomation[type];
+        
+        if (!config.enabled) return;
+        
+        console.log(`[MODULAR AUTOMATION] Starting ${type} animation`);
+        
+        // Stop existing animation if running
+        if (modularAutomation.animationIds[type]) {
+          cancelAnimationFrame(modularAutomation.animationIds[type]!);
+        }
+
+        let startTime = performance.now();
+        let lastUpdate = startTime;
+
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - lastUpdate;
+          
+          // Throttle to reasonable frame rate
+          if (elapsed < 16.67) { // ~60fps limit
+            const frameId = requestAnimationFrame(animate);
+            set((state) => ({
+              modularAutomation: {
+                ...state.modularAutomation,
+                animationIds: { ...state.modularAutomation.animationIds, [type]: frameId }
+              }
+            }));
+            return;
+          }
+
+          const timeFromStart = currentTime - startTime;
+          const effectiveSpeed = config.syncToBPM ? (bpm / 60) * config.speed : config.speed;
+          const progress = (timeFromStart / 1000 * effectiveSpeed) % 1;
+
+          // Apply automation based on type
+          selectedFixtures.forEach(fixtureId => {
+            get().applyModularAutomation(type, fixtureId, progress);
+          });
+
+          lastUpdate = currentTime;
+          
+          // Continue animation if still enabled
+          const currentState = get().modularAutomation[type];
+          if (currentState.enabled) {
+            const frameId = requestAnimationFrame(animate);
+            set((state) => ({
+              modularAutomation: {
+                ...state.modularAutomation,
+                animationIds: { ...state.modularAutomation.animationIds, [type]: frameId }
+              }
+            }));
+          }
+        };
+
+        const initialFrameId = requestAnimationFrame(animate);
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            animationIds: { ...state.modularAutomation.animationIds, [type]: initialFrameId }
+          }
+        }));
+      },
+
+      stopModularAnimation: (type) => {
+        const { modularAutomation } = get();
+        const animationId = modularAutomation.animationIds[type];
+        
+        if (animationId) {
+          console.log(`[MODULAR AUTOMATION] Stopping ${type} animation`);
+          cancelAnimationFrame(animationId);
+          set((state) => ({
+            modularAutomation: {
+              ...state.modularAutomation,
+              animationIds: { ...state.modularAutomation.animationIds, [type]: null }
+            }
+          }));
+        }
+      },
+
+      stopAllModularAnimations: () => {
+        const { modularAutomation } = get();
+        
+        Object.entries(modularAutomation.animationIds).forEach(([type, animationId]) => {
+          if (animationId && typeof animationId === 'number') {
+            cancelAnimationFrame(animationId);
+          }
+        });
+        
+        set((state) => ({
+          modularAutomation: {
+            ...state.modularAutomation,
+            animationIds: {
+              color: null,
+              dimmer: null,
+              panTilt: null,
+              effects: null
+            }
+          }
+        }));
+        
+        console.log('[MODULAR AUTOMATION] All animations stopped');
+      },
+
+      // Helper function to apply specific automation effects
+      applyModularAutomation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects', fixtureId: string, progress: number) => {
+        const { modularAutomation, fixtures, getDmxChannelValue, setDmxChannelValue } = get();
+        const fixture = fixtures.find(f => f.id === fixtureId);
+        if (!fixture) return;
+
+        const config = modularAutomation[type];
+
+        switch (type) {
+          case 'color': {
+            const colorConfig = config as ColorAutomationConfig;
+            let r = 0, g = 0, b = 0;
+
+            switch (colorConfig.type) {
+              case 'rainbow':
+                const hue = (progress * 360 + (colorConfig.phase || 0)) % 360;
+                const rgb = hsvToRgb(hue, colorConfig.saturation || 100, colorConfig.brightness || 100);
+                r = rgb.r; g = rgb.g; b = rgb.b;
+                break;
+              
+              case 'cycle':
+                if (colorConfig.colors) {
+                  const colorIndex = Math.floor(progress * colorConfig.colors.length);
+                  const color = colorConfig.colors[colorIndex] || colorConfig.colors[0];
+                  r = color.r; g = color.g; b = color.b;
+                }
+                break;
+              
+              case 'wave':
+                const wave = Math.sin(progress * Math.PI * 2);
+                const intensity = (wave + 1) / 2; // Normalize to 0-1
+                r = intensity * 255;
+                g = intensity * 127;
+                b = intensity * 63;
+                break;
+            }
+
+            // Apply RGB values to fixture channels
+            fixture.channels.forEach(channel => {
+              if (channel.dmxAddress) {
+                switch (channel.type) {
+                  case 'red':
+                    setDmxChannelValue(channel.dmxAddress - 1, Math.round(r * (colorConfig.intensity / 100)));
+                    break;
+                  case 'green':
+                    setDmxChannelValue(channel.dmxAddress - 1, Math.round(g * (colorConfig.intensity / 100)));
+                    break;
+                  case 'blue':
+                    setDmxChannelValue(channel.dmxAddress - 1, Math.round(b * (colorConfig.intensity / 100)));
+                    break;
+                }
+              }
+            });
+            break;
+          }
+
+          case 'dimmer': {
+            const dimmerConfig = config as DimmerAutomationConfig;
+            let value = 0;
+
+            switch (dimmerConfig.type) {
+              case 'breathe':
+                value = Math.sin(progress * Math.PI * 2);
+                value = (value + 1) / 2; // Normalize to 0-1
+                break;
+              
+              case 'pulse':
+                value = progress < 0.5 ? 1 : 0;
+                break;
+              
+              case 'ramp':
+                value = progress;
+                break;
+              
+              case 'random':
+                value = Math.random();
+                break;
+            }
+
+            const dmxValue = dimmerConfig.range.min + (value * (dimmerConfig.range.max - dimmerConfig.range.min));
+            
+            fixture.channels.forEach(channel => {
+              if (channel.dmxAddress && channel.type === 'dimmer') {
+                setDmxChannelValue(channel.dmxAddress - 1, Math.round(dmxValue));
+              }
+            });
+            break;
+          }
+
+          case 'panTilt': {
+            const panTiltConfig = config as PanTiltAutopilotConfig;
+            const position = get().calculateTrackPosition(
+              panTiltConfig.pathType,
+              progress * 100,
+              panTiltConfig.size,
+              panTiltConfig.centerX,
+              panTiltConfig.centerY
+            );
+
+            fixture.channels.forEach(channel => {
+              if (channel.dmxAddress) {
+                if (channel.type === 'pan') {
+                  setDmxChannelValue(channel.dmxAddress - 1, position.pan);
+                } else if (channel.type === 'tilt') {
+                  setDmxChannelValue(channel.dmxAddress - 1, position.tilt);
+                }
+              }
+            });
+            break;
+          }
+
+          case 'effects': {
+            const effectsConfig = config as EffectsAutomationConfig;
+            let value = 0;
+
+            switch (effectsConfig.type) {
+              case 'gobo_cycle':
+                value = progress * (effectsConfig.range?.max || 255);
+                break;
+              
+              case 'prism_rotate':
+                value = progress * 255;
+                break;
+            }
+
+            fixture.channels.forEach(channel => {
+              if (channel.dmxAddress) {
+                switch (effectsConfig.type) {
+                  case 'gobo_cycle':
+                    if (channel.type === 'gobo' || channel.type === 'gobo_wheel') {
+                      setDmxChannelValue(channel.dmxAddress - 1, Math.round(value));
+                    }
+                    break;
+                  case 'prism_rotate':
+                    if (channel.type === 'prism') {
+                      setDmxChannelValue(channel.dmxAddress - 1, Math.round(value));
+                    }
+                    break;
+                }
+              }
+            });
+            break;
+          }
+        }
+      },
     })
   )
 );
+
+// Helper function for HSV to RGB conversion
+function hsvToRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
+  const c = (v / 100) * (s / 100);
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = (v / 100) - c;
+  
+  let r = 0, g = 0, b = 0;
+  
+  if (0 <= h && h < 60) {
+    r = c; g = x; b = 0;
+  } else if (60 <= h && h < 120) {
+    r = x; g = c; b = 0;
+  } else if (120 <= h && h < 180) {
+    r = 0; g = c; b = x;
+  } else if (180 <= h && h < 240) {
+    r = 0; g = x; b = c;
+  } else if (240 <= h && h < 300) {
+    r = x; g = 0; b = c;
+  } else if (300 <= h && h < 360) {
+    r = c; g = 0; b = x;
+  }
+  
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  };
+}
