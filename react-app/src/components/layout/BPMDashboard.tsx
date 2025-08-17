@@ -31,11 +31,11 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   const handlePlayPause = () => {
     console.log('BPM Dashboard: Play/Pause clicked', { 
       currentlyPlaying: midiClockIsPlaying, 
-      socketConnected: socket?.connected,
-      currentBPM: currentBpm 
+      socketExists: !!socket,
+      currentBPM: autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm 
     });
     
-    if (socket?.connected) {
+    if (socket) {
       // Use server-side toggle
       requestToggleMasterClockPlayPause();
     } else {
@@ -44,11 +44,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
       setMidiClockIsPlaying(!midiClockIsPlaying);
       
       // Also set BPM if we're starting
+      const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
       if (!midiClockIsPlaying && currentBpm > 0) {
         setMidiClockBpm(currentBpm);
       }
     }
   };
+
+  const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
+  const isPlaying = midiClockIsPlaying;
 
   // Visual beat indicator
   useEffect(() => {
@@ -121,8 +125,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
 
   // Handle BPM input change
   const handleBpmChange = (value: number) => {
-    setManualBpm(Math.max(60, Math.min(200, value)));
+    const newBpm = Math.max(60, Math.min(200, value));
+    console.log('BPM Dashboard: BPM changed to', newBpm);
+    setManualBpm(newBpm);
     setAutoSceneTempoSource('manual_bpm');
+    
+    // If we're currently playing, update the active BPM immediately
+    if (midiClockIsPlaying) {
+      setMidiClockBpm(newBpm);
+    }
   };
 
   // Handle reset
@@ -136,9 +147,6 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     }
   };
 
-  const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
-  const isPlaying = midiClockIsPlaying;
-
   return (
     <div className={`${styles.bpmDashboard} ${className || ''} ${isExpanded ? styles.expanded : styles.collapsed}`}>
       <div className={styles.header} onClick={() => setIsExpanded(!isExpanded)}>
@@ -147,7 +155,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <div className={styles.beatDot}></div>
           </div>
           <h3 className={styles.title}>BPM Control</h3>
-          <div className={styles.quickStatus}>
+          <div className={`${styles.quickStatus} ${isPlaying ? styles.playing : ''}`}>
             <span className={`${styles.playStatus} ${isPlaying ? styles.playing : styles.stopped}`}>
               {isPlaying ? '▶️' : '⏸️'}
             </span>
@@ -184,7 +192,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <div className={styles.transportControls}>
               <button
                 className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                onClick={requestToggleMasterClockPlayPause}
+                onClick={handlePlayPause}
               >
                 {isPlaying ? '⏸️ Stop' : '▶️ Start'}
               </button>
