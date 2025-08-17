@@ -13,7 +13,8 @@ const MASTER_SLIDER_HEIGHT = 30;
 const MASTER_SLIDER_BG_COLOR = 'rgba(100, 100, 120, 0.9)';
 const MASTER_SLIDER_TEXT_COLOR = '#ffffff';
 const MASTER_SLIDER_VALUE_BAR_COLOR = 'rgba(136, 85, 255, 0.9)';
-const MASTER_SLIDER_INTERACTION_PADDING = 5; 
+const MASTER_SLIDER_INTERACTION_PADDING = 5;
+const MASTER_SLIDER_BUTTON_SIZE = 20; // Size for MIDI Learn/Forget buttons 
 const PLACED_CONTROL_WIDTH = 100; 
 const PLACED_CONTROL_HEIGHT = 20;
 const PLACED_CONTROL_BG_COLOR = 'rgba(120, 120, 120, 0.7)';
@@ -493,47 +494,110 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
 
     // Draw master sliders
     masterSliders.forEach(slider => {
+      const isVertical = slider.orientation === 'vertical';
+      const sliderWidth = isVertical ? MASTER_SLIDER_HEIGHT : MASTER_SLIDER_WIDTH;
+      const sliderHeight = isVertical ? MASTER_SLIDER_WIDTH : MASTER_SLIDER_HEIGHT;
+      
       // Draw slider background
       ctx.fillStyle = MASTER_SLIDER_BG_COLOR;
       ctx.fillRect(
-        slider.position.x - MASTER_SLIDER_WIDTH / 2,
-        slider.position.y - MASTER_SLIDER_HEIGHT / 2,
-        MASTER_SLIDER_WIDTH,
-        MASTER_SLIDER_HEIGHT
+        slider.position.x - sliderWidth / 2,
+        slider.position.y - sliderHeight / 2,
+        sliderWidth,
+        sliderHeight
       );
 
       // Draw slider value bar
       const valuePercent = slider.value / 255;
       ctx.fillStyle = MASTER_SLIDER_VALUE_BAR_COLOR;
-      ctx.fillRect(
-        slider.position.x - MASTER_SLIDER_WIDTH / 2,
-        slider.position.y - MASTER_SLIDER_HEIGHT / 2,
-        MASTER_SLIDER_WIDTH * valuePercent,
-        MASTER_SLIDER_HEIGHT
-      );
+      
+      if (isVertical) {
+        // For vertical sliders, fill from bottom up
+        const fillHeight = sliderHeight * valuePercent;
+        ctx.fillRect(
+          slider.position.x - sliderWidth / 2,
+          slider.position.y + sliderHeight / 2 - fillHeight,
+          sliderWidth,
+          fillHeight
+        );
+      } else {
+        // For horizontal sliders, fill from left to right
+        ctx.fillRect(
+          slider.position.x - sliderWidth / 2,
+          slider.position.y - sliderHeight / 2,
+          sliderWidth * valuePercent,
+          sliderHeight
+        );
+      }
 
       // Draw slider name and value
       ctx.fillStyle = MASTER_SLIDER_TEXT_COLOR;
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(`${slider.name}: ${slider.value}`, slider.position.x, slider.position.y + 3);
+      
+      if (isVertical) {
+        // For vertical sliders, draw text rotated or offset
+        ctx.fillText(`${slider.name}`, slider.position.x, slider.position.y - sliderHeight / 2 - 5);
+        ctx.font = '10px Arial';
+        ctx.fillText(`${slider.value}`, slider.position.x, slider.position.y + sliderHeight / 2 + 15);
+      } else {
+        // For horizontal sliders, draw text in the center
+        ctx.fillText(`${slider.name}: ${slider.value}`, slider.position.x, slider.position.y + 3);
+      }
 
       // Draw MIDI mapping indicator
       if (slider.midiMapping) {
         ctx.fillStyle = MIDI_OSC_DISPLAY_TEXT_COLOR;
         ctx.font = '8px Arial';
-        ctx.fillText('MIDI', slider.position.x, slider.position.y + 20);
+        const indicatorY = isVertical ? slider.position.y + sliderHeight / 2 + 25 : slider.position.y + 20;
+        ctx.fillText('MIDI', slider.position.x, indicatorY);
       }
+
+      // Draw MIDI Learn/Forget buttons
+      const buttonSize = MASTER_SLIDER_BUTTON_SIZE;
+      const learnButtonX = slider.position.x + sliderWidth / 2 + 5;
+      const forgetButtonX = slider.position.x + sliderWidth / 2 + 5;
+      const learnButtonY = slider.position.y - buttonSize / 2 - 15;
+      const forgetButtonY = slider.position.y + buttonSize / 2 + 15;
+
+      // MIDI Learn button
+      ctx.fillStyle = (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) 
+        ? '#ff4444' : '#4CAF50';
+      ctx.fillRect(learnButtonX, learnButtonY, buttonSize, buttonSize / 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '8px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('L', learnButtonX + buttonSize / 2, learnButtonY + buttonSize / 4 + 2);
+
+      // MIDI Forget button (only show if there's a mapping)
+      if (slider.midiMapping) {
+        ctx.fillStyle = '#f44336';
+        ctx.fillRect(forgetButtonX, forgetButtonY, buttonSize, buttonSize / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('F', forgetButtonX + buttonSize / 2, forgetButtonY + buttonSize / 4 + 2);
+      }
+
+      // Draw orientation toggle button
+      const orientationButtonX = slider.position.x - sliderWidth / 2 - buttonSize - 5;
+      const orientationButtonY = slider.position.y - buttonSize / 2;
+      ctx.fillStyle = '#2196F3';
+      ctx.fillRect(orientationButtonX, orientationButtonY, buttonSize, buttonSize);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(isVertical ? '↕' : '↔', orientationButtonX + buttonSize / 2, orientationButtonY + buttonSize / 2 + 3);
 
       // Highlight if in MIDI learn mode
       if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) {
         ctx.strokeStyle = '#ff0000';
         ctx.lineWidth = 2;
         ctx.strokeRect(
-          slider.position.x - MASTER_SLIDER_WIDTH / 2 - 2,
-          slider.position.y - MASTER_SLIDER_HEIGHT / 2 - 2,
-          MASTER_SLIDER_WIDTH + 4,
-          MASTER_SLIDER_HEIGHT + 4
+          slider.position.x - sliderWidth / 2 - 2,
+          slider.position.y - sliderHeight / 2 - 2,
+          sliderWidth + 4,
+          sliderHeight + 4
         );
       }
     });    // Draw selection indicators
@@ -869,36 +933,94 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
     
     const mousePos = getMousePos(event);
     
-    // Check if clicking on a master slider
+    // Check if clicking on a master slider or its buttons
     for (const slider of masterSliders) {
+      const isVertical = slider.orientation === 'vertical';
+      const sliderWidth = isVertical ? MASTER_SLIDER_HEIGHT : MASTER_SLIDER_WIDTH;
+      const sliderHeight = isVertical ? MASTER_SLIDER_WIDTH : MASTER_SLIDER_HEIGHT;
+      
       const sliderBounds = {
-        left: slider.position.x - MASTER_SLIDER_WIDTH / 2 - MASTER_SLIDER_INTERACTION_PADDING,
-        right: slider.position.x + MASTER_SLIDER_WIDTH / 2 + MASTER_SLIDER_INTERACTION_PADDING,
-        top: slider.position.y - MASTER_SLIDER_HEIGHT / 2 - MASTER_SLIDER_INTERACTION_PADDING,
-        bottom: slider.position.y + MASTER_SLIDER_HEIGHT / 2 + MASTER_SLIDER_INTERACTION_PADDING
+        left: slider.position.x - sliderWidth / 2 - MASTER_SLIDER_INTERACTION_PADDING,
+        right: slider.position.x + sliderWidth / 2 + MASTER_SLIDER_INTERACTION_PADDING,
+        top: slider.position.y - sliderHeight / 2 - MASTER_SLIDER_INTERACTION_PADDING,
+        bottom: slider.position.y + sliderHeight / 2 + MASTER_SLIDER_INTERACTION_PADDING
       };
       
+      // Check for button clicks first
+      const buttonSize = MASTER_SLIDER_BUTTON_SIZE;
+      
+      // MIDI Learn button
+      const learnButtonX = slider.position.x + sliderWidth / 2 + 5;
+      const learnButtonY = slider.position.y - buttonSize / 2 - 15;
+      if (mousePos.x >= learnButtonX && mousePos.x <= learnButtonX + buttonSize &&
+          mousePos.y >= learnButtonY && mousePos.y <= learnButtonY + buttonSize / 2) {
+        // Toggle MIDI learn mode
+        if (midiLearnTarget?.type === 'masterSlider' && midiLearnTarget.id === slider.id) {
+          cancelMidiLearn();
+        } else {
+          startMidiLearn({ type: 'masterSlider', id: slider.id });
+        }
+        return;
+      }
+      
+      // MIDI Forget button (only if mapping exists)
+      if (slider.midiMapping) {
+        const forgetButtonY = slider.position.y + buttonSize / 2 + 15;
+        if (mousePos.x >= learnButtonX && mousePos.x <= learnButtonX + buttonSize &&
+            mousePos.y >= forgetButtonY && mousePos.y <= forgetButtonY + buttonSize / 2) {
+          // Remove MIDI mapping
+          updateMasterSlider(slider.id, { midiMapping: undefined });
+          addNotification({
+            message: `MIDI mapping removed from ${slider.name}`,
+            type: 'info'
+          });
+          return;
+        }
+      }
+      
+      // Orientation toggle button
+      const orientationButtonX = slider.position.x - sliderWidth / 2 - buttonSize - 5;
+      const orientationButtonY = slider.position.y - buttonSize / 2;
+      if (mousePos.x >= orientationButtonX && mousePos.x <= orientationButtonX + buttonSize &&
+          mousePos.y >= orientationButtonY && mousePos.y <= orientationButtonY + buttonSize) {
+        // Toggle orientation
+        const newOrientation = slider.orientation === 'horizontal' ? 'vertical' : 'horizontal';
+        updateMasterSlider(slider.id, { orientation: newOrientation });
+        return;
+      }
+      
+      // Check if clicking within slider bounds for dragging or value adjustment
       if (mousePos.x >= sliderBounds.left && mousePos.x <= sliderBounds.right &&
           mousePos.y >= sliderBounds.top && mousePos.y <= sliderBounds.bottom) {
         
         // Check if clicking on the value bar area for adjustment
         const valueBarBounds = {
-          left: slider.position.x - MASTER_SLIDER_WIDTH / 2,
-          right: slider.position.x + MASTER_SLIDER_WIDTH / 2,
-          top: slider.position.y - MASTER_SLIDER_HEIGHT / 2,
-          bottom: slider.position.y + MASTER_SLIDER_HEIGHT / 2
+          left: slider.position.x - sliderWidth / 2,
+          right: slider.position.x + sliderWidth / 2,
+          top: slider.position.y - sliderHeight / 2,
+          bottom: slider.position.y + sliderHeight / 2
         };
         
         if (mousePos.x >= valueBarBounds.left && mousePos.x <= valueBarBounds.right &&
             mousePos.y >= valueBarBounds.top && mousePos.y <= valueBarBounds.bottom) {
           setAdjustingMasterSliderValue(slider);
-          // Calculate and set initial value based on mouse position
-          const valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / MASTER_SLIDER_WIDTH));
+          
+          // Calculate new value based on orientation and mouse position
+          let valuePercent;
+          if (isVertical) {
+            // For vertical sliders, bottom is 0, top is 1
+            valuePercent = Math.max(0, Math.min(1, 1 - (mousePos.y - valueBarBounds.top) / sliderHeight));
+          } else {
+            // For horizontal sliders, left is 0, right is 1
+            valuePercent = Math.max(0, Math.min(1, (mousePos.x - valueBarBounds.left) / sliderWidth));
+          }
+          
           const newValue = Math.round(valuePercent * 255);
           updateMasterSliderValue(slider.id, newValue);
           return;
         }
-          // Start dragging the slider
+        
+        // Start dragging the slider
         setDraggingMasterSlider(slider);
         setIsDragging(true);
         setDragOffset({ 
@@ -1411,6 +1533,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
       name: `Master ${masterSliders.length + 1}`,
       value: 0,
       position: { x: 100 + (masterSliders.length * 30), y: 100 },
+      orientation: 'horizontal', // Default to horizontal
       targets: []
     };
     addMasterSlider(newSlider);
@@ -1634,6 +1757,7 @@ export const FixtureCanvas2D: React.FC<FixtureCanvas2DProps> = ({
                 name: `Master ${masterSliders.length + 1}`,
                 value: 0,
                 position: { x: 100, y: 100 },
+                orientation: 'horizontal', // Default to horizontal
                 targets: []
               };
               addMasterSlider(newSlider);

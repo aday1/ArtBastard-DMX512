@@ -158,6 +158,7 @@ export interface MasterSlider {
   value: number; // Current value (0-255, or 0-1, let's use 0-255 for consistency with DMX)
   targets: MasterSliderTarget[];
   position: { x: number; y: number }; // Position on the 2D canvas
+  orientation: 'horizontal' | 'vertical'; // Slider orientation
   midiMapping?: MidiMapping; // Re-use existing MidiMapping type
 }
 
@@ -346,6 +347,7 @@ interface State {
   autopilotTrackCenterX: number; // 0-255, center point X for the track
   autopilotTrackCenterY: number; // 0-255, center point Y for the track
   autopilotTrackAutoPlay: boolean; // Auto-advance along track  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
+  autopilotTrackAnimationId: number | null; // Animation frame ID for centralized control
 
   // Recording and Automation System State
   recordingActive: boolean;
@@ -508,6 +510,8 @@ interface State {
   setAutopilotTrackAutoPlay: (autoPlay: boolean) => void;
   setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
   updatePanTiltFromTrack: () => void;
+  startAutopilotTrackAnimation: () => void;
+  stopAutopilotTrackAnimation: () => void;
 
   // Recording and Automation Actions
   startRecording: () => void;
@@ -691,6 +695,7 @@ export const useStore = create<State>()(
       autopilotTrackCenterX: 127,
       autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
       autopilotTrackCustomPoints: [],
+      autopilotTrackAnimationId: null,
 
       // Recording and Automation System Initial State
       recordingActive: false,
@@ -1974,7 +1979,20 @@ export const useStore = create<State>()(
         // Placeholder for MIDI handling logic for groups
       },      // Autopilot Track Actions
       setAutopilotTrackEnabled: (enabled) => {
+        console.log(`[STORE] setAutopilotTrackEnabled: Setting enabled to ${enabled}`);
         set({ autopilotTrackEnabled: enabled });
+        
+        if (enabled) {
+          // When enabling, immediately start the animation system and apply current position
+          console.log('[STORE] Autopilot enabled - starting animation system and applying initial position');
+          get().startAutopilotTrackAnimation();
+          // Apply current track position immediately
+          setTimeout(() => get().updatePanTiltFromTrack(), 10);
+        } else {
+          // When disabling, stop the animation system
+          console.log('[STORE] Autopilot disabled - stopping animation system');
+          get().stopAutopilotTrackAnimation();
+        }
       },      setAutopilotTrackType: (type) => {
         console.log(`[STORE] setAutopilotTrackType: Setting type to ${type}`);
         set({ autopilotTrackType: type });
@@ -2011,7 +2029,17 @@ export const useStore = create<State>()(
       },
 
       setAutopilotTrackAutoPlay: (autoPlay) => {
+        console.log(`[STORE] setAutopilotTrackAutoPlay: Setting autoPlay to ${autoPlay}`);
         set({ autopilotTrackAutoPlay: autoPlay });
+        
+        // If autopilot is enabled and we're enabling autoplay, start animation
+        const { autopilotTrackEnabled } = get();
+        if (autopilotTrackEnabled && autoPlay) {
+          get().startAutopilotTrackAnimation();
+        } else if (!autoPlay) {
+          // If disabling autoplay, we can keep the animation running but it won't advance position
+          // This allows for smooth manual control
+        }
       },
 
       setAutopilotTrackCustomPoints: (points) => {
@@ -2834,6 +2862,76 @@ export const useStore = create<State>()(
             message: 'Autopilot system stopped',
             type: 'info'
           });
+        }
+      },
+
+      // Enhanced Autopilot Track Animation System
+      startAutopilotTrackAnimation: () => {
+        const { autopilotTrackAnimationId } = get();
+        
+        // Don't start if already running
+        if (autopilotTrackAnimationId !== null) return;
+
+        console.log('[STORE] Starting autopilot track animation system');
+        
+        let lastTime = performance.now();
+        
+        const animate = (currentTime: number) => {
+          const state = get();
+          
+          // Exit if autopilot is disabled or animation was stopped
+          if (!state.autopilotTrackEnabled || state.autopilotTrackAnimationId === null) {
+            console.log('[STORE] Animation loop stopping - autopilot disabled or animation ID null');
+            return;
+          }
+
+          const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+          lastTime = currentTime;
+
+          // Only animate if auto-play is enabled
+          if (state.autopilotTrackAutoPlay) {
+            // Calculate position advancement based on speed and BPM
+            const bpm = state.bpm || 120; // Default to 120 BPM
+            const speedMultiplier = state.autopilotTrackSpeed / 50; // Normalize speed (50 = 1x speed)
+            
+            // Calculate advancement per second
+            // At 120 BPM and 1x speed, complete one full cycle every 2 seconds (30 cycles per minute)
+            const cyclesPerMinute = (bpm / 120) * 30 * speedMultiplier;
+            const cyclesPerSecond = cyclesPerMinute / 60;
+            const advancementPerSecond = cyclesPerSecond * 100; // Convert to percentage
+            
+            // Update position
+            const currentPosition = state.autopilotTrackPosition;
+            const newPosition = (currentPosition + (advancementPerSecond * deltaTime)) % 100;
+            
+            console.log(`[STORE] Autopilot advancing: ${currentPosition.toFixed(2)}% -> ${newPosition.toFixed(2)}% (speed: ${speedMultiplier}x)`);
+            
+            // Update position in store
+            set({ autopilotTrackPosition: newPosition });
+            
+            // Update fixtures immediately
+            get().updatePanTiltFromTrack();
+          }
+
+          // Continue animation
+          const newAnimationId = requestAnimationFrame(animate);
+          set({ autopilotTrackAnimationId: newAnimationId });
+        };
+
+        // Start the animation loop
+        const initialAnimationId = requestAnimationFrame(animate);
+        set({ autopilotTrackAnimationId: initialAnimationId });
+        
+        console.log('[STORE] Autopilot track animation system started with ID:', initialAnimationId);
+      },
+
+      stopAutopilotTrackAnimation: () => {
+        const { autopilotTrackAnimationId } = get();
+        
+        if (autopilotTrackAnimationId !== null) {
+          console.log('[STORE] Stopping autopilot track animation system, ID:', autopilotTrackAnimationId);
+          cancelAnimationFrame(autopilotTrackAnimationId);
+          set({ autopilotTrackAnimationId: null });
         }
       },
     })

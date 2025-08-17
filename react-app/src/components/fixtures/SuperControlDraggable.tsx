@@ -99,40 +99,8 @@ const SuperControlDraggable: React.FC<SuperControlDraggableProps> = ({ isDockabl
   // Layout toggle
   const [useDraggableLayout, setUseDraggableLayout] = useState(true);
 
-  // Autopilot animation
-  const autopilotIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-animation effect for autopilot
-  useEffect(() => {
-    if (autopilotTrackEnabled) {
-      console.log('🚀 Starting autopilot animation');
-      const interval = 50; // Update every 50ms for smooth animation
-      const increment = autopilotTrackSpeed / 1000; // Speed control
-
-      autopilotIntervalRef.current = setInterval(() => {
-        // Increment position based on speed
-        const newPosition = (autopilotTrackPosition + increment) % 1;
-        setAutopilotTrackPosition(newPosition);
-        
-        // Update DMX values
-        updatePanTiltFromTrack();
-      }, interval);
-
-      return () => {
-        if (autopilotIntervalRef.current) {
-          console.log('⏹️ Stopping autopilot animation');
-          clearInterval(autopilotIntervalRef.current);
-          autopilotIntervalRef.current = null;
-        }
-      };
-    } else {
-      // Clean up interval when disabled
-      if (autopilotIntervalRef.current) {
-        clearInterval(autopilotIntervalRef.current);
-        autopilotIntervalRef.current = null;
-      }
-    }
-  }, [autopilotTrackEnabled, autopilotTrackSpeed, autopilotTrackPosition, setAutopilotTrackPosition, updatePanTiltFromTrack]);
+  // Autopilot animation is now handled in the centralized store
+  // This was removed to prevent conflicts with the store-based animation system
 
   // Apply DMX control
   const applyControl = (type: string, value: number) => {

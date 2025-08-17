@@ -693,34 +693,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setSelectionMode('fixtures');
   };
 
-  // Auto-animation for autopilot
-  useEffect(() => {
-    if (!autopilotTrackEnabled) return;
-
-    const interval = setInterval(() => {
-      // Calculate how much to advance position based on BPM and speed
-      // BPM determines beats per minute, speed is a multiplier
-      // We want to complete one full cycle (0-100%) per beat at speed 1.0
-      const beatsPerSecond = (bpm * autopilotTrackSpeed) / 60;
-      const advancePerSecond = 100; // 100% per beat at speed 1.0
-      const advancePerFrame = (advancePerSecond * beatsPerSecond) / 20; // 20 FPS
-      
-      // Advance the position
-      const currentPosition = autopilotTrackPosition;
-      const newPosition = (currentPosition + advancePerFrame) % 100; // Wrap at 100%
-      
-      console.log(`🤖 Autopilot advancing: ${currentPosition.toFixed(1)}% -> ${newPosition.toFixed(1)}% (BPM: ${bpm}, Speed: ${autopilotTrackSpeed}x)`);
-      
-      setAutopilotTrackPosition(newPosition);
-      
-      // Update pan/tilt for all selected fixtures 
-      selectedFixtures.forEach(fixtureId => {
-        updatePanTiltFromTrack();
-      });
-    }, 50); // 20fps animation
-
-    return () => clearInterval(interval);
-  }, [autopilotTrackEnabled, selectedFixtures, updatePanTiltFromTrack, bpm, autopilotTrackSpeed, autopilotTrackPosition, setAutopilotTrackPosition]);
+  // Auto-animation for autopilot is now handled in the store
+  // This was removed to prevent conflicts with the centralized animation system
 
   // Path visualization canvas drawing effect
   useEffect(() => {
