@@ -1,0 +1,108 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #2c2c2c;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80vw;
+  max-width: 1200px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+
+  h2 {
+    margin: 0;
+    color: #4ecdc4;
+  }
+}
+
+.canvasContainer {
+  flex-grow: 1;
+  position: relative;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+}
+
+.controls {
+  padding-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.controlGroup {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.instructions {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-left: auto;
+}
+
+.button {
+  background-color: #4ecdc4;
+  color: #1a1a1a;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background-color: #5fffe0;
+  }
+
+  &.secondary {
+    background-color: #555;
+    color: #fff;
+    &:hover {
+      background-color: #666;
+    }
+  }
+
+  &.active {
+    background-color: #ff3b30;
+    color: #fff;
+  }
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}

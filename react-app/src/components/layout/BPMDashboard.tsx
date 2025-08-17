@@ -7,7 +7,7 @@ interface BPMDashboardProps {
 }
 
 export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [tapCount, setTapCount] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
