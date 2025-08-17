@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import styles from './BPMDashboard.module.scss';
+import { LucideIcon } from '../ui/LucideIcon';
 
 interface BPMDashboardProps {
   className?: string;
@@ -27,26 +28,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     socket
   } = useStore();
 
-  // Handle play/pause with better feedback
   const handlePlayPause = () => {
-    console.log('BPM Dashboard: Play/Pause clicked', { 
-      currentlyPlaying: midiClockIsPlaying, 
-      socketExists: !!socket,
-      currentBPM: autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm 
-    });
-    
     if (socket) {
-      // Use server-side toggle
       requestToggleMasterClockPlayPause();
     } else {
-      // Local fallback - directly toggle the state
-      console.log('BPM Dashboard: Using local fallback for play/pause');
-      setMidiClockIsPlaying(!midiClockIsPlaying);
-      
-      // Also set BPM if we're starting
-      const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
-      if (!midiClockIsPlaying && currentBpm > 0) {
-        setMidiClockBpm(currentBpm);
+      const newIsPlaying = !midiClockIsPlaying;
+      setMidiClockIsPlaying(newIsPlaying);
+      if (newIsPlaying) {
+        const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
+        setMidiClockBpm(currentBpm > 0 ? currentBpm : 120);
       }
     }
   };
@@ -54,39 +44,21 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
   const isPlaying = midiClockIsPlaying;
 
-  // Visual beat indicator
   useEffect(() => {
-    console.log('BPM Dashboard: Beat indicator effect', { 
-      isPlaying: midiClockIsPlaying, 
-      bpm: midiClockBpm,
-      currentBpm 
-    });
-    
-    if (midiClockIsPlaying && currentBpm > 0) {
-      const beatInterval = (60 / currentBpm) * 1000; // Use currentBpm instead of midiClockBpm
-      console.log('BPM Dashboard: Starting beat indicator', { beatInterval, bpm: currentBpm });
-      
+    if (isPlaying && currentBpm > 0) {
+      const beatInterval = (60 / currentBpm) * 1000;
       const flashBeat = () => {
         setIsFlashing(true);
-        setTimeout(() => setIsFlashing(false), 150); // Slightly longer flash for visibility
+        setTimeout(() => setIsFlashing(false), 150);
       };
-      
-      // Immediate first flash
       flashBeat();
-      
       const intervalId = setInterval(flashBeat, beatInterval);
-      
-      return () => {
-        console.log('BPM Dashboard: Stopping beat indicator');
-        clearInterval(intervalId);
-      };
+      return () => clearInterval(intervalId);
     } else {
-      console.log('BPM Dashboard: Beat indicator stopped - not playing or BPM is 0');
       setIsFlashing(false);
     }
-  }, [midiClockBpm, midiClockIsPlaying, currentBpm]);
+  }, [isPlaying, currentBpm]);
 
-  // Handle tap tempo
   const handleTap = () => {
     const currentTime = Date.now();
     
@@ -95,183 +67,131 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     }
     
     if (lastTapTime > 0 && (currentTime - lastTapTime) < 2000) {
-      // Valid tap within 2 seconds
       setTapCount(prev => prev + 1);
-      
-      // Calculate BPM from tap interval
-      if (tapCount >= 1) {
-        const tapInterval = currentTime - lastTapTime;
-        const calculatedBPM = Math.round(60000 / tapInterval);
-        
-        if (calculatedBPM >= 60 && calculatedBPM <= 200) {
-          setManualBpm(calculatedBPM);
-          setAutoSceneTempoSource('manual_bpm');
-          recordTapTempo();
-        }
-      }
+      recordTapTempo();
     } else {
-      // First tap or reset after timeout
-      setTapCount(0);
+      setTapCount(1);
+      recordTapTempo();
     }
     
     setLastTapTime(currentTime);
     
-    // Reset tap count after 3 seconds of inactivity
     tapTimeoutRef.current = setTimeout(() => {
       setTapCount(0);
-      setLastTapTime(0);
-    }, 3000);
+    }, 2000);
   };
 
-  // Handle BPM input change
-  const handleBpmChange = (value: number) => {
-    const newBpm = Math.max(60, Math.min(200, value));
-    console.log('BPM Dashboard: BPM changed to', newBpm);
-    setManualBpm(newBpm);
-    setAutoSceneTempoSource('manual_bpm');
-    
-    // If we're currently playing, update the active BPM immediately
-    if (midiClockIsPlaying) {
-      setMidiClockBpm(newBpm);
-    }
-  };
-
-  // Handle reset
-  const handleReset = () => {
-    setTapCount(0);
-    setLastTapTime(0);
-    setMidiClockBpm(120);
-    setMidiClockIsPlaying(false);
-    if (tapTimeoutRef.current) {
-      clearTimeout(tapTimeoutRef.current);
-    }
-  };
+  if (!isExpanded) {
+    return (
+      <div 
+        className={styles.collapsedPlaceholder}
+        onClick={() => setIsExpanded(true)}
+      >
+        <LucideIcon name="Gauge" />
+        <span>{currentBpm.toFixed(1)} BPM</span>
+      </div>
+    );
+  }
 
   return (
-    <div className={`${styles.bpmDashboard} ${className || ''} ${isExpanded ? styles.expanded : styles.collapsed}`}>
+    <div className={`${styles.bpmDashboard} ${isExpanded ? styles.expanded : styles.collapsed} ${className}`}>
       <div className={styles.header} onClick={() => setIsExpanded(!isExpanded)}>
         <div className={styles.titleSection}>
-          <div className={`${styles.beatIndicator} ${isFlashing && isPlaying ? styles.flash : ''}`}>
-            <div className={styles.beatDot}></div>
+          <div className={`${styles.beatIndicator} ${isFlashing ? styles.flashing : ''}`}>
+            <div className={styles.beatDot} />
           </div>
-          <h3 className={styles.title}>BPM Control</h3>
-          <div className={`${styles.quickStatus} ${isPlaying ? styles.playing : ''}`}>
-            <span className={`${styles.playStatus} ${isPlaying ? styles.playing : styles.stopped}`}>
-              {isPlaying ? '▶️' : '⏸️'}
-            </span>
-            <span className={styles.bpmValue}>{currentBpm}</span>
-          </div>
+          <h3 className={styles.title}>BPM Dashboard</h3>
+        </div>
+        <div className={styles.bpmDisplay}>
+          <span className={styles.bpmValue}>{currentBpm.toFixed(1)}</span>
+          <span className={styles.bpmLabel}>BPM</span>
         </div>
         <button className={styles.expandButton}>
-          {isExpanded ? '▲' : '▼'}
+          <LucideIcon name={isExpanded ? "ChevronDown" : "ChevronUp"} />
         </button>
       </div>
-
-      {isExpanded && (
-        <div className={styles.controls}>
-          <div className={styles.sourceSection}>
-            <label className={styles.sectionLabel}>Clock Source</label>
-            <div className={styles.sourceButtons}>
-              <button
-                className={`${styles.sourceButton} ${autoSceneTempoSource === 'manual_bpm' ? styles.active : ''}`}
-                onClick={() => setAutoSceneTempoSource('manual_bpm')}
-              >
-                Internal
-              </button>
-              <button
-                className={`${styles.sourceButton} ${autoSceneTempoSource === 'tap_tempo' ? styles.active : ''}`}
-                onClick={() => setAutoSceneTempoSource('tap_tempo')}
-              >
-                MIDI Clock
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.transportSection}>
-            <label className={styles.sectionLabel}>Transport</label>
-            <div className={styles.transportControls}>
-              <button
-                className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                onClick={handlePlayPause}
-              >
-                {isPlaying ? '⏸️ Stop' : '▶️ Start'}
-              </button>
-              <button
-                className={styles.resetButton}
-                onClick={handleReset}
-              >
-                🔄 Reset
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.bpmSection}>
-            <label className={styles.sectionLabel}>BPM Setting</label>
-            <div className={styles.bpmControls}>
-              <div className={styles.bpmInput}>
-                <input
-                  type="number"
-                  min="60"
-                  max="200"
-                  value={autoSceneManualBpm}
-                  onChange={(e) => handleBpmChange(parseInt(e.target.value) || 120)}
-                  className={styles.bpmNumberInput}
-                />
-                <span className={styles.bpmLabel}>BPM</span>
-              </div>
-              <div className={styles.bpmSlider}>
-                <input
-                  type="range"
-                  min="60"
-                  max="200"
-                  value={autoSceneManualBpm}
-                  onChange={(e) => handleBpmChange(parseInt(e.target.value))}
-                  className={styles.bpmRange}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.tapSection}>
-            <label className={styles.sectionLabel}>
-              Tap Tempo {tapCount > 0 && <span className={styles.tapCount}>({tapCount + 1} taps)</span>}
-            </label>
-            <button
-              className={`${styles.tapButton} ${tapCount > 0 ? styles.active : ''}`}
-              onClick={handleTap}
-            >
-              TAP
-            </button>
-          </div>
-
-          <div className={styles.statusSection}>
-            <div className={styles.statusGrid}>
-              <div className={styles.statusItem}>
-                <span className={styles.statusLabel}>Source:</span>
-                <span className={styles.statusValue}>
-                  {autoSceneTempoSource === 'tap_tempo' ? 'MIDI Clock' : 'Internal'}
-                </span>
-              </div>
-              <div className={styles.statusItem}>
-                <span className={styles.statusLabel}>Current BPM:</span>
-                <span className={`${styles.statusValue} ${styles.bpmHighlight}`}>{currentBpm}</span>
-              </div>
-              <div className={styles.statusItem}>
-                <span className={styles.statusLabel}>Status:</span>
-                <span className={`${styles.statusValue} ${isPlaying ? styles.playingText : styles.stoppedText}`}>
-                  {isPlaying ? 'Playing' : 'Stopped'}
-                </span>
-              </div>
-              <div className={styles.statusItem}>
-                <span className={styles.statusLabel}>Automation:</span>
-                <span className={`${styles.statusValue} ${isPlaying ? styles.activeText : styles.pausedText}`}>
-                  {isPlaying ? 'Active' : 'Paused'}
-                </span>
-              </div>
-            </div>
-          </div>
+      
+      <div className={styles.controls}>
+        <div className={styles.mainControls}>
+          <button 
+            className={`${styles.playPauseButton} ${isPlaying ? styles.playing : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePlayPause();
+            }}
+          >
+            <LucideIcon name={isPlaying ? "Pause" : "Play"} />
+            <span>{isPlaying ? 'Playing' : 'Paused'}</span>
+          </button>
+          <button 
+            className={styles.tapButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTap();
+            }}
+          >
+            <LucideIcon name="MousePointer" />
+            <span>TAP {tapCount > 0 ? `(${tapCount})` : ''}</span>
+          </button>
         </div>
-      )}
+        
+        <div className={styles.tempoSource}>
+          <button 
+            className={autoSceneTempoSource === 'tap_tempo' ? styles.active : ''}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAutoSceneTempoSource('tap_tempo');
+            }}
+          >
+            Tap
+          </button>
+          <button 
+            className={autoSceneTempoSource === 'manual_bpm' ? styles.active : ''}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAutoSceneTempoSource('manual_bpm');
+            }}
+          >
+            Manual
+          </button>
+        </div>
+        
+        <div className={styles.manualBpm}>
+          <input
+            type="range"
+            min="30"
+            max="240"
+            step="0.1"
+            value={autoSceneManualBpm}
+            onChange={(e) => {
+              e.stopPropagation();
+              const newBpm = parseFloat(e.target.value);
+              setManualBpm(newBpm);
+              if (autoSceneTempoSource === 'manual_bpm') {
+                setMidiClockBpm(newBpm);
+              }
+            }}
+            className={styles.bpmSlider}
+          />
+          <input
+            type="number"
+            min="30"
+            max="240"
+            value={autoSceneManualBpm.toFixed(1)}
+            onChange={(e) => {
+              e.stopPropagation();
+              const newBpm = parseFloat(e.target.value);
+              if (!isNaN(newBpm)) {
+                setManualBpm(newBpm);
+                if (autoSceneTempoSource === 'manual_bpm') {
+                  setMidiClockBpm(newBpm);
+                }
+              }
+            }}
+            className={styles.bpmInput}
+          />
+        </div>
+      </div>
     </div>
   );
 };
