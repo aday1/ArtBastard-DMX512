@@ -5,7 +5,6 @@ import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { SettingsPanel } from '../settings/SettingsPanel';
 
 const ResponsiveGridLayout = WidthProvider(Responsive) as any;
 
@@ -29,6 +28,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setSelectedFixtures,
     getDmxChannelValue, 
     setDmxChannelValue,
+    // BPM for autopilot timing
+    bpm,
     // Autopilot functions
     autopilotTrackEnabled,
     autopilotTrackType,
@@ -68,9 +69,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         { i: 'rgb', x: 6, y: 18, w: 6, h: 8 },
         { i: 'effects', x: 0, y: 26, w: 6, h: 8 },
         { i: 'scenes', x: 6, y: 26, w: 6, h: 8 },
-        { i: 'settings', x: 0, y: 34, w: 4, h: 8 }, // Settings panel
-        { i: 'midi-osc', x: 4, y: 34, w: 8, h: 6 },
-        { i: 'dmx-channels', x: 0, y: 42, w: 12, h: 8 },
+        { i: 'midi-osc', x: 0, y: 34, w: 8, h: 6 },
+        { i: 'dmx-channels', x: 0, y: 40, w: 12, h: 8 },
       ]
     };
   });
@@ -99,8 +99,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             { i: 'monitoring', x: 6, y: 8, w: 6, h: 4 },
             { i: 'rgb', x: 0, y: 16, w: 6, h: 6 },
             { i: 'effects', x: 6, y: 12, w: 6, h: 6 },
-            { i: 'scenes', x: 6, y: 18, w: 4, h: 6 },
-            { i: 'settings', x: 10, y: 18, w: 2, h: 6 },
+            { i: 'scenes', x: 6, y: 18, w: 6, h: 6 },
             { i: 'midi-osc', x: 0, y: 22, w: 12, h: 4 },
             { i: 'dmx-channels', x: 0, y: 26, w: 12, h: 6 },
           ]
@@ -115,8 +114,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             { i: 'rgb', x: 0, y: 4, w: 6, h: 8 },
             { i: 'scenes', x: 0, y: 12, w: 6, h: 8 },
             { i: 'effects', x: 6, y: 8, w: 6, h: 6 },
-            { i: 'autopilot', x: 6, y: 14, w: 4, h: 6 },
-            { i: 'settings', x: 10, y: 14, w: 2, h: 6 },
+            { i: 'autopilot', x: 6, y: 14, w: 6, h: 6 },
             { i: 'monitoring', x: 0, y: 20, w: 12, h: 4 },
             { i: 'midi-osc', x: 0, y: 24, w: 12, h: 4 },
             { i: 'dmx-channels', x: 0, y: 28, w: 12, h: 6 },
@@ -133,8 +131,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             { i: 'pan-tilt', x: 6, y: 10, w: 6, h: 8 },
             { i: 'rgb', x: 0, y: 18, w: 6, h: 8 },
             { i: 'effects', x: 6, y: 18, w: 6, h: 8 },
-            { i: 'scenes', x: 0, y: 26, w: 8, h: 8 },
-            { i: 'settings', x: 8, y: 26, w: 4, h: 8 },
+            { i: 'scenes', x: 0, y: 26, w: 12, h: 8 },
             { i: 'midi-osc', x: 0, y: 34, w: 12, h: 6 },
             { i: 'dmx-channels', x: 0, y: 40, w: 12, h: 8 },
           ]
@@ -698,14 +695,29 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     if (!autopilotTrackEnabled) return;
 
     const interval = setInterval(() => {
-      // Animate autopilot for selected fixtures
+      // Calculate how much to advance position based on BPM and speed
+      // BPM determines beats per minute, speed is a multiplier
+      // We want to complete one full cycle (0-100%) per beat at speed 1.0
+      const beatsPerSecond = (bpm * autopilotTrackSpeed) / 60;
+      const advancePerSecond = 100; // 100% per beat at speed 1.0
+      const advancePerFrame = (advancePerSecond * beatsPerSecond) / 20; // 20 FPS
+      
+      // Advance the position
+      const currentPosition = autopilotTrackPosition;
+      const newPosition = (currentPosition + advancePerFrame) % 100; // Wrap at 100%
+      
+      console.log(`🤖 Autopilot advancing: ${currentPosition.toFixed(1)}% -> ${newPosition.toFixed(1)}% (BPM: ${bpm}, Speed: ${autopilotTrackSpeed}x)`);
+      
+      setAutopilotTrackPosition(newPosition);
+      
+      // Update pan/tilt for all selected fixtures 
       selectedFixtures.forEach(fixtureId => {
         updatePanTiltFromTrack();
       });
     }, 50); // 20fps animation
 
     return () => clearInterval(interval);
-  }, [autopilotTrackEnabled, selectedFixtures, updatePanTiltFromTrack]);
+  }, [autopilotTrackEnabled, selectedFixtures, updatePanTiltFromTrack, bpm, autopilotTrackSpeed, autopilotTrackPosition, setAutopilotTrackPosition]);
 
   const selectNextGroup = () => {
     if (groups.length === 0) return;
@@ -2337,16 +2349,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             }}>
               Coming Soon: Automatic color effects, music sync, and custom color sequences!
             </div>
-          </div>
-        </div>
-
-        {/* Settings Panel */}
-        <div key="settings" className={styles.gridItem}>
-          <div className={styles.gridItemHeader}>
-            <LucideIcon name="Settings" /> Settings
-          </div>
-          <div className={styles.gridItemContent}>
-            <SettingsPanel />
           </div>
         </div>
 

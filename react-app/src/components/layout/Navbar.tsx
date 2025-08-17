@@ -8,8 +8,7 @@ import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
 import * as Icons from 'lucide-react'
-
-type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'audio' | 'touchosc' | 'misc' | 'state'
+import { ViewType } from '../router/PageRouter'
 
 // Updated navigation items with Lucide icon names
 const navItems: Array<{
