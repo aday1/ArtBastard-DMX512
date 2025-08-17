@@ -10,6 +10,7 @@ import { Sparkles } from './Sparkles'
 import BpmIndicator from '../audio/BpmIndicator'
 import SignalFlashIndicator from '../midi/SignalFlashIndicator'
 import PageRouter from '../router/PageRouter'
+import { BPMDashboard } from './BPMDashboard'
 import { useStore } from '../../store'
 import styles from './Layout.module.scss'
 
@@ -35,6 +36,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* <SignalFlashIndicator position="bottom-left" /> */}
         
         <Navbar />
+        <BPMDashboard />
         <ToastContainer /> 
         
         <div className={styles.contentWrapper}>

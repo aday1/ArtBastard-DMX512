@@ -254,6 +254,67 @@
   gap: 12px;
 }
 
+.bpmControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 255, 150, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 255, 150, 0.2);
+  
+  .bpmDisplay {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    
+    .bpmValue {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #10b981;
+      min-width: 3rem;
+      text-align: right;
+    }
+    
+    .bpmLabel {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: normal;
+    }
+    
+    .playStatus {
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+  }
+  
+  .bpmActions {
+    display: flex;
+    gap: 0.5rem;
+    
+    .tapButton {
+      padding: 0.5rem 1rem;
+      background: rgba(0, 255, 150, 0.1);
+      border: 1px solid rgba(0, 255, 150, 0.3);
+      border-radius: 4px;
+      color: #10b981;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        background: rgba(0, 255, 150, 0.2);
+        border-color: rgba(0, 255, 150, 0.5);
+      }
+      
+      &:active {
+        background: rgba(0, 255, 150, 0.3);
+        transform: scale(0.95);
+      }
+    }
+  }
+}
+
 .sceneInfo {
   display: flex;
   align-items: center;

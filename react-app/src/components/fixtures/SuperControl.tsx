@@ -4,6 +4,7 @@ import { LucideIcon } from '../ui/LucideIcon';
 import { SuperControlExportOptions, exportSuperControlToToscFile } from '../../utils/touchoscExporter';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import ModularAutomation from '../automation/ModularAutomation';
+import TouchOSCMenuButton from '../debug/TouchOSCMenuButton';
 import styles from './SuperControl.module.scss';
 
 interface SuperControlProps {
@@ -3256,6 +3257,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       </div>
       </div>
     </div>
+    
+    {/* External TouchOSC Menu Button */}
+    <TouchOSCMenuButton position="bottom-right" />
     </div>
   );
 };
