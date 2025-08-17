@@ -18,86 +18,96 @@ const navItems: Array<{
     artsnob: string
     standard: string
     minimal: string
+    tooltip?: string // Explanation for the uninitiated
   }
 }> = [
   {
     id: 'main',
     icon: 'Layout',
     title: {
-    artsnob: "The Most Prestigious Dashboard",
+    artsnob: "Le Dashboard Magnifique™",
       standard: 'Dashboard',
-      minimal: 'Main'
+      minimal: 'Main',
+      tooltip: "For the uninitiated: It's just a dashboard, darling."
     }
   },
   {
     id: 'midiOsc',
     icon: 'Sliders',
     title: {
-    artsnob: "MIDI & OSC for the Enlightened",
+    artsnob: "La MIDI & OSC Pour L'Élite Éclairée",
       standard: 'MIDI & OSC',
-      minimal: 'I/O'
+      minimal: 'I/O',
+      tooltip: "Simply input/output controls. But you wouldn't understand, mon ami."
     }
   },  {
     id: 'fixture',
     icon: 'LampDesk',
     title: {
-    artsnob: "Fixtures for the Discerning",
+    artsnob: "Les Fixtures Extraordinaires",
       standard: 'Fixtures',
-      minimal: 'Fix'
+      minimal: 'Fix',
+      tooltip: "Mere light fixtures. *sigh* How pedestrian of you to ask."
     }
   },
   {
     id: 'planner',
     icon: 'MapPin',
     title: {
-    artsnob: "The Distinguished DMX Planner",
+    artsnob: "Le Grand Planificateur DMX",
       standard: 'DMX Planner',
-      minimal: 'Plan'
+      minimal: 'Plan',
+      tooltip: "A planner. For lights. Do try to keep up, chéri."
     }
   },
   {
     id: 'canvas',
     icon: 'PaintBucket',
     title: {
-    artsnob: "The Canvas of Higher Art",
+    artsnob: "La Toile Sublime de L'Artiste",
       standard: '2D Canvas',
-      minimal: '2D'
+      minimal: '2D',
+      tooltip: "A 2D drawing space. Though calling it 'drawing' feels so... bourgeois."
     }
   },
   {
     id: 'scenes',
     icon: 'Store',
     title: {
-    artsnob: "Les Scènes (Pas Pour Les Amateurs)",
+    artsnob: "Les Scènes Sophistiquées",
       standard: 'Scenes',
-      minimal: 'Scn'
+      minimal: 'Scn',
+      tooltip: "Light presets. Though calling them 'presets' is painfully gauche."
     }
   },
   {
     id: 'audio',
     icon: 'WaveformCircle',
     title: {
-    artsnob: "L'Audio Pour Les Oreilles Fines",
+    artsnob: "L'Audio Pour Les Connoisseurs",
       standard: 'Audio',
-      minimal: 'FFT'
+      minimal: 'FFT',
+      tooltip: "Sound analysis. *adjusts monocle* Though explaining it feels rather déclassé."
     }
   },
   {
     id: 'touchosc',
     icon: 'Smartphone',
     title: {
-    artsnob: "TouchOSC (Parce Que Pourquoi Pas)",
+    artsnob: "Le TouchOSC Très Exclusive",
       standard: 'TouchOSC',
-      minimal: 'OSC'
+      minimal: 'OSC',
+      tooltip: "Mobile control interface. Though if you need this explained, perhaps stick to finger painting."
     }
   },
   {
     id: 'misc',
     icon: 'Settings',
     title: {
-    artsnob: "Les Settings Pour Les Esthètes",
+    artsnob: "Les Paramètres des Cognoscenti",
       standard: 'Settings',
-      minimal: 'Cfg'
+      minimal: 'Cfg',
+      tooltip: "Configuration settings. Do try not to strain yourself understanding that, darling."
     }
   },
   {
@@ -186,7 +196,8 @@ export const Navbar: React.FC = () => {
               key={item.id}
               onClick={() => handleViewChange(item.id)}
               className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
-              title={item.title[theme as keyof typeof item.title]}
+              title={item.title.tooltip || item.title[theme as keyof typeof item.title]}
+              data-tooltip={item.title.tooltip}
             >
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
