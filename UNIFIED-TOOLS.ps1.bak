@@ -29,12 +29,13 @@
 param(
         [Parameter(Position=0)] [ValidateSet('help','quickstart','dev','rebuild','clean','kill','status')]
         [string]$Command = 'help',
-        [switch]$Full,          # for clean: include node_modules & locks
-        [switch]$BackendOnly,   # for rebuild: skip frontend
-        [switch]$DevFrontend,   # for dev: auto start frontend dev server
-        [switch]$ForceInstall,  # force reinstall deps
-        [switch]$NoBackend,     # (dev) skip backend start
-        [switch]$SkipBuild      # (quickstart) skip build step if dist exists
+        [switch]$Full,              # for clean: include node_modules & locks
+        [switch]$BackendOnly,       # for rebuild: skip frontend
+        [switch]$DevFrontend,       # for dev: auto start react-app dev server
+        [switch]$DevNextJs,         # for dev: auto start next.js dev server
+        [switch]$ForceInstall,      # force reinstall deps
+        [switch]$NoBackend,         # (dev) skip backend start
+        [switch]$SkipBuild          # (quickstart) skip build step if dist exists
 )
 
 $ErrorActionPreference = 'Stop'
@@ -74,7 +75,7 @@ function Show-Help {
         Write-Host "Install, build, launch backend, print frontend instructions" -ForegroundColor Gray
 
         Write-Host "  dev             " -ForegroundColor Blue -NoNewline
-        Write-Host "Start backend (and optionally frontend dev with -DevFrontend)" -ForegroundColor Gray
+        Write-Host "Start backend (and optionally frontends with -DevFrontend or -DevNextJs)" -ForegroundColor Gray
 
         Write-Host "  rebuild         " -ForegroundColor DarkYellow -NoNewline
         Write-Host "Fast rebuild (smart clean + build, use -BackendOnly for backend only)" -ForegroundColor Gray
@@ -82,7 +83,7 @@ function Show-Help {
         Write-Host ""
         Write-Host "SWITCHES:" -ForegroundColor White -BackgroundColor DarkMagenta
         Write-Host ""
-        Write-Host "  -Full -BackendOnly -DevFrontend -ForceInstall -NoBackend -SkipBuild" -ForegroundColor Yellow
+        Write-Host "  -Full -BackendOnly -DevFrontend -DevNextJs -ForceInstall -NoBackend -SkipBuild" -ForegroundColor Yellow
 
         Write-Host ""
         Write-Host "EXAMPLES:" -ForegroundColor White -BackgroundColor DarkGreen
@@ -90,7 +91,7 @@ function Show-Help {
         Write-Host "  .\UNIFIED-TOOLS.ps1 quickstart" -ForegroundColor Cyan
         Write-Host "  .\UNIFIED-TOOLS.ps1 rebuild -BackendOnly" -ForegroundColor Green
         Write-Host "  .\UNIFIED-TOOLS.ps1 clean -Full" -ForegroundColor Red
-        Write-Host "  .\UNIFIED-TOOLS.ps1 dev -DevFrontend" -ForegroundColor Magenta
+        Write-Host "  .\UNIFIED-TOOLS.ps1 dev -DevFrontend -DevNextJs" -ForegroundColor Magenta
 
         Write-Host ""
         Write-Host "============================================" -ForegroundColor DarkGray
@@ -104,7 +105,7 @@ function Kill-Dev {
         Write-Host "Aligning chakras and banishing old processes..." -ForegroundColor Cyan
         Write-Host ""
 
-        $ports = @('3030','3001')
+        $ports = @('3030','3001', '3000')
         foreach($p in $ports){
                 Write-Host "Scanning dimensional port $p for lingering spirits..." -ForegroundColor Yellow
                 $proc = netstat -ano | Select-String ":$p " | Select-Object -First 1
@@ -142,7 +143,7 @@ function Clean-Artifacts([bool]$FullClean){
         Write-Host "Cleansing old creative energies and build artifacts..." -ForegroundColor Yellow
         Write-Host ""
 
-        $paths = @('dist','react-app/dist','react-app/build','artbastard-nextjs-frontend/.next','artbastard-nextjs-frontend/dist')
+        $paths = @('dist','react-app/dist','react-app/build','artbastard-nextjs-frontend/.next')
         foreach($p in $paths){
                 if(Test-Path $p){
                         Write-Host "Dissolving stale creation: $p" -ForegroundColor Red
@@ -186,9 +187,10 @@ function Ensure-Dependencies([bool]$Force){
         Write-Host ""
 
         $needRoot = $Force -or (-not (Test-Path node_modules))
-        $needFront = $Force -or (-not (Test-Path 'react-app/node_modules'))
+        $needReact = $Force -or (-not (Test-Path 'react-app/node_modules'))
+        $needNext = $Force -or (-not (Test-Path 'artbastard-nextjs-frontend/node_modules'))
 
-        if(-not ($needRoot -or $needFront)){
+        if(-not ($needRoot -or $needReact -or $needNext)){
                 Write-Host "The dependency chakras are already PERFECTLY ALIGNED!" -ForegroundColor Green
                 Write-Host "All node_modules are vibrating at optimal frequencies!" -ForegroundColor Cyan
                 return
@@ -203,17 +205,30 @@ function Ensure-Dependencies([bool]$Force){
                 Write-Host "Root dependencies already perfectly aligned!" -ForegroundColor DarkGray
         }
 
-        if($needFront){
+        if($needReact){
                 Write-Host ""
-                Write-Host "WEAVING frontend dependencies into the cosmic tapestry..." -ForegroundColor Blue
+                Write-Host "WEAVING React frontend dependencies into the cosmic tapestry..." -ForegroundColor Blue
                 Write-Host "Entering the react-app dimension..." -ForegroundColor Cyan
                 Set-Location react-app
                 Write-Host "Invoking: npm install (channeling React spirits...)" -ForegroundColor Yellow
                 npm install
                 Set-Location ..
-                Write-Host "FRONTEND DEPENDENCIES TRANSCENDED INTO EXISTENCE!" -ForegroundColor Green
+                Write-Host "REACT FRONTEND DEPENDENCIES TRANSCENDED INTO EXISTENCE!" -ForegroundColor Green
         } else {
-                Write-Host "Frontend dependencies already harmonized with the universe!" -ForegroundColor DarkGray
+                Write-Host "React frontend dependencies already harmonized with the universe!" -ForegroundColor DarkGray
+        }
+
+        if($needNext){
+                Write-Host ""
+                Write-Host "WEAVING Next.js frontend dependencies into the cosmic tapestry..." -ForegroundColor Blue
+                Write-Host "Entering the artbastard-nextjs-frontend dimension..." -ForegroundColor Cyan
+                Set-Location artbastard-nextjs-frontend
+                Write-Host "Invoking: npm install (channeling Next.js spirits...)" -ForegroundColor Yellow
+                npm install
+                Set-Location ..
+                Write-Host "NEXT.JS FRONTEND DEPENDENCIES TRANSCENDED INTO EXISTENCE!" -ForegroundColor Green
+        } else {
+                Write-Host "Next.js frontend dependencies already harmonized with the universe!" -ForegroundColor DarkGray
         }
 
         Write-Host ""
@@ -234,13 +249,22 @@ function Build-Project([bool]$BackendOnly){
 
         if(-not $BackendOnly){
                 Write-Host ""
-                Write-Host "MANIFESTING FRONTEND VISUAL SPECTACLE..." -ForegroundColor Blue
+                Write-Host "MANIFESTING REACT FRONTEND VISUAL SPECTACLE..." -ForegroundColor Blue
                 Write-Host "Entering the React dimension to build the user interface..." -ForegroundColor Cyan
                 Set-Location react-app
                 Write-Host "Invoking: npm run build (weaving JSX into static glory)" -ForegroundColor Yellow
                 npm run build
                 Set-Location ..
-                Write-Host "FRONTEND TRANSFORMED INTO BEAUTIFUL STATIC ARTWORK!" -ForegroundColor Green
+                Write-Host "REACT FRONTEND TRANSFORMED INTO BEAUTIFUL STATIC ARTWORK!" -ForegroundColor Green
+
+                Write-Host ""
+                Write-Host "MANIFESTING NEXT.JS FRONTEND VISUAL SPECTACLE..." -ForegroundColor Blue
+                Write-Host "Entering the Next.js dimension to build the user interface..." -ForegroundColor Cyan
+                Set-Location artbastard-nextjs-frontend
+                Write-Host "Invoking: npm run build (weaving JSX into static glory)" -ForegroundColor Yellow
+                npm run build
+                Set-Location ..
+                Write-Host "NEXT.JS FRONTEND TRANSFORMED INTO BEAUTIFUL STATIC ARTWORK!" -ForegroundColor Green
         } else {
                 Write-Host "Backend-only mode: Frontend remains in its raw, dynamic state!" -ForegroundColor DarkGray
         }
@@ -275,18 +299,31 @@ function Start-Backend {
 function Frontend-Instructions {
         Write-Host ""
         Write-Host "FRONTEND ENLIGHTENMENT INSTRUCTIONS" -ForegroundColor Cyan -BackgroundColor DarkMagenta
-        Write-Host "Your artistic interface awaits manifestation..." -ForegroundColor Yellow
+        Write-Host "Your artistic interfaces await manifestation..." -ForegroundColor Yellow
         Write-Host ""
 
+        Write-Host "--- React App (Vite) ---" -ForegroundColor White
         Write-Host "DEVELOPMENT MODE (for creative iteration):" -ForegroundColor Green
-        Write-Host "    cd react-app && npm start" -ForegroundColor Cyan
-        Write-Host "    This will open a live-reloading artistic canvas!" -ForegroundColor Blue
+        Write-Host "    cd react-app && npm run dev" -ForegroundColor Cyan
+        Write-Host "    This will open a live-reloading artistic canvas on http://localhost:5173" -ForegroundColor Blue
         Write-Host ""
 
         Write-Host "PRODUCTION MODE (for final cosmic deployment):" -ForegroundColor Yellow
         Write-Host "    Serve the contents of react-app/dist/" -ForegroundColor Cyan
         Write-Host "    Your static masterpiece ready for the world!" -ForegroundColor Magenta
         Write-Host ""
+
+        Write-Host "--- Next.js App ---" -ForegroundColor White
+        Write-Host "DEVELOPMENT MODE (for creative iteration):" -ForegroundColor Green
+        Write-Host "    cd artbastard-nextjs-frontend && npm run dev" -ForegroundColor Cyan
+        Write-Host "    This will open a live-reloading artistic canvas on http://localhost:3000" -ForegroundColor Blue
+        Write-Host ""
+
+        Write-Host "PRODUCTION MODE (for final cosmic deployment):" -ForegroundColor Yellow
+        Write-Host "    cd artbastard-nextjs-frontend && npm run start" -ForegroundColor Cyan
+        Write-Host "    Your static masterpiece ready for the world!" -ForegroundColor Magenta
+        Write-Host ""
+
 
         Write-Host "THE DMX512 UNIVERSE AWAITS YOUR CREATIVE COMMAND!" -ForegroundColor Green -BackgroundColor Black
         Write-Host ""
@@ -298,9 +335,9 @@ switch($Command) {
                 Write-Host "Root: $Root" -ForegroundColor Gray
                 Write-Host "Node: $(node -v 2>$null)" -ForegroundColor Gray
                 Write-Host "Ports in use:" -ForegroundColor Gray
-                netstat -ano | Select-String ':3030|:3001' | ForEach-Object { $_ }
+                netstat -ano | Select-String ':3030|:3001|:3000|:5173' | ForEach-Object { $_ }
                 Write-Host "Directory Status:" -ForegroundColor Gray
-                $directories = @('dist', 'react-app\dist')
+                $directories = @('dist', 'react-app\dist', 'artbastard-nextjs-frontend\.next')
                 foreach($directory in $directories){
                         if(Test-Path $directory) {
                                 Write-Host "  exists -> $directory" -ForegroundColor Green
@@ -350,7 +387,18 @@ switch($Command) {
         }
         'dev' {
                 if(-not $NoBackend){ Kill-Dev; Start-Backend }
-                if($DevFrontend){ Set-Location react-app; Start-Process -FilePath 'npm' -ArgumentList 'start' }
+                if($DevFrontend){ 
+                    Write-Host "Starting React Dev Server..." -ForegroundColor Cyan
+                    Set-Location react-app
+                    Start-Process -FilePath 'npm' -ArgumentList 'run dev'
+                    Set-Location ..
+                }
+                if($DevNextJs){ 
+                    Write-Host "Starting Next.js Dev Server..." -ForegroundColor Cyan
+                    Set-Location artbastard-nextjs-frontend
+                    Start-Process -FilePath 'npm' -ArgumentList 'run dev' 
+                    Set-Location ..
+                }
                 Frontend-Instructions
         }
         'rebuild' {
