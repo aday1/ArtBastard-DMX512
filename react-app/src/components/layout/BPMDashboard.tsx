@@ -27,9 +27,11 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     socket,
     // Autopilot controls
     autopilotTrackEnabled,
+    autopilotTrackAutoPlay,
     panTiltAutopilot,
     channelAutopilots,
     setAutopilotTrackEnabled,
+    setAutopilotTrackAutoPlay,
     togglePanTiltAutopilot
   } = useStore();
 
@@ -255,11 +257,18 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <div className={styles.autopilotControls}>
               <button
                 className={`${styles.autopilotButton} ${autopilotTrackEnabled ? styles.active : ''}`}
-                onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
-                title={autopilotTrackEnabled ? 'Disable Pan/Tilt Autopilot' : 'Enable Pan/Tilt Autopilot'}
+                onClick={() => {
+                  const newEnabled = !autopilotTrackEnabled;
+                  setAutopilotTrackEnabled(newEnabled);
+                  // Also enable auto-play when enabling track autopilot
+                  if (newEnabled) {
+                    setAutopilotTrackAutoPlay(true);
+                  }
+                }}
+                title={autopilotTrackEnabled ? 'Disable Pan/Tilt Track Autopilot' : 'Enable Pan/Tilt Track Autopilot'}
               >
                 <span className={styles.autopilotIcon}>🤖</span>
-                Pan/Tilt {autopilotTrackEnabled ? 'ON' : 'OFF'}
+                Track {autopilotTrackEnabled ? 'ON' : 'OFF'}
               </button>
               
               <button
@@ -276,7 +285,9 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
               <div className={styles.autopilotStatus}>
                 <div className={styles.statusIndicators}>
                   {autopilotTrackEnabled && (
-                    <span className={styles.statusBadge}>Pan/Tilt Track</span>
+                    <span className={styles.statusBadge}>
+                      Track {autopilotTrackAutoPlay ? '(Moving)' : '(Static)'}
+                    </span>
                   )}
                   {panTiltAutopilot.enabled && (
                     <span className={styles.statusBadge}>General ({panTiltAutopilot.pathType})</span>
@@ -285,6 +296,19 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                     <span className={styles.statusBadge}>{Object.keys(channelAutopilots).length} Channels</span>
                   )}
                 </div>
+                <button 
+                  className={styles.debugButton}
+                  onClick={() => {
+                    console.log('🔍 AUTOPILOT DEBUG INFO:');
+                    console.log('Track Autopilot Enabled:', autopilotTrackEnabled);
+                    console.log('Track Auto-Play Enabled:', autopilotTrackAutoPlay);
+                    console.log('General Autopilot Enabled:', panTiltAutopilot.enabled);
+                    console.log('Channel Autopilots:', Object.keys(channelAutopilots).length);
+                  }}
+                  title="Debug autopilot status to console"
+                >
+                  🐛 Debug
+                </button>
               </div>
             )}
           </div>

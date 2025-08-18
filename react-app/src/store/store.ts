@@ -2368,21 +2368,31 @@ export const useStore = create<State>()(
           return;
         }        targetFixtures.forEach(fixture => {
           console.log(`[STORE] updatePanTiltFromTrack: Processing fixture "${fixture.name}" (ID: ${fixture.id})`);
-          console.log(`[STORE] updatePanTiltFromTrack: Fixture channels:`, fixture.channels.map(c => ({ type: c.type, dmxAddress: c.dmxAddress })));
+          console.log(`[STORE] updatePanTiltFromTrack: Fixture startAddress: ${fixture.startAddress}`);
           
-          fixture.channels.forEach(channel => {
-            console.log(`[STORE] updatePanTiltFromTrack: Checking channel type "${channel.type}" with DMX address ${channel.dmxAddress}`);
+          fixture.channels.forEach((channel, channelIndex) => {
+            console.log(`[STORE] updatePanTiltFromTrack: Checking channel type "${channel.type}" at index ${channelIndex}`);
             
-            if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 0 && channel.dmxAddress < 512) {
+            // Calculate DMX address: use explicit dmxAddress if available, otherwise calculate from startAddress
+            let dmxAddress: number;
+            if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 1 && channel.dmxAddress <= 512) {
+              dmxAddress = channel.dmxAddress - 1; // Convert to 0-based
+            } else {
+              dmxAddress = (fixture.startAddress || 1) + channelIndex - 1; // Convert to 0-based
+            }
+            
+            console.log(`[STORE] updatePanTiltFromTrack: Calculated DMX address for ${channel.type}: ${dmxAddress} (0-based)`);
+            
+            if (dmxAddress >= 0 && dmxAddress < 512) {
               if (channel.type.toLowerCase() === 'pan') {
-                updates[channel.dmxAddress] = pan;
-                console.log(`[STORE] updatePanTiltFromTrack: Set Pan channel ${channel.dmxAddress} to ${pan}`);
+                updates[dmxAddress] = pan;
+                console.log(`[STORE] updatePanTiltFromTrack: Set Pan channel ${dmxAddress} to ${pan}`);
               } else if (channel.type.toLowerCase() === 'tilt') {
-                updates[channel.dmxAddress] = tilt;
-                console.log(`[STORE] updatePanTiltFromTrack: Set Tilt channel ${channel.dmxAddress} to ${tilt}`);
+                updates[dmxAddress] = tilt;
+                console.log(`[STORE] updatePanTiltFromTrack: Set Tilt channel ${dmxAddress} to ${tilt}`);
               }
             } else {
-              console.log(`[STORE] updatePanTiltFromTrack: Skipping channel "${channel.type}" - invalid DMX address: ${channel.dmxAddress}`);
+              console.log(`[STORE] updatePanTiltFromTrack: Skipping channel "${channel.type}" - invalid DMX address: ${dmxAddress}`);
             }
           });
         });
@@ -2981,8 +2991,24 @@ export const useStore = create<State>()(
               const panDmx = Math.round(Math.min(255, Math.max(0, panValue)));
               const tiltDmx = Math.round(Math.min(255, Math.max(0, tiltValue)));
 
-              const panDmxAddress = panChannel.dmxAddress - 1; // Convert to 0-indexed
-              const tiltDmxAddress = tiltChannel.dmxAddress - 1;
+              // Calculate DMX addresses properly
+              const panChannelIndex = fixture.channels.indexOf(panChannel);
+              const tiltChannelIndex = fixture.channels.indexOf(tiltChannel);
+              
+              let panDmxAddress: number;
+              let tiltDmxAddress: number;
+              
+              if (typeof panChannel.dmxAddress === 'number' && panChannel.dmxAddress >= 1) {
+                panDmxAddress = panChannel.dmxAddress - 1; // Convert to 0-based
+              } else {
+                panDmxAddress = (fixture.startAddress || 1) + panChannelIndex - 1; // Convert to 0-based
+              }
+              
+              if (typeof tiltChannel.dmxAddress === 'number' && tiltChannel.dmxAddress >= 1) {
+                tiltDmxAddress = tiltChannel.dmxAddress - 1; // Convert to 0-based
+              } else {
+                tiltDmxAddress = (fixture.startAddress || 1) + tiltChannelIndex - 1; // Convert to 0-based
+              }
 
               updates[panDmxAddress] = panDmx;
               updates[tiltDmxAddress] = tiltDmx;
