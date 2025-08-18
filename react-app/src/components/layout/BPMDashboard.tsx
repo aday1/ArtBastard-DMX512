@@ -24,7 +24,13 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     requestToggleMasterClockPlayPause,
     setMidiClockBpm,
     setMidiClockIsPlaying,
-    socket
+    socket,
+    // Autopilot controls
+    autopilotTrackEnabled,
+    panTiltAutopilot,
+    channelAutopilots,
+    setAutopilotTrackEnabled,
+    togglePanTiltAutopilot
   } = useStore();
 
   // Handle play/pause with better feedback
@@ -242,6 +248,45 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             >
               TAP
             </button>
+          </div>
+
+          <div className={styles.autopilotSection}>
+            <label className={styles.sectionLabel}>Autopilot Controls</label>
+            <div className={styles.autopilotControls}>
+              <button
+                className={`${styles.autopilotButton} ${autopilotTrackEnabled ? styles.active : ''}`}
+                onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
+                title={autopilotTrackEnabled ? 'Disable Pan/Tilt Autopilot' : 'Enable Pan/Tilt Autopilot'}
+              >
+                <span className={styles.autopilotIcon}>🤖</span>
+                Pan/Tilt {autopilotTrackEnabled ? 'ON' : 'OFF'}
+              </button>
+              
+              <button
+                className={`${styles.autopilotButton} ${panTiltAutopilot.enabled ? styles.active : ''}`}
+                onClick={togglePanTiltAutopilot}
+                title={panTiltAutopilot.enabled ? 'Disable General Autopilot' : 'Enable General Autopilot'}
+              >
+                <span className={styles.autopilotIcon}>⚡</span>
+                General {panTiltAutopilot.enabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            
+            {(autopilotTrackEnabled || panTiltAutopilot.enabled || Object.keys(channelAutopilots).length > 0) && (
+              <div className={styles.autopilotStatus}>
+                <div className={styles.statusIndicators}>
+                  {autopilotTrackEnabled && (
+                    <span className={styles.statusBadge}>Pan/Tilt Track</span>
+                  )}
+                  {panTiltAutopilot.enabled && (
+                    <span className={styles.statusBadge}>General ({panTiltAutopilot.pathType})</span>
+                  )}
+                  {Object.keys(channelAutopilots).length > 0 && (
+                    <span className={styles.statusBadge}>{Object.keys(channelAutopilots).length} Channels</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={styles.statusSection}>
