@@ -258,7 +258,8 @@ Write-Host "Clearing Vite build artifacts and hashes... 🔥" -ForegroundColor D
 $ViteBuildArtifacts = @(
     "react-app\dist\.vite",
     "react-app\dist\vite.svg",
-    "react-app\dist\.htaccess"
+    "react-app\dist\.htaccess",
+    "react-app\.env.local"  # Added cleanup for our build environment files
 )
 foreach ($Artifact in $ViteBuildArtifacts) {
     Remove-ItemWithFlair -ItemPath $Artifact -Description "Vite build artifact"
@@ -272,6 +273,19 @@ if (Test-Path $ReactDistDir) {
         $_.Name -match '-[a-f0-9]{8,}\.(js|css|woff|woff2|svg|png|jpg|jpeg|gif)$'
     } | ForEach-Object {
         Remove-ItemWithFlair -ItemPath $_.FullName -Description "hashed build file"
+    }
+}
+
+# Clean up cross-platform build setup files
+Write-Host "Cleaning cross-platform build setup files... 🔧" -ForegroundColor DarkCyan
+$BuildSetupFiles = @(
+    "react-app\setup-build.js",
+    "react-app\.env.local",
+    "react-app\build-windows.bat"
+)
+foreach ($SetupFile in $BuildSetupFiles) {
+    if (Test-Path $SetupFile) {
+        Write-Host "Note: Keeping $SetupFile for cross-platform builds ✨" -ForegroundColor Gray
     }
 }
 
