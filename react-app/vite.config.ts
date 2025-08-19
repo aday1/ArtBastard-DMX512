@@ -12,6 +12,9 @@ const skipTypeChecking = !!process.env.SKIP_TYPECHECKING
 
 // Force Rollup to use JavaScript fallback instead of native binaries
 process.env.ROLLUP_NO_NATIVE = 'true'
+// Additional environment variables to force JS fallback
+process.env.ROLLUP_NO_WASM = 'true'
+process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --max-old-space-size=4096'
 
 // Suppress Sass deprecation warnings
 process.env.SASS_SILENCE_DEPRECATIONS = 'legacy-js-api'
