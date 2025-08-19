@@ -59,8 +59,9 @@
     "start": "vite",
     "dev": "vite",
     "build": "npm --omit=optional run build:vite",
-    "build:vite": "ROLLUP_NO_NATIVE=true tsc && ROLLUP_NO_NATIVE=true vite build",
+    "build:vite": "tsc && vite build",
     "build:skip-ts": "vite build",
+    "build:js-fallback": "FORCE_ROLLUP_JS_FALLBACK=true npm run build:vite",
     "build:ultra-fast": "vite build --mode development",
     "preview": "vite preview",
     "test": "vitest",
@@ -85,6 +86,9 @@
     ]
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.46.3"
+    "@rollup/rollup-linux-x64-gnu": "^4.46.3",
+    "@rollup/rollup-win32-x64-msvc": "^4.46.3",
+    "@rollup/rollup-darwin-x64": "^4.46.3",
+    "@rollup/rollup-darwin-arm64": "^4.46.3"
   }
 }

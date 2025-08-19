@@ -10,11 +10,12 @@ const RETRY_DELAY = 2000
 // Check if we're skipping type checking
 const skipTypeChecking = !!process.env.SKIP_TYPECHECKING
 
-// Force Rollup to use JavaScript fallback instead of native binaries
-process.env.ROLLUP_NO_NATIVE = 'true'
-// Additional environment variables to force JS fallback
-process.env.ROLLUP_NO_WASM = 'true'
-process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --max-old-space-size=4096'
+// Cross-platform rollup configuration
+// Only force JS fallback if native binaries are explicitly unavailable
+if (process.env.FORCE_ROLLUP_JS_FALLBACK === 'true') {
+  process.env.ROLLUP_NO_NATIVE = 'true'
+  process.env.ROLLUP_NO_WASM = 'true'
+}
 
 // Suppress Sass deprecation warnings
 process.env.SASS_SILENCE_DEPRECATIONS = 'legacy-js-api'
