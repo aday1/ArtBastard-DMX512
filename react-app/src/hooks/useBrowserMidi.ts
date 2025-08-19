@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSocket } from '../context/SocketContext'
 import { useStore, MidiMapping } from '../store'
 
@@ -10,19 +10,25 @@ export const useBrowserMidi = () => {
   const [activeBrowserInputs, setActiveBrowserInputs] = useState<Set<string>>(new Set())
   const { socket, connected: socketConnected } = useSocket()
   
-  const {
-    addNotification,
-    addMidiMessage: addMidiMessageToStore,
-    midiLearnTarget,
-    updateMasterSlider,
-    cancelMidiLearn,
-  } = useStore(state => ({
-    addNotification: state.addNotification,
-    addMidiMessage: state.addMidiMessage,
-    midiLearnTarget: state.midiLearnTarget,
-    updateMasterSlider: state.updateMasterSlider,
-    cancelMidiLearn: state.cancelMidiLearn,
-  }));
+  // Use a ref to hold the store actions to avoid stale closures in callbacks
+  const storeActions = useRef({
+    addNotification: useStore.getState().addNotification,
+    addMidiMessage: useStore.getState().addMidiMessage,
+    midiLearnTarget: useStore.getState().midiLearnTarget,
+    updateMasterSlider: useStore.getState().updateMasterSlider,
+    cancelMidiLearn: useStore.getState().cancelMidiLearn,
+  });
+
+  // Keep the ref updated with the latest store state on each render
+  useEffect(() => {
+    storeActions.current = {
+      addNotification: useStore.getState().addNotification,
+      addMidiMessage: useStore.getState().addMidiMessage,
+      midiLearnTarget: useStore.getState().midiLearnTarget,
+      updateMasterSlider: useStore.getState().updateMasterSlider,
+      cancelMidiLearn: useStore.getState().cancelMidiLearn,
+    };
+  });
 
   // Initialize Web MIDI API
   useEffect(() => {
@@ -37,14 +43,14 @@ export const useBrowserMidi = () => {
           const inputList = Array.from(access.inputs.values())
           setInputs(inputList)
           
-          addNotification({
+          storeActions.current.addNotification({
             message: 'Browser MIDI initialized successfully',
             type: 'success',
             priority: 'normal'
           })
         } else {
           setError('Web MIDI API not supported in this browser')
-          addNotification({
+          storeActions.current.addNotification({
             message: 'Web MIDI API not supported in this browser',
             type: 'error',
             priority: 'high'
@@ -54,7 +60,7 @@ export const useBrowserMidi = () => {
         console.error('[useBrowserMidi] Failed to initialize Web MIDI:', err)
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         setError(errorMessage)
-        addNotification({
+        storeActions.current.addNotification({
           message: `MIDI initialization failed: ${errorMessage}`,
           type: 'error',
           priority: 'high'
@@ -63,7 +69,7 @@ export const useBrowserMidi = () => {
     }
 
     initMidi()
-  }, [addNotification])
+  }, [])
 
   // Handle state changes
   const handleStateChange = useCallback((event: WebMidi.MIDIConnectionEvent) => {
@@ -72,7 +78,7 @@ export const useBrowserMidi = () => {
       setInputs(inputList)
       
       const portName = event.port.name || 'Unknown device'
-      addNotification({
+      storeActions.current.addNotification({
         message: `MIDI device ${portName} ${event.port.state}`,
         type: event.port.state === 'connected' ? 'success' : 'info',
         priority: 'normal'
@@ -87,7 +93,7 @@ export const useBrowserMidi = () => {
         })
       }
     }
-  }, [midiAccess, addNotification])
+  }, [midiAccess])
 
   useEffect(() => {
     if (midiAccess) {
@@ -114,6 +120,8 @@ export const useBrowserMidi = () => {
       
       console.log(`[useBrowserMidi] Raw MIDI from ${source} (ID: ${sourceInput?.id}):`, event.data)
 
+      const { midiLearnTarget, updateMasterSlider, cancelMidiLearn } = storeActions.current;
+
       // --- MIDI Learn Logic for Master Sliders ---
       if (midiLearnTarget && midiLearnTarget.type === 'masterSlider') {
         let learnedMapping: MidiMapping | null = null;
@@ -127,7 +135,7 @@ export const useBrowserMidi = () => {
         if (learnedMapping) {
           console.log(`[useBrowserMidi] Learned MIDI for Master Slider ID ${midiLearnTarget.id}:`, learnedMapping);
           updateMasterSlider(midiLearnTarget.id, { midiMapping: learnedMapping });
-          addNotification({
+          storeActions.current.addNotification({
             message: `MIDI control learned for Master Slider.`,
             type: 'success',
             priority: 'normal'
@@ -154,8 +162,8 @@ export const useBrowserMidi = () => {
         } else {
           // console.warn('[useBrowserMidi] Socket not connected. MIDI message not sent to server.')
         }
-        if (addMidiMessageToStore) {
-          addMidiMessageToStore(messageToStore)
+        if (storeActions.current.addMidiMessage) {
+          storeActions.current.addMidiMessage(messageToStore)
         } else {
           console.error('[useBrowserMidi] addMidiMessage action not found in store')
         }
@@ -188,12 +196,12 @@ export const useBrowserMidi = () => {
         }
       })
     }
-  }, [midiAccess, socket, socketConnected, activeBrowserInputs, addMidiMessageToStore, midiLearnTarget, updateMasterSlider, cancelMidiLearn, addNotification])
+  }, [midiAccess, socket, socketConnected, activeBrowserInputs])
 
   // Connect to a MIDI input
   const connectBrowserInput = useCallback((inputId: string) => {
     if (!midiAccess) {
-      addNotification({
+      storeActions.current.addNotification({
         message: 'MIDI Access not available.',
         type: 'error',
         priority: 'high'
@@ -204,20 +212,20 @@ export const useBrowserMidi = () => {
     const input = midiAccess.inputs.get(inputId)
     if (input) {
       setActiveBrowserInputs(prev => new Set(prev).add(inputId))
-      addNotification({
+      storeActions.current.addNotification({
         message: `Connecting to MIDI device: ${input.name}`,
         type: 'info',
         priority: 'normal'
       })
       console.log(`[useBrowserMidi] Added ${input.name} (ID: ${inputId}) to active inputs. Listener will be (re)attached.`)
     } else {
-      addNotification({
+      storeActions.current.addNotification({
         message: `MIDI Input device with ID ${inputId} not found.`,
         type: 'error',
         priority: 'normal'
       })
     }
-  }, [midiAccess, addNotification])
+  }, [midiAccess])
 
   // Disconnect from a MIDI input
   const disconnectBrowserInput = useCallback((inputId: string) => {
@@ -230,40 +238,40 @@ export const useBrowserMidi = () => {
         newSet.delete(inputId)
         return newSet
       })
-      addNotification({
+      storeActions.current.addNotification({
         message: `Disconnected from MIDI device: ${input.name}`,
         type: 'info',
         priority: 'normal'
       })
       console.log(`[useBrowserMidi] Removed ${input.name} (ID: ${inputId}) from active inputs. Listener will be detached.`)
     } else {
-      addNotification({
+      storeActions.current.addNotification({
         message: `MIDI Input device with ID ${inputId} not found for disconnection.`,
         type: 'error',
         priority: 'normal'
       })
     }
-  }, [midiAccess, addNotification])
+  }, [midiAccess])
 
   // Refresh MIDI devices list
   const refreshDevices = useCallback(() => {
     if (midiAccess) {
       const inputList = Array.from(midiAccess.inputs.values())
       setInputs(inputList)
-      addNotification({
+      storeActions.current.addNotification({
         message: 'MIDI device list refreshed',
         type: 'info',
         priority: 'low'
       })
       console.log('[useBrowserMidi] Refreshed MIDI devices list:', inputList)
     } else {
-      addNotification({
+      storeActions.current.addNotification({
         message: 'MIDI Access not available to refresh devices.',
         type: 'error',
         priority: 'normal'
       })
     }
-  }, [midiAccess, addNotification])
+  }, [midiAccess])
 
   return {
     isSupported: browserMidiEnabled,
