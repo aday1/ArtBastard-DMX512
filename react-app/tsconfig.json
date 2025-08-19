@@ -28,12 +28,17 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "checkJs": false,
-    "allowJs": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "allowJs": true
   },
   "include": [
     "src",
     "src/types"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
   ],
   "references": [
     {
