@@ -60,6 +60,15 @@ export interface AutopilotConfig {
   phase: number; // Phase offset in degrees (0-360)
 }
 
+export interface ColorSliderAutopilotConfig {
+  enabled: boolean;
+  type: 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth';
+  speed: number; // BPM multiplier (0.1 to 10)
+  range: { min: number; max: number }; // Hue range (0-360)
+  syncToBPM: boolean;
+  phase: number; // Phase offset in degrees (0-360)
+}
+
 export interface PanTiltAutopilotConfig {
   enabled: boolean;
   pathType: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'custom';
@@ -439,6 +448,7 @@ interface State {
   // Autopilot System State
   channelAutopilots: { [channelIndex: number]: AutopilotConfig };
   panTiltAutopilot: PanTiltAutopilotConfig;
+  colorSliderAutopilot: ColorSliderAutopilotConfig;
   autopilotUpdateInterval: number | null;
   lastAutopilotUpdate: number;
 
@@ -603,6 +613,8 @@ interface State {
   removeChannelAutopilot: (channelIndex: number) => void;
   setPanTiltAutopilot: (config: Partial<PanTiltAutopilotConfig>) => void;
   togglePanTiltAutopilot: () => void;
+  setColorSliderAutopilot: (config: Partial<ColorSliderAutopilotConfig>) => void;
+  toggleColorSliderAutopilot: () => void;
   updateAutopilotValues: () => void;
   startAutopilotSystem: () => void;
   stopAutopilotSystem: () => void;
@@ -847,6 +859,14 @@ export const useStore = create<State>()(
         size: 50, // 50% of maximum range
         centerX: 128,
         centerY: 128,
+        syncToBPM: false,
+        phase: 0
+      },
+      colorSliderAutopilot: {
+        enabled: false,
+        type: 'sine',
+        speed: 0.2,
+        range: { min: 0, max: 360 },
         syncToBPM: false,
         phase: 0
       },
@@ -1657,1133 +1677,7 @@ export const useStore = create<State>()(
           })
       },
       
-      // Config Actions
-      updateArtNetConfig: (config) => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('updateArtNetConfig', config)
-          set({ artNetConfig: { ...get().artNetConfig, ...config } })
-          get().addNotification({ message: 'ArtNet config updated. Restart may be required.', type: 'info' });
-        } else {
-          get().addNotification({ message: 'Cannot update ArtNet config: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-      
-      updateDebugModules: (debugSettings) => {
-        const currentDebugModules = get().debugModules || { midi: false, osc: false, artnet: false, button: true };
-        const updatedDebugModules = { ...currentDebugModules, ...debugSettings };
-        
-        set({ debugModules: updatedDebugModules });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('debugModules', JSON.stringify(updatedDebugModules));
-        
-        // Socket emit if needed
-        const socket = get().socket;
-        if (socket?.connected) {
-          socket.emit('updateDebugSettings', updatedDebugModules);
-        }
-      },
-
-      testArtNetConnection: () => {
-        const socket = get().socket
-        if (socket?.connected) {
-          socket.emit('testArtNetConnection')
-          get().addNotification({ message: 'Testing ArtNet connection...', type: 'info' }) 
-        } else {
-          get().addNotification({ message: 'Cannot test ArtNet: not connected to server', type: 'error', priority: 'high' }) 
-        }
-      },
-
-      // Theme Actions
-      setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
-        set({ theme })
-        localStorage.setItem('theme', theme)
-        get().addNotification({ message: `Theme changed to ${theme}`, type: 'info' })
-      },
-
-      toggleDarkMode: () => {
-        const newDarkMode = !get().darkMode
-        set({ darkMode: newDarkMode })
-        localStorage.setItem('darkMode', newDarkMode.toString())
-        document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light')
-        get().addNotification({ message: `${newDarkMode ? 'Dark' : 'Light'} mode enabled`, type: 'info' })
-      },
-
-      // UI Settings Actions
-      updateUiSettings: (settings: Partial<{ sparklesEnabled: boolean }>) => {
-        const currentUiSettings = get().uiSettings;
-        const updatedUiSettings = { ...currentUiSettings, ...settings };
-        set({ uiSettings: updatedUiSettings });
-        
-        // Save to localStorage for persistence
-        localStorage.setItem('uiSettings', JSON.stringify(updatedUiSettings));
-        
-        get().addNotification({ 
-          message: `UI settings updated`, 
-          type: 'success' 
-        });
-      },
-
-      toggleSparkles: () => {
-        const currentEnabled = get().uiSettings.sparklesEnabled;
-        const newEnabled = !currentEnabled;
-        
-        get().updateUiSettings({ sparklesEnabled: newEnabled });
-        
-        get().addNotification({ 
-          message: `Sparkles effect ${newEnabled ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-      
-      // Deprecated actions - can be removed later
-      // showStatusMessage: (text, type) => { 
-      //   get().addNotification({ message: text, type });
-      // },
-      // clearStatusMessage: () => {},
-
-      // Notification Actions
-      addNotification: (notificationInput: AddNotificationInput) => {
-        const newNotification: Notification = {
-          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-          timestamp: Date.now(),
-          message: notificationInput.message,
-          type: notificationInput.type,
-          priority: notificationInput.priority || 'normal',
-          persistent: notificationInput.persistent || false,
-          dismissible: notificationInput.dismissible !== undefined ? notificationInput.dismissible : true,
-        };
-        set((state) => {
-          const updatedNotifications = [...state.notifications, newNotification];
-          updatedNotifications.sort((a, b) => {
-            const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
-            const priorityA = priorityOrder[a.priority || 'normal'];
-            const priorityB = priorityOrder[b.priority || 'normal'];
-            if (priorityA !== priorityB) {
-              return priorityA - priorityB;
-            }
-            return b.timestamp - a.timestamp; // Newest first for same priority
-          });
-          return { notifications: updatedNotifications };
-        });
-      },
-      removeNotification: (id: string) =>
-        set((state) => ({
-          notifications: state.notifications.filter((n) => n.id !== id),
-        })),
-      clearAllNotifications: () => {
-        set({ notifications: [] });
-      },
-
-      setExampleSliderValue: (value: number) => set({ exampleSliderValue: value }),
-      setBpm: (bpm: number) => set({ bpm }),
-
-      setIsPlaying: (isPlaying: boolean) => set({ isPlaying }),
-      setMidiActivity: (activity: number) => set({ midiActivity: activity }),
-      setFixtureLayout: (layout: PlacedFixture[]) => {
-        set({ fixtureLayout: layout });
-      },
-
-      setCanvasBackgroundImage: (image: HTMLImageElement | null) => {
-        set({ canvasBackgroundImage: image });
-      },
-
-      addMasterSlider: (slider: MasterSlider) => {
-        set(state => ({ masterSliders: [...state.masterSliders, slider] }));
-        get().addNotification({ message: `Master slider '${slider.name}' added`, type: 'success' });
-      },
-      
-      updateMasterSliderValue: (sliderId, value) => {
-        const { masterSliders, fixtureLayout, fixtures, setDmxChannel: dmxSetter } = get();
-        const updatedSliders = masterSliders.map(s => 
-          s.id === sliderId ? { ...s, value } : s
-        );
-        set({ masterSliders: updatedSliders });
-
-        const activeSlider = updatedSliders.find(s => s.id === sliderId);
-        if (activeSlider && activeSlider.targets) {
-          activeSlider.targets.forEach(target => {            
-            const pFixture = fixtureLayout.find(pf => pf.id === target.placedFixtureId);
-            if (!pFixture) return;
-
-            const fixtureDef = fixtures.find(fDef => fDef.name === pFixture.fixtureStoreId); 
-            if (!fixtureDef || target.channelIndex >= fixtureDef.channels.length) return;
-            
-            const actualDmxAddress = pFixture.startAddress + target.channelIndex -1; 
-
-            if (actualDmxAddress >= 0 && actualDmxAddress < 512) {
-              const masterValueNormalized = value / 255;
-              let targetDmxValue = target.minRange + masterValueNormalized * (target.maxRange - target.minRange);
-              targetDmxValue = Math.round(targetDmxValue);
-              targetDmxValue = Math.max(0, Math.min(255, targetDmxValue)); 
-              
-              dmxSetter(actualDmxAddress, targetDmxValue);
-            }
-          });
-        }
-      },
-      
-      updateMasterSlider: (sliderId, updatedSliderData) => {
-        set(state => ({
-          masterSliders: state.masterSliders.map(s => 
-            s.id === sliderId ? { ...s, ...updatedSliderData } : s
-          )
-        }));
-        get().addNotification({ message: `Master slider '${updatedSliderData.name || sliderId}' updated`, type: 'info' });
-      },
-      removeMasterSlider: (sliderId) => {
-        set(state => ({
-          masterSliders: state.masterSliders.filter(s => s.id !== sliderId)
-        }));
-        get().addNotification({ message: `Master slider removed`, type: 'success' });
-      },
-      setMasterSliders: (sliders) => {
-        set({ masterSliders: sliders });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a source change (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setSelectedMidiClockHostId: (hostId) => {
-        const { socket, addNotification, availableMidiClockHosts, selectedMidiClockHostId: currentSelectedHostId } = get();
-
-        // If called by UI (or to reflect a change initiated elsewhere that needs to be sent to backend)
-        // Check if it's a request to change the source via UI, not just a state update from backend
-        // A simple heuristic: if the hostId is different from current state and socket is connected, it's likely a user request.
-        // This distinction might need refinement if the action is purely for backend updates in some contexts.
-        // For now, assume if socket is present, it's a request path. If not, it's a direct state update (e.g. from WS handler).
-
-        if (socket?.connected && hostId !== currentSelectedHostId) { // Primary path for UI-initiated change
-          socket.emit('setMasterClockSource', hostId);
-          addNotification({
-            message: `Requesting Master Clock source change to ${availableMidiClockHosts.find(h => h.id === hostId)?.name || 'Unknown'}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ selectedMidiClockHostId: hostId });
-        } else if (!socket?.connected && hostId !== currentSelectedHostId) { // UI tried to change but not connected
-           addNotification({
-            message: 'Cannot change Master Clock: Not connected to server.',
-            type: 'error',
-          });
-        } else { // This path handles direct state update (e.g., from WebSocket handler)
-          set({ selectedMidiClockHostId: hostId });
-          // Avoid sending notification if it's just reflecting a state update from backend
-        }
-      },
-      setAvailableMidiClockHosts: (hosts) => { // Called by WS handler
-        set({ availableMidiClockHosts: hosts });
-      },
-      // This action is now dual-purpose:
-      // 1. Called by UI to request a BPM change for internal clock (sends WS message).
-      // 2. Called by WS handler to update store state from backend `masterClockUpdate`.
-      setMidiClockBpm: (bpm) => { // Renamed in spirit to `requestOrSetMidiClockBpm`
-        const { socket, addNotification, selectedMidiClockHostId, midiClockBpm: currentBpm } = get();
-
-        // If called by UI to change BPM (heuristic: for internal clock, different BPM, socket connected)
-        if (socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) { // Path for UI-initiated change for internal clock
-          socket.emit('setInternalClockBPM', bpm);
-          addNotification({
-            message: `Requesting Internal Clock BPM change to ${bpm}...`,
-            type: 'info',
-          });
-          // Optimistic update removed: set({ midiClockBpm: bpm });
-        } else if (!socket?.connected && selectedMidiClockHostId === 'internal' && bpm !== currentBpm) {
-          addNotification({
-            message: 'Cannot change Internal Clock BPM: Not connected to server.',
-            type: 'error',
-          });
-        }
-        // This will always update the local state, either optimistically (if UI call fails to send) or from backend broadcast
-        set({ midiClockBpm: bpm });
-      },
-      setMidiClockIsPlaying: (isPlaying) => { // Called by WS handler
-        set({ midiClockIsPlaying: isPlaying });
-      },
-      setMidiClockBeatBar: (beat, bar) => { // Called by WS handler
-        set({ midiClockCurrentBeat: beat, midiClockCurrentBar: bar });
-      },
-      requestToggleMasterClockPlayPause: () => { // Renamed from toggleInternalMidiClockPlayState
-        const { socket, addNotification } = get();
-        if (socket?.connected) {
-          socket.emit('toggleMasterClockPlayPause');
-          // Notification can be added if desired, e.g., "Play/pause request sent"
-          // The actual state (isPlaying, beat, bar) will update via 'masterClockUpdate'
-        } else {
-          addNotification({
-            message: 'Cannot toggle play/pause: Not connected to server.',
-            type: 'error',
-          });
-        }
-      },      // Auto-Scene Actions
-  setAutoSceneEnabled: (enabled) => {
-    set({ autoSceneEnabled: enabled, autoSceneCurrentIndex: -1 }); // Reset index when enabling/disabling
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneList: (sceneNames) => {
-    set({ autoSceneList: sceneNames, autoSceneCurrentIndex: -1 }); // Reset index
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneMode: (mode) => {
-    set({ autoSceneMode: mode, autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }); // Reset index and direction
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneBeatDivision: (division) => {
-    set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure division is at least 1
-    saveCurrentAutoSceneSettings(get());
-  },
-  setAutoSceneTempoSource: (source) => {
-    set({ autoSceneTempoSource: source });
-    saveCurrentAutoSceneSettings(get());
-  },
-  resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1, autoScenePingPongDirection: 'forward' }),      setManualBpm: (bpm) => {
-    const newBpm = Math.max(20, Math.min(300, bpm)); // Clamp BPM
-    set({ autoSceneManualBpm: newBpm });
-    if (get().autoSceneTempoSource === 'manual_bpm' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
-      get().setMidiClockBpm(newBpm); // Also update main internal clock
-    }
-    saveCurrentAutoSceneSettings(get());
-  },      recordTapTempo: () => {
-    const now = Date.now();
-    const lastTapTime = get().autoSceneLastTapTime;
-    let newTapTimes = [...get().autoSceneTapTimes];
-
-    if (lastTapTime > 0) {
-      const interval = now - lastTapTime;
-      if (interval > 0 && interval < 2000) // Ignore taps too close or too far apart (2s = 30 BPM)
-        newTapTimes.push(interval);
-      if (newTapTimes.length > 5) // Keep last 5 intervals for averaging
-        newTapTimes.shift();
-    } else // If interval is too long, reset taps
-      newTapTimes = [];
-
-    set({ autoSceneLastTapTime: now, autoSceneTapTimes: newTapTimes });
-
-    if (newTapTimes.length >= 2) { // Need at least 2 taps (1 interval) to calculate BPM
-      const averageInterval = newTapTimes.reduce((sum, t) => sum + t, 0) / newTapTimes.length;
-      if (averageInterval > 0) {
-        const newBpm = Math.max(20, Math.min(300, 60000 / averageInterval)); // Clamp BPM
-        set({ autoSceneTapTempoBpm: newBpm });
-        if (get().autoSceneTempoSource === 'tap_tempo' && get().selectedMidiClockHostId === 'internal') { // Or 'none'
-          get().setMidiClockBpm(newBpm); // Also update main internal clock
-        }
-        saveCurrentAutoSceneSettings(get()); // Save when BPM changes
-      }
-    }
-  },      setNextAutoSceneIndex: () => {
-        const { autoSceneList, autoSceneMode, autoSceneCurrentIndex, autoScenePingPongDirection } = get();
-        if (!autoSceneList || autoSceneList.length === 0) {
-          set({ autoSceneCurrentIndex: -1 });
-          return;
-        }
-
-        let nextIndex = autoSceneCurrentIndex;
-        let nextPingPongDirection = autoScenePingPongDirection;
-        const listLength = autoSceneList.length;
-
-        // If this is the first time (currentIndex is -1), start with index 0
-        if (autoSceneCurrentIndex === -1) {
-          nextIndex = 0;
-          nextPingPongDirection = 'forward';
-        } else if (autoSceneMode === 'forward') {
-          nextIndex = (autoSceneCurrentIndex + 1) % listLength;
-        } else if (autoSceneMode === 'ping-pong') {
-          if (nextPingPongDirection === 'forward') {
-            nextIndex = autoSceneCurrentIndex + 1;
-            if (nextIndex >= listLength) {
-              nextIndex = Math.max(0, listLength - 2); // Go to second-to-last
-              nextPingPongDirection = 'backward';
-            }
-          } else {
-            nextIndex = autoSceneCurrentIndex - 1;
-            if (nextIndex < 0) {
-              nextIndex = Math.min(1, listLength - 1); // Go to second item
-              nextPingPongDirection = 'forward';
-            }
-          }
-        } else if (autoSceneMode === 'random') {
-          // Random selection
-          do {
-            nextIndex = Math.floor(Math.random() * listLength);
-          } while (nextIndex === autoSceneCurrentIndex && listLength > 1);
-        }
-
-        set({ autoSceneCurrentIndex: nextIndex, autoScenePingPongDirection: nextPingPongDirection });
-      },
-      triggerAutoSceneFlash: () => {
-        set({ autoSceneIsFlashing: true });
-        // Auto-clear the flashing state after 200ms
-        setTimeout(() => {
-          set({ autoSceneIsFlashing: false });
-        }, 200);      },
-
-      // Enhanced Group State Actions Implementations
-      updateGroup: (groupId, groupData) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, ...groupData } : g
-          )
-        }));
-        // TODO: Consider persisting to backend if group structure (name, fixtureIndices, etc.) changes.
-        // For ignoreSceneChanges, it's probably fine as transient state or saved with scenes.
-      },
-      addGroupToCanvas: (group, position) => {
-        // This is a placeholder. Actual implementation might be more complex
-        // or handled by UI components that manage canvas state.
-        const updatedGroupWithPos = position ? { ...group, position } : group;
-        set(state => {
-          const existingGroup = state.groups.find(g => g.id === group.id);
-          if (existingGroup) {
-            return {
-              groups: state.groups.map(g => g.id === group.id ? { ...g, ...updatedGroupWithPos } : g)
-            };
-          } else {
-            return { groups: [...state.groups, updatedGroupWithPos] };
-          }
-        });
-        get().addNotification({ message: `Group '${group.name}' position updated for canvas.`, type: 'info' });
-      },
-      updateGroupPosition: (groupId, position) => {
-        set(state => ({
-          groups: state.groups.map(g => g.id === groupId ? { ...g, position } : g)
-        }));
-      },
-      saveGroupLastStates: (groupId) => {
-        set(state => {
-          const groupIndex = state.groups.findIndex(g => g.id === groupId);
-          if (groupIndex === -1) return state; // Group not found
-
-          const groups = [...state.groups];
-          const group = { ...groups[groupIndex] };
-
-          group.lastStates = [...state.dmxChannels];
-          groups[groupIndex] = group;
-
-          return { ...state, groups };
-        });
-      },
-      setGroupMasterValue: (groupId, value) => {
-        const { groups, saveGroupLastStates, _recalculateDmxOutput } = get();
-        const groupExists = groups.some(g => g.id === groupId);
-        if (!groupExists) return;
-
-        let groupHadLastStates = false;
-        const updatedGroups = groups.map(g => {
-          if (g.id === groupId) {
-            if (g.lastStates && g.lastStates.length > 0) {
-              groupHadLastStates = true;
-            }
-            let newLastStates = g.lastStates;
-            if (value > 0 && groupHadLastStates) {
-              newLastStates = []; // Clear lastStates as it's now live
-            }
-            return { ...g, masterValue: value, lastStates: newLastStates };
-          }
-          return g;
-        });
-
-        set({ groups: updatedGroups });
-
-        if (value === 0) {
-          saveGroupLastStates(groupId); // Save state *after* masterValue is set to 0 internally
-        }
-
-        _recalculateDmxOutput();
-      },
-      setGroupMute: (groupId, isMuted) => {
-        // The UI (`FixtureGroup.tsx`) handles calling `saveGroupLastStates(groupId)`
-        // and then `setGroupMasterValue(groupId, 0)` when muting.
-        // When unmuting, UI calls `setGroupMasterValue(groupId, oldMasterValue)`.
-        // So, this action primarily updates the `isMuted` flag and triggers recalculation.
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, isMuted } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupSolo: (groupId, isSolo) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, isSolo } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupPanOffset: (groupId, panOffset) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, panOffset } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupTiltOffset: (groupId, tiltOffset) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, tiltOffset } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      setGroupZoomValue: (groupId, zoomValue) => {
-        set(state => ({
-          groups: state.groups.map(g =>
-            g.id === groupId ? { ...g, zoomValue } : g
-          )
-        }));
-        get()._recalculateDmxOutput();
-      },
-      // Implementations for Group MIDI actions will go here later
-      startGroupMidiLearn: (groupId) => {
-        set({ midiLearnTarget: { type: 'group', groupId: groupId } });
-        get().addNotification({ message: `MIDI Learn started for Group: ${groupId}`, type: 'info' });
-      },
-      cancelGroupMidiLearn: () => {
-        if (get().midiLearnTarget?.type === 'group') {
-          set({ midiLearnTarget: null });
-          get().addNotification({ message: 'Group MIDI Learn cancelled', type: 'info' });
-        }
-      },
-      setGroupMidiMapping: (groupId, mapping) => {
-        set(state => ({
-          groups: state.groups.map(g => g.id === groupId ? { ...g, midiMapping: mapping } : g),
-          midiLearnTarget: null,
-        }));
-        get().addNotification({ message: `MIDI mapped for Group: ${groupId}`, type: 'success' });
-      },      handleMidiForGroups: (message) => {
-        // Placeholder for MIDI handling logic for groups
-      },      // Autopilot Track Actions
-      setAutopilotTrackEnabled: (enabled) => {
-        console.log(`[STORE] setAutopilotTrackEnabled: Setting enabled to ${enabled}`);
-        set({ autopilotTrackEnabled: enabled });
-        
-        if (enabled) {
-          // When enabling, immediately start the animation system and apply current position
-          console.log('[STORE] Autopilot enabled - starting animation system and applying initial position');
-          get().startAutopilotTrackAnimation();
-          // Apply current track position immediately
-          setTimeout(() => get().updatePanTiltFromTrack(), 10);
-        } else {
-          // When disabling, stop the animation system
-          console.log('[STORE] Autopilot disabled - stopping animation system');
-          get().stopAutopilotTrackAnimation();
-        }
-      },      setAutopilotTrackType: (type) => {
-        console.log(`[STORE] setAutopilotTrackType: Setting type to ${type}`);
-        set({ autopilotTrackType: type });
-        // Automatically update pan/tilt when track type changes
-        console.log('[STORE] setAutopilotTrackType: Calling updatePanTiltFromTrack()');
-        get().updatePanTiltFromTrack();
-      },setAutopilotTrackPosition: (position) => {
-        console.log(`[STORE] setAutopilotTrackPosition: Setting position to ${position.toFixed(2)}`);
-        set({ autopilotTrackPosition: position });
-        // Automatically update pan/tilt when position changes
-        console.log('[STORE] setAutopilotTrackPosition: Calling updatePanTiltFromTrack()');
-        get().updatePanTiltFromTrack();
-      },      setAutopilotTrackSize: (size) => {
-        console.log(`[STORE] setAutopilotTrackSize: Setting size to ${size}`);
-        set({ autopilotTrackSize: size });
-        // Automatically update pan/tilt when size changes
-        console.log('[STORE] setAutopilotTrackSize: Calling updatePanTiltFromTrack()');
-        get().updatePanTiltFromTrack();
-      },
-
-      setAutopilotTrackSpeed: (speed) => {
-        set({ autopilotTrackSpeed: speed });
-      },
-
-      setAutopilotTrackCenter: (centerX, centerY) => {
-        console.log(`[STORE] setAutopilotTrackCenter: Setting center to (${centerX}, ${centerY})`);
-        set({ 
-          autopilotTrackCenterX: centerX,
-          autopilotTrackCenterY: centerY 
-        });
-        // Automatically update pan/tilt when center changes
-        console.log('[STORE] setAutopilotTrackCenter: Calling updatePanTiltFromTrack()');
-        get().updatePanTiltFromTrack();
-      },
-
-      setAutopilotTrackAutoPlay: (autoPlay) => {
-        console.log(`[STORE] setAutopilotTrackAutoPlay: Setting autoPlay to ${autoPlay}`);
-        set({ autopilotTrackAutoPlay: autoPlay });
-        
-        // If autopilot is enabled and we're enabling autoplay, start animation
-        const { autopilotTrackEnabled } = get();
-        if (autopilotTrackEnabled && autoPlay) {
-          get().startAutopilotTrackAnimation();
-        } else if (!autoPlay) {
-          // If disabling autoplay, we can keep the animation running but it won't advance position
-          // This allows for smooth manual control
-        }
-      },
-
-      setAutopilotTrackCustomPoints: (points) => {
-        set({ autopilotTrackCustomPoints: points });
-      },
-
-      calculateTrackPosition: (trackType, position, size, centerX, centerY) => {
-        const normalizedPosition = position / 100; // Convert 0-100 to 0-1
-        const radius = size / 100 * 127; // Convert size percentage to DMX range
-        
-        let x = centerX;
-        let y = centerY;
-        
-        switch (trackType) {
-          case 'circle':
-            const angle = normalizedPosition * 2 * Math.PI;
-            x = centerX + radius * Math.cos(angle);
-            y = centerY + radius * Math.sin(angle);
-            break;
-            
-          case 'figure8':
-            const t = normalizedPosition * 2 * Math.PI;
-            x = centerX + radius * Math.sin(t);
-            y = centerY + radius * Math.sin(t) * Math.cos(t);
-            break;
-            
-          case 'square':
-            const side = Math.floor(normalizedPosition * 4);
-            const sidePosition = (normalizedPosition * 4) % 1;
-            
-            switch (side) {
-              case 0: // Top
-                x = centerX - radius + sidePosition * 2 * radius;
-                y = centerY + radius;
-                break;
-              case 1: // Right
-                x = centerX + radius;
-                y = centerY + radius - sidePosition * 2 * radius;
-                break;
-              case 2: // Bottom
-                x = centerX + radius - sidePosition * 2 * radius;
-                y = centerY - radius;
-                break;
-              case 3: // Left
-                x = centerX - radius;
-                y = centerY - radius + sidePosition * 2 * radius;
-                break;
-            }
-            break;
-            
-          case 'triangle':
-            const triSide = Math.floor(normalizedPosition * 3);
-            const triPosition = (normalizedPosition * 3) % 1;
-            const triRadius = radius * 1.15; // Slightly larger for better triangle shape
-            
-            switch (triSide) {
-              case 0: // Bottom to top-right
-                x = centerX - triRadius * 0.5 + triPosition * triRadius;
-                y = centerY - triRadius * 0.3 + triPosition * triRadius * 0.866;
-                break;
-              case 1: // Top-right to top-left
-                x = centerX + triRadius * 0.5 - triPosition * triRadius;
-                y = centerY + triRadius * 0.6;
-                break;
-              case 2: // Top-left to bottom
-                x = centerX - triRadius * 0.5 + triPosition * triRadius * 0.5;
-                y = centerY + triRadius * 0.6 - triPosition * triRadius * 0.9;
-                break;
-            }
-            break;
-            
-          case 'linear':
-            x = centerX - radius + normalizedPosition * 2 * radius;
-            y = centerY;
-            break;
-            
-          case 'random':
-            // Generate consistent random values based on position
-            const seed = Math.floor(normalizedPosition * 100);
-            const randomX = ((seed * 9301 + 49297) % 233280) / 233280;
-            const randomY = ((seed * 9301 + 49297 + 1000) % 233280) / 233280;
-            
-            x = centerX + (randomX - 0.5) * 2 * radius;
-            y = centerY + (randomY - 0.5) * 2 * radius;
-            break;
-            
-          case 'custom':
-            const { autopilotTrackCustomPoints } = get();
-            if (autopilotTrackCustomPoints.length >= 2) {
-              const totalSegments = autopilotTrackCustomPoints.length;
-              const segmentIndex = Math.floor(normalizedPosition * totalSegments);
-              const segmentPosition = (normalizedPosition * totalSegments) % 1;
-              
-              const startPoint = autopilotTrackCustomPoints[segmentIndex];
-              const endPoint = autopilotTrackCustomPoints[(segmentIndex + 1) % totalSegments];
-              
-              x = startPoint.x + (endPoint.x - startPoint.x) * segmentPosition;
-              y = startPoint.y + (endPoint.y - startPoint.y) * segmentPosition;
-            }
-            break;
-        }
-        
-        // Clamp values to DMX range (0-255)
-        return {
-          pan: Math.max(0, Math.min(255, Math.round(x))),
-          tilt: Math.max(0, Math.min(255, Math.round(y)))
-        };
-      },      updatePanTiltFromTrack: () => {
-        console.log('[STORE] updatePanTiltFromTrack: Entered.');
-        const {
-          autopilotTrackEnabled,
-          autopilotTrackType,
-          autopilotTrackPosition,
-          autopilotTrackSize,
-          autopilotTrackCenterX,
-          autopilotTrackCenterY,
-          fixtures, // Main fixtures list
-          selectedFixtures, // Array of selected fixture IDs
-        } = get();
-
-        console.log(`[STORE] updatePanTiltFromTrack: Debug - autopilotTrackEnabled=${autopilotTrackEnabled}, fixtures.length=${fixtures.length}, selectedFixtures.length=${selectedFixtures.length}`);
-        console.log('[STORE] updatePanTiltFromTrack: Debug - selectedFixtures:', selectedFixtures);
-        console.log('[STORE] updatePanTiltFromTrack: Debug - fixtures:', fixtures.map(f => ({ id: f.id, name: f.name, channels: f.channels.length })));
-
-        if (!autopilotTrackEnabled) {
-          console.log('[STORE] updatePanTiltFromTrack: Autopilot not enabled, exiting.');
-          return;
-        }
-
-        const { pan, tilt } = get().calculateTrackPosition(
-          autopilotTrackType,
-          autopilotTrackPosition,
-          autopilotTrackSize,
-          autopilotTrackCenterX,
-          autopilotTrackCenterY
-        );
-        console.log(`[STORE] updatePanTiltFromTrack: Calculated pan=${pan}, tilt=${tilt}`);
-
-        const updates: DmxChannelBatchUpdate = {};
-        let targetFixtures: Fixture[] = [];
-
-        if (selectedFixtures.length > 0) {
-          targetFixtures = fixtures.filter(f => selectedFixtures.includes(f.id));
-        } else {
-          targetFixtures = fixtures; // Default to all fixtures if no specific selection
-        }
-        console.log(`[STORE] updatePanTiltFromTrack: Number of targetFixtures to update: ${targetFixtures.length}`);
-
-        if (targetFixtures.length === 0) {
-          console.log('[STORE] updatePanTiltFromTrack: No target fixtures for Pan/Tilt update, exiting.');
-          return;
-        }        targetFixtures.forEach(fixture => {
-          console.log(`[STORE] updatePanTiltFromTrack: Processing fixture "${fixture.name}" (ID: ${fixture.id})`);
-          console.log(`[STORE] updatePanTiltFromTrack: Fixture startAddress: ${fixture.startAddress}`);
-          
-          fixture.channels.forEach((channel, channelIndex) => {
-            console.log(`[STORE] updatePanTiltFromTrack: Checking channel type "${channel.type}" at index ${channelIndex}`);
-            
-            // Calculate DMX address: use explicit dmxAddress if available, otherwise calculate from startAddress
-            let dmxAddress: number;
-            if (typeof channel.dmxAddress === 'number' && channel.dmxAddress >= 1 && channel.dmxAddress <= 512) {
-              dmxAddress = channel.dmxAddress - 1; // Convert to 0-based
-            } else {
-              dmxAddress = (fixture.startAddress || 1) + channelIndex - 1; // Convert to 0-based
-            }
-            
-            console.log(`[STORE] updatePanTiltFromTrack: Calculated DMX address for ${channel.type}: ${dmxAddress} (0-based)`);
-            
-            if (dmxAddress >= 0 && dmxAddress < 512) {
-              if (channel.type.toLowerCase() === 'pan') {
-                updates[dmxAddress] = pan;
-                console.log(`[STORE] updatePanTiltFromTrack: Set Pan channel ${dmxAddress} to ${pan}`);
-              } else if (channel.type.toLowerCase() === 'tilt') {
-                updates[dmxAddress] = tilt;
-                console.log(`[STORE] updatePanTiltFromTrack: Set Tilt channel ${dmxAddress} to ${tilt}`);
-              }
-            } else {
-              console.log(`[STORE] updatePanTiltFromTrack: Skipping channel "${channel.type}" - invalid DMX address: ${dmxAddress}`);
-            }
-          });
-        });
-        
-        console.log('[STORE] updatePanTiltFromTrack: DMX batch updates to be applied:', updates);
-        if (Object.keys(updates).length > 0) {
-          get().setMultipleDmxChannels(updates);
-        } else {
-          console.log('[STORE] updatePanTiltFromTrack: No DMX updates to apply.');
-        }
-      },
-
-      // Recording and Automation Actions
-      startRecording: () => {
-        const now = Date.now();
-        set({ 
-          recordingActive: true, 
-          recordingStartTime: now, 
-          recordingData: [] 
-        });
-        
-        get().addNotification({ 
-          message: 'Recording started', 
-          type: 'success' 
-        });
-      },
-
-      stopRecording: () => {
-        set({ recordingActive: false });
-        
-        get().addNotification({ 
-          message: 'Recording stopped', 
-          type: 'info' 
-        });
-      },
-
-      clearRecording: () => {
-        set({ 
-          recordingData: [], 
-          recordingStartTime: null 
-        });
-        
-        get().addNotification({ 
-          message: 'Recording cleared', 
-          type: 'info' 
-        });
-      },
-
-      addRecordingEvent: (event) => {
-        const { recordingActive, recordingStartTime, recordingData } = get();
-        
-        if (!recordingActive || !recordingStartTime) return;
-        
-        const timestamp = Date.now() - recordingStartTime;
-        const newEvent = { ...event, timestamp };
-        
-        set({ recordingData: [...recordingData, newEvent] });
-      },
-
-      createAutomationTrack: (name, channel) => {
-        const trackId = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const newTrack = {
-          id: trackId,
-          name,
-          channel,
-          keyframes: [
-            { time: 0, value: 0, curve: 'linear' as const },
-            { time: 5000, value: 255, curve: 'linear' as const }, // 5 second track with full range
-            { time: 10000, value: 0, curve: 'linear' as const }
-          ],
-          enabled: true,
-          loop: false
-        };
-        
-        set(state => ({
-          automationTracks: [...state.automationTracks, newTrack]
-        }));
-        
-        get().addNotification({ 
-          message: `Automation track "${name}" created`, 
-          type: 'success' 
-        });
-        
-        return trackId;
-      },
-
-      updateAutomationTrack: (trackId, updates) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track =>
-            track.id === trackId ? { ...track, ...updates } : track
-          )
-        }));
-      },
-
-      deleteAutomationTrack: (trackId) => {
-        set(state => ({
-          automationTracks: state.automationTracks.filter(track => track.id !== trackId)
-        }));
-        
-        get().addNotification({ 
-          message: 'Automation track deleted', 
-          type: 'info' 
-        });
-      },
-
-      addKeyframe: (trackId, time, value, curve = 'linear') => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = [...track.keyframes, { time, value, curve }]
-                .sort((a, b) => a.time - b.time); // Keep keyframes sorted by time
-              return { ...track, keyframes: newKeyframes };
-            }
-            return track;
-          })
-        }));
-      },
-
-      updateKeyframe: (trackId, keyframeIndex, updates) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = track.keyframes.map((kf, index) =>
-                index === keyframeIndex ? { ...kf, ...updates } : kf
-              );
-              return { ...track, keyframes: newKeyframes.sort((a, b) => a.time - b.time) };
-            }
-            return track;
-          })
-        }));
-      },
-
-      deleteKeyframe: (trackId, keyframeIndex) => {
-        set(state => ({
-          automationTracks: state.automationTracks.map(track => {
-            if (track.id === trackId) {
-              const newKeyframes = track.keyframes.filter((_, index) => index !== keyframeIndex);
-              return { ...track, keyframes: newKeyframes };
-            }
-            return track;
-          })
-        }));
-      },
-
-      startAutomationPlayback: () => {
-        const now = Date.now();
-        set({ 
-          automationPlayback: { 
-            active: true, 
-            startTime: now, 
-            duration: 10000, // 10 seconds default
-            position: 0 
-          } 
-        });
-        
-        // Start automation update loop
-        const updateAutomation = () => {
-          const { automationPlayback, automationTracks, setDmxChannelValue } = get();
-          
-          if (!automationPlayback.active || !automationPlayback.startTime) return;
-          
-          const elapsed = Date.now() - automationPlayback.startTime;
-          const position = elapsed / automationPlayback.duration;
-          
-          // Update position
-          set(state => ({
-            automationPlayback: { ...state.automationPlayback, position }
-          }));
-          
-          // Continue if not finished
-          if (position < 1) {
-            requestAnimationFrame(updateAutomation);
-          } else {
-            // Check for looping tracks
-            const loopingTracks = automationTracks.filter(t => t.loop && t.enabled);
-            if (loopingTracks.length > 0) {
-              // Restart for looping tracks
-              set(state => ({
-                automationPlayback: { 
-                  ...state.automationPlayback, 
-                  startTime: Date.now(),
-                  position: 0 
-                }
-              }));
-              requestAnimationFrame(updateAutomation);
-            } else {
-              get().stopAutomationPlayback();
-            }
-          }
-        };
-        
-        requestAnimationFrame(updateAutomation);
-        
-        get().addNotification({ 
-          message: 'Automation playback started', 
-          type: 'success' 
-        });
-      },
-
-      stopAutomationPlayback: () => {
-        set({ 
-          automationPlayback: { 
-            active: false, 
-            startTime: null, 
-            duration: 10000,
-            position: 0 
-          } 
-        });
-        
-        get().addNotification({ 
-          message: 'Automation playback stopped', 
-          type: 'info' 
-        });
-      },
-
-      setAutomationPosition: (position) => {
-        const { automationPlayback } = get();
-        const newTime = position * automationPlayback.duration;
-        
-        set({ 
-          automationPlayback: { 
-            ...automationPlayback, 
-            position,
-            startTime: automationPlayback.active ? Date.now() - newTime : null
-          } 
-        });
-      },
-
-      applyAutomationPreset: (trackId, preset) => {
-        const duration = 10000; // 10 seconds
-        const steps = 20; // Number of keyframes
-        const keyframes: Array<{ time: number; value: number; curve: 'linear' | 'smooth' }> = [];
-        
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps;
-          const time = t * duration;
-          let value = 0;
-          
-          switch (preset) {
-            case 'sine':
-              value = (Math.sin(t * Math.PI * 2 - Math.PI / 2) + 1) * 127.5;
-              break;
-            case 'triangle':
-              value = t < 0.5 ? t * 2 * 255 : (1 - t) * 2 * 255;
-              break;
-            case 'sawtooth':
-              value = t * 255;
-              break;
-            case 'square':
-              value = t < 0.5 ? 0 : 255;
-              break;
-            case 'random':
-              value = Math.random() * 255;
-              break;
-          }
-          
-          keyframes.push({ 
-            time, 
-            value: Math.max(0, Math.min(255, value)), 
-            curve: preset === 'random' ? 'linear' : 'smooth' 
-          });
-        }
-        
-        set(state => ({
-          automationTracks: state.automationTracks.map(track =>
-            track.id === trackId ? { ...track, keyframes } : track
-          )
-        }));
-        
-        get().addNotification({ 
-          message: `Applied ${preset} preset to automation track`, 
-          type: 'success' 
-        });
-      },
-
-      // Smooth DMX Actions
-      setSmoothDmxEnabled: (enabled) => {
-        set({ smoothDmxEnabled: enabled });
-        
-        // If enabling, start the smooth update timer
-        if (enabled) {
-          get().enableSmoothDmxMode();
-        } else {
-          get().disableSmoothDmxMode();
-        }
-        
-        get().addNotification({ 
-          message: `Smooth DMX ${enabled ? 'enabled' : 'disabled'}`, 
-          type: 'info' 
-        });
-      },
-
-      setSmoothDmxUpdateRate: (rate) => {
-        const clampedRate = Math.max(1, Math.min(60, rate)); // 1-60 FPS
-        set({ smoothDmxUpdateRate: clampedRate });
-        
-        // Restart smooth mode if currently active
-        const { smoothDmxEnabled } = get();
-        if (smoothDmxEnabled) {
-          get().disableSmoothDmxMode();
-          get().enableSmoothDmxMode();
-        }
-      },
-
-      setSmoothDmxThreshold: (threshold) => {
-        const clampedThreshold = Math.max(0, Math.min(10, threshold)); // 0-10 units
-        set({ smoothDmxThreshold: clampedThreshold });
-      },      setSmoothDmxChannelValue: (channel, value) => {
-        const { smoothDmxEnabled, smoothDmxThreshold, pendingSmoothUpdates, recordingActive } = get();
-        
-        if (!smoothDmxEnabled) {
-          // If smooth mode is disabled, update immediately
-          get().setDmxChannelValue(channel, value);
-          return;
-        }
-        
-        // Check if change is significant enough
-        const currentValue = get().getDmxChannelValue(channel);
-        const change = Math.abs(value - currentValue);
-        
-        if (change < smoothDmxThreshold) {
-          return; // Change too small, ignore
-        }
-        
-        // Record the change if recording is active - BEFORE adding to pending updates
-        if (recordingActive) {
-          get().addRecordingEvent({
-            type: 'dmx',
-            channel,
-            value
-          });
-        }
-        
-        // Add to pending updates
-        set(state => ({
-          pendingSmoothUpdates: {
-            ...state.pendingSmoothUpdates,
-            [channel]: value
-          }
-        }));
-      },
-
-      flushSmoothDmxUpdates: () => {
-        const { pendingSmoothUpdates } = get();
-        const updates = Object.keys(pendingSmoothUpdates);
-        
-        if (updates.length === 0) return;
-        
-        // Batch update all pending channels
-        const batchUpdates: { [key: number]: number } = {};
-        updates.forEach(channelStr => {
-          const channel = parseInt(channelStr);
-          batchUpdates[channel] = pendingSmoothUpdates[channel];
-        });
-        
-        // Clear pending updates and apply batch
-        set({ 
-          pendingSmoothUpdates: {},
-          lastSmoothUpdateTime: Date.now()
-        });
-        
-        get().setMultipleDmxChannels(batchUpdates);
-      },
-
-      enableSmoothDmxMode: () => {
-        const { smoothDmxUpdateRate } = get();
-        const updateInterval = 1000 / smoothDmxUpdateRate; // Convert FPS to milliseconds
-        
-        // Create smooth update loop
-        const smoothUpdateLoop = () => {
-          const { smoothDmxEnabled } = get();
-          
-          if (!smoothDmxEnabled) return; // Stop if disabled
-          
-          get().flushSmoothDmxUpdates();
-          
-          setTimeout(smoothUpdateLoop, updateInterval);
-        };
-        
-        // Start the loop
-        smoothUpdateLoop();
-        
-        console.log(`Smooth DMX mode enabled at ${smoothDmxUpdateRate} FPS`);
-      },
-
-      disableSmoothDmxMode: () => {
-        // Flush any remaining updates
-        get().flushSmoothDmxUpdates();
-        console.log('Smooth DMX mode disabled');
-      },
-
+      // Autopilot Actions
       setChannelAutopilot: (channelIndex, config) => {
         set(state => ({
           channelAutopilots: {
@@ -2791,133 +1685,86 @@ export const useStore = create<State>()(
             [channelIndex]: config
           }
         }));
-
-        // Start autopilot system if not running
-        if (!get().autopilotUpdateInterval) {
+        if (config.enabled && !get().autopilotUpdateInterval) {
           get().startAutopilotSystem();
         }
-
-        get().addNotification({
-          message: `Channel ${channelIndex + 1} autopilot enabled (${config.type})`,
-          type: 'success'
-        });
       },
-
       removeChannelAutopilot: (channelIndex) => {
         set(state => {
           const newAutopilots = { ...state.channelAutopilots };
           delete newAutopilots[channelIndex];
           return { channelAutopilots: newAutopilots };
         });
-
-        // Stop system if no autopilots are active
-        const { channelAutopilots, panTiltAutopilot } = get();
-        if (Object.keys(channelAutopilots).length === 0 && !panTiltAutopilot.enabled) {
-          get().stopAutopilotSystem();
-        }
-
-        get().addNotification({
-          message: `Channel ${channelIndex + 1} autopilot disabled`,
-          type: 'info'
-        });
       },
-
       setPanTiltAutopilot: (config) => {
-        set(state => ({
-          panTiltAutopilot: {
-            ...state.panTiltAutopilot,
-            ...config
-          }
-        }));
-
-        // Start autopilot system if enabled and not running
-        const updatedConfig = get().panTiltAutopilot;
-        if (updatedConfig.enabled && !get().autopilotUpdateInterval) {
+        const currentConfig = get().panTiltAutopilot;
+        const newConfig = { ...currentConfig, ...config };
+        set({ panTiltAutopilot: newConfig });
+        if (newConfig.enabled && !get().autopilotUpdateInterval) {
           get().startAutopilotSystem();
         }
-
-        if (config.enabled !== undefined) {
-          get().addNotification({
-            message: `Pan/Tilt autopilot ${config.enabled ? 'enabled' : 'disabled'}`,
-            type: 'success'
-          });
+      },
+      togglePanTiltAutopilot: () => {
+        const enabled = !get().panTiltAutopilot.enabled;
+        get().setPanTiltAutopilot({ enabled });
+      },
+      setColorSliderAutopilot: (config) => {
+        const currentConfig = get().colorSliderAutopilot;
+        const newConfig = { ...currentConfig, ...config };
+        set({ colorSliderAutopilot: newConfig });
+        if (newConfig.enabled && !get().autopilotUpdateInterval) {
+          get().startAutopilotSystem();
         }
       },
-
-      togglePanTiltAutopilot: () => {
-        const { panTiltAutopilot } = get();
-        get().setPanTiltAutopilot({ enabled: !panTiltAutopilot.enabled });
+      toggleColorSliderAutopilot: () => {
+        const enabled = !get().colorSliderAutopilot.enabled;
+        get().setColorSliderAutopilot({ enabled });
       },
-
       updateAutopilotValues: () => {
-        const state = get();
-        const { channelAutopilots, panTiltAutopilot, bpm, lastAutopilotUpdate } = state;
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - lastAutopilotUpdate) / 1000; // Convert to seconds
+        const { channelAutopilots, panTiltAutopilot, colorSliderAutopilot, setDmxChannel, bpm, lastAutopilotUpdate, setExampleSliderValue } = get();
+        const now = Date.now();
+        const timeElapsed = (now - lastAutopilotUpdate) / 1000; // in seconds
 
-        let hasUpdates = false;
-        const updates: { [channel: number]: number } = {};
-
-        // Update channel autopilots
+        // Channel Autopilots
         Object.entries(channelAutopilots).forEach(([channelStr, config]) => {
-          const channelIndex = parseInt(channelStr);
-          const autopilotConfig = config as AutopilotConfig;
-          
-          // Calculate BPM-based or time-based phase
-          let phaseIncrement = autopilotConfig.speed * deltaTime;
-          if (autopilotConfig.syncToBPM && bpm > 0) {
-            phaseIncrement = (bpm / 60) * deltaTime * autopilotConfig.speed;
-          }
-
-          const newPhase = (autopilotConfig.phase + phaseIncrement) % (2 * Math.PI);
-          autopilotConfig.phase = newPhase;
-
-          // Calculate value based on pattern
+          if (!config.enabled) return;
+          const channel = parseInt(channelStr);
+          const speed = config.syncToBPM ? (bpm / 60) * config.speed : config.speed;
+          const phaseOffset = (config.phase / 360) * 2 * Math.PI;
           let value = 0;
-          const intensityRange = autopilotConfig.range.max - autopilotConfig.range.min;
-          
-          switch (autopilotConfig.type) {
+          const progress = (now / 1000 * speed) % 1;
+
+          switch (config.type) {
             case 'sine':
-              value = Math.sin(newPhase) * (intensityRange / 2) + (autopilotConfig.range.min + intensityRange / 2);
-              break;
-            case 'ping-pong':
-              value = Math.abs(Math.sin(newPhase)) * intensityRange + autopilotConfig.range.min;
-              break;
-            case 'cycle':
-              value = ((newPhase / (2 * Math.PI)) % 1) * intensityRange + autopilotConfig.range.min;
+              value = (Math.sin(progress * 2 * Math.PI + phaseOffset) + 1) / 2;
               break;
             case 'triangle':
-              const triPhase = (newPhase / (2 * Math.PI)) % 1;
-              value = (triPhase < 0.5 ? triPhase * 2 : 2 - triPhase * 2) * intensityRange + autopilotConfig.range.min;
+              value = Math.abs((progress * 2) - 1);
               break;
             case 'sawtooth':
-              value = ((newPhase / (2 * Math.PI)) % 1) * intensityRange + autopilotConfig.range.min;
+              value = progress;
+              break;
+            case 'ping-pong':
+              value = Math.abs(((progress * 2) % 2) - 1);
               break;
             case 'random':
-              if (Math.random() < 0.1) { // 10% chance to change
-                value = Math.random() * intensityRange + autopilotConfig.range.min;
-              } else {
-                return; // Keep previous value
-              }
+              // This should be handled differently, maybe on beats
               break;
           }
-
-          // Convert to DMX range (0-255)
-          const dmxValue = Math.round(Math.min(255, Math.max(0, value)));
-          updates[channelIndex] = dmxValue;
-          hasUpdates = true;
+          const dmxValue = Math.round(config.range.min + value * (config.range.max - config.range.min));
+          setDmxChannel(channel, dmxValue);
         });
 
-        // Update pan/tilt autopilot
+        // Pan/Tilt Autopilot
         if (panTiltAutopilot.enabled) {
-          const fixtures = state.fixtures.filter(f => 
+          const fixtures = get().fixtures.filter(f => 
             f.channels.some(c => c.type === 'pan' || c.type === 'tilt')
           );
 
           // Calculate phase increment once for all fixtures
-          let phaseIncrement = panTiltAutopilot.speed * deltaTime;
+          let phaseIncrement = panTiltAutopilot.speed * timeElapsed;
           if (panTiltAutopilot.syncToBPM && bpm > 0) {
-            phaseIncrement = (bpm / 60) * deltaTime * panTiltAutopilot.speed;
+            phaseIncrement = (bpm / 60) * timeElapsed * panTiltAutopilot.speed;
           }
 
           const newPhase = (panTiltAutopilot.phase + phaseIncrement) % (2 * Math.PI);
@@ -2974,8 +1821,7 @@ export const useStore = create<State>()(
                   }
                   break;
                 case 'linear':
-                  const linearT = (newPhase / (2 * Math.PI)) % 1;
-                  panValue += (linearT * 2 - 1) * radius; // -1 to 1 range
+                  panValue += (progress * 2 - 1) * radius; // -1 to 1 range
                   break;
                 case 'custom':
                   if (panTiltAutopilot.customPath && panTiltAutopilot.customPath.length > 0) {
@@ -3031,7 +1877,7 @@ export const useStore = create<State>()(
         }
 
         // Update timestamp
-        set({ lastAutopilotUpdate: currentTime });
+        set({ lastAutopilotUpdate: now });
       },
 
       startAutopilotSystem: () => {
