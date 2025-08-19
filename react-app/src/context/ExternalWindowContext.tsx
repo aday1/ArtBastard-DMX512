@@ -3,6 +3,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { PanelComponent, usePanels, PanelProvider } from './PanelContext';
 import { COMPONENT_REGISTRY, ComponentDefinition, getAllCategories, getComponentsByCategory } from '../components/panels/ComponentRegistry';
 import { renderComponent } from '../components/panels/ComponentRegistry';
+import { ExternalWindow } from '../components/external/ExternalWindow';
 import styles from '../components/external/ExternalDisplay.module.scss';
 
 interface GridPosition {
@@ -482,13 +483,53 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
     });
   }, []);
 
+  const openExternalWindow = useCallback(() => {
+    if (externalWindow.isOpen) {
+      console.log('External window is already open');
+      return;
+    }
+
+    console.log('Opening external monitor window...');
+    
+    setExternalWindow(prev => ({
+      ...prev,
+      isOpen: true
+    }));
+  }, [externalWindow.isOpen]);
+
+  const closeExternalWindow = useCallback(() => {
+    console.log('Closing external monitor window...');
+    
+    setExternalWindow(prev => ({
+      ...prev,
+      isOpen: false,
+      window: null,
+      reactRoot: null
+    }));
+  }, []);
+
+  const addComponentToExternal = useCallback((component: PanelComponent) => {
+    console.log('Adding component to external window:', component);
+    // This functionality could be extended for custom component management
+  }, []);
+
+  const removeComponentFromExternal = useCallback((componentId: string) => {
+    console.log('Removing component from external window:', componentId);
+    // This functionality could be extended for custom component management
+  }, []);
+
+  const sendMessageToExternal = useCallback((message: any) => {
+    console.log('Sending message to external window:', message);
+    // This functionality could be extended for cross-window communication
+  }, []);
+
   const value: ExternalWindowContextType = {
     externalWindow,
-    openExternalWindow: () => {}, // TODO: Implement
-    closeExternalWindow: () => {},
-    addComponentToExternal: () => {},
-    removeComponentFromExternal: () => {},
-    sendMessageToExternal: () => {},
+    openExternalWindow,
+    closeExternalWindow,
+    addComponentToExternal,
+    removeComponentFromExternal,
+    sendMessageToExternal,
     selectedComponentId,
     setSelectedComponentId,
     updateComponentPosition
@@ -497,6 +538,14 @@ export const ExternalWindowProvider: React.FC<ExternalWindowProviderProps> = ({ 
   return (
     <ExternalWindowContext.Provider value={value}>
       {children}
+      {externalWindow.isOpen && (
+        <ExternalWindow
+          onClose={closeExternalWindow}
+          title="ArtBastard DMX - External Monitor"
+          width={1200}
+          height={800}
+        />
+      )}
     </ExternalWindowContext.Provider>
   );
 };

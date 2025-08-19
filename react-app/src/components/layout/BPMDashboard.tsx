@@ -7,7 +7,8 @@ interface BPMDashboardProps {
 }
 
 export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Always expanded
+  const isExpanded = true;
   const [tapCount, setTapCount] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -156,8 +157,8 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   };
 
   return (
-    <div className={`${styles.bpmDashboard} ${className || ''} ${isExpanded ? styles.expanded : styles.collapsed}`}>
-      <div className={styles.header} onClick={() => setIsExpanded(!isExpanded)}>
+    <div className={`${styles.bpmDashboard} ${className || ''} ${styles.expanded}`}>
+      <div className={styles.header}>
         <div className={styles.titleSection}>
           <div className={`${styles.beatIndicator} ${isFlashing && isPlaying ? styles.flash : ''}`}>
             <div className={styles.beatDot}></div>
@@ -170,13 +171,10 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <span className={styles.bpmValue}>{currentBpm}</span>
           </div>
         </div>
-        <button className={styles.expandButton}>
-          {isExpanded ? '▲' : '▼'}
-        </button>
+  {/* Expand/collapse button removed */}
       </div>
 
-      {isExpanded && (
-        <div className={styles.controls}>
+  <div className={styles.controls}>
           <div className={styles.sourceSection}>
             <label className={styles.sectionLabel}>Clock Source</label>
             <div className={styles.sourceButtons}>
@@ -339,8 +337,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
               </div>
             </div>
           </div>
-        </div>
-      )}
+  </div>
     </div>
   );
 };

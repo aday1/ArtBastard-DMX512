@@ -2,7 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PanelProvider } from '../../context/PanelContext';
 import { DockingProvider } from '../../context/DockingContext';
-import ResizablePanel from '../panels/ResizablePanel';
+import { ThemeProvider } from '../../context/ThemeContext';
+import { DMXMonitor } from './DMXMonitor';
+import { MIDIMonitor } from './MIDIMonitor';
+import { OSCMonitor } from './OSCMonitor';
+import SuperControl from '../fixtures/SuperControl';
+import styles from './ExternalDisplay.module.scss';
 
 interface ExternalWindowProps {
   onClose?: () => void;
@@ -54,7 +59,7 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
             
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-              background: #1a1a1a;
+              background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
               color: #ffffff;
               overflow: hidden;
             }
@@ -88,51 +93,6 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
             .external-content {
               flex: 1;
               overflow: hidden;
-              padding: 1rem;
-            }
-            
-            .external-dropzone {
-              width: 100%;
-              height: 100%;
-              border: 2px dashed rgba(78, 205, 196, 0.3);
-              border-radius: 8px;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              transition: all 0.2s ease;
-              background: rgba(0, 0, 0, 0.3);
-              position: relative;
-            }
-            
-            .external-dropzone.drag-over {
-              border-color: rgba(78, 205, 196, 0.8);
-              background: rgba(78, 205, 196, 0.1);
-              box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
-            }
-            
-            .drop-message {
-              text-align: center;
-              color: rgba(255, 255, 255, 0.6);
-            }
-            
-            .drop-message h3 {
-              margin-bottom: 0.5rem;
-              color: #4ecdc4;
-            }
-            
-            .drop-icon {
-              font-size: 3rem;
-              margin-bottom: 1rem;
-              opacity: 0.5;
-            }
-            
-            /* Copy relevant styles from main app */
-            .panel {
-              background: rgba(0, 0, 0, 0.8);
-              border: 1px solid rgba(78, 205, 196, 0.3);
-              border-radius: 8px;
-              height: 100%;
             }
           </style>
         </head>
@@ -141,10 +101,10 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
             <div class="external-header">
               <div class="external-title">
                 <span>📺</span>
-                <span>External Monitor - 4th Panel</span>
+                <span>External Monitor</span>
               </div>
               <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8rem;">
-                Drag components here from main application
+                Multi-panel view with SuperControl mirroring
               </div>
             </div>
             <div class="external-content">
@@ -164,11 +124,13 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
         
         // Render React component in external window
         root.render(
-          <PanelProvider>
-            <DockingProvider>
-              <ExternalPanelContent />
-            </DockingProvider>
-          </PanelProvider>
+          <ThemeProvider>
+            <PanelProvider>
+              <DockingProvider>
+                <ExternalPanelContent />
+              </DockingProvider>
+            </PanelProvider>
+          </ThemeProvider>
         );
         
         setReactRoot(root);
@@ -224,52 +186,34 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
 
 // Component to render inside the external window
 const ExternalPanelContent: React.FC = () => {
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [activeTab, setActiveTab] = useState<'supercontrol' | 'dmx' | 'midi' | 'osc'>('supercontrol');
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragOver(true);
-  };
+  const tabs = [
+    { id: 'supercontrol', label: '🎛️ SuperControl', component: SuperControl },
+    { id: 'dmx', label: '📡 DMX Monitor', component: DMXMonitor },
+    { id: 'midi', label: '🎹 MIDI Monitor', component: MIDIMonitor },
+    { id: 'osc', label: '🌐 OSC Monitor', component: OSCMonitor },
+  ];
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    try {
-      const componentData = JSON.parse(e.dataTransfer.getData('application/json'));
-      console.log('Component dropped in external window:', componentData);
-      
-      // Send message to parent window about the drop
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'EXTERNAL_COMPONENT_DROP',
-          data: componentData
-        }, '*');
-      }
-    } catch (error) {
-      console.error('Failed to handle drop in external window:', error);
-    }
-  };
+  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
 
   return (
-    <div 
-      className={`external-dropzone ${isDragOver ? 'drag-over' : ''}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <ResizablePanel
-        panelId="external"
-        title="External Monitor Panel"
-        className="panel"
-        onDrop={handleDrop}
-      />
+    <div className={styles.tabContainer}>
+      <div className={styles.tabNavigation}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
+            onClick={() => setActiveTab(tab.id as any)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      
+      <div className={styles.tabContent}>
+        {ActiveComponent && <ActiveComponent />}
+      </div>
     </div>
   );
 };
