@@ -22,13 +22,17 @@
   }
   
   &.collapsed {
-    opacity: 0.95;
-    transform: translateX(-50%) translateY(-80%); // Mostly hidden, show header
+    opacity: 0.9;
+    transform: translateX(-50%) translateY(-60%); // Show more of the header in collapsed state
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     
     &:hover {
-      transform: translateX(-50%) translateY(-70%); // Show more on hover
+      opacity: 1;
+      transform: translateX(-50%) translateY(-40%); // Show even more on hover
+      box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 0 32px rgba(16, 185, 129, 0.3);
     }
     
     .controls {
@@ -36,7 +40,7 @@
     }
     
     .header {
-      padding: 8px 16px;
+      padding: 10px 16px; // Slightly more padding for collapsed state
       border-radius: 12px;
       
       &:hover {
@@ -189,27 +193,47 @@
   color: rgba(255, 255, 255, 0.7);
   font-size: 16px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
+  min-width: 32px;
+  justify-content: center;
   
   &:hover {
     background: rgba(71, 85, 105, 0.2);
     color: #10b981;
+    transform: scale(1.1);
   }
   
-  &::after {
-    content: 'Click to expand';
-    font-size: 12px;
-    margin-left: 6px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+  // Different styling based on expand state
+  .expanded & {
+    &::after {
+      content: 'Click to minimize';
+      font-size: 12px;
+      margin-left: 6px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    
+    &:hover::after {
+      opacity: 0.8;
+    }
   }
   
-  .collapsed &:hover::after {
-    opacity: 0.8;
+  .collapsed & {
+    &::after {
+      content: 'Click to expand';
+      font-size: 12px;
+      margin-left: 6px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    
+    &:hover::after {
+      opacity: 0.8;
+    }
   }
 }
 
@@ -476,7 +500,7 @@
   
   .autopilotControls {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
     margin-top: 8px;
     

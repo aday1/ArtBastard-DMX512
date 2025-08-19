@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/store';
 import { AutopilotConfig } from '../../store/store';
+import CustomPathEditor from '../automation/CustomPathEditor';
 import styles from './AutopilotControls.module.scss';
 
 export const AutopilotControls: React.FC = () => {
   const {
     channelAutopilots,
     panTiltAutopilot,
+    colorSliderAutopilot,
     bpm,
     setChannelAutopilot,
     removeChannelAutopilot,
     setPanTiltAutopilot,
     togglePanTiltAutopilot,
+    setColorSliderAutopilot,
+    toggleColorSliderAutopilot,
     fixtures
   } = useStore();
 
   const [selectedChannel, setSelectedChannel] = useState<number>(0);
+  const [showCustomPathEditor, setShowCustomPathEditor] = useState(false);
   const [channelAutopilotConfig, setChannelAutopilotConfig] = useState<AutopilotConfig>({
     enabled: false,
     type: 'sine',
@@ -40,7 +45,8 @@ export const AutopilotControls: React.FC = () => {
   const activeChannelAutopilots = Object.keys(channelAutopilots).length;
 
   return (
-    <div className={styles.autopilotControls}>
+    <>
+      <div className={styles.autopilotControls}>
       <div className={styles.header}>
         <h3>🤖 Autopilot System</h3>
         <div className={styles.stats}>
@@ -201,8 +207,23 @@ export const AutopilotControls: React.FC = () => {
                     <option value="square">Square</option>
                     <option value="triangle">Triangle</option>
                     <option value="linear">Linear</option>
+                    <option value="custom">Custom Path</option>
                   </select>
                 </div>
+
+                {panTiltAutopilot.pathType === 'custom' && (
+                  <div className={styles.configRow}>
+                    <button 
+                      className={styles.customPathButton}
+                      onClick={() => setShowCustomPathEditor(true)}
+                    >
+                      {panTiltAutopilot.customPath && panTiltAutopilot.customPath.length > 0
+                        ? `Edit Path (${panTiltAutopilot.customPath.length} points)`
+                        : 'Create Custom Path'
+                      }
+                    </button>
+                  </div>
+                )}
 
                 <div className={styles.configRow}>
                   <label>Speed:</label>
@@ -280,8 +301,103 @@ export const AutopilotControls: React.FC = () => {
         </div>
       )}
 
+      {/* Color Autopilot Section */}
+      <div className={styles.section}>
+        <h4>Color Autopilot</h4>
+        
+        <div className={styles.configGrid}>
+          <div className={styles.configRow}>
+            <label>
+              <input 
+                type="checkbox"
+                checked={colorSliderAutopilot.enabled}
+                onChange={toggleColorSliderAutopilot}
+              />
+              Enable Color Autopilot
+            </label>
+          </div>
+
+          {colorSliderAutopilot.enabled && (
+            <>
+              <div className={styles.configRow}>
+                <label>Pattern:</label>
+                <select 
+                  value={colorSliderAutopilot.type}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    type: e.target.value as 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth'
+                  })}
+                >
+                  <option value="sine">Rainbow Sine</option>
+                  <option value="cycle">Rainbow Cycle</option>
+                  <option value="triangle">Triangle Wave</option>
+                  <option value="sawtooth">Sawtooth Ramp</option>
+                  <option value="ping-pong">Ping Pong</option>
+                  <option value="random">Random Colors</option>
+                </select>
+              </div>
+
+              <div className={styles.configRow}>
+                <label>Speed:</label>
+                <input 
+                  type="range"
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  value={colorSliderAutopilot.speed}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    speed: parseFloat(e.target.value)
+                  })}
+                />
+                <span>{colorSliderAutopilot.speed.toFixed(1)}x</span>
+              </div>
+
+              <div className={styles.configRow}>
+                <label>Hue Min:</label>
+                <input 
+                  type="range"
+                  min="0"
+                  max="360"
+                  value={colorSliderAutopilot.range.min}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    range: { ...colorSliderAutopilot.range, min: parseInt(e.target.value) }
+                  })}
+                />
+                <span>{colorSliderAutopilot.range.min}°</span>
+              </div>
+
+              <div className={styles.configRow}>
+                <label>Hue Max:</label>
+                <input 
+                  type="range"
+                  min="0"
+                  max="360"
+                  value={colorSliderAutopilot.range.max}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    range: { ...colorSliderAutopilot.range, max: parseInt(e.target.value) }
+                  })}
+                />
+                <span>{colorSliderAutopilot.range.max}°</span>
+              </div>
+
+              <div className={styles.configRow}>
+                <label>
+                  <input 
+                    type="checkbox"
+                    checked={colorSliderAutopilot.syncToBPM}
+                    onChange={(e) => setColorSliderAutopilot({ 
+                      syncToBPM: e.target.checked
+                    })}
+                  />
+                  Sync to BPM
+                </label>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Active Autopilots List */}
-      {(activeChannelAutopilots > 0 || panTiltAutopilot.enabled) && (
+      {(activeChannelAutopilots > 0 || panTiltAutopilot.enabled || colorSliderAutopilot.enabled) && (
         <div className={styles.section}>
           <h4>Active Autopilots</h4>
           <div className={styles.activeList}>
@@ -313,9 +429,31 @@ export const AutopilotControls: React.FC = () => {
                 </button>
               </div>
             )}
+            {colorSliderAutopilot.enabled && (
+              <div className={styles.activeItem}>
+                <span>Color</span>
+                <span>{colorSliderAutopilot.type}</span>
+                <span>{colorSliderAutopilot.speed.toFixed(1)}x</span>
+                {colorSliderAutopilot.syncToBPM && <span>♪</span>}
+                <button 
+                  className={styles.removeSmall}
+                  onClick={toggleColorSliderAutopilot}
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
-    </div>
+      </div>
+      
+      <CustomPathEditor
+        isOpen={showCustomPathEditor}
+        onClose={() => setShowCustomPathEditor(false)}
+        mode="autopilot"
+        initialPoints={panTiltAutopilot.customPath || []}
+      />
+    </>
   );
 };

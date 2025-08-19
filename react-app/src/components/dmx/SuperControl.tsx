@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
+import CustomPathEditor from '../automation/CustomPathEditor';
 import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -44,8 +45,20 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setAutopilotTrackSize,
     setAutopilotTrackSpeed,
     setAutopilotTrackCenter,
+    autopilotTrackCustomPoints,
+    setAutopilotTrackCustomPoints,
     updatePanTiltFromTrack,
-    calculateTrackPosition, // Added this missing function
+    calculateTrackPosition,
+    // Color Autopilot functions
+    colorSliderAutopilot,
+    setColorSliderAutopilot,
+    toggleColorSliderAutopilot,
+    // Pan/Tilt Autopilot functions
+    panTiltAutopilot,
+    setPanTiltAutopilot,
+    togglePanTiltAutopilot,
+    // Debug functions
+    debugAutopilotState,
   } = useStore();
 
   // Layout state
@@ -171,6 +184,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Canvas ref for path visualization
   const pathCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Custom path editor state
+  const [showTrackCustomPathEditor, setShowTrackCustomPathEditor] = useState(false);
 
   // Color wheel state
   const [colorHue, setColorHue] = useState(0);
@@ -374,6 +390,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const updateXYPosition = (e: React.MouseEvent) => {
     if (!xyPadRef.current) return;
     
+    // If Pan/Tilt autopilot is active, temporarily disable it when user manually controls
+    if (panTiltAutopilot.enabled) {
+      console.log('Manual Pan/Tilt control detected - disabling autopilot');
+      togglePanTiltAutopilot();
+    }
+    
     const rect = xyPadRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
@@ -384,12 +406,19 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     const tiltVal = Math.round(((100 - y) / 100) * 255); // Invert Y axis
     
     setPanValue(panVal);
-    setTiltValue(tiltVal);    applyControl('pan', panVal);
+    setTiltValue(tiltVal);
+    applyControl('pan', panVal);
     applyControl('tilt', tiltVal);
   };
 
   // Reset Pan/Tilt to center position
   const resetPanTiltToCenter = () => {
+    // If Pan/Tilt autopilot is active, disable it when user manually resets
+    if (panTiltAutopilot.enabled) {
+      console.log('Manual Pan/Tilt reset detected - disabling autopilot');
+      togglePanTiltAutopilot();
+    }
+    
     const centerValue = 127; // DMX center position (50% of 255)
     const centerPercentage = 50; // 50% for XY pad
     
@@ -1075,6 +1104,53 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     };
   }, [isDraggingXY, isDraggingColor]);
 
+  // Pan/Tilt autopilot UI sync - Update XY pad position when autopilot is running
+  useEffect(() => {
+    if (!panTiltAutopilot.enabled) return;
+
+    // Find fixtures with pan/tilt channels to get their current values
+    const affectedFixtures = getAffectedFixtures();
+    const panTiltFixtures = affectedFixtures.filter(({ channels }) => 
+      channels.pan !== undefined && channels.tilt !== undefined
+    );
+
+    if (panTiltFixtures.length === 0) return;
+
+    // Use the first fixture's pan/tilt values for UI synchronization
+    const firstFixture = panTiltFixtures[0];
+    const currentPanValue = getDmxChannelValue(firstFixture.channels.pan!);
+    const currentTiltValue = getDmxChannelValue(firstFixture.channels.tilt!);
+
+    // Update UI states to reflect autopilot position
+    if (currentPanValue !== panValue) {
+      setPanValue(currentPanValue);
+      setPanTiltXY(prev => ({ ...prev, x: (currentPanValue / 255) * 100 }));
+    }
+    
+    if (currentTiltValue !== tiltValue) {
+      setTiltValue(currentTiltValue);
+      setPanTiltXY(prev => ({ ...prev, y: ((255 - currentTiltValue) / 255) * 100 })); // Invert Y for UI
+    }
+
+    // Check every 100ms when autopilot is active
+    const interval = setInterval(() => {
+      const newPanValue = getDmxChannelValue(firstFixture.channels.pan!);
+      const newTiltValue = getDmxChannelValue(firstFixture.channels.tilt!);
+      
+      if (newPanValue !== panValue) {
+        setPanValue(newPanValue);
+        setPanTiltXY(prev => ({ ...prev, x: (newPanValue / 255) * 100 }));
+      }
+      
+      if (newTiltValue !== tiltValue) {
+        setTiltValue(newTiltValue);
+        setPanTiltXY(prev => ({ ...prev, y: ((255 - newTiltValue) / 255) * 100 })); // Invert Y for UI
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [panTiltAutopilot.enabled, panValue, tiltValue, getDmxChannelValue]);
+
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
@@ -1708,6 +1784,23 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         <div key="pan-tilt" className={styles.gridItem}>
           <div className={styles.gridItemHeader}>
             <LucideIcon name="Move" /> Pan/Tilt
+            {panTiltAutopilot.enabled && (
+              <span 
+                className={styles.autopilotIndicator}
+                style={{ 
+                  marginLeft: 'auto', 
+                  fontSize: '12px', 
+                  backgroundColor: '#28a745', 
+                  color: 'white', 
+                  padding: '2px 6px', 
+                  borderRadius: '4px',
+                  animation: 'pulse 2s infinite'
+                }}
+                title={`Autopilot active: ${panTiltAutopilot.pathType} pattern`}
+              >
+                AUTO
+              </span>
+            )}
           </div>
           <div className={styles.gridItemContent}>
             <div className={styles.section}>
@@ -1720,6 +1813,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     max="255" 
                     value={panValue}
                     onChange={(e) => {
+                      // If Pan/Tilt autopilot is active, disable it when user manually controls
+                      if (panTiltAutopilot.enabled) {
+                        console.log('Manual Pan slider control detected - disabling autopilot');
+                        togglePanTiltAutopilot();
+                      }
+                      
                       const val = parseInt(e.target.value);
                       setPanValue(val);
                       applyControl('pan', val);
@@ -1737,6 +1836,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     max="255" 
                     value={tiltValue}
                     onChange={(e) => {
+                      // If Pan/Tilt autopilot is active, disable it when user manually controls
+                      if (panTiltAutopilot.enabled) {
+                        console.log('Manual Tilt slider control detected - disabling autopilot');
+                        togglePanTiltAutopilot();
+                      }
+                      
                       const val = parseInt(e.target.value);
                       setTiltValue(val);
                       applyControl('tilt', val);
@@ -2192,8 +2297,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 {autopilotTrackType === 'custom' && (
                   <button
                     onClick={() => {
-                      // TODO: Open custom path editor
-                      alert('Custom path editor coming soon!');
+                      setShowTrackCustomPathEditor(true);
                     }}
                     style={{
                       background: '#7c3aed',
@@ -2201,10 +2305,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       borderRadius: '4px',
                       padding: '6px 12px',
                       color: 'white',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
                     }}
                   >
                     <LucideIcon name="Edit" />
+                    {autopilotTrackCustomPoints && autopilotTrackCustomPoints.length > 0
+                      ? `${autopilotTrackCustomPoints.length} points`
+                      : 'Create Path'
+                    }
                   </button>
                 )}
               </div>
@@ -2386,12 +2498,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           <div className={styles.gridItemContent}>
             <div style={{ marginBottom: '12px' }}>
               <button
-                onClick={() => {
-                  // TODO: Implement color autopilot
-                  alert('Color Autopilot coming soon! This will automatically cycle through colors, create rainbow effects, and sync with music.');
-                }}
+                onClick={toggleColorSliderAutopilot}
                 style={{
-                  background: '#7c3aed',
+                  background: colorSliderAutopilot.enabled ? '#10b981' : '#6b7280',
                   border: 'none',
                   borderRadius: '6px',
                   padding: '10px 16px',
@@ -2401,11 +2510,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                   alignItems: 'center',
                   gap: '8px',
                   width: '100%',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease'
                 }}
               >
-                <LucideIcon name="Palette" />
-                Enable Color Auto
+                <LucideIcon name={colorSliderAutopilot.enabled ? "Palette" : "PaintBucket"} />
+                {colorSliderAutopilot.enabled ? 'Disable Color Auto' : 'Enable Color Auto'}
               </button>
             </div>
             
@@ -2414,50 +2524,144 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 Color Pattern
               </label>
               <select
+                value={colorSliderAutopilot.type}
+                onChange={(e) => setColorSliderAutopilot({ 
+                  type: e.target.value as 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth'
+                })}
+                disabled={!colorSliderAutopilot.enabled}
                 style={{
                   width: '100%',
                   padding: '6px',
                   borderRadius: '4px',
                   border: '1px solid #555',
-                  background: '#2a2a2a',
-                  color: '#fff'
+                  background: colorSliderAutopilot.enabled ? '#2a2a2a' : '#1a1a1a',
+                  color: colorSliderAutopilot.enabled ? '#fff' : '#666',
+                  cursor: colorSliderAutopilot.enabled ? 'pointer' : 'not-allowed'
                 }}
               >
-                <option value="rainbow">Rainbow Cycle</option>
-                <option value="strobe">Color Strobe</option>
-                <option value="fade">Smooth Fade</option>
-                <option value="chase">Color Chase</option>
-                <option value="pulse">Pulse Effects</option>
+                <option value="sine">Rainbow Sine</option>
+                <option value="cycle">Rainbow Cycle</option>
+                <option value="triangle">Triangle Wave</option>
+                <option value="sawtooth">Sawtooth Ramp</option>
+                <option value="ping-pong">Ping Pong</option>
+                <option value="random">Random Colors</option>
               </select>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
-                Speed: 50%
+                Speed: {colorSliderAutopilot.speed.toFixed(1)}x
               </label>
               <input
                 type="range"
-                min="1"
-                max="100"
-                value="50"
-                style={{ width: '100%' }}
+                min="0.1"
+                max="5.0"
+                step="0.1"
+                value={colorSliderAutopilot.speed}
+                onChange={(e) => setColorSliderAutopilot({ speed: parseFloat(e.target.value) })}
+                disabled={!colorSliderAutopilot.enabled}
+                style={{ 
+                  width: '100%',
+                  cursor: colorSliderAutopilot.enabled ? 'pointer' : 'not-allowed',
+                  opacity: colorSliderAutopilot.enabled ? 1 : 0.5
+                }}
               />
             </div>
 
-            <div style={{ 
-              padding: '8px',
-              background: 'rgba(124, 58, 237, 0.1)',
-              border: '1px solid rgba(124, 58, 237, 0.3)',
-              borderRadius: '4px',
-              fontSize: '11px',
-              color: '#7c3aed'
-            }}>
-              Coming Soon: Automatic color effects, music sync, and custom color sequences!
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                fontSize: '12px', 
+                color: '#ccc',
+                cursor: colorSliderAutopilot.enabled ? 'pointer' : 'not-allowed',
+                opacity: colorSliderAutopilot.enabled ? 1 : 0.5
+              }}>
+                <input
+                  type="checkbox"
+                  checked={colorSliderAutopilot.syncToBPM}
+                  onChange={(e) => setColorSliderAutopilot({ syncToBPM: e.target.checked })}
+                  disabled={!colorSliderAutopilot.enabled}
+                />
+                Sync to BPM ({bpm})
+              </label>
             </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#ccc' }}>
+                Hue Range: {colorSliderAutopilot.range.min}° - {colorSliderAutopilot.range.max}°
+              </label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  value={colorSliderAutopilot.range.min}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    range: { ...colorSliderAutopilot.range, min: parseInt(e.target.value) }
+                  })}
+                  disabled={!colorSliderAutopilot.enabled}
+                  style={{ 
+                    flex: 1,
+                    cursor: colorSliderAutopilot.enabled ? 'pointer' : 'not-allowed',
+                    opacity: colorSliderAutopilot.enabled ? 1 : 0.5
+                  }}
+                />
+                <span style={{ color: '#888', fontSize: '10px' }}>to</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  value={colorSliderAutopilot.range.max}
+                  onChange={(e) => setColorSliderAutopilot({ 
+                    range: { ...colorSliderAutopilot.range, max: parseInt(e.target.value) }
+                  })}
+                  disabled={!colorSliderAutopilot.enabled}
+                  style={{ 
+                    flex: 1,
+                    cursor: colorSliderAutopilot.enabled ? 'pointer' : 'not-allowed',
+                    opacity: colorSliderAutopilot.enabled ? 1 : 0.5
+                  }}
+                />
+              </div>
+            </div>
+
+            {colorSliderAutopilot.enabled ? (
+              <div style={{ 
+                padding: '8px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: '#10b981'
+              }}>
+                ✨ Color Autopilot Active! RGB fixtures will cycle through {colorSliderAutopilot.type} pattern.
+                {colorSliderAutopilot.syncToBPM && ` Synced to ${bpm} BPM.`}
+              </div>
+            ) : (
+              <div style={{ 
+                padding: '8px',
+                background: 'rgba(107, 114, 128, 0.1)',
+                border: '1px solid rgba(107, 114, 128, 0.3)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: '#6b7280'
+              }}>
+                Enable to automatically cycle colors on RGB fixtures with customizable patterns and BPM sync.
+              </div>
+            )}
           </div>
         </div>
 
       </ResponsiveGridLayout>
+      
+      <CustomPathEditor
+        isOpen={showTrackCustomPathEditor}
+        onClose={() => setShowTrackCustomPathEditor(false)}
+        mode="track"
+        initialPoints={autopilotTrackCustomPoints || []}
+      />
     </div>
   );
 };

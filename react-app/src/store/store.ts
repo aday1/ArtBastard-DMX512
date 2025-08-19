@@ -405,7 +405,8 @@ interface State {
   autopilotTrackSpeed: number; // 0-100, speed of automatic movement (when auto-playing)
   autopilotTrackCenterX: number; // 0-255, center point X for the track
   autopilotTrackCenterY: number; // 0-255, center point Y for the track
-  autopilotTrackAutoPlay: boolean; // Auto-advance along track  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
+  autopilotTrackAutoPlay: boolean; // Auto-advance along track
+  autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
   autopilotTrackAnimationId: number | null; // Animation frame ID for centralized control
 
   // New Modular Automation System State
@@ -571,10 +572,14 @@ interface State {
   setAutopilotTrackSpeed: (speed: number) => void;
   setAutopilotTrackCenter: (centerX: number, centerY: number) => void;
   setAutopilotTrackAutoPlay: (autoPlay: boolean) => void;
-  setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
+  setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;
+  calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
   updatePanTiltFromTrack: () => void;
   startAutopilotTrackAnimation: () => void;
   stopAutopilotTrackAnimation: () => void;
+  
+  // Debug function
+  debugAutopilotState: () => void;
 
   // New Modular Automation Actions
   setColorAutomation: (config: Partial<ColorAutomationConfig>) => void;
@@ -1876,6 +1881,123 @@ export const useStore = create<State>()(
           }));
         }
 
+        // Color Slider Autopilot
+        if (colorSliderAutopilot.enabled) {
+          const fixtures = get().fixtures.filter(f => 
+            f.channels.some(c => ['red', 'green', 'blue'].includes(c.type))
+          );
+
+          if (fixtures.length > 0) {
+            const speed = colorSliderAutopilot.syncToBPM ? (bpm / 60) * colorSliderAutopilot.speed : colorSliderAutopilot.speed;
+            const phaseOffset = (colorSliderAutopilot.phase / 360) * 2 * Math.PI;
+            const progress = (now / 1000 * speed) % 1;
+
+            let hue = 0;
+            let saturation = 1; // Full saturation by default
+            let value = 1; // Full brightness by default
+
+            switch (colorSliderAutopilot.type) {
+              case 'sine':
+                hue = (Math.sin(progress * 2 * Math.PI + phaseOffset) + 1) / 2 * 360;
+                break;
+              case 'triangle':
+                hue = Math.abs((progress * 2) - 1) * 360;
+                break;
+              case 'sawtooth':
+                hue = progress * 360;
+                break;
+              case 'ping-pong':
+                hue = Math.abs(((progress * 2) % 2) - 1) * 360;
+                break;
+              case 'cycle':
+                hue = progress * 360;
+                break;
+              case 'random':
+                // Generate a stable random hue based on time intervals
+                const timeSegment = Math.floor(now / 2000); // Change every 2 seconds
+                hue = (Math.sin(timeSegment * 12.9898) * 43758.5453123 % 1) * 360;
+                break;
+            }
+
+            // Apply hue range constraint
+            const hueRange = colorSliderAutopilot.range.max - colorSliderAutopilot.range.min;
+            hue = colorSliderAutopilot.range.min + (hue / 360) * hueRange;
+            hue = hue % 360;
+
+            // Convert HSV to RGB
+            const hsvToRgb = (h: number, s: number, v: number): { r: number, g: number, b: number } => {
+              h = h / 60;
+              const c = v * s;
+              const x = c * (1 - Math.abs((h % 2) - 1));
+              const m = v - c;
+              
+              let r = 0, g = 0, b = 0;
+              
+              if (h >= 0 && h < 1) {
+                r = c; g = x; b = 0;
+              } else if (h >= 1 && h < 2) {
+                r = x; g = c; b = 0;
+              } else if (h >= 2 && h < 3) {
+                r = 0; g = c; b = x;
+              } else if (h >= 3 && h < 4) {
+                r = 0; g = x; b = c;
+              } else if (h >= 4 && h < 5) {
+                r = x; g = 0; b = c;
+              } else if (h >= 5 && h < 6) {
+                r = c; g = 0; b = x;
+              }
+              
+              return {
+                r: Math.round((r + m) * 255),
+                g: Math.round((g + m) * 255),
+                b: Math.round((b + m) * 255)
+              };
+            };
+
+            const rgb = hsvToRgb(hue, saturation, value);
+
+            // Apply to all RGB fixtures
+            fixtures.forEach(fixture => {
+              const redChannel = fixture.channels.find(c => c.type === 'red');
+              const greenChannel = fixture.channels.find(c => c.type === 'green');
+              const blueChannel = fixture.channels.find(c => c.type === 'blue');
+
+              if (redChannel && greenChannel && blueChannel) {
+                const redChannelIndex = fixture.channels.indexOf(redChannel);
+                const greenChannelIndex = fixture.channels.indexOf(greenChannel);
+                const blueChannelIndex = fixture.channels.indexOf(blueChannel);
+                
+                let redDmxAddress: number;
+                let greenDmxAddress: number;
+                let blueDmxAddress: number;
+                
+                if (typeof redChannel.dmxAddress === 'number' && redChannel.dmxAddress >= 1) {
+                  redDmxAddress = redChannel.dmxAddress - 1; // Convert to 0-based
+                } else {
+                  redDmxAddress = (fixture.startAddress || 1) + redChannelIndex - 1; // Convert to 0-based
+                }
+                
+                if (typeof greenChannel.dmxAddress === 'number' && greenChannel.dmxAddress >= 1) {
+                  greenDmxAddress = greenChannel.dmxAddress - 1; // Convert to 0-based
+                } else {
+                  greenDmxAddress = (fixture.startAddress || 1) + greenChannelIndex - 1; // Convert to 0-based
+                }
+                
+                if (typeof blueChannel.dmxAddress === 'number' && blueChannel.dmxAddress >= 1) {
+                  blueDmxAddress = blueChannel.dmxAddress - 1; // Convert to 0-based
+                } else {
+                  blueDmxAddress = (fixture.startAddress || 1) + blueChannelIndex - 1; // Convert to 0-based
+                }
+
+                updates[redDmxAddress] = rgb.r;
+                updates[greenDmxAddress] = rgb.g;
+                updates[blueDmxAddress] = rgb.b;
+                hasUpdates = true;
+              }
+            });
+          }
+        }
+
         // Apply all updates at once
         if (hasUpdates) {
           get().setMultipleDmxChannels(updates);
@@ -1940,7 +2062,7 @@ export const useStore = create<State>()(
           const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
           lastTime = currentTime;
 
-          // Only animate if auto-play is enabled
+          // Only animate if auto-play is enabled, but always ensure fixture positions are updated
           if (state.autopilotTrackAutoPlay) {
             // Calculate position advancement based on speed and BPM
             const bpm = state.bpm || 120; // Default to 120 BPM
@@ -1960,10 +2082,10 @@ export const useStore = create<State>()(
             
             // Update position in store
             set({ autopilotTrackPosition: newPosition });
-            
-            // Update fixtures immediately
-            get().updatePanTiltFromTrack();
           }
+          
+          // Always update fixtures with current position (whether auto-play is on or off)
+          get().updatePanTiltFromTrack();
 
           // Continue animation
           const newAnimationId = requestAnimationFrame(animate);
@@ -2324,6 +2446,475 @@ export const useStore = create<State>()(
             break;
           }
         }
+      },
+
+      // MIDI Clock and BPM Control Actions
+      setSelectedMidiClockHostId: (hostId) => {
+        set({ selectedMidiClockHostId: hostId });
+        
+        // Emit to server if socket is available
+        const { socket } = get();
+        if (socket) {
+          socket.emit('setMasterClockSource', hostId);
+          console.log('Store: Sending setMasterClockSource to server:', hostId);
+        }
+      },
+
+      setAvailableMidiClockHosts: (hosts) => set({ availableMidiClockHosts: hosts }),
+
+      setMidiClockBpm: (bpm) => {
+        set({ midiClockBpm: bpm });
+        
+        // Also emit to server if socket is available for BPM changes
+        const { socket } = get();
+        if (socket) {
+          socket.emit('setInternalClockBPM', bpm);
+          console.log('Store: Sending setInternalClockBPM to server:', bpm);
+        }
+      },
+
+      setMidiClockIsPlaying: (isPlaying) => set({ midiClockIsPlaying: isPlaying }),
+
+      setMidiClockBeatBar: (beat, bar) => set({ 
+        midiClockCurrentBeat: beat, 
+        midiClockCurrentBar: bar 
+      }),
+
+      requestToggleMasterClockPlayPause: () => {
+        const { socket } = get();
+        if (socket) {
+          console.log('Store: Requesting master clock play/pause toggle via socket');
+          socket.emit('toggleMasterClockPlayPause');
+        } else {
+          console.warn('Store: No socket connection available for master clock toggle');
+          // Fallback - directly toggle the local state
+          const { midiClockIsPlaying } = get();
+          set({ midiClockIsPlaying: !midiClockIsPlaying });
+        }
+      },
+
+      // Auto-Scene Actions
+      setAutoSceneEnabled: (enabled) => {
+        set({ autoSceneEnabled: enabled });
+        saveAutoSceneSettings(get());
+      },
+
+      setAutoSceneList: (sceneNames) => {
+        set({ autoSceneList: sceneNames });
+        saveAutoSceneSettings(get());
+      },
+
+      setAutoSceneMode: (mode) => {
+        set({ autoSceneMode: mode, autoScenePingPongDirection: 'forward' }); // Reset direction when changing mode
+        saveAutoSceneSettings(get());
+      },
+
+      setAutoSceneBeatDivision: (division) => {
+        set({ autoSceneBeatDivision: Math.max(1, division) }); // Ensure at least 1
+        saveAutoSceneSettings(get());
+      },
+
+      setAutoSceneTempoSource: (source) => {
+        console.log('Store: Setting auto scene tempo source to:', source);
+        set({ autoSceneTempoSource: source });
+        saveAutoSceneSettings(get());
+        
+        // If switching to internal clock, we might need to emit some socket events
+        const { socket } = get();
+        if (socket && source === 'tap_tempo') {
+          // For tap_tempo source, we're using MIDI Clock
+          socket.emit('setMasterClockSource', 'internal');
+        }
+      },
+
+      setNextAutoSceneIndex: () => {
+        const { autoSceneList, autoSceneCurrentIndex, autoSceneMode, autoScenePingPongDirection } = get();
+        
+        if (autoSceneList.length === 0) return;
+
+        let nextIndex = autoSceneCurrentIndex;
+
+        switch (autoSceneMode) {
+          case 'forward':
+            nextIndex = (autoSceneCurrentIndex + 1) % autoSceneList.length;
+            break;
+          
+          case 'ping-pong':
+            if (autoScenePingPongDirection === 'forward') {
+              nextIndex = autoSceneCurrentIndex + 1;
+              if (nextIndex >= autoSceneList.length - 1) {
+                nextIndex = autoSceneList.length - 1;
+                set({ autoScenePingPongDirection: 'backward' });
+              }
+            } else {
+              nextIndex = autoSceneCurrentIndex - 1;
+              if (nextIndex <= 0) {
+                nextIndex = 0;
+                set({ autoScenePingPongDirection: 'forward' });
+              }
+            }
+            break;
+          
+          case 'random':
+            nextIndex = Math.floor(Math.random() * autoSceneList.length);
+            break;
+        }
+
+        set({ autoSceneCurrentIndex: nextIndex });
+      },
+
+      resetAutoSceneIndex: () => set({ autoSceneCurrentIndex: -1 }),
+
+      setManualBpm: (bpm) => {
+        const clampedBpm = Math.max(60, Math.min(200, bpm)); // Clamp between 60-200
+        console.log('Store: Setting manual BPM to:', clampedBpm);
+        set({ autoSceneManualBpm: clampedBpm });
+        saveAutoSceneSettings(get());
+      },
+
+      recordTapTempo: () => {
+        const now = Date.now();
+        const { autoSceneTapTimes, autoSceneLastTapTime } = get();
+        
+        // Reset if more than 3 seconds since last tap
+        const newTapTimes = (now - autoSceneLastTapTime > 3000) ? [now] : [...autoSceneTapTimes, now];
+        
+        set({ 
+          autoSceneTapTimes: newTapTimes.slice(-8), // Keep last 8 taps
+          autoSceneLastTapTime: now 
+        });
+
+        // Calculate BPM if we have at least 2 taps
+        if (newTapTimes.length >= 2) {
+          const intervals = [];
+          for (let i = 1; i < newTapTimes.length; i++) {
+            intervals.push(newTapTimes[i] - newTapTimes[i - 1]);
+          }
+          
+          const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+          const calculatedBpm = Math.round((60 * 1000) / avgInterval);
+          
+          // Only accept reasonable BPM values
+          if (calculatedBpm >= 60 && calculatedBpm <= 200) {
+            set({ autoSceneTapTempoBpm: calculatedBpm });
+            console.log('Store: Calculated tap tempo BPM:', calculatedBpm);
+            saveAutoSceneSettings(get());
+          }
+        }
+      },
+
+      triggerAutoSceneFlash: () => {
+        set({ autoSceneIsFlashing: true });
+        setTimeout(() => {
+          set({ autoSceneIsFlashing: false });
+        }, 200); // Flash for 200ms
+      },
+
+      // Legacy Autopilot Track Actions Implementation
+      setAutopilotTrackEnabled: (enabled: boolean) => {
+        console.log('[STORE] Setting autopilot track enabled to:', enabled);
+        set({ autopilotTrackEnabled: enabled });
+        
+        if (enabled) {
+          // Start animation when enabled
+          get().startAutopilotTrackAnimation();
+          // Immediately update position when enabled
+          get().updatePanTiltFromTrack();
+        } else {
+          // Stop animation when disabled
+          get().stopAutopilotTrackAnimation();
+        }
+      },
+
+      setAutopilotTrackType: (type: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'random' | 'custom') => {
+        console.log('[STORE] Setting autopilot track type to:', type);
+        set({ autopilotTrackType: type });
+        
+        // Trigger immediate update if enabled
+        if (get().autopilotTrackEnabled) {
+          get().updatePanTiltFromTrack();
+        }
+      },
+
+      setAutopilotTrackPosition: (position: number) => {
+        console.log('[STORE] Setting autopilot track position to:', position);
+        set({ autopilotTrackPosition: position });
+        
+        // Trigger immediate update if enabled
+        if (get().autopilotTrackEnabled) {
+          get().updatePanTiltFromTrack();
+        }
+      },
+
+      setAutopilotTrackSize: (size: number) => {
+        console.log('[STORE] Setting autopilot track size to:', size);
+        set({ autopilotTrackSize: size });
+        
+        // Trigger immediate update if enabled
+        if (get().autopilotTrackEnabled) {
+          get().updatePanTiltFromTrack();
+        }
+      },
+
+      setAutopilotTrackSpeed: (speed: number) => {
+        console.log('[STORE] Setting autopilot track speed to:', speed);
+        set({ autopilotTrackSpeed: speed });
+        
+        // Speed change doesn't require immediate position update
+        // Animation loop will pick up the new speed automatically
+      },
+
+      setAutopilotTrackCenter: (centerX: number, centerY: number) => {
+        console.log('[STORE] Setting autopilot track center to:', centerX, centerY);
+        set({ autopilotTrackCenterX: centerX, autopilotTrackCenterY: centerY });
+        
+        // Trigger immediate update if enabled
+        if (get().autopilotTrackEnabled) {
+          get().updatePanTiltFromTrack();
+        }
+      },
+
+      setAutopilotTrackAutoPlay: (autoPlay: boolean) => {
+        console.log('[STORE] Setting autopilot track auto-play to:', autoPlay);
+        set({ autopilotTrackAutoPlay: autoPlay });
+        
+        // Auto-play state affects animation loop behavior
+        // No immediate update needed
+      },
+
+      setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => {
+        console.log('[STORE] Setting autopilot track custom points:', points);
+        set({ autopilotTrackCustomPoints: points });
+        
+        // Trigger immediate update if enabled and using custom track
+        if (get().autopilotTrackEnabled && get().autopilotTrackType === 'custom') {
+          get().updatePanTiltFromTrack();
+        }
+      },
+
+      calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => {
+        // Convert position (0-100%) to progress (0-1)
+        const progress = position / 100;
+        
+        // Calculate radius based on size (0-100%) scaled to DMX range
+        const radius = (size / 100) * 127; // Max radius is half of 255
+        
+        let pan = centerX;
+        let tilt = centerY;
+        
+        switch (trackType) {
+          case 'circle':
+            // Full circle path
+            pan = centerX + Math.cos(progress * 2 * Math.PI - Math.PI / 2) * radius;
+            tilt = centerY + Math.sin(progress * 2 * Math.PI - Math.PI / 2) * radius;
+            break;
+            
+          case 'figure8':
+            // Figure-8 pattern
+            pan = centerX + Math.sin(progress * 4 * Math.PI) * radius;
+            tilt = centerY + Math.sin(progress * 2 * Math.PI) * radius * 0.5;
+            break;
+            
+          case 'square':
+            // Square path
+            const t = progress * 4; // 0-4 for four sides
+            if (t < 1) {
+              // Top side (left to right)
+              pan = centerX - radius + (t * 2 * radius);
+              tilt = centerY - radius;
+            } else if (t < 2) {
+              // Right side (top to bottom)
+              pan = centerX + radius;
+              tilt = centerY - radius + ((t - 1) * 2 * radius);
+            } else if (t < 3) {
+              // Bottom side (right to left)
+              pan = centerX + radius - ((t - 2) * 2 * radius);
+              tilt = centerY + radius;
+            } else {
+              // Left side (bottom to top)
+              pan = centerX - radius;
+              tilt = centerY + radius - ((t - 3) * 2 * radius);
+            }
+            break;
+            
+          case 'triangle':
+            // Triangle path
+            const triT = progress * 3; // 0-3 for three sides
+            if (triT < 1) {
+              // First side
+              pan = centerX - radius + (triT * radius);
+              tilt = centerY + radius;
+            } else if (triT < 2) {
+              // Second side
+              pan = centerX + ((triT - 1) * radius);
+              tilt = centerY + radius - ((triT - 1) * 2 * radius);
+            } else {
+              // Third side
+              pan = centerX + radius - ((triT - 2) * 2 * radius);
+              tilt = centerY - radius + ((triT - 2) * 2 * radius);
+            }
+            break;
+            
+          case 'linear':
+            // Linear back and forth
+            const linearT = progress * 2; // 0-2 for back and forth
+            if (linearT < 1) {
+              pan = centerX - radius + (linearT * 2 * radius);
+            } else {
+              pan = centerX + radius - ((linearT - 1) * 2 * radius);
+            }
+            tilt = centerY;
+            break;
+            
+          case 'random':
+            // Random position (based on position as seed for consistency)
+            const seed = Math.sin(progress * 1000) * 10000;
+            pan = centerX + (Math.sin(seed) * radius);
+            tilt = centerY + (Math.cos(seed) * radius);
+            break;
+            
+          case 'custom':
+            // Custom path from points
+            const points = get().autopilotTrackCustomPoints || [];
+            if (points.length > 0) {
+              const pointIndex = progress * (points.length - 1);
+              const lowerIndex = Math.floor(pointIndex);
+              const upperIndex = Math.min(lowerIndex + 1, points.length - 1);
+              const t = pointIndex - lowerIndex;
+              
+              const lowerPoint = points[lowerIndex];
+              const upperPoint = points[upperIndex];
+              
+              pan = lowerPoint.x + (upperPoint.x - lowerPoint.x) * t;
+              tilt = lowerPoint.y + (upperPoint.y - lowerPoint.y) * t;
+            }
+            break;
+            
+          default:
+            // Default to center position
+            break;
+        }
+        
+        // Clamp to DMX range
+        pan = Math.max(0, Math.min(255, Math.round(pan)));
+        tilt = Math.max(0, Math.min(255, Math.round(tilt)));
+        
+        return { pan, tilt };
+      },
+
+      updatePanTiltFromTrack: () => {
+        const { 
+          autopilotTrackEnabled, 
+          autopilotTrackType, 
+          autopilotTrackPosition, 
+          autopilotTrackSize, 
+          autopilotTrackCenterX, 
+          autopilotTrackCenterY,
+          selectedFixtures,
+          fixtures
+        } = get();
+        
+        if (!autopilotTrackEnabled) {
+          console.log('[STORE] updatePanTiltFromTrack: Autopilot not enabled, skipping update');
+          return;
+        }
+        
+        console.log('[STORE] updatePanTiltFromTrack: Calculating position for', selectedFixtures.length, 'fixtures');
+        
+        // Calculate current track position
+        const { pan, tilt } = get().calculateTrackPosition(
+          autopilotTrackType,
+          autopilotTrackPosition,
+          autopilotTrackSize,
+          autopilotTrackCenterX,
+          autopilotTrackCenterY
+        );
+        
+        console.log('[STORE] updatePanTiltFromTrack: Calculated pan =', pan, ', tilt =', tilt);
+        
+        // Apply to selected fixtures
+        const targetFixtures = selectedFixtures.length > 0 
+          ? fixtures.filter(f => selectedFixtures.includes(f.id))
+          : fixtures; // If no selection, apply to all fixtures
+        
+        const updates: Record<number, number> = {};
+        
+        targetFixtures.forEach(fixture => {
+          const panChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'pan');
+          const tiltChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'tilt');
+          
+          if (panChannel && tiltChannel) {
+            // Calculate DMX addresses
+            const panChannelIndex = fixture.channels.indexOf(panChannel);
+            const tiltChannelIndex = fixture.channels.indexOf(tiltChannel);
+            
+            const panDmxAddress = (fixture.startAddress || 1) + panChannelIndex - 1; // Convert to 0-based
+            const tiltDmxAddress = (fixture.startAddress || 1) + tiltChannelIndex - 1; // Convert to 0-based
+            
+            // Add to batch update
+            updates[panDmxAddress] = pan;
+            updates[tiltDmxAddress] = tilt;
+            
+            console.log(`[STORE] updatePanTiltFromTrack: Fixture ${fixture.name}: Pan CH${panDmxAddress + 1}=${pan}, Tilt CH${tiltDmxAddress + 1}=${tilt}`);
+          }
+        });
+        
+        // Apply all updates at once
+        if (Object.keys(updates).length > 0) {
+          console.log('[STORE] updatePanTiltFromTrack: Applying', Object.keys(updates).length, 'channel updates');
+          get().setMultipleDmxChannels(updates);
+        } else {
+          console.warn('[STORE] updatePanTiltFromTrack: No pan/tilt channels found in target fixtures');
+        }
+      },
+
+      // Debug function to check autopilot state
+      debugAutopilotState: () => {
+        const state = get();
+        console.group('🔍 AUTOPILOT DEBUG STATE');
+        
+        console.log('=== Main Autopilot System ===');
+        console.log('Update Interval:', state.autopilotUpdateInterval ? 'Running' : 'Stopped');
+        console.log('Last Update:', new Date(state.lastAutopilotUpdate).toLocaleTimeString());
+        
+        console.log('=== Pan/Tilt Autopilot ===');
+        console.log('Enabled:', state.panTiltAutopilot.enabled);
+        console.log('Path Type:', state.panTiltAutopilot.pathType);
+        console.log('Speed:', state.panTiltAutopilot.speed);
+        console.log('Center X/Y:', state.panTiltAutopilot.centerX, state.panTiltAutopilot.centerY);
+        console.log('Size:', state.panTiltAutopilot.size);
+        console.log('Sync to BPM:', state.panTiltAutopilot.syncToBPM);
+        console.log('Phase:', state.panTiltAutopilot.phase);
+        
+        console.log('=== Color Autopilot ===');
+        console.log('Enabled:', state.colorSliderAutopilot.enabled);
+        console.log('Type:', state.colorSliderAutopilot.type);
+        console.log('Speed:', state.colorSliderAutopilot.speed);
+        console.log('Range:', state.colorSliderAutopilot.range);
+        console.log('Sync to BPM:', state.colorSliderAutopilot.syncToBPM);
+        
+        console.log('=== Track Autopilot ===');
+        console.log('Enabled:', state.autopilotTrackEnabled);
+        console.log('Auto Play:', state.autopilotTrackAutoPlay);
+        console.log('Type:', state.autopilotTrackType);
+        console.log('Position:', state.autopilotTrackPosition + '%');
+        console.log('Size:', state.autopilotTrackSize + '%');
+        console.log('Center X/Y:', state.autopilotTrackCenterX, state.autopilotTrackCenterY);
+        console.log('Speed:', state.autopilotTrackSpeed);
+        console.log('Animation ID:', state.autopilotTrackAnimationId);
+        
+        console.log('=== Channel Autopilots ===');
+        console.log('Count:', Object.keys(state.channelAutopilots).length);
+        Object.entries(state.channelAutopilots).forEach(([channel, config]) => {
+          console.log(`Channel ${parseInt(channel) + 1}:`, config);
+        });
+        
+        console.log('=== System State ===');
+        console.log('BPM:', state.bpm);
+        console.log('Selected Fixtures:', state.selectedFixtures.length);
+        console.log('Total Fixtures:', state.fixtures.length);
+        
+        console.groupEnd();
       },
     })
   )

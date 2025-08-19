@@ -7,8 +7,15 @@ interface BPMDashboardProps {
 }
 
 export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
-  // Always expanded
-  const isExpanded = true;
+  // Initialize from localStorage or default to collapsed
+  const [isExpanded, setIsExpanded] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bpmDashboardExpanded');
+      return saved ? JSON.parse(saved) : false; // Default to collapsed
+    } catch {
+      return false;
+    }
+  });
   const [tapCount, setTapCount] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -31,10 +38,35 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     autopilotTrackAutoPlay,
     panTiltAutopilot,
     channelAutopilots,
+    colorSliderAutopilot,
     setAutopilotTrackEnabled,
     setAutopilotTrackAutoPlay,
-    togglePanTiltAutopilot
+    togglePanTiltAutopilot,
+    toggleColorSliderAutopilot,
+    debugAutopilotState
   } = useStore();
+
+  // Handle toggle collapse/expand
+  const toggleExpanded = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('bpmDashboardExpanded', JSON.stringify(newExpandedState));
+    } catch (error) {
+      console.warn('Failed to save BPM Dashboard expanded state:', error);
+    }
+  };
+
+  // Handle header click (but allow button clicks to propagate)
+  const handleHeaderClick = (e: React.MouseEvent) => {
+    // Don't toggle if clicking on the expand button directly
+    if ((e.target as HTMLElement).closest(`.${styles.expandButton}`)) {
+      return;
+    }
+    toggleExpanded();
+  };
 
   // Handle play/pause with better feedback
   const handlePlayPause = () => {
@@ -157,8 +189,8 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   };
 
   return (
-    <div className={`${styles.bpmDashboard} ${className || ''} ${styles.expanded}`}>
-      <div className={styles.header}>
+    <div className={`${styles.bpmDashboard} ${className || ''} ${isExpanded ? styles.expanded : styles.collapsed}`}>
+      <div className={styles.header} onClick={handleHeaderClick}>
         <div className={styles.titleSection}>
           <div className={`${styles.beatIndicator} ${isFlashing && isPlaying ? styles.flash : ''}`}>
             <div className={styles.beatDot}></div>
@@ -171,10 +203,13 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <span className={styles.bpmValue}>{currentBpm}</span>
           </div>
         </div>
-  {/* Expand/collapse button removed */}
+        <button className={styles.expandButton} onClick={toggleExpanded}>
+          {isExpanded ? '▲' : '▼'}
+        </button>
       </div>
 
-  <div className={styles.controls}>
+      {isExpanded && (
+        <div className={styles.controls}>
           <div className={styles.sourceSection}>
             <label className={styles.sectionLabel}>Clock Source</label>
             <div className={styles.sourceButtons}>
@@ -277,9 +312,18 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 <span className={styles.autopilotIcon}>⚡</span>
                 General {panTiltAutopilot.enabled ? 'ON' : 'OFF'}
               </button>
+              
+              <button
+                className={`${styles.autopilotButton} ${colorSliderAutopilot.enabled ? styles.active : ''}`}
+                onClick={toggleColorSliderAutopilot}
+                title={colorSliderAutopilot.enabled ? 'Disable Color Autopilot' : 'Enable Color Autopilot'}
+              >
+                <span className={styles.autopilotIcon}>🎨</span>
+                Color {colorSliderAutopilot.enabled ? 'ON' : 'OFF'}
+              </button>
             </div>
             
-            {(autopilotTrackEnabled || panTiltAutopilot.enabled || Object.keys(channelAutopilots).length > 0) && (
+            {(autopilotTrackEnabled || panTiltAutopilot.enabled || colorSliderAutopilot.enabled || Object.keys(channelAutopilots).length > 0) && (
               <div className={styles.autopilotStatus}>
                 <div className={styles.statusIndicators}>
                   {autopilotTrackEnabled && (
@@ -289,6 +333,9 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                   )}
                   {panTiltAutopilot.enabled && (
                     <span className={styles.statusBadge}>General ({panTiltAutopilot.pathType})</span>
+                  )}
+                  {colorSliderAutopilot.enabled && (
+                    <span className={styles.statusBadge}>Color ({colorSliderAutopilot.type})</span>
                   )}
                   {Object.keys(channelAutopilots).length > 0 && (
                     <span className={styles.statusBadge}>{Object.keys(channelAutopilots).length} Channels</span>
@@ -301,7 +348,14 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                     console.log('Track Autopilot Enabled:', autopilotTrackEnabled);
                     console.log('Track Auto-Play Enabled:', autopilotTrackAutoPlay);
                     console.log('General Autopilot Enabled:', panTiltAutopilot.enabled);
+                    console.log('Color Autopilot Enabled:', colorSliderAutopilot.enabled);
+                    console.log('Color Autopilot Type:', colorSliderAutopilot.type);
+                    console.log('Color Autopilot Speed:', colorSliderAutopilot.speed);
+                    console.log('Color Autopilot Sync to BPM:', colorSliderAutopilot.syncToBPM);
                     console.log('Channel Autopilots:', Object.keys(channelAutopilots).length);
+                    
+                    // Trigger comprehensive debug
+                    debugAutopilotState();
                   }}
                   title="Debug autopilot status to console"
                 >
@@ -337,7 +391,8 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
               </div>
             </div>
           </div>
-  </div>
+        </div>
+      )}
     </div>
   );
 };
