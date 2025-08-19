@@ -210,6 +210,20 @@ function Ensure-Dependencies([bool]$Force){
                 Set-Location react-app
                 Write-Host "Invoking: npm install (channeling React spirits...)" -ForegroundColor Yellow
                 npm install
+                
+                # Run cross-platform setup after npm install
+                if($LASTEXITCODE -eq 0 -and (Test-Path "setup-build.js")){
+                        Write-Host "🔧 Running cross-platform build setup..." -ForegroundColor Cyan
+                        node setup-build.js
+                        if($LASTEXITCODE -ne 0){
+                                Write-Host "⚠️ Platform setup completed with warnings, build system ready" -ForegroundColor Yellow
+                        } else {
+                                Write-Host "✅ Cross-platform build system configured successfully!" -ForegroundColor Green
+                        }
+                } elseif(-not (Test-Path "setup-build.js")){
+                        Write-Host "ℹ️ Cross-platform setup script not found, using standard configuration" -ForegroundColor Gray
+                }
+                
                 Set-Location ..
                 Write-Host "FRONTEND DEPENDENCIES TRANSCENDED INTO EXISTENCE!" -ForegroundColor Green
         } else {
@@ -237,8 +251,41 @@ function Build-Project([bool]$BackendOnly){
                 Write-Host "MANIFESTING FRONTEND VISUAL SPECTACLE..." -ForegroundColor Blue
                 Write-Host "Entering the React dimension to build the user interface..." -ForegroundColor Cyan
                 Set-Location react-app
+                
+                # Run cross-platform setup first
+                Write-Host "🔧 Initializing cross-platform build system..." -ForegroundColor Yellow
+                if(Test-Path "setup-build.js"){
+                        Write-Host "Running platform detection and setup..." -ForegroundColor Cyan
+                        node setup-build.js
+                        if($LASTEXITCODE -ne 0){
+                                Write-Host "⚠️ Platform setup completed with warnings, continuing..." -ForegroundColor Yellow
+                        } else {
+                                Write-Host "✅ Platform setup successful!" -ForegroundColor Green
+                        }
+                } else {
+                        Write-Host "ℹ️ Platform setup script not found, using standard build..." -ForegroundColor Gray
+                }
+                
                 Write-Host "Invoking: npm run build (weaving JSX into static glory)" -ForegroundColor Yellow
                 npm run build
+                
+                # If standard build fails, try JS fallback
+                if($LASTEXITCODE -ne 0){
+                        Write-Host "⚠️ Standard build failed, attempting JavaScript fallback..." -ForegroundColor Yellow
+                        Write-Host "Invoking: npm run build:js-fallback (using slower but compatible JS-only Rollup)" -ForegroundColor Yellow
+                        npm run build:js-fallback
+                        
+                        if($LASTEXITCODE -ne 0){
+                                Write-Host "❌ Both native and JS fallback builds failed!" -ForegroundColor Red
+                                Set-Location ..
+                                throw "Frontend build failed with both native and JavaScript fallback methods"
+                        } else {
+                                Write-Host "✅ JavaScript fallback build succeeded!" -ForegroundColor Green
+                        }
+                } else {
+                        Write-Host "✅ Native build succeeded!" -ForegroundColor Green
+                }
+                
                 Set-Location ..
                 Write-Host "FRONTEND TRANSFORMED INTO BEAUTIFUL STATIC ARTWORK!" -ForegroundColor Green
         } else {

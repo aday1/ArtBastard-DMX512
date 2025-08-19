@@ -4,10 +4,26 @@ This React app now supports building on Windows, macOS, and Linux with automatic
 
 ## Quick Start
 
-### Windows
+### Windows - Automated Setup
 ```cmd
-# Run the automated build script
+# Easy one-click setup (recommended)
+.\WINDOWS-TROUBLESHOOT.bat
+
+# Or use the main launcher
+".\Launch ArtBastard DMX512 ✨.bat"
+
+# Or run the build script directly
 .\build-windows.bat
+```
+
+### Windows - Manual Setup
+```cmd
+# Clean install and setup
+.\CLEANUP.ps1
+cd react-app
+npm install
+node setup-build.js
+npm run build
 ```
 
 ### macOS/Linux
@@ -54,6 +70,32 @@ The build system automatically installs platform-specific Rollup binaries as opt
 - `@rollup/rollup-linux-x64-gnu` (Linux x64)
 
 ## Troubleshooting
+
+### Windows Issues
+If you encounter problems on Windows:
+
+1. **Run the troubleshooting tool** (recommended):
+   ```cmd
+   .\WINDOWS-TROUBLESHOOT.bat
+   ```
+
+2. **Platform-specific build errors**:
+   ```cmd
+   cd react-app
+   npm run build:js-fallback
+   ```
+
+3. **Permission issues**:
+   - Run PowerShell as Administrator
+   - Check Windows Defender exclusions
+   - Try: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+4. **Dependency issues**:
+   ```cmd
+   .\CLEANUP.ps1
+   npm cache clean --force
+   npm install --no-optional
+   ```
 
 ### Build Fails with Platform Error
 If you see `npm error code EBADPLATFORM`:
