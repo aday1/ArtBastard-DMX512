@@ -766,7 +766,8 @@ export const useStore = create<State>()(
           autoSceneTapTempoBpm: savedSettings.autoSceneTapTempoBpm ?? 120,
           autoSceneLastTapTime: 0, // Don't persist timing state
           autoSceneTapTimes: [], // Don't persist timing state
-          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',          autoSceneIsFlashing: false, // Initial flashing state
+          autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'internal_clock',
+          autoSceneIsFlashing: false, // Initial flashing state
         };
       })(),
 
