@@ -51,6 +51,7 @@ export interface Group {
   zoomValue?: number;
 }
 
+// Enhanced Autopilot Configuration with fixture group support
 export interface AutopilotConfig {
   enabled: boolean;
   type: 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth';
@@ -60,15 +61,18 @@ export interface AutopilotConfig {
   phase: number; // Phase offset in degrees (0-360)
 }
 
+// Enhanced Color Autopilot with custom paths and fixture group support
 export interface ColorSliderAutopilotConfig {
   enabled: boolean;
-  type: 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth';
+  type: 'ping-pong' | 'cycle' | 'random' | 'sine' | 'triangle' | 'sawtooth' | 'custom';
   speed: number; // BPM multiplier (0.1 to 10)
   range: { min: number; max: number }; // Hue range (0-360)
   syncToBPM: boolean;
   phase: number; // Phase offset in degrees (0-360)
+  customPath?: Array<{ r: number; g: number; b: number }>; // Custom color sequence
 }
 
+// Enhanced Pan/Tilt Autopilot with fixture group support
 export interface PanTiltAutopilotConfig {
   enabled: boolean;
   pathType: 'circle' | 'figure8' | 'square' | 'triangle' | 'linear' | 'custom';
@@ -78,6 +82,50 @@ export interface PanTiltAutopilotConfig {
   centerY: number; // 0-255 DMX value
   syncToBPM: boolean;
   customPath?: Array<{ x: number; y: number }>;
+}
+
+// New: Custom Path Definition for fixture groups
+export interface CustomPath {
+  id: string;
+  name: string;
+  type: 'panTilt' | 'color';
+  points: Array<{ x: number; y: number }> | Array<{ r: number; g: number; b: number }>; // Pan/Tilt coords or RGB colors
+  created: number; // timestamp
+  lastUsed: number; // timestamp for sorting
+}
+
+// New: Fixture Group Autopilot Configuration
+export interface FixtureGroupAutopilot {
+  id: string;
+  name: string;
+  fixtureIds: string[]; // Fixtures in this autopilot group
+  panTiltConfig?: PanTiltAutopilotConfig & {
+    customPathId?: string; // Reference to CustomPath
+    isMuted: boolean; // Can be muted independently
+  };
+  colorConfig?: ColorSliderAutopilotConfig & {
+    customPathId?: string; // Reference to CustomPath
+    isMuted: boolean; // Can be muted independently
+  };
+  lastSelectedPanTiltPath?: string; // Remember last selected custom path
+  lastSelectedColorPath?: string; // Remember last selected custom path
+  isActive: boolean; // Overall group enable/disable
+}
+
+// Enhanced Scene interface with autopilot state
+export interface Scene {
+  name: string
+  channelValues: number[]
+  oscAddress: string
+  midiMapping?: MidiMapping
+  autopilots?: { [channelIndex: number]: AutopilotConfig };
+  panTiltAutopilot?: PanTiltAutopilotConfig;
+  colorSliderAutopilot?: ColorSliderAutopilotConfig; // Add color autopilot to scenes
+  // New: Fixture Group Autopilot states for scenes
+  fixtureGroupAutopilots?: FixtureGroupAutopilot[];
+  customPaths?: CustomPath[]; // Scene-specific custom paths
+  // New: Modular Automation States for Scenes
+  modularAutomation?: ModularAutomationState;
 }
 
 // New Modular Automation System Interfaces
@@ -136,6 +184,23 @@ export interface Scene {
   panTiltAutopilot?: PanTiltAutopilotConfig;
   // New: Modular Automation States for Scenes
   modularAutomation?: ModularAutomationState;
+  // New: Enhanced Autopilot States for Scenes
+  autopilotState?: {
+    // Legacy track autopilot state
+    autopilotTrackEnabled?: boolean;
+    autopilotTrackType?: string;
+    autopilotTrackPosition?: number;
+    autopilotTrackSize?: number;
+    autopilotTrackSpeed?: number;
+    autopilotTrackCenterX?: number;
+    autopilotTrackCenterY?: number;
+    autopilotTrackAutoPlay?: boolean;
+    autopilotTrackCustomPoints?: Array<{ x: number; y: number }>;
+    // Enhanced autopilot systems
+    generalPanTiltAutopilot?: PanTiltAutopilotConfig;
+    colorSliderAutopilot?: ColorSliderAutopilotConfig;
+    fixtureGroupAutopilots?: FixtureGroupAutopilot[];
+  };
 }
 
 export interface ArtNetConfig {
@@ -408,6 +473,7 @@ interface State {
   autopilotTrackAutoPlay: boolean; // Auto-advance along track
   autopilotTrackCustomPoints: Array<{ x: number; y: number }>; // Custom track points
   autopilotTrackAnimationId: number | null; // Animation frame ID for centralized control
+  _autopilotFirstUpdateShown: boolean; // Internal flag to show success notification only once
 
   // New Modular Automation System State
   modularAutomation: ModularAutomationState;
@@ -452,6 +518,17 @@ interface State {
   colorSliderAutopilot: ColorSliderAutopilotConfig;
   autopilotUpdateInterval: number | null;
   lastAutopilotUpdate: number;
+
+  // Enhanced Autopilot System with Fixture Groups and Custom Paths
+  customPaths: CustomPath[]; // Global custom paths library
+  fixtureGroupAutopilots: FixtureGroupAutopilot[]; // Multiple autopilot groups
+  currentSceneAutopilotState: { // Current scene's autopilot state
+    panTiltAutopilot?: PanTiltAutopilotConfig;
+    colorSliderAutopilot?: ColorSliderAutopilotConfig;
+    fixtureGroupAutopilots?: FixtureGroupAutopilot[];
+    customPaths?: CustomPath[];
+  };
+  autopilotSceneMode: boolean; // Whether autopilot should save/restore with scenes
 
   // Actions
   fetchInitialState: () => Promise<void>
@@ -623,6 +700,25 @@ interface State {
   updateAutopilotValues: () => void;
   startAutopilotSystem: () => void;
   stopAutopilotSystem: () => void;
+
+  // Enhanced Autopilot Actions for Fixture Groups and Custom Paths
+  createCustomPath: (name: string, type: 'panTilt' | 'color', points: any[]) => string; // Returns path ID
+  updateCustomPath: (pathId: string, updates: Partial<CustomPath>) => void;
+  deleteCustomPath: (pathId: string) => void;
+  duplicateCustomPath: (pathId: string, newName: string) => string; // Returns new path ID
+  
+  createFixtureGroupAutopilot: (name: string, fixtureIds: string[]) => string; // Returns group ID
+  updateFixtureGroupAutopilot: (groupId: string, updates: Partial<FixtureGroupAutopilot>) => void;
+  deleteFixtureGroupAutopilot: (groupId: string) => void;
+  toggleFixtureGroupAutopilot: (groupId: string) => void;
+  setFixtureGroupAutopilotPath: (groupId: string, type: 'panTilt' | 'color', pathId: string) => void;
+  muteFixtureGroupAutopilot: (groupId: string, type: 'panTilt' | 'color', muted: boolean) => void;
+  
+  // Scene Autopilot Integration
+  saveCurrentAutopilotToScene: (sceneName: string) => void;
+  loadSceneAutopilotState: (sceneName: string) => void;
+  clearSceneAutopilotState: (sceneName: string) => void;
+  setAutopilotSceneMode: (enabled: boolean) => void; // Enable/disable scene autopilot integration
 }
 
 // Helper function to initialize darkMode from localStorage with fallback to true
@@ -781,6 +877,7 @@ export const useStore = create<State>()(
       autopilotTrackCenterY: 127,      autopilotTrackAutoPlay: false,
       autopilotTrackCustomPoints: [],
       autopilotTrackAnimationId: null,
+      _autopilotFirstUpdateShown: false,
 
       // New Modular Automation System Initial State
       modularAutomation: {
@@ -878,6 +975,17 @@ export const useStore = create<State>()(
       },
       autopilotUpdateInterval: null,
       lastAutopilotUpdate: Date.now(),
+
+      // Enhanced Autopilot System with Fixture Groups and Custom Paths Initial State
+      customPaths: [],
+      fixtureGroupAutopilots: [],
+      currentSceneAutopilotState: {
+        panTiltAutopilot: undefined,
+        colorSliderAutopilot: undefined,
+        fixtureGroupAutopilots: [],
+        customPaths: []
+      },
+      autopilotSceneMode: false,
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
@@ -1491,7 +1599,39 @@ export const useStore = create<State>()(
 
       // Scene Actions
       saveScene: (name, oscAddress) => {
-        const { dmxChannels, channelAutopilots, panTiltAutopilot, modularAutomation } = get();
+        const { 
+          dmxChannels, 
+          channelAutopilots, 
+          panTiltAutopilot, 
+          modularAutomation,
+          autopilotSceneMode,
+          currentSceneAutopilotState,
+          trackAutopilot,
+          generalPanTiltAutopilot,
+          colorSliderAutopilot,
+          fixtureGroupAutopilots
+        } = get();
+        
+        let autopilotState = {};
+        if (autopilotSceneMode) {
+          autopilotState = {
+            // Legacy track autopilot state
+            autopilotTrackEnabled: get().autopilotTrackEnabled,
+            autopilotTrackType: get().autopilotTrackType,
+            autopilotTrackPosition: get().autopilotTrackPosition,
+            autopilotTrackSize: get().autopilotTrackSize,
+            autopilotTrackSpeed: get().autopilotTrackSpeed,
+            autopilotTrackCenterX: get().autopilotTrackCenterX,
+            autopilotTrackCenterY: get().autopilotTrackCenterY,
+            autopilotTrackAutoPlay: get().autopilotTrackAutoPlay,
+            autopilotTrackCustomPoints: [...(get().autopilotTrackCustomPoints || [])],
+            // Enhanced autopilot systems
+            generalPanTiltAutopilot: { ...generalPanTiltAutopilot },
+            colorSliderAutopilot: { ...colorSliderAutopilot },
+            fixtureGroupAutopilots: fixtureGroupAutopilots.map(group => ({ ...group }))
+          };
+        }
+        
         const newScene: Scene = {
           name,
           channelValues: [...dmxChannels],
@@ -1510,7 +1650,8 @@ export const useStore = create<State>()(
               panTilt: null,
               effects: null
             }
-          }
+          },
+          autopilotState
         };
         
         const scenes = [...get().scenes];
@@ -1636,6 +1777,64 @@ export const useStore = create<State>()(
             get().setEffectsAutomation({ enabled: false });
             get().stopAllModularAnimations();
           }
+
+          // Restore enhanced autopilot states if scene mode is enabled
+          const { autopilotSceneMode } = get();
+          if (autopilotSceneMode && scene.autopilotState) {
+            console.log(`[SCENES] Restoring enhanced autopilot states from scene "${name}"`);
+            
+            const autopilotState = scene.autopilotState;
+            
+            // Stop current autopilot system first
+            get().stopAutopilotSystem();
+            
+            // Restore legacy track autopilot state
+            if (autopilotState.autopilotTrackEnabled !== undefined) {
+              set({
+                autopilotTrackEnabled: autopilotState.autopilotTrackEnabled,
+                autopilotTrackType: autopilotState.autopilotTrackType || 'circle',
+                autopilotTrackPosition: autopilotState.autopilotTrackPosition || 0,
+                autopilotTrackSize: autopilotState.autopilotTrackSize || 50,
+                autopilotTrackSpeed: autopilotState.autopilotTrackSpeed || 50,
+                autopilotTrackCenterX: autopilotState.autopilotTrackCenterX || 127,
+                autopilotTrackCenterY: autopilotState.autopilotTrackCenterY || 127,
+                autopilotTrackAutoPlay: autopilotState.autopilotTrackAutoPlay || false,
+                autopilotTrackCustomPoints: autopilotState.autopilotTrackCustomPoints || []
+              });
+            }
+            
+            // Restore general pan/tilt autopilot
+            if (autopilotState.generalPanTiltAutopilot) {
+              get().setPanTiltAutopilot({ ...autopilotState.generalPanTiltAutopilot });
+            }
+            
+            // Restore color slider autopilot
+            if (autopilotState.colorSliderAutopilot) {
+              get().setColorSliderAutopilot({ ...autopilotState.colorSliderAutopilot });
+            }
+            
+            // Restore fixture group autopilots
+            if (autopilotState.fixtureGroupAutopilots) {
+              set({
+                fixtureGroupAutopilots: autopilotState.fixtureGroupAutopilots.map(group => ({ ...group }))
+              });
+            }
+            
+            // Update current scene autopilot state
+            set({
+              currentSceneAutopilotState: { ...autopilotState }
+            });
+            
+            // Restart autopilot system if any autopilots are enabled
+            if (autopilotState.autopilotTrackEnabled || 
+                autopilotState.generalPanTiltAutopilot?.enabled || 
+                autopilotState.colorSliderAutopilot?.enabled ||
+                autopilotState.fixtureGroupAutopilots?.some(group => group.isActive)) {
+              get().startAutopilotSystem();
+            }
+            
+            console.log('[SCENES] Enhanced autopilot states restored successfully');
+          }
           
           get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
           axios.post('/api/scenes/load', { name }) 
@@ -1645,6 +1844,77 @@ export const useStore = create<State>()(
             })
         } else {
           get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
+        }
+      },
+
+      setAutopilotSceneMode: (enabled: boolean) => {
+        set({ autopilotSceneMode: enabled });
+        
+        if (enabled) {
+          // Capture current autopilot state when enabling scene mode
+          const { 
+            autopilotTrackEnabled, autopilotTrackType, autopilotTrackPosition, autopilotTrackSize,
+            autopilotTrackSpeed, autopilotTrackCenterX, autopilotTrackCenterY, autopilotTrackAutoPlay,
+            autopilotTrackCustomPoints, generalPanTiltAutopilot, colorSliderAutopilot, fixtureGroupAutopilots 
+          } = get();
+          
+          set({
+            currentSceneAutopilotState: {
+              autopilotTrackEnabled,
+              autopilotTrackType,
+              autopilotTrackPosition,
+              autopilotTrackSize,
+              autopilotTrackSpeed,
+              autopilotTrackCenterX,
+              autopilotTrackCenterY,
+              autopilotTrackAutoPlay,
+              autopilotTrackCustomPoints: [...(autopilotTrackCustomPoints || [])],
+              generalPanTiltAutopilot: { ...generalPanTiltAutopilot },
+              colorSliderAutopilot: { ...colorSliderAutopilot },
+              fixtureGroupAutopilots: fixtureGroupAutopilots.map(group => ({ ...group }))
+            }
+          });
+          
+          console.log('[SCENES] Autopilot scene mode enabled - current state captured');
+          get().addNotification({
+            message: 'Autopilot scene integration enabled',
+            type: 'success'
+          });
+        } else {
+          console.log('[SCENES] Autopilot scene mode disabled');
+          get().addNotification({
+            message: 'Autopilot scene integration disabled',
+            type: 'info'
+          });
+        }
+      },
+
+      updateCurrentSceneAutopilotState: () => {
+        const { autopilotSceneMode } = get();
+        
+        if (autopilotSceneMode) {
+          const { 
+            autopilotTrackEnabled, autopilotTrackType, autopilotTrackPosition, autopilotTrackSize,
+            autopilotTrackSpeed, autopilotTrackCenterX, autopilotTrackCenterY, autopilotTrackAutoPlay,
+            autopilotTrackCustomPoints, generalPanTiltAutopilot, colorSliderAutopilot, fixtureGroupAutopilots 
+          } = get();
+          
+          set({
+            currentSceneAutopilotState: {
+              autopilotTrackEnabled,
+              autopilotTrackType,
+              autopilotTrackPosition,
+              autopilotTrackSize,
+              autopilotTrackSpeed,
+              autopilotTrackCenterX,
+              autopilotTrackCenterY,
+              autopilotTrackAutoPlay,
+              autopilotTrackCustomPoints: [...(autopilotTrackCustomPoints || [])],
+              generalPanTiltAutopilot: { ...generalPanTiltAutopilot },
+              colorSliderAutopilot: { ...colorSliderAutopilot },
+              fixtureGroupAutopilots: fixtureGroupAutopilots.map(group => ({ ...group }))
+            }
+          });
         }
       },
       
@@ -1711,7 +1981,45 @@ export const useStore = create<State>()(
         }
       },
       togglePanTiltAutopilot: () => {
+        const { fixtures, addNotification } = get();
         const enabled = !get().panTiltAutopilot.enabled;
+        
+        if (enabled) {
+          // Check if fixtures exist before enabling
+          if (fixtures.length === 0) {
+            addNotification({
+              message: 'No fixtures defined. Please add fixtures with Pan/Tilt channels first.',
+              type: 'warning'
+            });
+            return;
+          }
+
+          // Check if any fixtures have pan/tilt channels
+          const panTiltFixtures = fixtures.filter(fixture => {
+            const panChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'pan');
+            const tiltChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'tilt');
+            return panChannel && tiltChannel;
+          });
+
+          if (panTiltFixtures.length === 0) {
+            addNotification({
+              message: 'No fixtures with Pan/Tilt channels found. Please add moving head fixtures.',
+              type: 'warning'
+            });
+            return;
+          }
+
+          addNotification({
+            message: `General Pan/Tilt Autopilot enabled for ${panTiltFixtures.length} fixture(s)`,
+            type: 'success'
+          });
+        } else {
+          addNotification({
+            message: 'General Pan/Tilt Autopilot disabled',
+            type: 'info'
+          });
+        }
+        
         get().setPanTiltAutopilot({ enabled });
       },
       setColorSliderAutopilot: (config) => {
@@ -1998,6 +2306,252 @@ export const useStore = create<State>()(
             });
           }
         }
+
+        // Enhanced Fixture Group Autopilots
+        const { fixtureGroupAutopilots, customPaths, fixtures } = get();
+        fixtureGroupAutopilots.forEach(group => {
+          if (!group.isActive) return;
+
+          const groupFixtures = fixtures.filter(f => group.fixtureIds.includes(f.id));
+          if (groupFixtures.length === 0) return;
+
+          // Process Pan/Tilt Autopilot for this group
+          if (group.panTiltConfig?.enabled && !group.panTiltConfig.isMuted) {
+            const config = group.panTiltConfig;
+            const speed = config.syncToBPM ? (bpm / 60) * config.speed : config.speed;
+            
+            groupFixtures.forEach(fixture => {
+              const panChannel = fixture.channels.find(c => c.type === 'pan');
+              const tiltChannel = fixture.channels.find(c => c.type === 'tilt');
+              
+              if (!panChannel || !tiltChannel) return;
+
+              let panValue = 0, tiltValue = 0;
+
+              if (config.pathType === 'custom' && config.customPathId) {
+                const customPath = customPaths.find(p => p.id === config.customPathId);
+                if (customPath && customPath.type === 'panTilt') {
+                  const points = customPath.points as Array<{ x: number; y: number }>;
+                  if (points.length > 1) {
+                    const progress = (now / 1000 * speed) % 1;
+                    const segmentIndex = Math.floor(progress * (points.length - 1));
+                    const nextIndex = (segmentIndex + 1) % points.length;
+                    const segmentProgress = (progress * (points.length - 1)) % 1;
+                    
+                    const currentPoint = points[segmentIndex];
+                    const nextPoint = points[nextIndex];
+                    
+                    panValue = currentPoint.x + (nextPoint.x - currentPoint.x) * segmentProgress;
+                    tiltValue = currentPoint.y + (nextPoint.y - currentPoint.y) * segmentProgress;
+                  }
+                }
+              } else {
+                // Use original path calculation logic for built-in patterns
+                const progress = (now / 1000 * speed) % 1;
+                const centerX = config.centerX;
+                const centerY = config.centerY;
+                const radius = (config.size / 100) * 127; // Scale to DMX range
+                
+                switch (config.pathType) {
+                  case 'circle':
+                    const angle = progress * 2 * Math.PI;
+                    panValue = centerX + Math.cos(angle) * radius;
+                    tiltValue = centerY + Math.sin(angle) * radius;
+                    break;
+                  case 'figure8':
+                    const t = progress * 2 * Math.PI;
+                    panValue = centerX + Math.sin(t) * radius;
+                    tiltValue = centerY + Math.sin(t * 2) * radius / 2;
+                    break;
+                  case 'square':
+                    const side = Math.floor(progress * 4);
+                    const sideProgress = (progress * 4) % 1;
+                    switch (side) {
+                      case 0: panValue = centerX + (sideProgress - 0.5) * radius * 2; tiltValue = centerY + radius; break;
+                      case 1: panValue = centerX + radius; tiltValue = centerY + (0.5 - sideProgress) * radius * 2; break;
+                      case 2: panValue = centerX + (0.5 - sideProgress) * radius * 2; tiltValue = centerY - radius; break;
+                      case 3: panValue = centerX - radius; tiltValue = centerY + (sideProgress - 0.5) * radius * 2; break;
+                    }
+                    break;
+                  case 'triangle':
+                    const triSide = Math.floor(progress * 3);
+                    const triProgress = (progress * 3) % 1;
+                    switch (triSide) {
+                      case 0: panValue = centerX + (triProgress - 0.5) * radius * 2; tiltValue = centerY + radius; break;
+                      case 1: panValue = centerX + radius - triProgress * radius * 2; tiltValue = centerY - radius + triProgress * radius; break;
+                      case 2: panValue = centerX - radius + triProgress * radius; tiltValue = centerY - radius + triProgress * radius; break;
+                    }
+                    break;
+                  case 'linear':
+                    panValue = centerX + (progress - 0.5) * radius * 2;
+                    tiltValue = centerY;
+                    break;
+                }
+              }
+
+              // Clamp values to DMX range
+              panValue = Math.max(0, Math.min(255, Math.round(panValue)));
+              tiltValue = Math.max(0, Math.min(255, Math.round(tiltValue)));
+
+              // Calculate DMX addresses
+              const panChannelIndex = fixture.channels.indexOf(panChannel);
+              const tiltChannelIndex = fixture.channels.indexOf(tiltChannel);
+              
+              let panDmxAddress: number;
+              let tiltDmxAddress: number;
+              
+              if (typeof panChannel.dmxAddress === 'number' && panChannel.dmxAddress >= 1) {
+                panDmxAddress = panChannel.dmxAddress - 1;
+              } else {
+                panDmxAddress = (fixture.startAddress || 1) + panChannelIndex - 1;
+              }
+              
+              if (typeof tiltChannel.dmxAddress === 'number' && tiltChannel.dmxAddress >= 1) {
+                tiltDmxAddress = tiltChannel.dmxAddress - 1;
+              } else {
+                tiltDmxAddress = (fixture.startAddress || 1) + tiltChannelIndex - 1;
+              }
+
+              updates[panDmxAddress] = panValue;
+              updates[tiltDmxAddress] = tiltValue;
+              hasUpdates = true;
+            });
+          }
+
+          // Process Color Autopilot for this group
+          if (group.colorConfig?.enabled && !group.colorConfig.isMuted) {
+            const config = group.colorConfig;
+            const speed = config.syncToBPM ? (bpm / 60) * config.speed : config.speed;
+            const phaseOffset = (config.phase / 360) * 2 * Math.PI;
+            const progress = (now / 1000 * speed) % 1;
+
+            let rgb = { r: 0, g: 0, b: 0 };
+
+            if (config.type === 'custom' && config.customPathId) {
+              const customPath = customPaths.find(p => p.id === config.customPathId);
+              if (customPath && customPath.type === 'color') {
+                const colors = customPath.points as Array<{ r: number; g: number; b: number }>;
+                if (colors.length > 1) {
+                  const segmentIndex = Math.floor(progress * (colors.length - 1));
+                  const nextIndex = (segmentIndex + 1) % colors.length;
+                  const segmentProgress = (progress * (colors.length - 1)) % 1;
+                  
+                  const currentColor = colors[segmentIndex];
+                  const nextColor = colors[nextIndex];
+                  
+                  rgb = {
+                    r: Math.round(currentColor.r + (nextColor.r - currentColor.r) * segmentProgress),
+                    g: Math.round(currentColor.g + (nextColor.g - currentColor.g) * segmentProgress),
+                    b: Math.round(currentColor.b + (nextColor.b - currentColor.b) * segmentProgress)
+                  };
+                }
+              }
+            } else {
+              // Use original color generation logic for built-in patterns
+              let hue = 0;
+              let saturation = 1;
+              let value = 1;
+
+              switch (config.type) {
+                case 'sine':
+                  hue = (Math.sin(progress * 2 * Math.PI + phaseOffset) + 1) / 2 * 360;
+                  break;
+                case 'triangle':
+                  hue = Math.abs((progress * 2) - 1) * 360;
+                  break;
+                case 'sawtooth':
+                  hue = progress * 360;
+                  break;
+                case 'ping-pong':
+                  hue = Math.abs(((progress * 2) % 2) - 1) * 360;
+                  break;
+                case 'cycle':
+                  hue = progress * 360;
+                  break;
+                case 'random':
+                  const timeSegment = Math.floor(now / 2000);
+                  hue = (Math.sin(timeSegment * 12.9898) * 43758.5453123 % 1) * 360;
+                  break;
+              }
+
+              const hueRange = config.range.max - config.range.min;
+              hue = config.range.min + (hue / 360) * hueRange;
+              hue = hue % 360;
+
+              // Convert HSV to RGB
+              const hsvToRgb = (h: number, s: number, v: number): { r: number, g: number, b: number } => {
+                h = h / 60;
+                const c = v * s;
+                const x = c * (1 - Math.abs((h % 2) - 1));
+                const m = v - c;
+                
+                let r = 0, g = 0, b = 0;
+                
+                if (h >= 0 && h < 1) {
+                  r = c; g = x; b = 0;
+                } else if (h >= 1 && h < 2) {
+                  r = x; g = c; b = 0;
+                } else if (h >= 2 && h < 3) {
+                  r = 0; g = c; b = x;
+                } else if (h >= 3 && h < 4) {
+                  r = 0; g = x; b = c;
+                } else if (h >= 4 && h < 5) {
+                  r = x; g = 0; b = c;
+                } else if (h >= 5 && h < 6) {
+                  r = c; g = 0; b = x;
+                }
+                
+                return {
+                  r: Math.round((r + m) * 255),
+                  g: Math.round((g + m) * 255),
+                  b: Math.round((b + m) * 255)
+                };
+              };
+
+              rgb = hsvToRgb(hue, saturation, value);
+            }
+
+            // Apply to group fixtures with RGB channels
+            groupFixtures.forEach(fixture => {
+              const redChannel = fixture.channels.find(c => c.type === 'red');
+              const greenChannel = fixture.channels.find(c => c.type === 'green');
+              const blueChannel = fixture.channels.find(c => c.type === 'blue');
+
+              if (redChannel && greenChannel && blueChannel) {
+                const redChannelIndex = fixture.channels.indexOf(redChannel);
+                const greenChannelIndex = fixture.channels.indexOf(greenChannel);
+                const blueChannelIndex = fixture.channels.indexOf(blueChannel);
+                
+                let redDmxAddress: number;
+                let greenDmxAddress: number;
+                let blueDmxAddress: number;
+                
+                if (typeof redChannel.dmxAddress === 'number' && redChannel.dmxAddress >= 1) {
+                  redDmxAddress = redChannel.dmxAddress - 1;
+                } else {
+                  redDmxAddress = (fixture.startAddress || 1) + redChannelIndex - 1;
+                }
+                
+                if (typeof greenChannel.dmxAddress === 'number' && greenChannel.dmxAddress >= 1) {
+                  greenDmxAddress = greenChannel.dmxAddress - 1;
+                } else {
+                  greenDmxAddress = (fixture.startAddress || 1) + greenChannelIndex - 1;
+                }
+                
+                if (typeof blueChannel.dmxAddress === 'number' && blueChannel.dmxAddress >= 1) {
+                  blueDmxAddress = blueChannel.dmxAddress - 1;
+                } else {
+                  blueDmxAddress = (fixture.startAddress || 1) + blueChannelIndex - 1;
+                }
+
+                updates[redDmxAddress] = rgb.r;
+                updates[greenDmxAddress] = rgb.g;
+                updates[blueDmxAddress] = rgb.b;
+                hasUpdates = true;
+              }
+            });
+          }
+        });
 
         // Apply all updates at once
         if (hasUpdates) {
@@ -2614,16 +3168,52 @@ export const useStore = create<State>()(
       // Legacy Autopilot Track Actions Implementation
       setAutopilotTrackEnabled: (enabled: boolean) => {
         console.log('[STORE] Setting autopilot track enabled to:', enabled);
-        set({ autopilotTrackEnabled: enabled });
+        set({ autopilotTrackEnabled: enabled, _autopilotFirstUpdateShown: false });
         
         if (enabled) {
+          // Check if fixtures exist before starting
+          const { fixtures, addNotification } = get();
+          if (fixtures.length === 0) {
+            addNotification({
+              message: 'No fixtures defined. Please add fixtures with Pan/Tilt channels first.',
+              type: 'warning'
+            });
+            set({ autopilotTrackEnabled: false }); // Disable since we can't use it
+            return;
+          }
+
+          // Check if any fixtures have pan/tilt channels
+          const panTiltFixtures = fixtures.filter(fixture => {
+            const panChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'pan');
+            const tiltChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'tilt');
+            return panChannel && tiltChannel;
+          });
+
+          if (panTiltFixtures.length === 0) {
+            addNotification({
+              message: 'No fixtures with Pan/Tilt channels found. Please add moving head fixtures.',
+              type: 'warning'
+            });
+            set({ autopilotTrackEnabled: false }); // Disable since we can't use it
+            return;
+          }
+
           // Start animation when enabled
           get().startAutopilotTrackAnimation();
           // Immediately update position when enabled
           get().updatePanTiltFromTrack();
+          
+          addNotification({
+            message: `Track Autopilot enabled for ${panTiltFixtures.length} fixture(s)`,
+            type: 'success'
+          });
         } else {
           // Stop animation when disabled
           get().stopAutopilotTrackAnimation();
+          get().addNotification({
+            message: 'Track Autopilot disabled',
+            type: 'info'
+          });
         }
       },
 
@@ -2812,15 +3402,47 @@ export const useStore = create<State>()(
           autopilotTrackCenterX, 
           autopilotTrackCenterY,
           selectedFixtures,
-          fixtures
+          fixtures,
+          addNotification
         } = get();
         
         if (!autopilotTrackEnabled) {
           console.log('[STORE] updatePanTiltFromTrack: Autopilot not enabled, skipping update');
           return;
         }
+
+        // Check if there are any fixtures at all
+        if (fixtures.length === 0) {
+          console.warn('[STORE] updatePanTiltFromTrack: No fixtures defined - autopilot has nothing to control');
+          addNotification({
+            message: 'Autopilot Error: No fixtures defined. Please add fixtures with Pan/Tilt channels first.',
+            type: 'warning'
+          });
+          return;
+        }
         
         console.log('[STORE] updatePanTiltFromTrack: Calculating position for', selectedFixtures.length, 'fixtures');
+        
+        // Apply to selected fixtures
+        const targetFixtures = selectedFixtures.length > 0 
+          ? fixtures.filter(f => selectedFixtures.includes(f.id))
+          : fixtures; // If no selection, apply to all fixtures
+
+        // Check if target fixtures have pan/tilt channels
+        const panTiltFixtures = targetFixtures.filter(fixture => {
+          const panChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'pan');
+          const tiltChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'tilt');
+          return panChannel && tiltChannel;
+        });
+
+        if (panTiltFixtures.length === 0) {
+          console.warn('[STORE] updatePanTiltFromTrack: No fixtures with Pan/Tilt channels found in target set');
+          addNotification({
+            message: 'Autopilot Error: No fixtures with Pan/Tilt channels found. Please select or add moving head fixtures.',
+            type: 'warning'
+          });
+          return;
+        }
         
         // Calculate current track position
         const { pan, tilt } = get().calculateTrackPosition(
@@ -2833,14 +3455,9 @@ export const useStore = create<State>()(
         
         console.log('[STORE] updatePanTiltFromTrack: Calculated pan =', pan, ', tilt =', tilt);
         
-        // Apply to selected fixtures
-        const targetFixtures = selectedFixtures.length > 0 
-          ? fixtures.filter(f => selectedFixtures.includes(f.id))
-          : fixtures; // If no selection, apply to all fixtures
-        
         const updates: Record<number, number> = {};
         
-        targetFixtures.forEach(fixture => {
+        panTiltFixtures.forEach(fixture => {
           const panChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'pan');
           const tiltChannel = fixture.channels.find(ch => ch.type.toLowerCase() === 'tilt');
           
@@ -2864,9 +3481,338 @@ export const useStore = create<State>()(
         if (Object.keys(updates).length > 0) {
           console.log('[STORE] updatePanTiltFromTrack: Applying', Object.keys(updates).length, 'channel updates');
           get().setMultipleDmxChannels(updates);
+          
+          // Show success notification on first successful update
+          if (!get()._autopilotFirstUpdateShown) {
+            addNotification({
+              message: `Autopilot active: controlling ${panTiltFixtures.length} fixture(s) with ${autopilotTrackType} pattern`,
+              type: 'success'
+            });
+            set({ _autopilotFirstUpdateShown: true });
+          }
         } else {
           console.warn('[STORE] updatePanTiltFromTrack: No pan/tilt channels found in target fixtures');
         }
+      },
+
+      // UI Actions
+      setTheme: (theme: 'artsnob' | 'standard' | 'minimal') => {
+        set({ theme });
+        localStorage.setItem('theme', theme);
+        document.body.className = theme;
+      },
+
+      toggleDarkMode: () => {
+        const { darkMode } = get();
+        const newDarkMode = !darkMode;
+        set({ darkMode: newDarkMode });
+        localStorage.setItem('darkMode', newDarkMode.toString());
+        document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light');
+      },
+
+      // ============================================================================
+      // Enhanced Autopilot Actions for Fixture Groups and Custom Paths
+      // ============================================================================
+      
+      // Custom Path Management
+      createCustomPath: (name: string, type: 'panTilt' | 'color', points: any[]) => {
+        const now = Date.now();
+        const newPath: CustomPath = {
+          id: `path_${now}_${Math.random().toString(36).substr(2, 9)}`,
+          name,
+          type,
+          points,
+          created: now,
+          lastUsed: now
+        };
+        
+        set(state => ({
+          customPaths: [...state.customPaths, newPath]
+        }));
+        
+        get().addNotification({
+          message: `Custom ${type} path "${name}" created`,
+          type: 'success'
+        });
+        
+        return newPath.id;
+      },
+
+      updateCustomPath: (pathId: string, updates: Partial<CustomPath>) => {
+        set(state => ({
+          customPaths: state.customPaths.map(path =>
+            path.id === pathId
+              ? { ...path, ...updates, lastUsed: Date.now() }
+              : path
+          )
+        }));
+        
+        get().addNotification({
+          message: `Custom path "${updates.name || pathId}" updated`,
+          type: 'success'
+        });
+      },
+
+      deleteCustomPath: (pathId: string) => {
+        const state = get();
+        const pathToDelete = state.customPaths.find(p => p.id === pathId);
+        
+        if (!pathToDelete) return;
+        
+        set(state => ({
+          customPaths: state.customPaths.filter(path => path.id !== pathId),
+          // Remove references from fixture group autopilots
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group => ({
+            ...group,
+            lastSelectedPanTiltPath: group.lastSelectedPanTiltPath === pathId ? undefined : group.lastSelectedPanTiltPath,
+            lastSelectedColorPath: group.lastSelectedColorPath === pathId ? undefined : group.lastSelectedColorPath,
+            panTiltConfig: group.panTiltConfig?.customPathId === pathId 
+              ? { ...group.panTiltConfig, customPathId: undefined, pathType: 'circle' }
+              : group.panTiltConfig,
+            colorConfig: group.colorConfig?.customPathId === pathId 
+              ? { ...group.colorConfig, customPathId: undefined, type: 'sine' }
+              : group.colorConfig
+          }))
+        }));
+        
+        get().addNotification({
+          message: `Custom path "${pathToDelete.name}" deleted`,
+          type: 'info'
+        });
+      },
+
+      duplicateCustomPath: (pathId: string, newName: string) => {
+        const state = get();
+        const originalPath = state.customPaths.find(p => p.id === pathId);
+        
+        if (!originalPath) return '';
+        
+        return get().createCustomPath(newName, originalPath.type, [...originalPath.points]);
+      },
+
+      // Fixture Group Autopilot Management
+      createFixtureGroupAutopilot: (name: string, fixtureIds: string[]) => {
+        const now = Date.now();
+        const newGroup: FixtureGroupAutopilot = {
+          id: `group_${now}_${Math.random().toString(36).substr(2, 9)}`,
+          name,
+          fixtureIds,
+          isActive: true,
+          panTiltConfig: {
+            enabled: false,
+            pathType: 'circle',
+            size: 50,
+            speed: 1.0,
+            centerX: 127,
+            centerY: 127,
+            syncToBPM: false,
+            isMuted: false
+          },
+          colorConfig: {
+            enabled: false,
+            type: 'sine',
+            speed: 0.5,
+            range: { min: 0, max: 360 },
+            syncToBPM: false,
+            phase: 0,
+            isMuted: false
+          }
+        };
+        
+        set(state => ({
+          fixtureGroupAutopilots: [...state.fixtureGroupAutopilots, newGroup]
+        }));
+        
+        get().addNotification({
+          message: `Fixture autopilot group "${name}" created with ${fixtureIds.length} fixture(s)`,
+          type: 'success'
+        });
+        
+        return newGroup.id;
+      },
+
+      updateFixtureGroupAutopilot: (groupId: string, updates: Partial<FixtureGroupAutopilot>) => {
+        set(state => ({
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group =>
+            group.id === groupId ? { ...group, ...updates } : group
+          )
+        }));
+        
+        if (updates.name) {
+          get().addNotification({
+            message: `Autopilot group "${updates.name}" updated`,
+            type: 'success'
+          });
+        }
+      },
+
+      deleteFixtureGroupAutopilot: (groupId: string) => {
+        const state = get();
+        const groupToDelete = state.fixtureGroupAutopilots.find(g => g.id === groupId);
+        
+        if (!groupToDelete) return;
+        
+        set(state => ({
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.filter(group => group.id !== groupId)
+        }));
+        
+        get().addNotification({
+          message: `Autopilot group "${groupToDelete.name}" deleted`,
+          type: 'info'
+        });
+      },
+
+      toggleFixtureGroupAutopilot: (groupId: string) => {
+        set(state => ({
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group =>
+            group.id === groupId ? { ...group, isActive: !group.isActive } : group
+          )
+        }));
+        
+        const group = get().fixtureGroupAutopilots.find(g => g.id === groupId);
+        if (group) {
+          get().addNotification({
+            message: `Autopilot group "${group.name}" ${group.isActive ? 'enabled' : 'disabled'}`,
+            type: group.isActive ? 'success' : 'info'
+          });
+        }
+      },
+
+      setFixtureGroupAutopilotPath: (groupId: string, type: 'panTilt' | 'color', pathId: string) => {
+        const customPath = get().customPaths.find(p => p.id === pathId);
+        if (!customPath || customPath.type !== type) return;
+        
+        set(state => ({
+          customPaths: state.customPaths.map(path =>
+            path.id === pathId ? { ...path, lastUsed: Date.now() } : path
+          ),
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group =>
+            group.id === groupId
+              ? {
+                  ...group,
+                  [type === 'panTilt' ? 'lastSelectedPanTiltPath' : 'lastSelectedColorPath']: pathId,
+                  [type === 'panTilt' ? 'panTiltConfig' : 'colorConfig']: {
+                    ...group[type === 'panTilt' ? 'panTiltConfig' : 'colorConfig'],
+                    customPathId: pathId,
+                    [type === 'panTilt' ? 'pathType' : 'type']: 'custom'
+                  }
+                }
+              : group
+          )
+        }));
+        
+        get().addNotification({
+          message: `Applied custom ${type} path "${customPath.name}" to group`,
+          type: 'success'
+        });
+      },
+
+      muteFixtureGroupAutopilot: (groupId: string, type: 'panTilt' | 'color', muted: boolean) => {
+        set(state => ({
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group =>
+            group.id === groupId
+              ? {
+                  ...group,
+                  [type === 'panTilt' ? 'panTiltConfig' : 'colorConfig']: {
+                    ...group[type === 'panTilt' ? 'panTiltConfig' : 'colorConfig'],
+                    isMuted: muted
+                  }
+                }
+              : group
+          )
+        }));
+        
+        const group = get().fixtureGroupAutopilots.find(g => g.id === groupId);
+        if (group) {
+          get().addNotification({
+            message: `${type} autopilot for "${group.name}" ${muted ? 'muted' : 'unmuted'}`,
+            type: 'info'
+          });
+        }
+      },
+
+      // Scene Autopilot Integration
+      saveCurrentAutopilotToScene: (sceneName: string) => {
+        const state = get();
+        const scene = state.scenes.find(s => s.name === sceneName);
+        if (!scene) return;
+        
+        const updatedScene: Scene = {
+          ...scene,
+          panTiltAutopilot: { ...state.panTiltAutopilot },
+          colorSliderAutopilot: { ...state.colorSliderAutopilot },
+          fixtureGroupAutopilots: state.fixtureGroupAutopilots.map(group => ({ ...group })),
+          customPaths: state.customPaths.map(path => ({ ...path }))
+        };
+        
+        set(state => ({
+          scenes: state.scenes.map(s => s.name === sceneName ? updatedScene : s)
+        }));
+        
+        get().addNotification({
+          message: `Autopilot state saved to scene "${sceneName}"`,
+          type: 'success'
+        });
+      },
+
+      loadSceneAutopilotState: (sceneName: string) => {
+        const state = get();
+        const scene = state.scenes.find(s => s.name === sceneName);
+        if (!scene || !state.autopilotSceneMode) return;
+        
+        const updates: any = {
+          currentSceneAutopilotState: {
+            panTiltAutopilot: scene.panTiltAutopilot,
+            colorSliderAutopilot: scene.colorSliderAutopilot,
+            fixtureGroupAutopilots: scene.fixtureGroupAutopilots || [],
+            customPaths: scene.customPaths || []
+          }
+        };
+        
+        // Apply scene autopilot state if scene mode is enabled
+        if (scene.panTiltAutopilot) {
+          updates.panTiltAutopilot = { ...scene.panTiltAutopilot };
+        }
+        if (scene.colorSliderAutopilot) {
+          updates.colorSliderAutopilot = { ...scene.colorSliderAutopilot };
+        }
+        if (scene.fixtureGroupAutopilots) {
+          updates.fixtureGroupAutopilots = scene.fixtureGroupAutopilots.map(group => ({ ...group }));
+        }
+        if (scene.customPaths) {
+          updates.customPaths = [...state.customPaths, ...scene.customPaths.filter(
+            scenePath => !state.customPaths.some(existingPath => existingPath.id === scenePath.id)
+          )];
+        }
+        
+        set(updates);
+        
+        get().addNotification({
+          message: `Loaded autopilot state from scene "${sceneName}"`,
+          type: 'success'
+        });
+      },
+
+      clearSceneAutopilotState: (sceneName: string) => {
+        const updatedScene = get().scenes.find(s => s.name === sceneName);
+        if (!updatedScene) return;
+        
+        const clearedScene: Scene = {
+          ...updatedScene,
+          panTiltAutopilot: undefined,
+          colorSliderAutopilot: undefined,
+          fixtureGroupAutopilots: [],
+          customPaths: []
+        };
+        
+        set(state => ({
+          scenes: state.scenes.map(s => s.name === sceneName ? clearedScene : s)
+        }));
+        
+        get().addNotification({
+          message: `Cleared autopilot state from scene "${sceneName}"`,
+          type: 'info'
+        });
       },
 
       // Debug function to check autopilot state
