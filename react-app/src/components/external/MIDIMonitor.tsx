@@ -63,30 +63,34 @@ export const MIDIMonitor: React.FC = () => {
         <div className={styles.midiMappings}>
           <h4>Active MIDI Mappings</h4>
           <div className={styles.mappingList}>
-            {Object.entries(midiMappings).map(([channel, mapping]) => (
-              <div key={channel} className={styles.mappingItem}>
-                <span className={styles.mappingChannel}>CH {parseInt(channel) + 1}</span>
-                <span className={styles.mappingType}>{mapping.note !== undefined ? 'Note' : 'CC'}</span>
-                <span className={styles.mappingDetails}>
-                  Ch:{mapping.channel} {mapping.note !== undefined ? `Note:${mapping.note}` : `CC:${mapping.controller}`}
-                </span>
+            {Object.entries(midiMappings).map(([id, mapping]) => (
+              <div key={id} className={styles.mappingItem}>
+                <div className={styles.mappingHeader}>
+                  {mapping.note !== undefined ? `Note ${mapping.note}` : `CC ${mapping.controller}`} on Ch {mapping.channel}
+                </div>
+                <div className={styles.mappingDetails}>
+                  {/* The 'target' is not defined in the store, so we display what is available */}
+                  Mapped to an action
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className={styles.messageList}>
+        <div className={styles.messageListContainer}>
           <h4>Live MIDI Messages ({midiMessages.length}/100)</h4>
           <div className={styles.messageContainer}>
             {midiMessages.map(message => (
               <div key={message.id} className={`${styles.messageItem} ${styles[message.type]}`}>
                 <span className={styles.messageTime}>{formatTimestamp(message.timestamp)}</span>
-                <span className={styles.messageType}>{message.type.toUpperCase()}</span>
-                <span className={styles.messageChannel}>Ch:{message.channel}</span>
-                {message.note !== undefined && <span className={styles.messageNote}>Note:{message.note}</span>}
-                {message.velocity !== undefined && <span className={styles.messageVelocity}>Vel:{message.velocity}</span>}
-                {message.controller !== undefined && <span className={styles.messageController}>CC:{message.controller}</span>}
-                {message.value !== undefined && <span className={styles.messageValue}>Val:{message.value}</span>}
+                <span className={`${styles.messageType} ${styles[message.type]}`}>{message.type.toUpperCase()}</span>
+                <div className={styles.messageDetails}>
+                  <span><strong>Ch:</strong>{message.channel}</span>
+                  {message.note !== undefined && <span><strong>Note:</strong>{message.note}</span>}
+                  {message.velocity !== undefined && <span><strong>Vel:</strong>{message.velocity}</span>}
+                  {message.controller !== undefined && <span><strong>CC:</strong>{message.controller}</span>}
+                  {message.value !== undefined && <span><strong>Val:</strong>{message.value}</span>}
+                </div>
               </div>
             ))}
           </div>

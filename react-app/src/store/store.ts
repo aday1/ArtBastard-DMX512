@@ -1724,9 +1724,12 @@ export const useStore = create<State>()(
         const { channelAutopilots, panTiltAutopilot, colorSliderAutopilot, setDmxChannel, bpm, lastAutopilotUpdate, setExampleSliderValue } = get();
         const now = Date.now();
         const timeElapsed = (now - lastAutopilotUpdate) / 1000; // in seconds
+        const updates: { [key: number]: number } = {};
+        let hasUpdates = false;
 
         // Channel Autopilots
-        Object.entries(channelAutopilots).forEach(([channelStr, config]) => {
+        Object.entries(channelAutopilots).forEach(([channelStr, configUnknown]) => {
+          const config = configUnknown as AutopilotConfig;
           if (!config.enabled) return;
           const channel = parseInt(channelStr);
           const speed = config.syncToBPM ? (bpm / 60) * config.speed : config.speed;
@@ -1749,10 +1752,11 @@ export const useStore = create<State>()(
               break;
             case 'random':
               // This should be handled differently, maybe on beats
-              break;
+              return; // avoid setting dmx value
           }
           const dmxValue = Math.round(config.range.min + value * (config.range.max - config.range.min));
-          setDmxChannel(channel, dmxValue);
+          updates[channel] = dmxValue;
+          hasUpdates = true;
         });
 
         // Pan/Tilt Autopilot
@@ -1768,6 +1772,7 @@ export const useStore = create<State>()(
           }
 
           const newPhase = (panTiltAutopilot.phase + phaseIncrement) % (2 * Math.PI);
+          const progress = newPhase / (2 * Math.PI);
 
           fixtures.forEach(fixture => {
             const panChannel = fixture.channels.find(c => c.type === 'pan');
@@ -1790,7 +1795,7 @@ export const useStore = create<State>()(
                   tiltValue += Math.sin(newPhase) * radius;
                   break;
                 case 'square':
-                  const t = (newPhase / (2 * Math.PI)) % 1;
+                  const t = progress;
                   if (t < 0.25) {
                     panValue += radius;
                     tiltValue += radius;
@@ -1806,7 +1811,7 @@ export const useStore = create<State>()(
                   }
                   break;
                 case 'triangle':
-                  const triT = (newPhase / (2 * Math.PI)) % 1;
+                  const triT = progress;
                   if (triT < 1/3) {
                     panValue += radius;
                     tiltValue += (triT * 3) * radius;
@@ -1825,7 +1830,7 @@ export const useStore = create<State>()(
                   break;
                 case 'custom':
                   if (panTiltAutopilot.customPath && panTiltAutopilot.customPath.length > 0) {
-                    const pathIndex = Math.floor((newPhase / (2 * Math.PI)) * panTiltAutopilot.customPath.length);
+                    const pathIndex = Math.floor(progress * panTiltAutopilot.customPath.length);
                     const point = panTiltAutopilot.customPath[pathIndex % panTiltAutopilot.customPath.length];
                     panValue = point.x;
                     tiltValue = point.y;

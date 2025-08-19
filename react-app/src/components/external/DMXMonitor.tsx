@@ -40,8 +40,10 @@ export const DMXMonitor: React.FC = () => {
         <div className={styles.channelGrid}>
           {activeChannels.map(({ channel, value, name }) => (
             <div key={channel} className={`${styles.channelItem} ${value > 0 ? styles.active : ''}`}>
-              <div className={styles.channelNumber}>CH {channel}</div>
-              <div className={styles.channelName}>{name}</div>
+              <div className={styles.channelHeader}>
+                <div className={styles.channelNumber}>CH {channel}</div>
+                <div className={styles.channelName}>{name}</div>
+              </div>
               <div className={styles.channelValue}>{value}</div>
               <div className={styles.channelBar}>
                 <div 

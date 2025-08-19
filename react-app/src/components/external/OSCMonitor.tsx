@@ -60,34 +60,33 @@ export const OSCMonitor: React.FC = () => {
       <div className={styles.monitorContent}>
         <div className={styles.oscAssignments}>
           <h4>OSC Channel Assignments</h4>
-          <div className={styles.assignmentList}>
+          <div className={styles.mappingList}>
             {getActiveAssignments().map(({ channel, address }) => (
-              <div key={channel} className={styles.assignmentItem}>
-                <span className={styles.assignmentChannel}>CH {channel}</span>
-                <span className={styles.assignmentAddress}>{address}</span>
-                <span className={`${styles.assignmentActivity} ${oscActivity[channel - 1] ? styles.active : ''}`}>
+              <div key={channel} className={styles.mappingItem}>
+                <div className={styles.mappingHeader}>CH {channel}</div>
+                <div className={styles.mappingDetails}>
+                  Address: {address}
+                </div>
+                <div className={`${styles.assignmentActivity} ${oscActivity[channel - 1] ? styles.active : ''}`}>
                   {oscActivity[channel - 1] ? `Value: ${oscActivity[channel - 1]}` : 'No activity'}
-                </span>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className={styles.messageList}>
+        <div className={styles.messageListContainer}>
           <h4>Live OSC Messages ({oscMessages.length}/100)</h4>
           <div className={styles.messageContainer}>
             {oscMessages.map(message => (
               <div key={message.id} className={styles.messageItem}>
                 <span className={styles.messageTime}>{formatTimestamp(message.timestamp)}</span>
-                <span className={styles.messageAddress}>{message.address}</span>
-                <span className={styles.messageArgs}>
-                  {message.args.map((arg, idx) => (
-                    <span key={idx} className={styles.messageArg}>
-                      {typeof arg === 'number' ? arg.toFixed(3) : String(arg)}
-                    </span>
-                  ))}
-                </span>
-                {message.channel && <span className={styles.messageChannel}>→ CH{message.channel}</span>}
+                <span className={`${styles.messageType} ${styles.osc}`}>OSC</span>
+                <div className={styles.messageDetails}>
+                  <span><strong>Address:</strong> {message.address}</span>
+                  <span><strong>Args:</strong> {message.args.map(arg => typeof arg === 'number' ? arg.toFixed(3) : String(arg)).join(', ')}</span>
+                  {message.channel && <span><strong>→ CH:</strong> {message.channel}</span>}
+                </div>
               </div>
             ))}
           </div>
