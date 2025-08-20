@@ -96,6 +96,104 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     console.log('[SuperControl] Available fixtures:', fixtures.map(f => ({ id: f.id, name: f.name })));
   }, [selectionMode, selectedFixtures, fixtures]);
 
+  // MIDI processing for SuperControl
+  const { 
+    processMidiForControl,
+    mappings: superControlMappings 
+  } = useSuperControlMidiLearn();
+
+  useEffect(() => {
+    if (!midiMessages || midiMessages.length === 0) return;
+
+    const latestMessage = midiMessages[midiMessages.length - 1];
+    
+    // Create control handlers for MIDI
+    const controlHandlers: Record<string, (value: number) => void> = {
+      // Slider controls
+      dimmer: (value) => {
+        setDimmer(value);
+        applyControl('dimmer', value);
+      },
+      pan: (value) => {
+        setPanValue(value);
+        applyControl('pan', value);
+      },
+      tilt: (value) => {
+        setTiltValue(value);
+        applyControl('tilt', value);
+      },
+      red: (value) => {
+        setRed(value);
+        applyControl('red', value);
+      },
+      green: (value) => {
+        setGreen(value);
+        applyControl('green', value);
+      },
+      blue: (value) => {
+        setBlue(value);
+        applyControl('blue', value);
+      },
+      gobo: (value) => {
+        setGobo(value);
+        applyControl('gobo', value);
+      },
+      shutter: (value) => {
+        setShutter(value);
+        applyControl('shutter', value);
+      },
+      strobe: (value) => {
+        setStrobe(value);
+        applyControl('strobe', value);
+      },
+      // Additional Controls
+      focus: (value) => {
+        setFocus(value);
+        applyControl('focus', value);
+      },
+      iris: (value) => {
+        setIris(value);
+        applyControl('iris', value);
+      },
+      prism: (value) => {
+        setPrism(value);
+        applyControl('prism', value);
+      },
+      colorWheel: (value) => {
+        setColorWheel(value);
+        applyControl('colorwheel', value);
+      },
+      goboRotation: (value) => {
+        setGoboRotation(value);
+        applyControl('gobo_rotation', value);
+      },
+      finePan: (value) => {
+        setFinePanValue(value);
+        applyControl('fine_pan', value);
+      },
+      fineTilt: (value) => {
+        setFineTiltValue(value);
+        applyControl('fine_tilt', value);
+      },
+      // Fixture selection actions (bang controls)
+      fixture_next: () => handleFixtureSelectionAction('next'),
+      fixture_previous: () => handleFixtureSelectionAction('previous'),
+      fixture_selectAll: () => handleFixtureSelectionAction('selectAll'),
+      fixture_deselectAll: () => handleFixtureSelectionAction('deselectAll'),
+      fixture_byTypeMoving: () => handleFixtureSelectionAction('byTypeMoving'),
+      fixture_byTypeRGB: () => handleFixtureSelectionAction('byTypeRGB'),
+      fixture_byTypeDimmer: () => handleFixtureSelectionAction('byTypeDimmer'),
+      fixture_byTypeGobo: () => handleFixtureSelectionAction('byTypeGobo'),
+    };
+
+    // Add group selection handlers dynamically
+    groups.forEach(group => {
+      controlHandlers[`fixture_group_${group.name}`] = () => handleFixtureSelectionAction('group', group.name);
+    });
+
+    processMidiForControl(latestMessage, controlHandlers);
+  }, [midiMessages, groups, processMidiForControl]);
+
   // Basic Control State
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
@@ -170,6 +268,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     prism: '/supercontrol/prism',
     colorWheel: '/supercontrol/colorwheel',
     goboRotation: '/supercontrol/gobo/rotation',
+    finePan: '/supercontrol/pan/fine',
+    fineTilt: '/supercontrol/tilt/fine',
     gobo2: '/supercontrol/gobo2',
     frost: '/supercontrol/frost',
     macro: '/supercontrol/macro',
@@ -180,6 +280,17 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     sceneNext: '/supercontrol/scene/next',
     scenePrev: '/supercontrol/scene/prev',
     sceneSave: '/supercontrol/scene/save',
+    // Fixture Selection OSC Addresses
+    fixtureNext: '/supercontrol/fixture/next',
+    fixturePrev: '/supercontrol/fixture/prev',
+    fixtureSelectAll: '/supercontrol/fixture/selectall',
+    fixtureDeselectAll: '/supercontrol/fixture/deselectall',
+    fixtureByTypeMoving: '/supercontrol/fixture/type/moving',
+    fixtureByTypeRGB: '/supercontrol/fixture/type/rgb',
+    fixtureByTypeDimmer: '/supercontrol/fixture/type/dimmer',
+    fixtureByTypeGobo: '/supercontrol/fixture/type/gobo',
+    // Group Selection OSC Addresses (dynamic - will be added per group)
+    groupSelect: '/supercontrol/group/select',
   });
 
   // Enhanced MIDI Learn state with range support
@@ -903,6 +1014,122 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     console.log(`Cleared MIDI mapping for ${controlType}`);
   };
 
+  // Fixture Selection Action Handlers for MIDI Learn
+  const handleFixtureSelectionAction = (actionType: string, param?: string) => {
+    console.log(`[SuperControl] Fixture selection action: ${actionType}`, param);
+    
+    switch (actionType) {
+      case 'next':
+        selectNextFixture();
+        break;
+      case 'previous':
+        selectPreviousFixture();
+        break;
+      case 'selectAll':
+        selectAllFixtures();
+        break;
+      case 'deselectAll':
+        deselectAllFixtures();
+        break;
+      case 'byTypeMoving':
+        selectFixturesByType('pan');
+        break;
+      case 'byTypeRGB':
+        selectFixturesByType('red');
+        break;
+      case 'byTypeDimmer':
+        selectFixturesByType('dimmer');
+        break;
+      case 'byTypeGobo':
+        selectFixturesByType('gobo');
+        break;
+      case 'group':
+        if (param) {
+          const group = groups.find(g => g.name === param);
+          if (group) {
+            selectFixtureGroup(group.id);
+          }
+        }
+        break;
+      default:
+        console.warn(`Unknown fixture selection action: ${actionType}`);
+    }
+  };
+
+  const startFixtureSelectionMidiLearn = (actionType: string, param?: string) => {
+    const midiKey = param ? `fixture_${actionType}_${param}` : `fixture_${actionType}`;
+    setMidiLearnTarget(midiKey);
+    console.log(`Starting MIDI learn for fixture selection: ${actionType}`, param);
+  };
+
+  const clearFixtureSelectionMidiMapping = (actionType: string, param?: string) => {
+    const midiKey = param ? `fixture_${actionType}_${param}` : `fixture_${actionType}`;
+    setMidiMappings(prev => {
+      const updated = { ...prev };
+      delete updated[midiKey];
+      return updated;
+    });
+    console.log(`Cleared MIDI mapping for fixture selection: ${actionType}`, param);
+  };
+
+  // Fixture Selection MIDI Learn Button Component
+  const FixtureSelectionMidiLearnButton = ({ 
+    actionType, 
+    param, 
+    title,
+    oscKey
+  }: { 
+    actionType: string; 
+    param?: string; 
+    title: string; 
+    oscKey: string;
+  }) => {
+    const midiKey = param ? `fixture_${actionType}_${param}` : `fixture_${actionType}`;
+    const hasMapping = superControlMappings[midiKey];
+    const isCurrentlyLearning = isSuperControlLearning && currentLearningControlName === midiKey;
+
+    return (
+      <div className={styles.controlActions}>
+        <div className={styles.midiLearnContainer}>
+          <button
+            className={`${styles.midiLearnBtn} ${hasMapping ? styles.mapped : ''} ${isCurrentlyLearning ? styles.learning : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isCurrentlyLearning) {
+                cancelSuperControlMidiLearn();
+              } else {
+                startSuperControlMidiLearn(midiKey, 0, 127);
+              }
+            }}
+            title={isCurrentlyLearning ? 'Send MIDI CC or Note...' : title}
+          >
+            M
+          </button>
+          {hasMapping && (
+            <div className={styles.midiMappingInfo}>
+              <span className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel}`}>
+                ●
+              </span>
+              <button
+                className={styles.midiForgetBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  forgetSuperControlMidiMapping(midiKey);
+                }}
+                title="Remove MIDI mapping"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </div>
+        <div className={styles.oscAddress} title={`OSC Address: ${oscAddresses[oscKey]}`}>
+          {oscAddresses[oscKey]}
+        </div>
+      </div>
+    );
+  };
+
   // Scene Management Functions
   const captureCurrentScene = (name?: string) => {
     const sceneValues: Record<number, number> = {};
@@ -1488,17 +1715,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             >
               <LucideIcon name="ArrowRight" />
               Next
-              <button 
-                className={styles.midiLearnBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // TODO: Add MIDI Learn for fixture selection
-                  console.log('MIDI Learn: Select Next Fixture');
-                }}
-                title="MIDI Learn: Select Next Fixture"
-              >
-                M
-              </button>
+              <FixtureSelectionMidiLearnButton 
+                actionType="next" 
+                title="MIDI Learn: Select Next Fixture" 
+                oscKey="fixtureNext"
+              />
             </button>
               <button 
               className={styles.selectionButton}
@@ -1511,16 +1732,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             >
               <LucideIcon name="ArrowLeft" />
               Previous
-              <button 
-                className={styles.midiLearnBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('MIDI Learn: Select Previous Fixture');
-                }}
-                title="MIDI Learn: Select Previous Fixture"
-              >
-                M
-              </button>
+              <FixtureSelectionMidiLearnButton 
+                actionType="previous" 
+                title="MIDI Learn: Select Previous Fixture" 
+                oscKey="fixturePrev"
+              />
             </button>
             
             <button 
@@ -1534,16 +1750,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             >
               <LucideIcon name="CheckSquare" />
               All
-              <button 
-                className={styles.midiLearnBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('MIDI Learn: Select All Fixtures');
-                }}
-                title="MIDI Learn: Select All Fixtures"
-              >
-                M
-              </button>
+              <FixtureSelectionMidiLearnButton 
+                actionType="selectAll" 
+                title="MIDI Learn: Select All Fixtures" 
+                oscKey="fixtureSelectAll"
+              />
             </button>
             
             <button 
@@ -1554,16 +1765,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             >
               <LucideIcon name="X" />
               None
-              <button 
-                className={styles.midiLearnBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('MIDI Learn: Deselect All Fixtures');
-                }}
-                title="MIDI Learn: Deselect All Fixtures"
-              >
-                M
-              </button>
+              <FixtureSelectionMidiLearnButton 
+                actionType="deselectAll" 
+                title="MIDI Learn: Deselect All Fixtures" 
+                oscKey="fixtureDeselectAll"
+              />
             </button>
           </div>
           
@@ -1576,6 +1782,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 title="Select Moving Head Fixtures"
               >
                 Moving Heads
+                <FixtureSelectionMidiLearnButton 
+                  actionType="byTypeMoving" 
+                  title="MIDI Learn: Select Moving Head Fixtures" 
+                  oscKey="fixtureByTypeMoving"
+                />
               </button>
               
               <button 
@@ -1584,6 +1795,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 title="Select RGB/Color Fixtures"
               >
                 RGB/Color
+                <FixtureSelectionMidiLearnButton 
+                  actionType="byTypeRGB" 
+                  title="MIDI Learn: Select RGB/Color Fixtures" 
+                  oscKey="fixtureByTypeRGB"
+                />
               </button>
               
               <button 
@@ -1592,6 +1808,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 title="Select Dimmer Fixtures"
               >
                 Dimmers
+                <FixtureSelectionMidiLearnButton 
+                  actionType="byTypeDimmer" 
+                  title="MIDI Learn: Select Dimmer Fixtures" 
+                  oscKey="fixtureByTypeDimmer"
+                />
               </button>
               
               <button 
@@ -1600,6 +1821,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 title="Select Fixtures with Gobos"
               >
                 Gobos
+                <FixtureSelectionMidiLearnButton 
+                  actionType="byTypeGobo" 
+                  title="MIDI Learn: Select Fixtures with Gobos" 
+                  oscKey="fixtureByTypeGobo"
+                />
               </button>
             </div>
           </div>
@@ -1617,6 +1843,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   >
                     <LucideIcon name="Users" />
                     {group.name}
+                    <FixtureSelectionMidiLearnButton 
+                      actionType="group" 
+                      param={group.name}
+                      title={`MIDI Learn: Select Group ${group.name}`} 
+                      oscKey="groupSelect"
+                    />
                   </button>
                 ))}
               </div>
@@ -1734,8 +1966,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('focus', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.focus}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('focus')}</div>
+              {renderMidiButtons('focus')}
               {renderMidiButtons('focus')}
             </div>
 
@@ -1798,7 +2033,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('iris', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.iris}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('iris')}</div>
               {renderMidiButtons('iris')}
             </div>
@@ -1891,7 +2128,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       applyControl('finePan', val);
                     }}
                     className={styles.fineValueInput}
-                  />                </div>
+                  />
+                  <span className={styles.oscAddress}>{oscAddresses.finePan}</span>
+                </div>
                 <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('finePan')}</div>
                 {renderMidiButtons('finePan')}
               </div>
@@ -1922,7 +2161,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       applyControl('fineTilt', val);
                     }}
                     className={styles.fineValueInput}
-                  />                </div>
+                  />
+                  <span className={styles.oscAddress}>{oscAddresses.fineTilt}</span>
+                </div>
                 <div className={styles.fineChannelDisplay}>{getDmxChannelForControl('fineTilt')}</div>
                 {renderMidiButtons('fineTilt')}
               </div></div>
@@ -2353,6 +2594,114 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               <span style={{ color: '#51cf66' }}>G: {green} <small>({getDmxChannelForControl('green')})</small></span>
               <span style={{ color: '#339af0' }}>B: {blue} <small>({getDmxChannelForControl('blue')})</small></span>
             </div>
+
+            {/* Individual RGB Sliders with MIDI Learn */}
+            <div className={styles.rgbSliders}>
+              {/* Red Control */}
+              <div className={styles.controlWithChannel}>
+                <label style={{ color: '#ff6b6b' }}>Red</label>
+                <div className={styles.controlInputs}>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="255" 
+                    value={red}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setRed(val);
+                      applyControl('red', val);
+                    }}
+                    className={styles.slider}
+                    style={{ accentColor: '#ff6b6b' }}
+                  />
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="255" 
+                    value={red}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setRed(val);
+                      applyControl('red', val);
+                    }}
+                    className={styles.valueInput}
+                  />
+                  <span className={styles.oscAddress}>{oscAddresses.red}</span>
+                </div>
+                <div className={styles.channelDisplay}>{getDmxChannelForControl('red')}</div>
+                {renderMidiButtons('red')}
+              </div>
+
+              {/* Green Control */}
+              <div className={styles.controlWithChannel}>
+                <label style={{ color: '#51cf66' }}>Green</label>
+                <div className={styles.controlInputs}>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="255" 
+                    value={green}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setGreen(val);
+                      applyControl('green', val);
+                    }}
+                    className={styles.slider}
+                    style={{ accentColor: '#51cf66' }}
+                  />
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="255" 
+                    value={green}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setGreen(val);
+                      applyControl('green', val);
+                    }}
+                    className={styles.valueInput}
+                  />
+                  <span className={styles.oscAddress}>{oscAddresses.green}</span>
+                </div>
+                <div className={styles.channelDisplay}>{getDmxChannelForControl('green')}</div>
+                {renderMidiButtons('green')}
+              </div>
+
+              {/* Blue Control */}
+              <div className={styles.controlWithChannel}>
+                <label style={{ color: '#339af0' }}>Blue</label>
+                <div className={styles.controlInputs}>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="255" 
+                    value={blue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setBlue(val);
+                      applyControl('blue', val);
+                    }}
+                    className={styles.slider}
+                    style={{ accentColor: '#339af0' }}
+                  />
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="255" 
+                    value={blue}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setBlue(val);
+                      applyControl('blue', val);
+                    }}
+                    className={styles.valueInput}
+                  />
+                  <span className={styles.oscAddress}>{oscAddresses.blue}</span>
+                </div>
+                <div className={styles.channelDisplay}>{getDmxChannelForControl('blue')}</div>
+                {renderMidiButtons('blue')}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2525,7 +2874,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('colorWheel', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.colorWheel}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('colorWheel')}</div>
               {renderMidiButtons('colorWheel')}
             </div>
@@ -2617,6 +2968,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.goboRotation}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('goboRotation')}</div>
+            {renderMidiButtons('goboRotation')}
           </div>
 
           {/* Enhanced Action Buttons */}
@@ -2812,6 +3165,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.focus}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('focus')}</div>
+            {renderMidiButtons('focus')}
           </div>
 
           {/* Zoom Control */}
@@ -2874,6 +3229,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.iris}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('iris')}</div>
+            {renderMidiButtons('iris')}
           </div>
 
           {/* Macro Control */}
@@ -2909,6 +3266,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.prism}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('prism')}</div>
+            {renderMidiButtons('prism')}
           </div>
 
           {/* Color Wheel Control */}
@@ -2941,6 +3300,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               />
               <span className={styles.oscAddress}>{oscAddresses.colorWheel}</span>
             </div>
+            <div className={styles.channelDisplay}>{getDmxChannelForControl('colorWheel')}</div>
+            {renderMidiButtons('colorWheel')}
           </div>
 
           {/* Frost Control */}
