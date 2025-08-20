@@ -236,6 +236,45 @@ try {
       }
     });
 
+    // MIDI Clock Input (External clock) handlers
+    socket.on('getMidiClockInputs', async () => {
+      log(`Client ${socket.id} requesting MIDI clock inputs`, 'CLOCK');
+      if (clockManager.refreshMidiInputs) {
+        const inputs = await clockManager.refreshMidiInputs();
+        const currentInput = clockManager.getCurrentMidiInput?.();
+        socket.emit('midiClockInputs', { inputs, currentInput });
+      } else {
+        socket.emit('midiClockInputs', { inputs: [], currentInput: null });
+      }
+    });
+
+    socket.on('setMidiClockInput', async (inputName: string) => {
+      log(`Client ${socket.id} setMidiClockInput: ${inputName}`, 'CLOCK');
+      if (!clockManager.setMidiInput) {
+        socket.emit('notification', {
+          message: 'MIDI input selection not supported on server build',
+          type: 'error'
+        });
+        return;
+      }
+      const success = await clockManager.setMidiInput(inputName);
+      if (success) {
+        io.emit('midiClockInputChanged', { inputName });
+        socket.emit('notification', {
+          message: `MIDI Clock input set to ${inputName}`,
+          type: 'success'
+        });
+        // If user selects an input, automatically switch clock source to midi-input
+        clockManager.setSource('midi-input');
+        socket.emit('masterClockUpdate', clockManager.getState());
+      } else {
+        socket.emit('notification', {
+          message: `Failed to set MIDI Clock input to ${inputName}`,
+          type: 'error'
+        });
+      }
+    });
+
     socket.on('setMasterClockBeat', (beat: number) => {
       log(`Client ${socket.id} setMasterClockBeat: ${beat}`, 'CLOCK');
       if (typeof beat === 'number') {

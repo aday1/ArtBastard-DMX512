@@ -1,13 +1,41 @@
 {
+  "fixtures": [
+    {
+      "id": "mh1",
+      "name": "Moving Head 1",
+      "type": "moving-head",
+      "startAddress": 9,
+      "channels": [
+        { "name": "Pan", "type": "pan", "dmxAddress": 9 },
+        { "name": "Tilt", "type": "tilt", "dmxAddress": 11 },
+        { "name": "Dimmer", "type": "dimmer", "dmxAddress": 12 },
+        { "name": "Red", "type": "red", "dmxAddress": 13 },
+        { "name": "Green", "type": "green", "dmxAddress": 14 },
+        { "name": "Blue", "type": "blue", "dmxAddress": 15 }
+      ]
+    },
+    {
+      "id": "mh2",
+      "name": "Moving Head 2",
+      "type": "moving-head",
+      "startAddress": 16,
+      "channels": [
+        { "name": "Pan", "type": "pan", "dmxAddress": 16 },
+        { "name": "Tilt", "type": "tilt", "dmxAddress": 17 },
+        { "name": "Dimmer", "type": "dimmer", "dmxAddress": 18 },
+        { "name": "Red", "type": "red", "dmxAddress": 19 },
+        { "name": "Green", "type": "green", "dmxAddress": 20 },
+        { "name": "Blue", "type": "blue", "dmxAddress": 21 }
+      ]
+    }
+  ],
   "groups": [
     {
       "id": "moving-heads",
       "name": "Moving Heads",
       "fixtureIndices": [
         0,
-        1,
-        2,
-        3
+        1
       ],
       "lastStates": [],
       "isMuted": false,

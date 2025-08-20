@@ -529,6 +529,9 @@ interface State {
   setMidiClockIsPlaying: (isPlaying: boolean) => void; // Called by WS handler
   setMidiClockBeatBar: (beat: number, bar: number) => void; // Called by WS handler
   requestToggleMasterClockPlayPause: () => void; // Renamed action
+  requestMasterClockSourceChange: (sourceId: string) => void;
+  requestMidiClockInputList: () => void;
+  requestSetMidiClockInput: (inputName: string) => void;
   // Auto-Scene Actions
   setAutoSceneEnabled: (enabled: boolean) => void;
   setAutoSceneList: (sceneNames: string[]) => void;
@@ -574,7 +577,7 @@ interface State {
   setAutopilotTrackAutoPlay: (autoPlay: boolean) => void;
   setAutopilotTrackCustomPoints: (points: Array<{ x: number; y: number }>) => void;
   calculateTrackPosition: (trackType: string, position: number, size: number, centerX: number, centerY: number) => { pan: number; tilt: number };
-  updatePanTiltFromTrack: () => void;
+  updatePanTiltFromTrack: (position?: number) => void;
   startAutopilotTrackAnimation: () => void;
   stopAutopilotTrackAnimation: () => void;
   
@@ -715,6 +718,21 @@ export const useStore = create<State>()(
       },      
       artNetStatus: 'disconnected',      theme: 'artsnob',
       darkMode: initializeDarkMode(),
+      
+      setTheme: (theme) => {
+        document.body.className = theme;
+        localStorage.setItem('theme', theme);
+        set({ theme });
+      },
+      toggleDarkMode: () => {
+        set(state => {
+          const newDarkMode = !state.darkMode;
+          localStorage.setItem('darkMode', String(newDarkMode));
+          document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light');
+          return { darkMode: newDarkMode };
+        });
+      },
+
       // statusMessage: null, // Deprecated
       notifications: [], 
         // UI Settings
@@ -2082,11 +2100,12 @@ export const useStore = create<State>()(
             
             // Update position in store
             set({ autopilotTrackPosition: newPosition });
+            get().updatePanTiltFromTrack(newPosition);
+          } else {
+            // Always update fixtures with current position (whether auto-play is on or off)
+            get().updatePanTiltFromTrack();
           }
           
-          // Always update fixtures with current position (whether auto-play is on or off)
-          get().updatePanTiltFromTrack();
-
           // Continue animation
           const newAnimationId = requestAnimationFrame(animate);
           set({ autopilotTrackAnimationId: newAnimationId });
@@ -2492,6 +2511,15 @@ export const useStore = create<State>()(
           set({ midiClockIsPlaying: !midiClockIsPlaying });
         }
       },
+      requestMasterClockSourceChange: (sourceId: string) => {
+        get().socket?.emit('setMasterClockSource', sourceId);
+      },
+      requestMidiClockInputList: () => {
+        get().socket?.emit('getMidiClockInputs');
+      },
+      requestSetMidiClockInput: (inputName: string) => {
+        get().socket?.emit('setMidiClockInput', inputName);
+      },
 
       // Auto-Scene Actions
       setAutoSceneEnabled: (enabled) => {
@@ -2802,7 +2830,7 @@ export const useStore = create<State>()(
         return { pan, tilt };
       },
 
-      updatePanTiltFromTrack: () => {
+      updatePanTiltFromTrack: (position?: number) => {
         const { 
           autopilotTrackEnabled, 
           autopilotTrackType, 
@@ -2819,12 +2847,14 @@ export const useStore = create<State>()(
           return;
         }
         
-        console.log('[STORE] updatePanTiltFromTrack: Calculating position for', selectedFixtures.length, 'fixtures');
+        const currentPosition = position !== undefined ? position : autopilotTrackPosition;
+
+        console.log(`[STORE] updatePanTiltFromTrack: Calculating position for ${selectedFixtures.length} fixtures at position ${currentPosition}`);
         
         // Calculate current track position
         const { pan, tilt } = get().calculateTrackPosition(
           autopilotTrackType,
-          autopilotTrackPosition,
+          currentPosition,
           autopilotTrackSize,
           autopilotTrackCenterX,
           autopilotTrackCenterY

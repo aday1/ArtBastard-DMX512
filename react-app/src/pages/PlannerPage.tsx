@@ -1,11 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useTheme } from '../context/ThemeContext'
-import { DMXUniverseDiscoveryWizard } from '../components/planner/DMXUniverseDiscoveryWizard'
 import styles from './Pages.module.scss'
 
 const PlannerPage: React.FC = () => {
   const { theme } = useTheme()
-  const [activeTab, setActiveTab] = useState<'wizard' | 'overview'>('wizard')
 
   return (
     <div className={styles.pageContainer}>
@@ -16,55 +14,42 @@ const PlannerPage: React.FC = () => {
           {theme === 'minimal' && 'DMX Planner'}
         </h2>
         <p>
-          {theme === 'artsnob' && 'So, you bought some cheap Chinese DMX lights with zero documentation? Fear not, noble lighting warrior! This comprehensive planner shall guide you from the darkness of ignorance into the brilliant light of DMX mastery.'}
-          {theme === 'standard' && 'Comprehensive DMX fixture planning and universe discovery wizard for new lighting setups'}
+          {theme === 'artsnob' && 'Welcome to your lighting control sanctuary! Use the fixture setup and configuration tools to build your luminous empire.'}
+          {theme === 'standard' && 'Comprehensive DMX fixture planning and universe configuration'}
           {theme === 'minimal' && 'Plan and configure DMX fixtures'}
         </p>
-        
-        {/* Tab Navigation */}
-        <div className={styles.tabNavigation}>
-          <button
-            className={`${styles.tabButton} ${activeTab === 'wizard' ? styles.active : ''}`}
-            onClick={() => setActiveTab('wizard')}
-          >
-            {theme === 'artsnob' && '🧙‍♂️ Discovery Wizard'}
-            {theme === 'standard' && 'Setup Wizard'}
-            {theme === 'minimal' && 'Wizard'}
-          </button>
-          <button
-            className={`${styles.tabButton} ${activeTab === 'overview' ? styles.active : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            {theme === 'artsnob' && '📊 Universe Overview'}
-            {theme === 'standard' && 'Universe Map'}
-            {theme === 'minimal' && 'Map'}
-          </button>
-        </div>
       </div>
 
       <div className={styles.pageContent}>
-        {activeTab === 'wizard' && (
-          <div className={styles.wizardSection}>
-            <DMXUniverseDiscoveryWizard />
-          </div>
-        )}
-        
-        {activeTab === 'overview' && (
-          <div className={styles.overviewSection}>
-            <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '8px', border: '2px dashed var(--border-color)' }}>
-              <h3>
-                {theme === 'artsnob' && '🎨 Your Luminous Empire Awaits'}
-                {theme === 'standard' && 'Universe Overview Coming Soon'}
-                {theme === 'minimal' && 'Overview TBD'}
-              </h3>
-              <p>
-                {theme === 'artsnob' && 'Once you complete the discovery wizard, this space shall display your magnificent DMX universe in all its glory!'}
-                {theme === 'standard' && 'Complete the setup wizard to see your DMX universe layout and configuration.'}
-                {theme === 'minimal' && 'Complete wizard first.'}
-              </p>
+        <div className={styles.overviewSection}>
+          <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '8px', border: '2px dashed var(--border-color)' }}>
+            <h3>
+              {theme === 'artsnob' && '🎨 Your Luminous Empire Awaits'}
+              {theme === 'standard' && 'Universe Overview'}
+              {theme === 'minimal' && 'Overview'}
+            </h3>
+            <p>
+              {theme === 'artsnob' && 'Navigate to the Fixture Setup section to configure your lighting fixtures and build your DMX universe. The 2D Canvas provides visual fixture layout tools.'}
+              {theme === 'standard' && 'Use the Fixture Setup panel to configure your lighting fixtures and the 2D Canvas for visual layout planning.'}
+              {theme === 'minimal' && 'Use Fixture Setup and 2D Canvas panels.'}
+            </p>
+            
+            <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)', minWidth: '200px' }}>
+                <h4>🔧 Fixture Setup</h4>
+                <p style={{ fontSize: '0.9rem', margin: '0.5rem 0' }}>Configure lighting fixtures, channels, and addresses</p>
+              </div>
+              <div style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)', minWidth: '200px' }}>
+                <h4>🎨 2D Canvas</h4>
+                <p style={{ fontSize: '0.9rem', margin: '0.5rem 0' }}>Visual fixture layout and positioning</p>
+              </div>
+              <div style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)', minWidth: '200px' }}>
+                <h4>🎮 Super Control</h4>
+                <p style={{ fontSize: '0.9rem', margin: '0.5rem 0' }}>Advanced fixture control and monitoring</p>
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

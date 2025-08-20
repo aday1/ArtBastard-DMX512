@@ -306,8 +306,6 @@ export const FixtureSetup: React.FC = () => {
   const [newFlagCategory, setNewFlagCategory] = useState('');
   const [showNodeEditor, setShowNodeEditor] = useState(false);
   const [nodeEditorFixtureId, setNodeEditorFixtureId] = useState<string | null>(null);
-  // Discovery / Random generator state
-  const [randomCount, setRandomCount] = useState<number>(5);
   // Discovery Wizard state
   const [wizardActive, setWizardActive] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
@@ -740,69 +738,6 @@ export const FixtureSetup: React.FC = () => {
       priority: 'normal'
     })
   }
-
-  // Generate random fixtures for 'discovery' mode
-  const generateRandomFixtures = (count: number = 5) => {
-    const created: string[] = [];
-    const existingAddresses = new Set<number>();
-    fixtures.forEach(f => {
-      for (let i = 0; i < (f.channels?.length || 0); i++) {
-        const addr = (f.startAddress || 1) + i;
-        if (addr >= 1 && addr <= 512) existingAddresses.add(addr);
-      }
-    });
-
-    const pickStartAddress = (channelCount: number) => {
-      for (let addr = 1; addr <= 512 - channelCount + 1; addr++) {
-        let ok = true;
-        for (let i = 0; i < channelCount; i++) {
-          if (existingAddresses.has(addr + i)) { ok = false; break; }
-        }
-        if (ok) return addr;
-      }
-      return -1;
-    };
-
-    const rnd = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-    const channelPool = ['dimmer','red','green','blue','pan','tilt','shutter','strobe','gobo_wheel','color_wheel','zoom','focus','iris','macro','speed','other'];
-
-    for (let i = 0; i < count; i++) {
-      const channelCount = rnd(1, 8);
-      const start = pickStartAddress(channelCount);
-      if (start === -1) {
-        useStoreUtils.getState().addNotification({ message: `Not enough DMX space to generate more fixtures`, type: 'warning', priority: 'high' });
-        break;
-      }
-
-      const channels = [] as any[];
-      for (let c = 0; c < channelCount; c++) {
-        const type = channelPool[Math.floor(Math.random() * channelPool.length)];
-        channels.push({ name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${c+1}`, type: type as any });
-      }
-
-      const newFixture = {
-        id: `rnd-fixture-${Date.now()}-${Math.random()}`,
-        name: `Random ${rnd(1000,9999)}`,
-        type: 'Random Discovery',
-        manufacturer: 'ArtBastard',
-        model: 'Discovery',
-        mode: '',
-        startAddress: start,
-        channels,
-        notes: 'Auto-generated for discovery/testing'
-      };
-
-      // Mark addresses as used
-      for (let c = 0; c < channelCount; c++) existingAddresses.add(start + c);
-
-      useStoreUtils.setState(state => ({ fixtures: [...state.fixtures, newFixture] }));
-      created.push(newFixture.name);
-    }
-
-    if (created.length > 0) {
-      useStoreUtils.getState().addNotification({ message: `Created ${created.length} random fixture(s): ${created.join(', ')}`, type: 'success', priority: 'normal' });
-    }
-  };
 
   // Start editing a fixture
   const startEditFixture = (fixture: any) => {
@@ -1960,30 +1895,6 @@ export const FixtureSetup: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                  {/* Random Discovery generator */}
-                  <div className={styles.discoveryPanel} style={{ marginTop: 12 }}>
-                    <label style={{ display: 'block', marginBottom: 6 }}>Discovery Mode — Generate random fixtures</label>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={randomCount}
-                        onChange={(e) => setRandomCount(Math.max(1, Math.min(50, parseInt(e.target.value || '1'))))}
-                        style={{ width: 80 }}
-                      />
-                      <button
-                        className={styles.templateButton}
-                        onClick={() => {
-                          generateRandomFixtures(randomCount);
-                        }}
-                        title="Generate random fixtures for discovery/testing"
-                      >
-                        Generate
-                      </button>
-                      <small style={{ color: '#999' }}>Creates simple randomized fixtures and assigns non-conflicting addresses</small>
-                    </div>
-                  </div>
               </div>
             )}
           </div>

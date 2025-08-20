@@ -11,7 +11,7 @@
     "build-backend-fast": "node build-backend-fast.js",
     "build-frontend": "cd react-app && npm run build",
     "build-fast": "npm run build-backend-fast",
-    "start": "node dist/main.js",
+    "start": "npm run build-backend && node dist/server.js",
     "dev": "nodemon src/main.ts",
     "copy-static": "copyfiles -u 1 src/public/**/* dist",
     "watch": "npx tsc -w",

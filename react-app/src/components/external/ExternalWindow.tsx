@@ -6,7 +6,17 @@ import { ThemeProvider } from '../../context/ThemeContext';
 import { DMXMonitor } from './DMXMonitor';
 import { MIDIMonitor } from './MIDIMonitor';
 import { OSCMonitor } from './OSCMonitor';
-import SuperControl from '../fixtures/SuperControl';
+import TouchSuperControl from '../fixtures/TouchSuperControl';
+
+interface GridItem {
+  id: string;
+  component: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  title: string;
+}
 
 interface ExternalWindowProps {
   onClose?: () => void;
@@ -113,40 +123,197 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
               overflow: hidden;
             }
 
-            /* Tab Layout */
-            .tabContainer {
+            /* Grid Layout System */
+            .gridContainer {
+              position: relative;
+              width: 100%;
+              height: calc(100vh - 60px);
+              display: grid;
+              grid-template-columns: repeat(12, 1fr);
+              grid-template-rows: repeat(8, 1fr);
+              gap: 8px;
+              padding: 8px;
+              background: var(--background-dark);
+              overflow: hidden;
+            }
+
+            .gridItem {
+              position: relative;
+              background: var(--background-light);
+              border: 2px solid var(--border-color);
+              border-radius: var(--border-radius);
+              overflow: hidden;
               display: flex;
               flex-direction: column;
-              height: 100%;
+              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+              transition: all 0.3s ease;
+            }
+
+            .gridItem:hover {
+              border-color: var(--accent-primary);
+              box-shadow: 0 6px 24px rgba(78, 205, 196, 0.2);
+            }
+
+            .gridItem.resizing {
+              border-color: var(--accent-secondary);
+              box-shadow: 0 8px 32px rgba(78, 205, 196, 0.3);
+              z-index: 10;
+            }
+
+            .gridItem.dragging {
+              border-color: var(--accent-primary);
+              box-shadow: 0 12px 40px rgba(78, 205, 196, 0.4);
+              z-index: 15;
+              opacity: 0.9;
+            }
+
+            .gridItemHeader {
               background: var(--background-dark);
-              font-family: var(--font-main);
-            }
-
-            .tabNavigation {
-              display: flex;
-              flex-shrink: 0;
-              background: var(--background-light);
-              padding: calc(var(--spacing-unit) * 0.5);
-              gap: calc(var(--spacing-unit) * 0.5);
-              border-bottom: 2px solid var(--border-color);
-            }
-
-            .tabButton {
-              flex: 1;
-              padding: var(--spacing-unit);
-              font-size: 1.1rem;
+              color: var(--text-primary);
+              padding: 8px 12px;
+              font-size: 0.9rem;
               font-weight: 600;
-              color: var(--text-dark);
+              border-bottom: 1px solid var(--border-color);
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-shrink: 0;
+              cursor: move;
+            }
+
+            .gridItemContent {
+              flex: 1;
+              overflow: hidden;
+              position: relative;
+            }
+
+            .resizeHandle {
+              position: absolute;
+              bottom: 0;
+              right: 0;
+              width: 20px;
+              height: 20px;
+              background: var(--accent-primary);
+              cursor: nw-resize;
+              opacity: 0.7;
+              clip-path: polygon(100% 0%, 0% 100%, 100% 100%);
+              transition: opacity 0.2s ease;
+            }
+
+            .resizeHandle:hover {
+              opacity: 1;
+            }
+
+            .removeButton {
               background: transparent;
               border: none;
-              border-radius: var(--border-radius);
+              color: var(--text-muted);
+              font-size: 1.2rem;
               cursor: pointer;
-              transition: all 0.3s ease;
+              padding: 4px;
+              border-radius: 4px;
+              transition: all 0.2s ease;
+              width: 24px;
+              height: 24px;
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: 0.75rem;
+            }
+
+            .removeButton:hover {
+              background: rgba(255, 69, 58, 0.2);
+              color: #ff453a;
+            }
+
+            /* Component Palette */
+            .componentPalette {
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background: var(--background-light);
+              border: 2px solid var(--border-color);
+              border-radius: var(--border-radius);
+              padding: 12px;
+              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+              z-index: 1000;
+              max-width: 250px;
+            }
+
+            .paletteTitle {
+              color: var(--text-primary);
+              font-weight: 600;
+              font-size: 0.9rem;
+              margin-bottom: 8px;
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            }
+
+            .componentButton {
+              width: 100%;
+              padding: 12px;
+              margin-bottom: 8px;
+              background: var(--background-dark);
+              color: var(--text-primary);
+              border: 1px solid var(--border-color);
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 0.85rem;
+              transition: all 0.2s ease;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .componentButton:hover {
+              background: var(--accent-primary);
+              color: white;
+              transform: translateY(-1px);
+              box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+            }
+
+            .componentButton:last-child {
+              margin-bottom: 0;
+            }
+
+            /* Touch Optimizations */
+            .gridItem,
+            .componentButton,
+            .tabButton {
               min-height: var(--touch-target-size);
+              touch-action: manipulation;
+            }
+
+            .gridItemHeader {
+              min-height: 44px;
+            }
+
+            .resizeHandle {
+              min-width: 44px;
+              min-height: 44px;
+            }
+
+            /* Responsive Grid Adjustments */
+            @media (max-width: 1200px) {
+              .gridContainer {
+                grid-template-columns: repeat(8, 1fr);
+                grid-template-rows: repeat(6, 1fr);
+              }
+            }
+
+            @media (max-width: 800px) {
+              .gridContainer {
+                grid-template-columns: repeat(4, 1fr);
+                grid-template-rows: repeat(4, 1fr);
+              }
+              
+              .componentPalette {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 12px;
+                max-width: none;
+              }
             }
 
             .tabButton:hover {
@@ -589,11 +756,11 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
           <div id="external-root">
             <div class="external-header">
               <div class="external-title">
-                <span>📺</span>
-                <span>External Monitor</span>
+                <span>🎛️</span>
+                <span>External Monitor - Touchscreen Control Center</span>
               </div>
               <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8rem;">
-                Multi-panel view with SuperControl mirroring
+                Drag & drop resizable grid layout with TouchSuperControl
               </div>
             </div>
             <div class="external-content">
@@ -604,6 +771,371 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
       </html>
     `);
     newWindow.document.close();
+
+    // External Grid Content Component that recreates the grid functionality
+    const ExternalGridContent: React.FC = () => {
+      const [externalGridItems, setExternalGridItems] = useState<GridItem[]>([
+        {
+          id: 'supercontrol-1',
+          component: 'touchsupercontrol',
+          x: 0,
+          y: 0,
+          width: 8,
+          height: 6,
+          title: '🎛️ Touch SuperControl'
+        },
+        {
+          id: 'dmx-monitor-1',
+          component: 'dmxmonitor',
+          x: 8,
+          y: 0,
+          width: 4,
+          height: 3,
+          title: '📡 DMX Monitor'
+        },
+        {
+          id: 'midi-monitor-1',
+          component: 'midimonitor',
+          x: 8,
+          y: 3,
+          width: 4,
+          height: 3,
+          title: '🎹 MIDI Monitor'
+        }
+      ]);
+      
+      const [externalIsDragging, setExternalIsDragging] = useState<string | null>(null);
+      const [externalIsResizing, setExternalIsResizing] = useState<string | null>(null);
+      const [externalShowPalette, setExternalShowPalette] = useState(true);
+
+      // Save/load layout to localStorage with external prefix
+      const saveExternalLayout = () => {
+        localStorage.setItem('externalMonitorLayout', JSON.stringify(externalGridItems));
+      };
+
+      const loadExternalLayout = () => {
+        const saved = localStorage.getItem('externalMonitorLayout');
+        if (saved) {
+          try {
+            const layout = JSON.parse(saved);
+            setExternalGridItems(layout);
+          } catch (error) {
+            console.error('Failed to load external layout:', error);
+          }
+        }
+      };
+
+      const resetExternalLayout = () => {
+        setExternalGridItems([
+          {
+            id: 'supercontrol-1',
+            component: 'touchsupercontrol',
+            x: 0,
+            y: 0,
+            width: 8,
+            height: 6,
+            title: '🎛️ Touch SuperControl'
+          },
+          {
+            id: 'dmx-monitor-1',
+            component: 'dmxmonitor',
+            x: 8,
+            y: 0,
+            width: 4,
+            height: 3,
+            title: '📡 DMX Monitor'
+          },
+          {
+            id: 'midi-monitor-1',
+            component: 'midimonitor',
+            x: 8,
+            y: 3,
+            width: 4,
+            height: 3,
+            title: '🎹 MIDI Monitor'
+          }
+        ]);
+      };
+
+      // Auto-save layout changes
+      React.useEffect(() => {
+        const timer = setTimeout(() => {
+          saveExternalLayout();
+        }, 1000);
+        return () => clearTimeout(timer);
+      }, [externalGridItems]);
+
+      // Load layout on mount
+      React.useEffect(() => {
+        loadExternalLayout();
+      }, []);
+
+      const externalAvailableComponents = [
+        { id: 'touchsupercontrol', label: '🎛️ Touch SuperControl', component: TouchSuperControl },
+        { id: 'dmxmonitor', label: '📡 DMX Monitor', component: DMXMonitor },
+        { id: 'midimonitor', label: '🎹 MIDI Monitor', component: MIDIMonitor },
+        { id: 'oscmonitor', label: '🌐 OSC Monitor', component: OSCMonitor }
+      ];
+
+      const addExternalComponent = (componentType: string) => {
+        const componentInfo = externalAvailableComponents.find(c => c.id === componentType);
+        if (!componentInfo) return;
+
+        // Find available space for the new component
+        let x = 0, y = 0;
+        const width = 4;
+        const height = 3;
+
+        // Simple placement algorithm - find first available spot
+        for (let row = 0; row <= 8 - height; row++) {
+          for (let col = 0; col <= 12 - width; col++) {
+            const conflicts = externalGridItems.some(item => 
+              !(col >= item.x + item.width || 
+                col + width <= item.x || 
+                row >= item.y + item.height || 
+                row + height <= item.y)
+            );
+            if (!conflicts) {
+              x = col;
+              y = row;
+              break;
+            }
+          }
+          if (x !== 0 || y !== 0) break;
+        }
+
+        const newItem: GridItem = {
+          id: `${componentType}-${Date.now()}`,
+          component: componentType,
+          x,
+          y,
+          width,
+          height,
+          title: componentInfo.label
+        };
+
+        setExternalGridItems(prev => [...prev, newItem]);
+      };
+
+      const removeExternalItem = (id: string) => {
+        setExternalGridItems(prev => prev.filter(item => item.id !== id));
+      };
+
+      const updateExternalItemPosition = (id: string, x: number, y: number) => {
+        setExternalGridItems(prev => prev.map(item => 
+          item.id === id ? { ...item, x: Math.max(0, Math.min(x, 12 - item.width)), y: Math.max(0, Math.min(y, 8 - item.height)) } : item
+        ));
+      };
+
+      const updateExternalItemSize = (id: string, width: number, height: number) => {
+        setExternalGridItems(prev => prev.map(item => 
+          item.id === id ? { 
+            ...item, 
+            width: Math.max(1, Math.min(width, 12 - item.x)), 
+            height: Math.max(1, Math.min(height, 8 - item.y)) 
+          } : item
+        ));
+      };
+
+      const renderExternalComponent = (item: GridItem) => {
+        const componentInfo = externalAvailableComponents.find(c => c.id === item.component);
+        if (!componentInfo) return <div>Component not found</div>;
+
+        const Component = componentInfo.component as any;
+        
+        // Touch-optimized props for external display
+        const componentProps = {
+          isFullscreen: true,
+          enableHapticFeedback: true,
+          touchOptimized: true,
+          externalDisplay: true
+        };
+
+        return <Component {...componentProps} />;
+      };
+
+      const handleExternalMouseDown = (e: React.MouseEvent, itemId: string, action: 'drag' | 'resize') => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (action === 'drag') {
+          setExternalIsDragging(itemId);
+        } else {
+          setExternalIsResizing(itemId);
+        }
+      };
+
+      const handleExternalTouchStart = (e: React.TouchEvent, itemId: string, action: 'drag' | 'resize') => {
+        e.preventDefault();
+        if (action === 'drag') {
+          setExternalIsDragging(itemId);
+        } else {
+          setExternalIsResizing(itemId);
+        }
+      };
+
+      const handleExternalMouseMove = (e: React.MouseEvent) => {
+        if (!externalIsDragging && !externalIsResizing) return;
+        
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const gridX = Math.floor(((e.clientX - rect.left) / rect.width) * 12);
+        const gridY = Math.floor(((e.clientY - rect.top) / rect.height) * 8);
+        
+        if (externalIsDragging) {
+          updateExternalItemPosition(externalIsDragging, gridX, gridY);
+        } else if (externalIsResizing) {
+          const item = externalGridItems.find(i => i.id === externalIsResizing);
+          if (item) {
+            const width = Math.max(1, gridX - item.x + 1);
+            const height = Math.max(1, gridY - item.y + 1);
+            updateExternalItemSize(externalIsResizing, width, height);
+          }
+        }
+      };
+
+      const handleExternalTouchMove = (e: React.TouchEvent) => {
+        if (!externalIsDragging && !externalIsResizing) return;
+        
+        const touch = e.touches[0];
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const gridX = Math.floor(((touch.clientX - rect.left) / rect.width) * 12);
+        const gridY = Math.floor(((touch.clientY - rect.top) / rect.height) * 8);
+        
+        if (externalIsDragging) {
+          updateExternalItemPosition(externalIsDragging, gridX, gridY);
+        } else if (externalIsResizing) {
+          const item = externalGridItems.find(i => i.id === externalIsResizing);
+          if (item) {
+            const width = Math.max(1, gridX - item.x + 1);
+            const height = Math.max(1, gridY - item.y + 1);
+            updateExternalItemSize(externalIsResizing, width, height);
+          }
+        }
+      };
+
+      const handleExternalEnd = () => {
+        setExternalIsDragging(null);
+        setExternalIsResizing(null);
+      };
+
+      return (
+        <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+          {externalShowPalette && (
+            <div className="componentPalette">
+              <div className="paletteTitle">
+                <span>🧩</span>
+                <span>Add Components</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={saveExternalLayout}
+                    style={{ background: 'none', border: 'none', color: '#4ECDC4', cursor: 'pointer', fontSize: '1.1rem' }}
+                    title="Save Layout"
+                  >
+                    💾
+                  </button>
+                  <button 
+                    onClick={loadExternalLayout}
+                    style={{ background: 'none', border: 'none', color: '#4ECDC4', cursor: 'pointer', fontSize: '1.1rem' }}
+                    title="Load Layout"
+                  >
+                    📂
+                  </button>
+                  <button 
+                    onClick={resetExternalLayout}
+                    style={{ background: 'none', border: 'none', color: '#4ECDC4', cursor: 'pointer', fontSize: '1.1rem' }}
+                    title="Reset Layout"
+                  >
+                    🔄
+                  </button>
+                  <button 
+                    onClick={() => setExternalShowPalette(false)}
+                    style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {externalAvailableComponents.map(comp => (
+                <button
+                  key={comp.id}
+                  className="componentButton"
+                  onClick={() => addExternalComponent(comp.id)}
+                >
+                  {comp.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!externalShowPalette && (
+            <button
+              onClick={() => setExternalShowPalette(true)}
+              style={{
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                background: 'var(--accent-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '48px',
+                height: '48px',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                zIndex: 1000,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+              }}
+            >
+              +
+            </button>
+          )}
+
+          <div 
+            className="gridContainer"
+            onMouseMove={handleExternalMouseMove}
+            onMouseUp={handleExternalEnd}
+            onMouseLeave={handleExternalEnd}
+            onTouchMove={handleExternalTouchMove}
+            onTouchEnd={handleExternalEnd}
+            onTouchCancel={handleExternalEnd}
+          >
+            {externalGridItems.map(item => (
+              <div
+                key={item.id}
+                className={`gridItem ${externalIsResizing === item.id ? 'resizing' : ''} ${externalIsDragging === item.id ? 'dragging' : ''}`}
+                style={{
+                  gridColumn: `${item.x + 1} / ${item.x + item.width + 1}`,
+                  gridRow: `${item.y + 1} / ${item.y + item.height + 1}`
+                }}
+              >
+                <div 
+                  className="gridItemHeader"
+                  onMouseDown={(e) => handleExternalMouseDown(e, item.id, 'drag')}
+                  onTouchStart={(e) => handleExternalTouchStart(e, item.id, 'drag')}
+                >
+                  <span>{item.title}</span>
+                  <button 
+                    className="removeButton"
+                    onClick={() => removeExternalItem(item.id)}
+                    title="Remove component"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="gridItemContent">
+                  {renderExternalComponent(item)}
+                </div>
+                <div 
+                  className="resizeHandle"
+                  onMouseDown={(e) => handleExternalMouseDown(e, item.id, 'resize')}
+                  onTouchStart={(e) => handleExternalTouchStart(e, item.id, 'resize')}
+                  title="Drag to resize"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
 
     // Wait for DOM to be ready, then setup React
     const setupReact = () => {
@@ -616,7 +1148,7 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
           <ThemeProvider>
             <PanelProvider>
               <DockingProvider>
-                <ExternalPanelContent />
+                <ExternalGridContent />
               </DockingProvider>
             </PanelProvider>
           </ThemeProvider>
@@ -675,33 +1207,341 @@ export const ExternalWindow: React.FC<ExternalWindowProps> = ({
 
 // Component to render inside the external window
 const ExternalPanelContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'supercontrol' | 'dmx' | 'midi' | 'osc'>('supercontrol');
+  const [gridItems, setGridItems] = useState<GridItem[]>([
+    {
+      id: 'supercontrol-1',
+      component: 'touchsupercontrol',
+      x: 0,
+      y: 0,
+      width: 8,
+      height: 6,
+      title: '🎛️ Touch SuperControl'
+    },
+    {
+      id: 'dmx-monitor-1',
+      component: 'dmxmonitor',
+      x: 8,
+      y: 0,
+      width: 4,
+      height: 3,
+      title: '📡 DMX Monitor'
+    },
+    {
+      id: 'midi-monitor-1',
+      component: 'midimonitor',
+      x: 8,
+      y: 3,
+      width: 4,
+      height: 3,
+      title: '🎹 MIDI Monitor'
+    }
+  ]);
 
-  const tabs = [
-    { id: 'supercontrol', label: '🎛️ SuperControl', component: SuperControl },
-    { id: 'dmx', label: '📡 DMX Monitor', component: DMXMonitor },
-    { id: 'midi', label: '🎹 MIDI Monitor', component: MIDIMonitor },
-    { id: 'osc', label: '🌐 OSC Monitor', component: OSCMonitor },
+  const [isDragging, setIsDragging] = useState<string | null>(null);
+  const [isResizing, setIsResizing] = useState<string | null>(null);
+  const [showPalette, setShowPalette] = useState(true);
+
+  // Save/load layout to localStorage
+  const saveLayout = () => {
+    localStorage.setItem('externalMonitorLayout', JSON.stringify(gridItems));
+  };
+
+  const loadLayout = () => {
+    const saved = localStorage.getItem('externalMonitorLayout');
+    if (saved) {
+      try {
+        const layout = JSON.parse(saved);
+        setGridItems(layout);
+      } catch (error) {
+        console.error('Failed to load layout:', error);
+      }
+    }
+  };
+
+  const resetLayout = () => {
+    setGridItems([
+      {
+        id: 'supercontrol-1',
+        component: 'touchsupercontrol',
+        x: 0,
+        y: 0,
+        width: 8,
+        height: 6,
+        title: '🎛️ Touch SuperControl'
+      },
+      {
+        id: 'dmx-monitor-1',
+        component: 'dmxmonitor',
+        x: 8,
+        y: 0,
+        width: 4,
+        height: 3,
+        title: '📡 DMX Monitor'
+      },
+      {
+        id: 'midi-monitor-1',
+        component: 'midimonitor',
+        x: 8,
+        y: 3,
+        width: 4,
+        height: 3,
+        title: '🎹 MIDI Monitor'
+      }
+    ]);
+  };
+
+  // Auto-save layout changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      saveLayout();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [gridItems]);
+
+  // Load layout on mount
+  React.useEffect(() => {
+    loadLayout();
+  }, []);
+
+  const availableComponents = [
+    { id: 'touchsupercontrol', label: '🎛️ Touch SuperControl', component: TouchSuperControl },
+    { id: 'dmxmonitor', label: '📡 DMX Monitor', component: DMXMonitor },
+    { id: 'midimonitor', label: '🎹 MIDI Monitor', component: MIDIMonitor },
+    { id: 'oscmonitor', label: '🌐 OSC Monitor', component: OSCMonitor }
   ];
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
+  const addComponent = (componentType: string) => {
+    const componentInfo = availableComponents.find(c => c.id === componentType);
+    if (!componentInfo) return;
+
+    // Find available space for the new component
+    let x = 0, y = 0;
+    const width = 4;
+    const height = 3;
+
+    // Simple placement algorithm - find first available spot
+    for (let row = 0; row <= 8 - height; row++) {
+      for (let col = 0; col <= 12 - width; col++) {
+        const conflicts = gridItems.some(item => 
+          !(col >= item.x + item.width || 
+            col + width <= item.x || 
+            row >= item.y + item.height || 
+            row + height <= item.y)
+        );
+        if (!conflicts) {
+          x = col;
+          y = row;
+          break;
+        }
+      }
+      if (x !== 0 || y !== 0) break;
+    }
+
+    const newItem: GridItem = {
+      id: `${componentType}-${Date.now()}`,
+      component: componentType,
+      x,
+      y,
+      width,
+      height,
+      title: componentInfo.label
+    };
+
+    setGridItems(prev => [...prev, newItem]);
+  };
+
+  const removeItem = (id: string) => {
+    setGridItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const updateItemPosition = (id: string, x: number, y: number) => {
+    setGridItems(prev => prev.map(item => 
+      item.id === id ? { ...item, x: Math.max(0, Math.min(x, 12 - item.width)), y: Math.max(0, Math.min(y, 8 - item.height)) } : item
+    ));
+  };
+
+  const updateItemSize = (id: string, width: number, height: number) => {
+    setGridItems(prev => prev.map(item => 
+      item.id === id ? { 
+        ...item, 
+        width: Math.max(1, Math.min(width, 12 - item.x)), 
+        height: Math.max(1, Math.min(height, 8 - item.y)) 
+      } : item
+    ));
+  };
+
+  const renderComponent = (item: GridItem) => {
+    const componentInfo = availableComponents.find(c => c.id === item.component);
+    if (!componentInfo) return <div>Component not found</div>;
+
+    const Component = componentInfo.component as any;
+    
+    // Touch-optimized props for TouchSuperControl
+    const componentProps = item.component === 'touchsupercontrol' ? {
+      isFullscreen: true,
+      enableHapticFeedback: true,
+      touchOptimized: true,
+      externalDisplay: true
+    } : {};
+
+    return <Component {...componentProps} />;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, itemId: string, action: 'drag' | 'resize') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (action === 'drag') {
+      setIsDragging(itemId);
+    } else {
+      setIsResizing(itemId);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, itemId: string, action: 'drag' | 'resize') => {
+    e.preventDefault();
+    if (action === 'drag') {
+      setIsDragging(itemId);
+    } else {
+      setIsResizing(itemId);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging && !isResizing) return;
+    
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const gridX = Math.floor(((e.clientX - rect.left) / rect.width) * 12);
+    const gridY = Math.floor(((e.clientY - rect.top) / rect.height) * 8);
+    
+    if (isDragging) {
+      updateItemPosition(isDragging, gridX, gridY);
+    } else if (isResizing) {
+      const item = gridItems.find(i => i.id === isResizing);
+      if (item) {
+        const width = Math.max(1, gridX - item.x + 1);
+        const height = Math.max(1, gridY - item.y + 1);
+        updateItemSize(isResizing, width, height);
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging && !isResizing) return;
+    
+    const touch = e.touches[0];
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const gridX = Math.floor(((touch.clientX - rect.left) / rect.width) * 12);
+    const gridY = Math.floor(((touch.clientY - rect.top) / rect.height) * 8);
+    
+    if (isDragging) {
+      updateItemPosition(isDragging, gridX, gridY);
+    } else if (isResizing) {
+      const item = gridItems.find(i => i.id === isResizing);
+      if (item) {
+        const width = Math.max(1, gridX - item.x + 1);
+        const height = Math.max(1, gridY - item.y + 1);
+        updateItemSize(isResizing, width, height);
+      }
+    }
+  };
+
+  const handleEnd = () => {
+    setIsDragging(null);
+    setIsResizing(null);
+  };
 
   return (
-    <div className="tabContainer">
-      <div className="tabNavigation">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`tabButton ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id as any)}
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+      {showPalette && (
+        <div className="componentPalette">
+          <div className="paletteTitle">
+            <span>🧩</span>
+            <span>Add Components</span>
+            <button 
+              onClick={() => setShowPalette(false)}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}
+            >
+              ×
+            </button>
+          </div>
+          {availableComponents.map(comp => (
+            <button
+              key={comp.id}
+              className="componentButton"
+              onClick={() => addComponent(comp.id)}
+            >
+              {comp.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!showPalette && (
+        <button
+          onClick={() => setShowPalette(true)}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: 'var(--accent-primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '48px',
+            height: '48px',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            zIndex: 1000,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+          }}
+        >
+          +
+        </button>
+      )}
+
+      <div 
+        className="gridContainer"
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleEnd}
+        onTouchCancel={handleEnd}
+      >
+        {gridItems.map(item => (
+          <div
+            key={item.id}
+            className={`gridItem ${isResizing === item.id ? 'resizing' : ''} ${isDragging === item.id ? 'dragging' : ''}`}
+            style={{
+              gridColumn: `${item.x + 1} / ${item.x + item.width + 1}`,
+              gridRow: `${item.y + 1} / ${item.y + item.height + 1}`
+            }}
           >
-            {tab.label}
-          </button>
+            <div 
+              className="gridItemHeader"
+              onMouseDown={(e) => handleMouseDown(e, item.id, 'drag')}
+              onTouchStart={(e) => handleTouchStart(e, item.id, 'drag')}
+            >
+              <span>{item.title}</span>
+              <button 
+                className="removeButton"
+                onClick={() => removeItem(item.id)}
+                title="Remove component"
+              >
+                ×
+              </button>
+            </div>
+            <div className="gridItemContent">
+              {renderComponent(item)}
+            </div>
+            <div 
+              className="resizeHandle"
+              onMouseDown={(e) => handleMouseDown(e, item.id, 'resize')}
+              onTouchStart={(e) => handleTouchStart(e, item.id, 'resize')}
+              title="Drag to resize"
+            />
+          </div>
         ))}
-      </div>
-      
-      <div className="tabContent">
-        {ActiveComponent && <ActiveComponent />}
       </div>
     </div>
   );

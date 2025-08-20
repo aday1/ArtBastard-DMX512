@@ -108,6 +108,18 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       });
 
+      // Listen for MIDI clock input list
+      socketInstance.on('midiClockInputs', (payload: { inputs: string[]; currentInput: string | null }) => {
+        console.log('[SocketContext] Received midiClockInputs:', payload);
+        // For now, store them inside availableMidiClockHosts with special prefix or just log.
+        // Could extend store with dedicated state later.
+      });
+
+      // Listen for MIDI clock input changed broadcast
+      socketInstance.on('midiClockInputChanged', ({ inputName }: { inputName: string }) => {
+        console.log('[SocketContext] MIDI clock input changed to:', inputName);
+      });
+
       setSocket(socketInstance);
 
       // Cleanup function

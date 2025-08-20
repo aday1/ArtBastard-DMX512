@@ -532,4 +532,5 @@ export class ClockManager {
   }
 }
 
+// Export a singleton instance
 export const clockManager = new ClockManager();

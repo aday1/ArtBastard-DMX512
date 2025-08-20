@@ -6,6 +6,11 @@ interface BPMDashboardProps {
   className?: string;
 }
 
+interface MidiInputData {
+  inputs: string[];
+  currentInput: string | null;
+}
+
 export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   // Initialize from localStorage or default to collapsed
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -19,6 +24,8 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
   const [tapCount, setTapCount] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
+  const [midiInputs, setMidiInputs] = useState<MidiInputData>({ inputs: [], currentInput: null });
+  const [showMidiInputs, setShowMidiInputs] = useState(false);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
@@ -26,10 +33,14 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     midiClockIsPlaying,
     autoSceneTempoSource,
     autoSceneManualBpm,
+    autoSceneTapTempoBpm,
     setAutoSceneTempoSource,
     setManualBpm,
     recordTapTempo,
     requestToggleMasterClockPlayPause,
+  requestMasterClockSourceChange,
+  requestMidiClockInputList,
+  requestSetMidiClockInput,
     setMidiClockBpm,
     setMidiClockIsPlaying,
     socket,
@@ -45,6 +56,22 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     toggleColorSliderAutopilot,
     debugAutopilotState
   } = useStore();
+
+  // Listen for MIDI input data from socket
+  useEffect(() => {
+    if (socket) {
+      const handleMidiInputs = (data: MidiInputData) => {
+        console.log('BPMDashboard: Received MIDI inputs:', data);
+        setMidiInputs(data);
+      };
+
+      socket.on('midiClockInputs', handleMidiInputs);
+
+      return () => {
+        socket.off('midiClockInputs', handleMidiInputs);
+      };
+    }
+  }, [socket]);
 
   // Handle toggle collapse/expand
   const toggleExpanded = () => {
@@ -73,7 +100,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     console.log('BPM Dashboard: Play/Pause clicked', { 
       currentlyPlaying: midiClockIsPlaying, 
       socketExists: !!socket,
-      currentBPM: autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm 
+      currentBPM: autoSceneTempoSource === 'tap_tempo' ? autoSceneTapTempoBpm : autoSceneManualBpm 
     });
     
     if (socket) {
@@ -85,14 +112,14 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
       setMidiClockIsPlaying(!midiClockIsPlaying);
       
       // Also set BPM if we're starting
-      const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
+      const currentBpm = autoSceneTempoSource === 'tap_tempo' ? autoSceneTapTempoBpm : autoSceneManualBpm;
       if (!midiClockIsPlaying && currentBpm > 0) {
         setMidiClockBpm(currentBpm);
       }
     }
   };
 
-  const currentBpm = autoSceneTempoSource === 'tap_tempo' ? midiClockBpm : autoSceneManualBpm;
+  const currentBpm = autoSceneTempoSource === 'tap_tempo' ? autoSceneTapTempoBpm : autoSceneManualBpm;
   const isPlaying = midiClockIsPlaying;
 
   // Visual beat indicator
@@ -129,6 +156,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
 
   // Handle tap tempo
   const handleTap = () => {
+    console.log('BPM Dashboard: TAP button pressed');
+    
+    // Use the store's tap tempo function
+    recordTapTempo();
+    
+    // Set source to tap tempo when tapping
+    setAutoSceneTempoSource('tap_tempo');
+    
+    // Local state for UI feedback
     const currentTime = Date.now();
     
     if (tapTimeoutRef.current) {
@@ -138,18 +174,6 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     if (lastTapTime > 0 && (currentTime - lastTapTime) < 2000) {
       // Valid tap within 2 seconds
       setTapCount(prev => prev + 1);
-      
-      // Calculate BPM from tap interval
-      if (tapCount >= 1) {
-        const tapInterval = currentTime - lastTapTime;
-        const calculatedBPM = Math.round(60000 / tapInterval);
-        
-        if (calculatedBPM >= 60 && calculatedBPM <= 200) {
-          setManualBpm(calculatedBPM);
-          setAutoSceneTempoSource('manual_bpm');
-          recordTapTempo();
-        }
-      }
     } else {
       // First tap or reset after timeout
       setTapCount(0);
@@ -196,6 +220,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             <div className={styles.beatDot}></div>
           </div>
           <h3 className={styles.title}>BPM Control</h3>
+          <div style={{marginLeft:'0.5rem'}} onClick={e=>e.stopPropagation()}>
+            <select value={autoSceneTempoSource} onChange={(e)=>{
+              const v = e.target.value as any; setAutoSceneTempoSource(v);
+              if (v === 'tap_tempo') { requestMasterClockSourceChange('internal'); }
+            }} style={{fontSize:'0.6rem'}}>
+              <option value="manual_bpm">Internal</option>
+              <option value="tap_tempo">Tap</option>
+            </select>
+          </div>
           <div className={`${styles.quickStatus} ${isPlaying ? styles.playing : ''}`}>
             <span className={`${styles.playStatus} ${isPlaying ? styles.playing : styles.stopped}`}>
               {isPlaying ? '▶️' : '⏸️'}
@@ -221,11 +254,53 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
               </button>
               <button
                 className={`${styles.sourceButton} ${autoSceneTempoSource === 'tap_tempo' ? styles.active : ''}`}
-                onClick={() => setAutoSceneTempoSource('tap_tempo')}
+                onClick={() => { setAutoSceneTempoSource('tap_tempo'); requestMasterClockSourceChange('internal'); }}
               >
-                MIDI Clock
+                Tap
+              </button>
+              <button
+                className={`${styles.sourceButton}`}
+                onClick={() => { 
+                  requestMasterClockSourceChange('midi-input'); 
+                  requestMidiClockInputList(); 
+                  setShowMidiInputs(true);
+                }}
+                title="Use external MIDI clock input"
+              >
+                Ext MIDI
               </button>
             </div>
+            {showMidiInputs && (
+              <div className={styles.midiInputsSection}>
+                <label className={styles.sectionLabel}>MIDI Input Device</label>
+                {midiInputs.inputs.length > 0 ? (
+                  <select 
+                    value={midiInputs.currentInput || ''}
+                    onChange={(e) => {
+                      const inputName = e.target.value;
+                      if (inputName) {
+                        requestSetMidiClockInput(inputName);
+                        setMidiInputs(prev => ({ ...prev, currentInput: inputName }));
+                      }
+                    }}
+                    className={styles.midiInputSelect}
+                  >
+                    <option value="">Select MIDI Input...</option>
+                    {midiInputs.inputs.map(input => (
+                      <option key={input} value={input}>{input}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className={styles.noMidiInputs}>No MIDI inputs available</p>
+                )}
+                <button 
+                  className={styles.closeMidiInputs}
+                  onClick={() => setShowMidiInputs(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           <div className={styles.transportSection}>
