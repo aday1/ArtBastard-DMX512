@@ -57,7 +57,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     setAutopilotTrackCenter,
     setAutopilotTrackAutoPlay,
     updatePanTiltFromTrack,
-    calculateTrackPosition
+    calculateTrackPosition,
+    midiMessages
   } = useStore();  // Selection state
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('fixtures');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
@@ -69,7 +70,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     isLearning: isSuperControlLearning,
     learnStatus: superControlLearnStatus,
     currentLearningControlName,
-    mappings: superControlMappings
+    mappings: superControlMappings,
+    processMidiForControl
   } = useSuperControlMidiLearn();
 
   // Log fixtures prop changes
@@ -97,11 +99,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   }, [selectionMode, selectedFixtures, fixtures]);
 
   // MIDI processing for SuperControl
-  const { 
-    processMidiForControl,
-    mappings: superControlMappings 
-  } = useSuperControlMidiLearn();
-
   useEffect(() => {
     if (!midiMessages || midiMessages.length === 0) return;
 
