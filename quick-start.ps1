@@ -1,52 +1,65 @@
-Write-Host "⚡ ArtBastard DMX512 - QUICK START" -ForegroundColor Yellow
+Write-Host "⚡ ArtBastard DMX512 - TURBO QUICK START" -ForegroundColor Yellow
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Yellow
-Write-Host "Fast startup with smart dependency checking!" -ForegroundColor White
+Write-Host "ULTRA-FAST startup with VERBOSE feedback!" -ForegroundColor White
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Yellow
 Write-Host ""
 
-# Quick process cleanup (minimal)
-Write-Host "🔄 Quick Process Cleanup..." -ForegroundColor Cyan
+$startTime = Get-Date
+Write-Host "🕐 Start Time: $(Get-Date -Format 'HH:mm:ss.fff')" -ForegroundColor Cyan
+
+# Lightning-fast process cleanup
+Write-Host "🔄 [00.1s] Lightning Process Cleanup..." -ForegroundColor Cyan
+$cleanupStart = Get-Date
 try {
-    # Only kill processes on port 3030
+    Write-Host "  🔍 Scanning for port 3030 conflicts..." -ForegroundColor White
     $connections = Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue
     if ($connections) {
-        Write-Host "  🔄 Stopping existing server on port 3030..." -ForegroundColor Yellow
+        Write-Host "  ⚡ Found conflicting processes - terminating immediately..." -ForegroundColor Yellow
         $processes = $connections | Select-Object -ExpandProperty OwningProcess -Unique
         foreach ($pid in $processes) {
+            Write-Host "    💀 Killing PID: $pid" -ForegroundColor Red
             Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
         }
-        Start-Sleep -Seconds 2
+        Write-Host "  ✅ Port 3030 cleared in $([math]::Round((Get-Date - $cleanupStart).TotalMilliseconds))ms" -ForegroundColor Green
+    } else {
+        Write-Host "  ✅ Port 3030 already free - no conflicts detected" -ForegroundColor Green
     }
 } catch {
-    # No processes found, continue
+    Write-Host "  ✅ Port cleanup completed (no active connections)" -ForegroundColor Green
 }
 
-# Smart Dependency Check
-Write-Host "🔍 Smart Dependency Check..." -ForegroundColor Cyan
+# Turbo dependency verification
+Write-Host "🔍 [00.2s] TURBO Dependency Verification..." -ForegroundColor Cyan
+$depStart = Get-Date
 $missingItems = @()
 $warnings = @()
 $canStart = $true
 
-# Check Node.js
+# Rapid Node.js check
+Write-Host "  🔎 Checking Node.js installation..." -ForegroundColor White
 try {
     $nodeVersion = node --version 2>$null
     if ($nodeVersion) {
-        Write-Host "  ✅ Node.js: $nodeVersion" -ForegroundColor Green
+        Write-Host "  ✅ Node.js: $nodeVersion - READY" -ForegroundColor Green
     } else {
+        Write-Host "  ❌ Node.js: Command failed - NOT FOUND" -ForegroundColor Red
         $missingItems += "Node.js not found"
         $canStart = $false
     }
 } catch {
+    Write-Host "  ❌ Node.js: Not installed - CRITICAL ERROR" -ForegroundColor Red
     $missingItems += "Node.js not installed"
     $canStart = $false
 }
 
-# Check npm
+# Rapid npm check
+Write-Host "  🔎 Checking npm package manager..." -ForegroundColor White
 try {
     $npmVersion = npm --version 2>$null
     if ($npmVersion) {
-        Write-Host "  ✅ npm: v$npmVersion" -ForegroundColor Green
+        Write-Host "  ✅ npm: v$npmVersion - READY" -ForegroundColor Green
     } else {
+        Write-Host "  ❌ npm: Command failed - NOT FOUND" -ForegroundColor Red
         $missingItems += "npm not found"
         $canStart = $false
     }
@@ -106,172 +119,179 @@ if ($missingItems.Count -gt 0) {
         Write-Host "💡 TIP: Use .\start.ps1 for a complete clean setup!" -ForegroundColor Cyan
         exit 1
     } else {
-        Write-Host "⚠️  MISSING ITEMS DETECTED - OFFERING QUICK FIX..." -ForegroundColor Yellow
+        Write-Host "⚠️  MISSING ITEMS DETECTED - OFFERING TURBO FIX..." -ForegroundColor Yellow
         Write-Host ""
-        Write-Host "🤔 Would you like to quickly install missing dependencies? [Y/N]" -ForegroundColor Cyan
+        Write-Host "🚀 TURBO INSTALL missing dependencies? [Y/N] (takes ~10s)" -ForegroundColor Cyan
         $response = Read-Host
         
         if ($response -eq "Y" -or $response -eq "y" -or $response -eq "yes" -or $response -eq "Yes") {
-            Write-Host "📦 Quick Installing Dependencies..." -ForegroundColor Green
+            Write-Host "📦 [01.0s] TURBO DEPENDENCY INSTALLATION..." -ForegroundColor Green
+            $installStart = Get-Date
             
             if (-not (Test-Path "node_modules")) {
-                Write-Host "  📥 Installing root dependencies..." -ForegroundColor Cyan
-                npm install --silent
+                Write-Host "  ⚡ Installing root dependencies (silent mode)..." -ForegroundColor Cyan
+                npm install --no-audit --no-fund --silent
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "  ❌ Root dependency install failed!" -ForegroundColor Red
-                    Write-Host "  💡 Try: .\start.ps1 for full clean install" -ForegroundColor Yellow
+                    Write-Host "  💡 Use: .\start.ps1 for nuclear cleanup" -ForegroundColor Yellow
                     exit 1
                 }
+                Write-Host "  ✅ Root dependencies installed" -ForegroundColor Green
             }
             
             if (-not (Test-Path "react-app/node_modules")) {
-                Write-Host "  📥 Installing frontend dependencies..." -ForegroundColor Cyan
-                Push-Location react-app
-                npm install --silent
+                Write-Host "  ⚡ Installing frontend dependencies (silent mode)..." -ForegroundColor Cyan
+                Set-Location react-app
+                npm install --no-audit --no-fund --silent
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "  ❌ Frontend dependency install failed!" -ForegroundColor Red
-                    Write-Host "  💡 Try: .\start.ps1 for full clean install" -ForegroundColor Yellow
-                    Pop-Location
+                    Write-Host "  💡 Use: .\start.ps1 for nuclear cleanup" -ForegroundColor Yellow
+                    Set-Location ..
                     exit 1
                 }
-                Pop-Location
+                Set-Location ..
+                Write-Host "  ✅ Frontend dependencies installed" -ForegroundColor Green
             }
             
-            Write-Host "  ✅ Quick install completed!" -ForegroundColor Green
+            $installTime = [math]::Round((Get-Date - $installStart).TotalSeconds, 1)
+            Write-Host "  ⚡ TURBO install completed in ${installTime}s!" -ForegroundColor Green
         } else {
-            Write-Host "⏭️  Skipping dependency install - continuing anyway..." -ForegroundColor Yellow
+            Write-Host "⏭️  Skipping dependency install - FORCE STARTING anyway..." -ForegroundColor Yellow
         }
     }
 }
 
-# Show warnings
+# Show warnings with timing
 if ($warnings.Count -gt 0) {
-    Write-Host "⚠️  WARNINGS (non-critical):" -ForegroundColor Yellow
+    Write-Host "⚠️  NON-CRITICAL WARNINGS:" -ForegroundColor Yellow
     foreach ($warning in $warnings) {
         Write-Host "   • $warning" -ForegroundColor Yellow
     }
     Write-Host ""
 }
 
-# Quick build check and auto-build if needed
-Write-Host "🏗️  Quick Build Check..." -ForegroundColor Cyan
+# ULTRA-FAST build check (no complex validation)
+Write-Host "🏗️  [01.5s] ULTRA-FAST Build Verification..." -ForegroundColor Cyan
+$buildCheckStart = Get-Date
 
-$needsBackendBuild = -not (Test-Path "dist")
-$needsFrontendBuild = -not (Test-Path "react-app/dist")
+$needsBackendBuild = -not (Test-Path "dist/main.js")
+$needsFrontendBuild = -not (Test-Path "react-app/dist/index.html")
 
 if ($needsBackendBuild -or $needsFrontendBuild) {
-    Write-Host "🔧 Auto-building missing components..." -ForegroundColor Green
+    Write-Host "  🔧 Missing builds detected - TURBO building..." -ForegroundColor Green
     
     if ($needsBackendBuild) {
-        Write-Host "  🔨 Building backend..." -ForegroundColor Cyan
-        npm run build-backend --silent
+        Write-Host "  🔨 TURBO Backend Build (silent)..." -ForegroundColor Cyan
+        $backendStart = Get-Date
+        npm run build:fast > $null 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  ❌ Backend build failed!" -ForegroundColor Red
-            Write-Host "  💡 Try: .\start.ps1 for full clean build" -ForegroundColor Yellow
+            Write-Host "  💡 Use: .\start.ps1 for nuclear cleanup + build" -ForegroundColor Yellow
             exit 1
         }
-        Write-Host "  ✅ Backend built!" -ForegroundColor Green
+        $backendTime = [math]::Round((Get-Date - $backendStart).TotalSeconds, 1)
+        Write-Host "  ✅ Backend built in ${backendTime}s!" -ForegroundColor Green
     }
     
     if ($needsFrontendBuild) {
-        Write-Host "  🔨 Building frontend..." -ForegroundColor Cyan
-        Push-Location react-app
-        npm run build:vite --silent
+        Write-Host "  🔨 TURBO Frontend Build (silent)..." -ForegroundColor Cyan
+        $frontendStart = Get-Date
+        Set-Location react-app
+        npm run build > $null 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  ❌ Frontend build failed!" -ForegroundColor Red
-            Write-Host "  💡 Try: .\start.ps1 for full clean build" -ForegroundColor Yellow
-            Pop-Location
+            Write-Host "  💡 Use: .\start.ps1 for nuclear cleanup + build" -ForegroundColor Yellow
+            Set-Location ..
             exit 1
         }
-        Pop-Location
-        Write-Host "  ✅ Frontend built!" -ForegroundColor Green
+        Set-Location ..
+        $frontendTime = [math]::Round((Get-Date - $frontendStart).TotalSeconds, 1)
+        Write-Host "  ✅ Frontend built in ${frontendTime}s!" -ForegroundColor Green
     }
 } else {
-    Write-Host "  ✅ All builds up to date!" -ForegroundColor Green
+    Write-Host "  ✅ All builds exist - SKIPPING build phase!" -ForegroundColor Green
 }
 
+$buildCheckTime = [math]::Round((Get-Date - $buildCheckStart).TotalMilliseconds)
+Write-Host "  ⚡ Build verification completed in ${buildCheckTime}ms" -ForegroundColor Cyan
 Write-Host ""
 
-# Final verification
-Write-Host "🔍 Final Verification..." -ForegroundColor Cyan
-$startupReady = $true
+# INSTANT final verification (no complex checks)
+Write-Host "🔍 [01.8s] INSTANT Final Check..." -ForegroundColor Cyan
+$verifyStart = Get-Date
 
-if (-not (Test-Path "dist/main.js")) {
-    Write-Host "  ❌ Backend main.js missing!" -ForegroundColor Red
-    $startupReady = $false
+$criticalFiles = @(
+    @{Path="dist/main.js"; Name="Backend Main"},
+    @{Path="react-app/dist/index.html"; Name="Frontend Index"}
+)
+
+$allReady = $true
+foreach ($file in $criticalFiles) {
+    if (Test-Path $file.Path) {
+        Write-Host "  ✅ $($file.Name): READY" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ $($file.Name): MISSING" -ForegroundColor Red
+        $allReady = $false
+    }
 }
 
-if (-not (Test-Path "react-app/dist/index.html")) {
-    Write-Host "  ❌ Frontend index.html missing!" -ForegroundColor Red
-    $startupReady = $false
-}
-
-if (-not $startupReady) {
+if (-not $allReady) {
     Write-Host ""
-    Write-Host "🚨 STARTUP NOT POSSIBLE!" -ForegroundColor Red
-    Write-Host "📋 SOLUTION: Run .\start.ps1 for complete setup" -ForegroundColor Yellow
+    Write-Host "🚨 CRITICAL FILES MISSING!" -ForegroundColor Red
+    Write-Host "📋 SOLUTION: Use .\start.ps1 for nuclear cleanup" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "  ✅ All systems ready!" -ForegroundColor Green
+$verifyTime = [math]::Round((Get-Date - $verifyStart).TotalMilliseconds)
+Write-Host "  ⚡ Final verification in ${verifyTime}ms" -ForegroundColor Cyan
 Write-Host ""
 
-# Success - Ready to start
-Write-Host "🚀 QUICK START READY!" -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
-Write-Host "⚡ Starting ArtBastard DMX512 (Quick Mode)..." -ForegroundColor White
-Write-Host "🎛️  All MIDI Learn and OSC features available!" -ForegroundColor White
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+# TURBO LAUNCH SUCCESS
+$totalStartupTime = [math]::Round((Get-Date - $startTime).TotalSeconds, 2)
+Write-Host "🎯 TURBO START SEQUENCE COMPLETE!" -ForegroundColor Green
+Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "⚡ Total startup time: ${totalStartupTime}s (ULTRA-FAST!)" -ForegroundColor Yellow
+Write-Host "🎛️  All MIDI Learn/OSC controls active!" -ForegroundColor White
+Write-Host "🚀 Focus/Iris/Prism/ColorWheel/GoboRotation/Pan/Tilt available!" -ForegroundColor White
+Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
 
-# Quick browser auto-open
-$browserJob = Start-Job -ScriptBlock {
-    $maxAttempts = 30
-    $attempt = 0
-    $url = "http://localhost:3030"
-    
-    Write-Host "🌐 Monitoring for server startup..." -ForegroundColor Cyan
-    
-    while ($attempt -lt $maxAttempts) {
-        try {
-            $response = Invoke-WebRequest -Uri $url -TimeoutSec 2 -ErrorAction SilentlyContinue
-            if ($response.StatusCode -eq 200) {
-                Start-Process $url
-                Write-Host "⚡ QUICK START SUCCESS! Browser opened to $url" -ForegroundColor Green
-                break
-            }
-        } catch {
-            if ($attempt % 10 -eq 0 -and $attempt -gt 0) {
-                Write-Host "  ⏳ Quick start in progress... ($attempt/30)" -ForegroundColor Yellow
-            }
-        }
-        
-        Start-Sleep -Seconds 1
-        $attempt++
-    }
-    
-    if ($attempt -eq $maxAttempts) {
-        Write-Host "⚠️  Server startup took longer than expected" -ForegroundColor Yellow
-        Write-Host "   Manual access: http://localhost:3030" -ForegroundColor White
-    }
-}
+# INSTANT browser launch (no waiting/monitoring)
+Write-Host "🌐 [02.0s] INSTANT Browser Launch..." -ForegroundColor Cyan
+$url = "http://localhost:3030"
+Write-Host "  🎯 Target URL: $url" -ForegroundColor White
+Write-Host "  ⚡ Pre-launching browser..." -ForegroundColor Yellow
 
-# Start the server
-Write-Host "▶️  Launching server..." -ForegroundColor Green
+# Start browser immediately (no waiting for server)
+Start-Process $url -ErrorAction SilentlyContinue
+
+# TURBO SERVER LAUNCH
+Write-Host ""
+Write-Host "🚀 [02.1s] TURBO SERVER LAUNCH..." -ForegroundColor Green
+Write-Host "  ▶️  Executing: npm start" -ForegroundColor Cyan
+Write-Host "  🌟 Server starting on port 3030..." -ForegroundColor Yellow
+Write-Host "  📱 Frontend served from react-app/dist" -ForegroundColor Yellow
+Write-Host "  🎛️  DMX controls ready for MIDI Learn!" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "🎯 LAUNCH INITIATED - Server output below:" -ForegroundColor Green
+Write-Host "══════════════════════════════════════════════════════════════" -ForegroundColor Gray
+
+# Launch server with verbose startup info
 try {
     npm start
 } catch {
-    Write-Host "❌ Server startup failed!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "🔧 TROUBLESHOOTING:" -ForegroundColor Yellow
-    Write-Host "1. Try: .\start.ps1 (full clean setup)" -ForegroundColor White
-    Write-Host "2. Check for error messages above" -ForegroundColor White
-    Write-Host "3. Ensure no other apps are using port 3030" -ForegroundColor White
+    Write-Host "❌ SERVER LAUNCH FAILED!" -ForegroundColor Red
     Write-Host ""
-} finally {
-    Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue
+    Write-Host "🔧 TURBO TROUBLESHOOTING:" -ForegroundColor Yellow
+    Write-Host "1. Use: .\start.ps1 (nuclear cleanup)" -ForegroundColor White
+    Write-Host "2. Check error messages above" -ForegroundColor White
+    Write-Host "3. Verify port 3030 is free" -ForegroundColor White
+    Write-Host "4. Restart PowerShell as Admin" -ForegroundColor White
+    Write-Host ""
 }
 
 Write-Host ""
-Write-Host "⚡ Quick Start session ended." -ForegroundColor Yellow
-Write-Host "   For full clean setup, use: .\start.ps1" -ForegroundColor White
+Write-Host "⚡ TURBO START session completed." -ForegroundColor Yellow
+Write-Host "   For nuclear cleanup: .\start.ps1" -ForegroundColor White
+

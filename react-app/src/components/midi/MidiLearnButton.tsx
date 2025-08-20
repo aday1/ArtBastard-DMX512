@@ -96,9 +96,24 @@ export const MidiLearnButton: React.FC<MidiLearnButtonProps> = ({ channelIndex, 
       }}
     >
       {isChannelLearning && learnStatus === 'learning' && (
-        <div className={styles.pulsingDot} />
+        <>
+          <div className={styles.pulsingDot} />
+          <span>🎵 Listening...</span>
+        </>
       )}
-      <span>{getButtonText()}</span>
+      {isChannelLearning && learnStatus === 'success' && (
+        <>
+          <span>✅ Mapped!</span>
+        </>
+      )}
+      {isChannelLearning && learnStatus === 'timeout' && (
+        <>
+          <span>⏰ Timeout</span>
+        </>
+      )}
+      {!isChannelLearning && (
+        <span>{getButtonText()}</span>
+      )}
     </button>
   )
 }

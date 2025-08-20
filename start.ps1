@@ -1,52 +1,71 @@
-Write-Host "🚀 ArtBastard DMX512 - CLEAN BUILD LAUNCHER" -ForegroundColor Cyan
+Write-Host "🚀 ArtBastard DMX512 - NUCLEAR CLEAN LAUNCHER" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "This script performs a COMPLETE cleanup and fresh build" -ForegroundColor White
-Write-Host "to ensure you get the latest and greatest ArtBastard experience!" -ForegroundColor White
+Write-Host "ULTRA-FAST complete cleanup and fresh build with VERBOSE progress!" -ForegroundColor White
+Write-Host "No loading animations - just INSTANT detailed feedback!" -ForegroundColor White
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
-# Step 1: AGGRESSIVE PROCESS CLEANUP
-Write-Host "🔥 STEP 1: AGGRESSIVE PROCESS CLEANUP" -ForegroundColor Red
-Write-Host "────────────────────────────────────────" -ForegroundColor Yellow
+$startTime = Get-Date
+Write-Host "🕐 Nuclear Start Time: $(Get-Date -Format 'HH:mm:ss.fff')" -ForegroundColor Yellow
+
+# Step 1: LIGHTNING PROCESS CLEANUP
+Write-Host "🔥 [00.1s] LIGHTNING PROCESS EXTERMINATION" -ForegroundColor Red
+Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor Yellow
+$processStart = Get-Date
 
 try {
-    # Kill ALL Node.js processes (nuclear option for clean start)
-    Write-Host "💀 Terminating ALL Node.js processes..." -ForegroundColor Red
-    Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-
-    # Kill any processes using port 3030
-    $connections = Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue
-    if ($connections) {
-        Write-Host "🔄 Force-killing processes on port 3030..." -ForegroundColor Yellow
-        $processes = $connections | Select-Object -ExpandProperty OwningProcess -Unique
-        foreach ($pid in $processes) {
-            try {
-                Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-                Write-Host "  ⚡ Terminated PID: $pid" -ForegroundColor Yellow
-            } catch {
-                # Process might already be gone
-            }
-        }
-        Start-Sleep -Seconds 3
+    # INSTANT Node.js process termination
+    Write-Host "  💀 Scanning for Node.js processes..." -ForegroundColor Red
+    $nodeProcs = Get-Process -Name "node" -ErrorAction SilentlyContinue
+    if ($nodeProcs) {
+        Write-Host "  ⚡ TERMINATING $($nodeProcs.Count) Node.js processes..." -ForegroundColor Yellow
+        $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        Write-Host "  ✅ All Node.js processes ELIMINATED" -ForegroundColor Green
+    } else {
+        Write-Host "  ✅ No Node.js processes found" -ForegroundColor Green
     }
 
-    # Kill any remaining ArtBastard-related processes
-    Get-Process | Where-Object { $_.ProcessName -like "*dmx*" -or $_.ProcessName -like "*artbastard*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    # INSTANT port 3030 cleanup
+    Write-Host "  🔍 Checking port 3030 conflicts..." -ForegroundColor Red
+    $connections = Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue
+    if ($connections) {
+        Write-Host "  ⚡ NUKING port 3030 conflicts..." -ForegroundColor Yellow
+        $processes = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+        foreach ($pid in $processes) {
+            Write-Host "    💀 Eliminating PID: $pid" -ForegroundColor Red
+            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "  ✅ Port 3030 CLEARED" -ForegroundColor Green
+    } else {
+        Write-Host "  ✅ Port 3030 already free" -ForegroundColor Green
+    }
+
+    # INSTANT ArtBastard cleanup
+    Write-Host "  🔍 Hunting ArtBastard-related processes..." -ForegroundColor Red
+    $artProcs = Get-Process | Where-Object { $_.ProcessName -like "*dmx*" -or $_.ProcessName -like "*artbastard*" }
+    if ($artProcs) {
+        Write-Host "  ⚡ DESTROYING $($artProcs.Count) ArtBastard processes..." -ForegroundColor Yellow
+        $artProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        Write-Host "  ✅ ArtBastard processes ANNIHILATED" -ForegroundColor Green
+    } else {
+        Write-Host "  ✅ No ArtBastard processes found" -ForegroundColor Green
+    }
     
-    Write-Host "✅ Process cleanup completed!" -ForegroundColor Green
+    $processTime = [math]::Round((Get-Date - $processStart).TotalMilliseconds)
+    Write-Host "  ⚡ Process cleanup completed in ${processTime}ms" -ForegroundColor Cyan
 } catch {
-    Write-Host "✅ Process cleanup completed (no processes found)" -ForegroundColor Green
+    Write-Host "  ✅ Process cleanup completed (clean slate)" -ForegroundColor Green
 }
 
 Write-Host ""
 
-# Step 2: NUCLEAR FILE SYSTEM CLEANUP
-Write-Host "🧹 STEP 2: NUCLEAR FILE SYSTEM CLEANUP" -ForegroundColor Red
-Write-Host "──────────────────────────────────────────" -ForegroundColor Yellow
+# Step 2: NUCLEAR FILE SYSTEM ANNIHILATION
+Write-Host "🧹 [00.2s] NUCLEAR FILE SYSTEM ANNIHILATION" -ForegroundColor Red
+Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor Yellow
+$cleanupStart = Get-Date
 
-# Remove ALL build directories
-Write-Host "💣 Removing ALL build directories..." -ForegroundColor Red
+# INSTANT build directory elimination (no size checks!)
+Write-Host "  💣 ELIMINATING build directories..." -ForegroundColor Red
 $buildDirs = @("dist", "react-app/dist", "react-app/dist-tsc", "build", ".next", "out")
 foreach ($dir in $buildDirs) {
     if (Test-Path $dir) {

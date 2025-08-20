@@ -23,6 +23,10 @@ export const useMidiLearn = () => {
   
   // Start MIDI learn mode for a channel
   const startLearn = useCallback((channel: number) => {
+    console.log(`[MidiLearn] Starting MIDI Learn for DMX CH ${channel}`);
+    console.log(`[MidiLearn] Current midiLearnTarget:`, midiLearnTarget);
+    console.log(`[MidiLearn] Available MIDI messages:`, midiMessages.length);
+    
     const target = { type: 'dmxChannel' as const, channelIndex: channel };
     
     if (midiLearnTarget !== null) {
@@ -33,7 +37,7 @@ export const useMidiLearn = () => {
     startMidiLearnAction(target)
     setLearnStatus('learning')
     addNotification({
-      message: `MIDI Learn started for DMX CH ${channel + 1}. Send a MIDI CC.`,
+      message: `🎵 MIDI Learn active for DMX CH ${channel + 1}. Move any MIDI control!`,
       type: 'info',
       priority: 'normal'
     });
@@ -94,7 +98,7 @@ export const useMidiLearn = () => {
       }
     };
   }, [learnStatus])
-    // Listen for MIDI messages during learn mode
+  // Listen for MIDI messages during learn mode
   useEffect(() => {
     if (midiLearnTarget === null || midiLearnTarget.type !== 'dmxChannel' || learnStatus !== 'learning' || midiMessages.length === 0) {
       return;
@@ -103,8 +107,18 @@ export const useMidiLearn = () => {
     const latestMessage = midiMessages[midiMessages.length - 1]
     const channel = midiLearnTarget.channelIndex;
     console.log('[MidiLearn] In learn mode. Processing message:', latestMessage, `for DMX CH ${channel}`);
+    console.log('[MidiLearn] Message structure:', {
+      type: latestMessage.type,
+      _type: latestMessage._type,
+      controller: latestMessage.controller,
+      channel: latestMessage.channel,
+      value: latestMessage.value
+    });
     
-    if (latestMessage._type === 'cc' && latestMessage.controller !== undefined) {
+    // Check both possible type properties
+    const messageType = latestMessage._type || latestMessage.type;
+    
+    if (messageType === 'cc' && latestMessage.controller !== undefined) {
       const mapping: MidiMapping = {
         channel: latestMessage.channel,
         controller: latestMessage.controller
@@ -118,7 +132,7 @@ export const useMidiLearn = () => {
       
       setLearnStatus('success')
       addNotification({
-        message: `DMX CH ${channel + 1} mapped to MIDI CC ${mapping.controller} on CH ${mapping.channel + 1}.`,
+        message: `✅ DMX CH ${channel + 1} mapped to MIDI CC ${mapping.controller} on CH ${mapping.channel + 1}!`,
         type: 'success',
         priority: 'normal'
       });
@@ -129,7 +143,7 @@ export const useMidiLearn = () => {
         setTimeoutId(null)
       }
     } else {
-      console.log('[MidiLearn] Ignoring non-CC message or message without controller:', latestMessage._type);
+      console.log('[MidiLearn] Ignoring non-CC message or message without controller. Type:', messageType, 'Controller:', latestMessage.controller);
     }
   }, [midiMessages, midiLearnTarget, learnStatus, addMidiMapping, timeoutId, addNotification, cancelMidiLearnAction]);
   

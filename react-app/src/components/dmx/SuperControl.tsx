@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import CustomPathEditor from '../automation/CustomPathEditor';
+import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -29,6 +30,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     setSelectedFixtures,
     getDmxChannelValue, 
     setDmxChannelValue,
+    midiMessages,
     // BPM for autopilot timing
     bpm,
     // Autopilot functions
@@ -60,6 +62,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     // Debug functions
     debugAutopilotState,
   } = useStore();
+
+  // MIDI Learn functionality
+  const {
+    isLearning,
+    learnStatus,
+    currentLearningControlName,
+    startLearn,
+    cancelLearn,
+    forgetMapping,
+    processMidiForControl,
+    mappings: superControlMappings
+  } = useSuperControlMidiLearn();
 
   // Layout state
   const [layouts, setLayouts] = useState(() => {
@@ -184,6 +198,115 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Canvas ref for path visualization
   const pathCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // MIDI Learn Processing
+  useEffect(() => {
+    if (midiMessages.length > 0) {
+      const latestMidiMessage = midiMessages[midiMessages.length - 1];
+      
+      const controlHandlers = {
+        'pan': (value: number) => {
+          setPanValue(value);
+          updatePanTilt(value, tiltValue);
+        },
+        'tilt': (value: number) => {
+          setTiltValue(value);
+          updatePanTilt(panValue, value);
+        },
+        'red': (value: number) => {
+          setRed(value);
+          updateRGB(value, green, blue);
+        },
+        'green': (value: number) => {
+          setGreen(value);
+          updateRGB(red, value, blue);
+        },
+        'blue': (value: number) => {
+          setBlue(value);
+          updateRGB(red, green, value);
+        },
+        'dimmer': (value: number) => {
+          setDimmer(value);
+          updateDimmer(value);
+        },
+        'gobo': (value: number) => {
+          setGobo(value);
+          updateGobo(value);
+        },
+        'shutter': (value: number) => {
+          setShutter(value);
+          updateShutter(value);
+        },
+        'strobe': (value: number) => {
+          setStrobe(value);
+          updateStrobe(value);
+        },
+        // Add other controls as needed
+      };
+      
+      processMidiForControl(latestMidiMessage, controlHandlers);
+    }
+  }, [midiMessages, processMidiForControl, panValue, tiltValue, red, green, blue]);
+
+  // MIDI Learn Button Component
+  const renderMidiButtons = (controlName: string, displayName: string) => {
+    const isMapped = superControlMappings[controlName];
+    const isCurrentlyLearning = isLearning && currentLearningControlName === controlName;
+    
+    return (
+      <div className={styles.midiButtons}>
+        <button
+          className={`${styles.midiLearnButton} ${isCurrentlyLearning ? styles.learning : ''}`}
+          onClick={() => isCurrentlyLearning ? cancelLearn() : startLearn(controlName)}
+          title={isCurrentlyLearning ? 'Cancel MIDI Learn' : `MIDI Learn ${displayName}`}
+        >
+          {isCurrentlyLearning ? 'Cancel' : 'Learn'}
+        </button>
+        {isMapped && (
+          <button
+            className={styles.midiForgetButton}
+            onClick={() => forgetMapping(controlName)}
+            title={`Forget MIDI mapping for ${displayName}`}
+          >
+            Forget
+          </button>
+        )}
+        {isMapped && (
+          <div className={styles.oscAddress} title={`OSC Address: /${controlName}`}>
+            /{controlName}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper functions for MIDI control updates
+  const updatePanTilt = (panVal: number, tiltVal: number) => {
+    applyControl('pan', panVal);
+    applyControl('tilt', tiltVal);
+  };
+
+  const updateRGB = (redVal: number, greenVal: number, blueVal: number) => {
+    applyControl('red', redVal);
+    applyControl('green', greenVal);
+    applyControl('blue', blueVal);
+  };
+
+  const updateDimmer = (dimmerVal: number) => {
+    applyControl('dimmer', dimmerVal);
+  };
+
+  const updateGobo = (goboVal: number) => {
+    applyControl('gobo', goboVal);
+  };
+
+  const updateShutter = (shutterVal: number) => {
+    applyControl('shutter', shutterVal);
+  };
+
+  const updateStrobe = (strobeVal: number) => {
+    applyControl('strobe', strobeVal);
+  };
 
   // Custom path editor state
   const [showTrackCustomPathEditor, setShowTrackCustomPathEditor] = useState(false);
@@ -1733,6 +1856,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             <div className={styles.section}>
               <div className={styles.controlRow}>
                 <label>Dimmer</label>
+                {renderMidiButtons('dimmer', 'Dimmer')}
                 <input 
                   type="range" 
                   min="0" 
@@ -1807,6 +1931,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               <div className={styles.panTiltSliders}>
                 <div className={styles.controlRow}>
                   <label>Pan</label>
+                  {renderMidiButtons('pan', 'Pan')}
                   <input 
                     type="range" 
                     min="0" 
@@ -1830,6 +1955,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </div>
                 <div className={styles.controlRow}>
                   <label>Tilt</label>
+                  {renderMidiButtons('tilt', 'Tilt')}
                   <input 
                     type="range" 
                     min="0" 
@@ -1916,6 +2042,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               <div className={styles.rgbSliders}>
                 <div className={styles.controlRow}>
                   <label style={{ color: '#ff0000' }}>Red</label>
+                  {renderMidiButtons('red', 'Red')}
                   <input 
                     type="range" 
                     min="0" 
@@ -1932,6 +2059,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </div>
                 <div className={styles.controlRow}>
                   <label style={{ color: '#00ff00' }}>Green</label>
+                  {renderMidiButtons('green', 'Green')}
                   <input 
                     type="range" 
                     min="0" 
@@ -1948,6 +2076,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </div>
                 <div className={styles.controlRow}>
                   <label style={{ color: '#0000ff' }}>Blue</label>
+                  {renderMidiButtons('blue', 'Blue')}
                   <input 
                     type="range" 
                     min="0" 
@@ -1975,6 +2104,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             <div className={styles.section}>
               <div className={styles.controlRow}>
                 <label>GOBO Wheel</label>
+                {renderMidiButtons('gobo', 'GOBO')}
                 <input 
                   type="range" 
                   min="0" 
@@ -2035,6 +2165,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               </div>
               <div className={styles.controlRow}>
                 <label>Shutter</label>
+                {renderMidiButtons('shutter', 'Shutter')}
                 <input 
                   type="range" 
                   min="0" 
@@ -2051,6 +2182,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               </div>
               <div className={styles.controlRow}>
                 <label>Strobe Speed</label>
+                {renderMidiButtons('strobe', 'Strobe')}
                 <input 
                   type="range" 
                   min="0" 
