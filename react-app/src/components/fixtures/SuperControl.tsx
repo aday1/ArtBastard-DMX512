@@ -1630,6 +1630,83 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
           {/* Movement & Position Controls */}
           <div className={styles.sliderSection}>
             <h4>Movement & Position</h4>
+            
+            {/* Pan Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Pan</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={panValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setPanValue(val);
+                    applyControl('pan', val);
+                    // Sync with XY pad
+                    setPanTiltXY(prev => ({ ...prev, x: (val / 255) * 100 }));
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={panValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setPanValue(val);
+                    applyControl('pan', val);
+                    // Sync with XY pad
+                    setPanTiltXY(prev => ({ ...prev, x: (val / 255) * 100 }));
+                  }}
+                  className={styles.valueInput}
+                />
+                <span className={styles.oscAddress}>{oscAddresses.pan}</span>
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('pan')}</div>
+              {renderMidiButtons('pan')}
+            </div>
+
+            {/* Tilt Control */}
+            <div className={styles.controlWithChannel}>
+              <label>Tilt</label>
+              <div className={styles.controlInputs}>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="255" 
+                  value={tiltValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setTiltValue(val);
+                    applyControl('tilt', val);
+                    // Sync with XY pad (invert Y for display)
+                    setPanTiltXY(prev => ({ ...prev, y: ((255 - val) / 255) * 100 }));
+                  }}
+                  className={styles.slider}
+                />
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="255" 
+                  value={tiltValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    setTiltValue(val);
+                    applyControl('tilt', val);
+                    // Sync with XY pad (invert Y for display)
+                    setPanTiltXY(prev => ({ ...prev, y: ((255 - val) / 255) * 100 }));
+                  }}
+                  className={styles.valueInput}
+                />
+                <span className={styles.oscAddress}>{oscAddresses.tilt}</span>
+              </div>
+              <div className={styles.channelDisplay}>{getDmxChannelForControl('tilt')}</div>
+              {renderMidiButtons('tilt')}
+            </div>
+            
               {/* Focus Control */}
             <div className={styles.controlWithChannel}>
               <label>Focus</label>
@@ -2312,7 +2389,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('dimmer', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.dimmer}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('dimmer')}</div>
               {renderMidiButtons('dimmer')}
             </div>
@@ -2344,7 +2423,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('shutter', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.shutter}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('shutter')}</div>
               {renderMidiButtons('shutter')}
             </div>
@@ -2376,7 +2457,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('strobe', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.strobe}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('strobe')}</div>
               {renderMidiButtons('strobe')}
             </div>
@@ -2408,7 +2491,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     applyControl('gobo', val);
                   }}
                   className={styles.valueInput}
-                />              </div>
+                />
+                <span className={styles.oscAddress}>{oscAddresses.gobo}</span>
+              </div>
               <div className={styles.channelDisplay}>{getDmxChannelForControl('gobo')}</div>
               {renderMidiButtons('gobo')}
             </div>
