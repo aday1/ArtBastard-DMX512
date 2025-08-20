@@ -2166,27 +2166,33 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               </div></div>
             
             <div className={styles.panTiltControls}>
-              <button 
-                className={styles.centerResetBtn}
-                onClick={resetPanTiltToCenter}
-                title="Reset Pan/Tilt to center position"
-              >
-                <LucideIcon name="Target" />
-                Reset to Center
-              </button>
-              <button 
-                className={styles.fineResetBtn}
-                onClick={() => {
-                  setFinePanValue(0);
-                  setFineTiltValue(0);
-                  applyControl('finePan', 0);
-                  applyControl('fineTilt', 0);
-                }}
-                title="Reset Fine adjustments to 0"
-              >
-                <LucideIcon name="RotateCcw" />
-                Reset Fine
-              </button>
+              <div className={styles.controlWithChannel}>
+                <button 
+                  className={styles.centerResetBtn}
+                  onClick={resetPanTiltToCenter}
+                  title="Reset Pan/Tilt to center position"
+                >
+                  <LucideIcon name="Target" />
+                  Reset to Center
+                </button>
+                {renderMidiButtons('resetPanTiltToCenter')}
+              </div>
+              <div className={styles.controlWithChannel}>
+                <button 
+                  className={styles.fineResetBtn}
+                  onClick={() => {
+                    setFinePanValue(0);
+                    setFineTiltValue(0);
+                    applyControl('finePan', 0);
+                    applyControl('fineTilt', 0);
+                  }}
+                  title="Reset Fine adjustments to 0"
+                >
+                  <LucideIcon name="RotateCcw" />
+                  Reset Fine
+                </button>
+                {renderMidiButtons('resetFinePanTilt')}
+              </div>
             </div>
             
             <div className={styles.xyPositionDisplay}>
@@ -2207,20 +2213,26 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 <LucideIcon name="Navigation" />
                 Autopilot Track
               </h4>
-              <button
-                className={`${styles.autopilotToggle} ${autopilotTrackEnabled ? styles.active : ''}`}
-                onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
-                title={autopilotTrackEnabled ? "Disable Autopilot" : "Enable Autopilot"}
-              >
-                <LucideIcon name={autopilotTrackEnabled ? "Pause" : "Play"} />
-                {autopilotTrackEnabled ? "Stop" : "Start"}
-              </button>
+              <div className={styles.controlRow}>
+                <button
+                  className={`${styles.autopilotToggle} ${autopilotTrackEnabled ? styles.active : ''}`}
+                  onClick={() => setAutopilotTrackEnabled(!autopilotTrackEnabled)}
+                  title={autopilotTrackEnabled ? "Disable Autopilot" : "Enable Autopilot"}
+                >
+                  <LucideIcon name={autopilotTrackEnabled ? "Pause" : "Play"} />
+                  {autopilotTrackEnabled ? "Stop" : "Start"}
+                </button>
+                {renderMidiButtons('autopilotTrackEnabled')}
+              </div>
             </div>
               {autopilotTrackEnabled && (
               <div className={styles.autopilotSettings}>
                 <div className={styles.controlRow}>
-                  <label>Track Type</label>                    <select
-                      value={autopilotTrackType}                      onChange={(e) => {
+                  <label>Track Type</label>
+                  <div className={styles.controlInputs}>
+                    <select
+                      value={autopilotTrackType}
+                      onChange={(e) => {
                         setAutopilotTrackType(e.target.value as any);
                         // Trigger immediate update when track type changes
                         console.log('[AUTOPILOT] Track type changed to:', e.target.value);
@@ -2238,6 +2250,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       <option value="linear">Linear</option>
                       <option value="random">Random</option>
                     </select>
+                  </div>
+                  {renderMidiButtons('autopilotTrackType')}
                 </div>
 
                 <div className={styles.controlRow}>
@@ -2247,7 +2261,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="0"
                       max="100"
-                      value={autopilotTrackPosition}                      onChange={(e) => {
+                      value={autopilotTrackPosition}
+                      onChange={(e) => {
                         const newPosition = parseInt(e.target.value);
                         console.log('[AUTOPILOT] Position slider changed from', autopilotTrackPosition, 'to', newPosition);
                         setAutopilotTrackPosition(newPosition);
@@ -2268,6 +2283,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     />
                     <span className={styles.valueDisplay}>{autopilotTrackPosition}%</span>
                   </div>
+                  {renderMidiButtons('autopilotTrackPosition')}
                 </div>
                 
                 <div className={styles.controlRow}>
@@ -2284,6 +2300,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     />
                     <span className={styles.valueDisplay}>{autopilotTrackSpeed.toFixed(0)}x</span>
                   </div>
+                  {renderMidiButtons('autopilotTrackSpeed')}
                 </div>
                 
                 <div className={styles.controlRow}>
@@ -2293,7 +2310,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="10"
                       max="100"
-                      value={autopilotTrackSize}                      onChange={(e) => {
+                      value={autopilotTrackSize}
+                      onChange={(e) => {
                         setAutopilotTrackSize(parseInt(e.target.value));
                         console.log('[AUTOPILOT] Size changed to:', e.target.value);
                         // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackSize in store
@@ -2302,15 +2320,17 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     />
                     <span className={styles.valueDisplay}>{autopilotTrackSize}%</span>
                   </div>
+                  {renderMidiButtons('autopilotTrackSize')}
                 </div>
-                  <div className={styles.controlRow}>
+                <div className={styles.controlRow}>
                   <label>Center X</label>
                   <div className={styles.controlInputs}>
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={(autopilotTrackCenterX / 255) * 100}                      onChange={(e) => {
+                      value={(autopilotTrackCenterX / 255) * 100}
+                      onChange={(e) => {
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(dmxValue, autopilotTrackCenterY);
@@ -2321,6 +2341,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                     />
                     <span className={styles.valueDisplay}>{Math.round((autopilotTrackCenterX / 255) * 100)}%</span>
                   </div>
+                  {renderMidiButtons('autopilotTrackCenterX')}
                 </div>
                 
                 <div className={styles.controlRow}>
@@ -2330,7 +2351,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       type="range"
                       min="0"
                       max="100"
-                      value={(autopilotTrackCenterY / 255) * 100}                      onChange={(e) => {
+                      value={(autopilotTrackCenterY / 255) * 100}
+                      onChange={(e) => {
                         const percentValue = parseInt(e.target.value);
                         const dmxValue = Math.round((percentValue / 100) * 255);
                         setAutopilotTrackCenter(autopilotTrackCenterX, dmxValue);
@@ -2339,7 +2361,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       }}
                       className={styles.slider}
                     />
-                    <span className={styles.valueDisplay}>{Math.round((autopilotTrackCenterY / 255) * 100)}%</span>                  </div>
+                    <span className={styles.valueDisplay}>{Math.round((autopilotTrackCenterY / 255) * 100)}%</span>
+                  </div>
+                  {renderMidiButtons('autopilotTrackCenterY')}
                 </div>
                 
                 <div className={styles.controlRow}>
@@ -2379,7 +2403,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   >
                     <LucideIcon name="Repeat" />
                     Auto Loop
-                  </button>                  <button
+                  </button>
+                  {renderMidiButtons('autopilotTrackAutoPlay')}
+                  <button
                     className={styles.actionBtn}
                     onClick={() => {
                       console.log('🔧 ENHANCED AUTOPILOT DEBUG REPORT');
@@ -2503,7 +2529,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                         console.log('❌ Issues found - fix the problems listed above');
                       }
                     }}
-                    title="Enhanced autopilot debug with full analysis"                  >
+                    title="Enhanced autopilot debug with full analysis"
+                  >
                     <LucideIcon name="Bug" />
                     Debug
                   </button>
@@ -2971,55 +2998,64 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
 
           {/* Enhanced Action Buttons */}
           <div className={styles.actionButtons}>
-            <button
-              className={`${styles.actionBtn} ${styles.flashBtn} ${isFlashing ? styles.active : ''}`}
-              onClick={handleFlash}
-              disabled={isFlashing}
-              title="Flash (Quick Bright Pulse)"
-            >
-              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              Flash
-            </button>
+            <div className={styles.controlWithChannel}>
+              <button
+                className={`${styles.actionBtn} ${styles.flashBtn} ${isFlashing ? styles.active : ''}`}
+                onClick={handleFlash}
+                disabled={isFlashing}
+                title="Flash (Quick Bright Pulse)"
+              >
+                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                Flash
+              </button>
+              {renderMidiButtons('flash')}
+            </div>
 
-            <button
-              className={`${styles.actionBtn} ${styles.strobeBtn} ${isStrobing ? styles.active : ''}`}
-              onClick={handleStrobe}
-              title={isStrobing ? "Stop Strobing" : "Start Strobing"}
-            >
-              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="4" />
-                <path d="m21.17 8.17-2.83-2.83" />
-                <path d="m6.66 8.17 2.83-2.83" />
-                <path d="m21.17 15.83-2.83 2.83" />
-                <path d="m6.66 15.83 2.83 2.83" />
-                <path d="M8.17 21.17 8.17 18.34" />
-                <path d="M15.83 21.17 15.83 18.34" />
-                <path d="M8.17 6.66 8.17 2.83" />
-                <path d="M15.83 6.66 15.83 2.83" />
-              </svg>
-              {isStrobing ? 'Stop' : 'Strobing'}
-            </button>
+            <div className={styles.controlWithChannel}>
+              <button
+                className={`${styles.actionBtn} ${styles.strobeBtn} ${isStrobing ? styles.active : ''}`}
+                onClick={handleStrobe}
+                title={isStrobing ? "Stop Strobing" : "Start Strobing"}
+              >
+                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="m21.17 8.17-2.83-2.83" />
+                  <path d="m6.66 8.17 2.83-2.83" />
+                  <path d="m21.17 15.83-2.83 2.83" />
+                  <path d="m6.66 15.83 2.83 2.83" />
+                  <path d="M8.17 21.17 8.17 18.34" />
+                  <path d="M15.83 21.17 15.83 18.34" />
+                  <path d="M8.17 6.66 8.17 2.83" />
+                  <path d="M15.83 6.66 15.83 2.83" />
+                </svg>
+                {isStrobing ? 'Stop' : 'Strobing'}
+              </button>
+              {renderMidiButtons('strobeToggle')}
+            </div>
 
-            <button
-              className={`${styles.actionBtn} ${styles.resetBtn}`}
-              onClick={handleResetAll}
-              title="Reset All Controls to Default"
-            >
-              <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                <path d="M3 21v-5h5" />
-              </svg>
-              Reset All
-            </button>
+            <div className={styles.controlWithChannel}>
+              <button
+                className={`${styles.actionBtn} ${styles.resetBtn}`}
+                onClick={handleResetAll}
+                title="Reset All Controls to Default"
+              >
+                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                  <path d="M3 21v-5h5" />
+                </svg>
+                Reset All
+              </button>
+              {renderMidiButtons('resetAll')}
+            </div>
           </div>
 
           {/* Flash/Strobe Speed Controls */}
           <div className={styles.speedControls}>
-            <div className={styles.controlRow}>
+            <div className={styles.controlWithChannel}>
               <label>Flash Speed (ms)</label>
               <div className={styles.controlInputs}>
                 <input 
@@ -3039,9 +3075,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   className={styles.valueInput}
                 />
               </div>
+              {renderMidiButtons('flashSpeed')}
             </div>
 
-            <div className={styles.controlRow}>
+            <div className={styles.controlWithChannel}>
               <label>Strobe Speed</label>
               <div className={styles.controlInputs}>
                 <input 
@@ -3061,6 +3098,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   className={styles.valueInput}
                 />
               </div>
+              {renderMidiButtons('strobeSpeed')}
             </div>
           </div>
 
