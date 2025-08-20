@@ -2305,7 +2305,45 @@
   }
 }
 
-/* MIDI Learn/Forget Button Styles */
+/* Enhanced MIDI Learn/Forget Button Styles with OSC */
+.midiOscButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+  font-size: 0.75rem;
+}
+
+.oscInfo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  opacity: 0.8;
+}
+
+.oscLabel {
+  color: #00d4ff;
+  font-weight: 500;
+  font-size: 0.7rem;
+}
+
+.oscAddress {
+  color: #a0a0a0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.midiControls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .midiButtons {
   display: flex;
   align-items: center;
@@ -2318,15 +2356,17 @@
   border: none;
   border-radius: 4px;
   color: white;
-  padding: 4px 8px;
+  padding: 5px 10px;
   font-size: 0.75rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 50px;
+  min-width: 70px;
   
   &:hover {
     background: linear-gradient(135deg, #357abd, #2868a3);
     transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
   }
   
   &:active {
@@ -2347,31 +2387,40 @@
 .midiMappingInfo {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .midiMappedIndicator {
   background: rgba(76, 175, 80, 0.2);
   border: 1px solid #4caf50;
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   font-size: 0.7rem;
   color: #4caf50;
   font-weight: 500;
+  font-family: 'Courier New', monospace;
 }
 
 .midiForgetButton {
-  background: rgba(244, 67, 54, 0.2);
-  border: 1px solid #f44336;
-  border-radius: 3px;
-  color: #f44336;
-  padding: 2px 6px;
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 3px 8px;
   font-size: 0.7rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(244, 67, 54, 0.4);
+    background: linear-gradient(135deg, #d32f2f, #b71c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 }
 

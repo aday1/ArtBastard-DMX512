@@ -274,6 +274,23 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     panTiltXY: '/supercontrol/pantilt/xy',
     autopilotEnable: '/supercontrol/autopilot/enable',
     autopilotSpeed: '/supercontrol/autopilot/speed',
+    // Additional Autopilot Track Controls
+    autopilotTrackEnabled: '/supercontrol/autopilot/enabled',
+    autopilotTrackType: '/supercontrol/autopilot/type',
+    autopilotTrackPosition: '/supercontrol/autopilot/position',
+    autopilotTrackSize: '/supercontrol/autopilot/size',
+    autopilotTrackCenterX: '/supercontrol/autopilot/center/x',
+    autopilotTrackCenterY: '/supercontrol/autopilot/center/y',
+    autopilotTrackAutoPlay: '/supercontrol/autopilot/autoplay',
+    // Action Controls
+    flash: '/supercontrol/action/flash',
+    strobeToggle: '/supercontrol/action/strobe/toggle',
+    resetAll: '/supercontrol/action/reset/all',
+    flashSpeed: '/supercontrol/action/flash/speed',
+    strobeSpeed: '/supercontrol/action/strobe/speed',
+    // Position Controls
+    resetPanTiltToCenter: '/supercontrol/action/pantilt/center',
+    resetFinePanTilt: '/supercontrol/action/pantilt/fine/reset',
     sceneNext: '/supercontrol/scene/next',
     scenePrev: '/supercontrol/scene/prev',
     sceneSave: '/supercontrol/scene/save',
@@ -961,32 +978,44 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   const renderMidiButtons = (controlName: string) => {
     const isCurrentlyLearning = isSuperControlLearning && currentLearningControlName === controlName;
     const hasMapping = superControlMappings[controlName];
+    const oscAddress = oscAddresses[controlName];
     
     return (
-      <div className={styles.midiButtons}>
-        {!hasMapping ? (
-          <button
-            className={`${styles.midiLearnButton} ${isCurrentlyLearning ? styles.learning : ''}`}
-            onClick={() => startSuperControlMidiLearn(controlName)}
-            disabled={isSuperControlLearning && !isCurrentlyLearning}
-            title={isCurrentlyLearning ? 'Send MIDI CC or Note...' : 'Learn MIDI mapping'}
-          >
-            {isCurrentlyLearning ? 'Learning...' : 'Learn'}
-          </button>
-        ) : (
-          <div className={styles.midiMappingInfo}>
-            <span className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel}`}>
-              🎹 {hasMapping.controller ? `CC${hasMapping.controller}` : `N${hasMapping.note}`}
-            </span>
-            <button
-              className={styles.midiForgetButton}
-              onClick={() => forgetSuperControlMidiMapping(controlName)}
-              title="Remove MIDI mapping"
-            >
-              ✕
-            </button>
+      <div className={styles.midiOscButtons}>
+        {/* OSC Address Display */}
+        {oscAddress && (
+          <div className={styles.oscInfo}>
+            <span className={styles.oscLabel}>OSC:</span>
+            <span className={styles.oscAddress}>{oscAddress}</span>
           </div>
         )}
+        
+        {/* MIDI Learn/Forget Buttons */}
+        <div className={styles.midiControls}>
+          {!hasMapping ? (
+            <button
+              className={`${styles.midiLearnButton} ${isCurrentlyLearning ? styles.learning : ''}`}
+              onClick={() => startSuperControlMidiLearn(controlName)}
+              disabled={isSuperControlLearning && !isCurrentlyLearning}
+              title={isCurrentlyLearning ? 'Send MIDI CC or Note...' : 'Learn MIDI mapping'}
+            >
+              {isCurrentlyLearning ? '🎵 Listening...' : 'MIDI Learn'}
+            </button>
+          ) : (
+            <div className={styles.midiMappingInfo}>
+              <span className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel + 1}`}>
+                MIDI: {hasMapping.controller ? `CC${hasMapping.controller}` : `N${hasMapping.note}`} CH{hasMapping.channel + 1}
+              </span>
+              <button
+                className={styles.midiForgetButton}
+                onClick={() => forgetSuperControlMidiMapping(controlName)}
+                title="Remove MIDI mapping"
+              >
+                Forget
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
