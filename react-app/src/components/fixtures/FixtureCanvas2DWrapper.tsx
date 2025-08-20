@@ -1,10 +1,11 @@
 import React from 'react';
-import { FixtureCanvas2D } from './FixtureCanvas2D';
+import { FixtureCanvasKonva } from './FixtureCanvasKonva';
 import { useStore } from '../../store';
 
 /**
- * Wrapper component for FixtureCanvas2D that connects to the store
+ * Wrapper component for FixtureCanvasKonva that connects to the store
  * This allows the 2D canvas to be used as a droppable component in the panel system
+ * Now using Konva.js for professional 2D rendering with MIDI/OSC quick access
  */
 export const FixtureCanvas2DWrapper: React.FC = () => {
   const { 
@@ -22,7 +23,7 @@ export const FixtureCanvas2DWrapper: React.FC = () => {
   };
 
   return (
-    <FixtureCanvas2D
+    <FixtureCanvasKonva
       fixtures={fixtures}
       placedFixturesData={placedFixtures}
       onUpdatePlacedFixtures={handleUpdatePlacedFixtures}
