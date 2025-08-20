@@ -52,9 +52,15 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     colorSliderAutopilot,
     setAutopilotTrackEnabled,
     setAutopilotTrackAutoPlay,
+    setAutopilotTrackSpeed,
     togglePanTiltAutopilot,
     toggleColorSliderAutopilot,
-    debugAutopilotState
+    setPanTiltAutopilot,
+    setColorSliderAutopilot,
+    debugAutopilotState,
+    startMidiLearn,
+    cancelMidiLearn,
+    midiLearnTarget,
   } = useStore();
 
   // Listen for MIDI input data from socket
@@ -378,6 +384,21 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 <span className={styles.autopilotIcon}>🤖</span>
                 Track {autopilotTrackEnabled ? 'ON' : 'OFF'}
               </button>
+              <div className={styles.midiLearnContainer}>
+                <button
+                  className={`${styles.midiLearnButton} ${midiLearnTarget?.type === 'superControl' && midiLearnTarget?.controlName === 'autopilotTrackToggle' ? styles.learning : ''}`}
+                  onClick={() => {
+                    if (midiLearnTarget?.type === 'superControl' && midiLearnTarget?.controlName === 'autopilotTrackToggle') {
+                      cancelMidiLearn();
+                    } else {
+                      startMidiLearn({ type: 'superControl', controlName: 'autopilotTrackToggle' });
+                    }
+                  }}
+                >
+                  Learn
+                </button>
+                <span className={styles.oscAddress}>/control/autopilotTrackToggle</span>
+              </div>
               
               <button
                 className={`${styles.autopilotButton} ${panTiltAutopilot.enabled ? styles.active : ''}`}
@@ -398,6 +419,33 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
               </button>
             </div>
             
+            <div className={styles.autopilotSpeedControls}>
+              <div className={styles.speedControl}>
+                <label>P/T Speed</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={panTiltAutopilot.speed}
+                  onChange={(e) => setPanTiltAutopilot({ speed: parseFloat(e.target.value) })}
+                />
+                <span>{panTiltAutopilot.speed.toFixed(1)}x</span>
+              </div>
+              <div className={styles.speedControl}>
+                <label>Color Speed</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={colorSliderAutopilot.speed}
+                  onChange={(e) => setColorSliderAutopilot({ speed: parseFloat(e.target.value) })}
+                />
+                <span>{colorSliderAutopilot.speed.toFixed(1)}x</span>
+              </div>
+            </div>
+
             {(autopilotTrackEnabled || panTiltAutopilot.enabled || colorSliderAutopilot.enabled || Object.keys(channelAutopilots).length > 0) && (
               <div className={styles.autopilotStatus}>
                 <div className={styles.statusIndicators}>
