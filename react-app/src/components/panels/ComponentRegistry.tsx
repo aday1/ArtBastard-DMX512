@@ -15,7 +15,7 @@ import { AudioControlPanel } from '../audio/AudioControlPanel';
 import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
-import { FixtureCanvas2DWrapper } from '../fixtures/FixtureCanvas2DWrapper';
+import { FixtureCanvasInteractive } from '../fixtures/FixtureCanvasInteractive';
 import TouchOSCDemo from '../demo/TouchOSCDemo';
 
 export interface ComponentDefinition {
@@ -125,7 +125,7 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     description: 'Visual fixture layout and control',
     category: 'fixtures',
     icon: 'fas fa-vector-square',
-    component: FixtureCanvas2DWrapper,
+    component: FixtureCanvasInteractive,
     minSize: { width: 800, height: 600 },
   },
   'fixture-setup': {

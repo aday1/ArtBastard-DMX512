@@ -102,10 +102,13 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
 
     const newPlacedFixture: PlacedFixture = {
       id: `placed-${Date.now()}`,
+      fixtureId: fixtureDef.id,
       fixtureStoreId: fixtureDef.id,
       name: `${fixtureDef.name} ${placedFixturesData.length + 1}`,
       x: snapX,
       y: snapY,
+      color: getFixtureColor(fixtureDef.type),
+      radius: 40,
       startAddress: getNextAvailableAddress(),
       scale: 1,
     };
