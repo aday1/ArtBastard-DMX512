@@ -1,0 +1,730 @@
+// Professional Interactive 2D Canvas
+.canvasContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #2d2d2d 100%);
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+// Toolbar Styles
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  z-index: 100;
+}
+
+.toolSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.toolButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+  }
+  
+  &.active {
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    border-color: #00d4ff;
+    box-shadow: 0 0 16px rgba(0, 212, 255, 0.4);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.toggleButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+  
+  &.active {
+    background: rgba(155, 89, 182, 0.3);
+    border-color: #9b59b6;
+    color: #fff;
+  }
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.zoomButton {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.zoomLevel {
+  font-size: 0.8rem;
+  color: #00d4ff;
+  font-weight: bold;
+  min-width: 40px;
+  text-align: center;
+}
+
+.deleteButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  border-radius: 6px;
+  color: #e74c3c;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(231, 76, 60, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3);
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.fixtureSelect {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85rem;
+  min-width: 200px;
+  
+  &:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+  }
+  
+  option {
+    background: #2d2d2d;
+    color: #fff;
+  }
+}
+
+.statusSection {
+  .fixtureCount {
+    color: #00d4ff;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+}
+
+// Canvas Wrapper
+.canvasWrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #1a1a1a 0%, #0d0d0d 100%);
+  cursor: crosshair;
+  
+  &[data-tool="select"] {
+    cursor: default;
+  }
+}
+
+// Grid Background
+.gridBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.gridSvg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+}
+
+// Fixture Items
+.fixtureItem {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+  height: 100px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #444;
+  border-radius: 12px;
+  cursor: grab;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    border-color: #00d4ff;
+  }
+  
+  &.selected {
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    transform: scale(1.05);
+  }
+  
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.fixtureIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  
+  svg {
+    width: 20px;
+    height: 20px;
+    color: #fff;
+  }
+}
+
+.fixtureInfo {
+  text-align: center;
+  flex: 1;
+}
+
+.fixtureName {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70px;
+}
+
+.fixtureAddress {
+  font-size: 0.65rem;
+  color: #00d4ff;
+  font-weight: bold;
+}
+
+.statusLight {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #27ae60;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  box-shadow: 0 0 6px rgba(39, 174, 96, 0.8);
+}
+
+.quickActions {
+  display: flex;
+  gap: 2px;
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fixtureItem:hover .quickActions {
+  opacity: 1;
+}
+
+.miniButton {
+  flex: 1;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: #ccc;
+  font-size: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+}
+
+// Controls Panel
+.controlsPanel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 350px;
+  max-height: calc(100vh - 120px);
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.controlsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #fff;
+  
+  h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .address {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    font-weight: normal;
+  }
+}
+
+.closeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  padding: 6px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.channelControls {
+  padding: 20px 24px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.5);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba(0, 212, 255, 0.7);
+    }
+  }
+}
+
+.channelControl {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.3);
+    transform: translateY(-1px);
+  }
+}
+
+.channelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.channelName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.channelValue {
+  font-size: 0.9rem;
+  color: #00d4ff;
+  font-weight: bold;
+  background: rgba(0, 212, 255, 0.15);
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 35px;
+  text-align: center;
+}
+
+.channelSlider {
+  width: 100%;
+  margin: 12px 0;
+  appearance: none;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  outline: none;
+  position: relative;
+  
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0, 212, 255, 0.4);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.2);
+      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.6);
+    }
+  }
+  
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 3px 8px rgba(0, 212, 255, 0.4);
+  }
+}
+
+.channelActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.midiButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(155, 89, 182, 0.2);
+  border: 1px solid rgba(155, 89, 182, 0.4);
+  border-radius: 6px;
+  color: #9b59b6;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(155, 89, 182, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(155, 89, 182, 0.3);
+  }
+  
+  &.learning {
+    background: rgba(231, 76, 60, 0.3);
+    border-color: #e74c3c;
+    color: #fff;
+    animation: pulse 1.5s infinite;
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.oscButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(52, 152, 219, 0.2);
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  border-radius: 6px;
+  color: #3498db;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(52, 152, 219, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+// Advanced Controls
+.advancedControls {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+  
+  h4 {
+    margin: 0 0 12px 0;
+    color: #f39c12;
+    font-size: 1rem;
+  }
+}
+
+.advancedGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: #ccc;
+  }
+}
+
+.addressInput {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.85rem;
+  width: 80px;
+  
+  &:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
+  }
+}
+
+.duplicateButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(243, 156, 18, 0.2);
+  border: 1px solid rgba(243, 156, 18, 0.4);
+  border-radius: 6px;
+  color: #f39c12;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(243, 156, 18, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+// Empty State
+.emptyState {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #666;
+  z-index: 5;
+  
+  svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+    color: #444;
+  }
+  
+  h3 {
+    margin: 0 0 12px 0;
+    color: #888;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 1rem;
+    max-width: 300px;
+    line-height: 1.5;
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .controlsPanel {
+    width: 300px;
+    right: 10px;
+    top: 70px;
+  }
+  
+  .toolbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    
+    .toolSection {
+      gap: 8px;
+    }
+    
+    .toolGroup {
+      padding: 0 8px;
+    }
+  }
+  
+  .toolButton {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+  
+  .fixtureItem {
+    width: 70px;
+    height: 90px;
+    padding: 6px;
+  }
+  
+  .fixtureIcon {
+    width: 35px;
+    height: 35px;
+    
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+}

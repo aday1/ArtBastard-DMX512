@@ -111,7 +111,8 @@ const demoPlacedFixtures = [
  * Features:
  * - Professional rendering with Konva.js
  * - MIDI Learn/Forget buttons for all controls
- export const FixtureCanvasDemo: React.FC = () => {
+ */
+export const FixtureCanvasDemo: React.FC = () => {
   const [placedFixtures, setPlacedFixtures] = React.useState(demoPlacedFixtures);
 
   const handleUpdatePlacedFixtures = (updatedFixtures: any[]) => {

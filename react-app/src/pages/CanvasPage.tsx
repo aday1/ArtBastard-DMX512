@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { FixtureCanvas2D } from '../components/fixtures/FixtureCanvas2D'
+import { FixtureCanvasInteractive } from '../components/fixtures/FixtureCanvasInteractive'
 import { CanvasImageUpload } from '../components/fixtures/CanvasImageUpload'
 import ScenePanel from '../components/scenes/ScenePanel'
 import { useStore } from '../store'
@@ -112,9 +112,9 @@ const CanvasPage: React.FC = () => {
             />
           </div>
           
-          {/* 2D Fixture Canvas */}
-          <FixtureCanvas2D
-            fixtures={fixtures} 
+          {/* Professional Interactive 2D Canvas */}
+          <FixtureCanvasInteractive
+            fixtures={fixtures}
             placedFixturesData={fixtureLayout}
             onUpdatePlacedFixtures={handleUpdatePlacedFixtures}
           />

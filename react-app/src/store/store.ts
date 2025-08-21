@@ -181,6 +181,7 @@ export interface PlacedFixture {
   y: number;
   color: string;
   radius: number;
+  scale?: number; // Scale for 2D canvas display
   startAddress: number; // DMX start address for this fixture
   controls?: PlacedControl[]; // Optional array for controls associated with this fixture
 }

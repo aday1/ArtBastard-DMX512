@@ -1,0 +1,125 @@
+{
+  "version": "1.0.0",
+  "timestamp": 1704067200000,
+  "isDefault": true,
+  "description": "Default ArtBastard DMX512 Configuration - All MIDI/OSC mappings and settings",
+  "midiMappings": {
+    "dimmer": {
+      "channel": 0,
+      "cc": 1,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "pan": {
+      "channel": 0,
+      "cc": 2,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "tilt": {
+      "channel": 0,
+      "cc": 3,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "red": {
+      "channel": 0,
+      "cc": 4,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "green": {
+      "channel": 0,
+      "cc": 5,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "blue": {
+      "channel": 0,
+      "cc": 6,
+      "minValue": 0,
+      "maxValue": 255
+    },
+    "scene_save": {
+      "channel": 0,
+      "cc": 10,
+      "minValue": 0,
+      "maxValue": 127
+    },
+    "scene_next": {
+      "channel": 0,
+      "cc": 11,
+      "minValue": 0,
+      "maxValue": 127
+    },
+    "scene_previous": {
+      "channel": 0,
+      "cc": 12,
+      "minValue": 0,
+      "maxValue": 127
+    }
+  },
+  "oscAddresses": {
+    "dimmer": "/dimmer",
+    "pan": "/pan",
+    "tilt": "/tilt",
+    "red": "/red",
+    "green": "/green",
+    "blue": "/blue",
+    "scene_save": "/scene/save",
+    "scene_next": "/scene/next",
+    "scene_previous": "/scene/previous"
+  },
+  "sceneOscAddresses": {},
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Default Scene",
+      "values": {
+        "1": 255,
+        "2": 127,
+        "3": 127,
+        "4": 255,
+        "5": 255,
+        "6": 255
+      },
+      "timestamp": 1704067200000,
+      "oscAddress": "/scene/1"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      { "i": "selection", "x": 0, "y": 0, "w": 4, "h": 6 },
+      { "i": "monitoring", "x": 4, "y": 0, "w": 8, "h": 6 },
+      { "i": "autopilot", "x": 0, "y": 6, "w": 6, "h": 12 },
+      { "i": "color-autopilot", "x": 6, "y": 6, "w": 6, "h": 8 },
+      { "i": "basic-controls", "x": 6, "y": 14, "w": 6, "h": 4 },
+      { "i": "pan-tilt", "x": 0, "y": 18, "w": 6, "h": 8 },
+      { "i": "rgb", "x": 6, "y": 18, "w": 6, "h": 8 },
+      { "i": "effects", "x": 0, "y": 26, "w": 6, "h": 8 },
+      { "i": "scenes", "x": 6, "y": 26, "w": 6, "h": 8 },
+      { "i": "midi-osc", "x": 0, "y": 34, "w": 8, "h": 6 },
+      { "i": "dmx-channels", "x": 0, "y": 40, "w": 12, "h": 8 }
+    ]
+  },
+  "settings": {
+    "sceneAutoSave": false,
+    "currentSceneIndex": 0,
+    "selectionMode": "channels",
+    "controlValues": {
+      "dimmer": 255,
+      "panValue": 127,
+      "tiltValue": 127,
+      "red": 255,
+      "green": 255,
+      "blue": 255,
+      "gobo": 0,
+      "shutter": 255,
+      "strobe": 0,
+      "lamp": 255,
+      "reset": 0
+    }
+  },
+  "fixtures": [],
+  "groups": []
+}

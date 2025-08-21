@@ -339,9 +339,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     name: string;
     values: Record<number, number>; // DMX channel -> value
     timestamp: number;
+    oscAddress?: string; // Add OSC address to scene
   }>>([]);
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [sceneAutoSave, setSceneAutoSave] = useState(false);
+
+  // Configuration management state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sceneOscAddresses, setSceneOscAddresses] = useState<Record<string, string>>({});
 
   // Get fixture capabilities (fixtures grouped by shared channel types)
   const getFixtureCapabilities = (): FixtureCapability[] => {
@@ -781,6 +786,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             case 'scene_load':
               if (midiValue > 63) loadScene(currentSceneIndex);
               break;
+            default:
+              // Check for individual scene mappings
+              if (action.startsWith('scene-')) {
+                const sceneId = action.replace('scene-', '');
+                const sceneIndex = scenes.findIndex(s => s.id === sceneId);
+                if (sceneIndex !== -1 && midiValue > 63) {
+                  loadScene(sceneIndex);
+                }
+              }
+              break;
           }
         }
       });
@@ -1150,6 +1165,228 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     const prevIndex = currentSceneIndex === 0 ? scenes.length - 1 : currentSceneIndex - 1;
     loadScene(prevIndex);
   };
+
+  // Scene OSC address management
+  const updateSceneOscAddress = (sceneId: string, address: string) => {
+    setSceneOscAddresses(prev => ({
+      ...prev,
+      [sceneId]: address
+    }));
+  };
+
+  const copyOscAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    // Could add a toast notification here
+  };
+
+  // Configuration Export/Import Functions
+  const exportSettings = () => {
+    const config = {
+      version: "1.0.0",
+      timestamp: Date.now(),
+      midiMappings,
+      oscAddresses,
+      sceneOscAddresses,
+      scenes,
+      layouts,
+      settings: {
+        sceneAutoSave,
+        currentSceneIndex,
+        selectionMode,
+        controlValues: {
+          dimmer,
+          panValue,
+          tiltValue,
+          red,
+          green,
+          blue,
+          gobo,
+          shutter,
+          strobe,
+          lamp,
+          reset
+        }
+      },
+      fixtures: fixtures.map(f => ({
+        id: f.id,
+        name: f.name,
+        type: f.type,
+        startAddress: f.startAddress,
+        channels: f.channels
+      })),
+      groups: groups.map(g => ({
+        id: g.id,
+        name: g.name,
+        fixtureIndices: g.fixtureIndices
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `artbastard-config-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importSettings = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const config = JSON.parse(e.target?.result as string);
+        
+        // Validate config structure
+        if (!config.version || !config.midiMappings) {
+          alert('Invalid configuration file format');
+          return;
+        }
+
+        // Import configuration
+        if (config.midiMappings) setMidiMappings(config.midiMappings);
+        if (config.oscAddresses) setOscAddresses(config.oscAddresses);
+        if (config.sceneOscAddresses) setSceneOscAddresses(config.sceneOscAddresses);
+        if (config.scenes) setScenes(config.scenes);
+        if (config.layouts) setLayouts(config.layouts);
+        if (config.settings) {
+          const settings = config.settings;
+          if (settings.sceneAutoSave !== undefined) setSceneAutoSave(settings.sceneAutoSave);
+          if (settings.currentSceneIndex !== undefined) setCurrentSceneIndex(settings.currentSceneIndex);
+          if (settings.selectionMode) setSelectionMode(settings.selectionMode);
+          if (settings.controlValues) {
+            const cv = settings.controlValues;
+            if (cv.dimmer !== undefined) setDimmer(cv.dimmer);
+            if (cv.panValue !== undefined) setPanValue(cv.panValue);
+            if (cv.tiltValue !== undefined) setTiltValue(cv.tiltValue);
+            if (cv.red !== undefined) setRed(cv.red);
+            if (cv.green !== undefined) setGreen(cv.green);
+            if (cv.blue !== undefined) setBlue(cv.blue);
+            if (cv.gobo !== undefined) setGobo(cv.gobo);
+            if (cv.shutter !== undefined) setShutter(cv.shutter);
+            if (cv.strobe !== undefined) setStrobe(cv.strobe);
+            if (cv.lamp !== undefined) setLamp(cv.lamp);
+            if (cv.reset !== undefined) setReset(cv.reset);
+          }
+        }
+
+        alert('Configuration imported successfully!');
+      } catch (error) {
+        console.error('Failed to import configuration:', error);
+        alert('Failed to import configuration. Please check the file format.');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    if (event.target) {
+      event.target.value = '';
+    }
+  };
+
+  const saveAsDefault = () => {
+    const config = {
+      version: "1.0.0",
+      timestamp: Date.now(),
+      isDefault: true,
+      midiMappings,
+      oscAddresses,
+      sceneOscAddresses,
+      scenes,
+      layouts,
+      settings: {
+        sceneAutoSave,
+        currentSceneIndex: 0, // Reset to first scene
+        selectionMode,
+        controlValues: {
+          dimmer,
+          panValue,
+          tiltValue,
+          red,
+          green,
+          blue,
+          gobo,
+          shutter,
+          strobe,
+          lamp,
+          reset
+        }
+      }
+    };
+
+    localStorage.setItem('artbastard-default-config', JSON.stringify(config));
+    alert('Current settings saved as default configuration!');
+  };
+
+  const factoryReset = () => {
+    if (!confirm('Are you sure you want to reset all settings to factory defaults? This cannot be undone.')) {
+      return;
+    }
+
+    // Reset all state to defaults
+    setMidiMappings({});
+    setOscAddresses({});
+    setSceneOscAddresses({});
+    setScenes([]);
+    setCurrentSceneIndex(0);
+    setSceneAutoSave(false);
+    setSelectionMode('channels');
+    setSelectedGroups([]);
+    setSelectedCapabilities([]);
+    
+    // Reset control values
+    setDimmer(255);
+    setPanValue(127);
+    setTiltValue(127);
+    setRed(255);
+    setGreen(255);
+    setBlue(255);
+    setGobo(0);
+    setShutter(255);
+    setStrobe(0);
+    setLamp(255);
+    setReset(0);
+
+    // Reset layouts
+    applyTemplate('balanced');
+    
+    // Clear localStorage
+    localStorage.removeItem('artbastard-default-config');
+    localStorage.removeItem('superControlLayouts');
+
+    alert('Factory reset complete! All settings have been restored to defaults.');
+  };
+
+  // Load default configuration on startup
+  useEffect(() => {
+    try {
+      const defaultConfig = localStorage.getItem('artbastard-default-config');
+      if (defaultConfig) {
+        const config = JSON.parse(defaultConfig);
+        if (config.isDefault) {
+          // Load default settings
+          if (config.midiMappings) setMidiMappings(config.midiMappings);
+          if (config.oscAddresses) setOscAddresses(config.oscAddresses);
+          if (config.sceneOscAddresses) setSceneOscAddresses(config.sceneOscAddresses);
+          if (config.scenes) setScenes(config.scenes);
+          if (config.layouts) setLayouts(config.layouts);
+          console.log('Default configuration loaded successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load default configuration:', error);
+    }
+  }, []);
 
   // MIDI/OSC Integration for Navigation and Scenes
   const setupNavigationMidiOsc = () => {
@@ -1806,6 +2043,48 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 />
               </div>
             </div>
+            {/* Settings Export/Import Controls */}
+            <div className={styles.settingsControls}>
+              <h5>Configuration Management</h5>
+              <div className={styles.configActions}>
+                <button 
+                  className={styles.exportBtn}
+                  onClick={exportSettings}
+                >
+                  <LucideIcon name="Download" />
+                  Export All Settings
+                </button>
+                <button 
+                  className={styles.importBtn}
+                  onClick={importSettings}
+                >
+                  <LucideIcon name="Upload" />
+                  Import Settings
+                </button>
+                <button 
+                  className={styles.defaultBtn}
+                  onClick={saveAsDefault}
+                >
+                  <LucideIcon name="Star" />
+                  Save as Default
+                </button>
+                <button 
+                  className={styles.resetBtn}
+                  onClick={factoryReset}
+                >
+                  <LucideIcon name="RotateCcw" />
+                  Factory Reset
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileImport}
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </div>
+
             {/* Saved Scenes List */}
             {scenes.length > 0 && (
               <div className={styles.scenesList}>
@@ -1833,6 +2112,47 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                           {new Date(scene.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
+                      
+                      {/* Scene MIDI/OSC Controls */}
+                      <div className={styles.sceneConnectionControls}>
+                        <div className={styles.sceneMidiSection}>
+                          <button 
+                            className={`${styles.midiLearnBtn} ${styles.small} ${midiLearnTarget === `scene-${scene.id}` ? styles.learning : ''}`}
+                            onClick={() => midiLearnTarget === `scene-${scene.id}` ? stopMidiLearn() : startMidiLearn(`scene-${scene.id}`)}
+                          >
+                            <LucideIcon name="Music" />
+                            MIDI
+                          </button>
+                          {midiMappings[`scene-${scene.id}`] && (
+                            <div className={styles.midiInfo}>
+                              <span>CH{midiMappings[`scene-${scene.id}`].channel} CC{midiMappings[`scene-${scene.id}`].cc}</span>
+                              <button 
+                                className={styles.clearBtn}
+                                onClick={() => clearMidiMapping(`scene-${scene.id}`)}
+                              >
+                                <LucideIcon name="X" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.sceneOscSection}>
+                          <input 
+                            type="text" 
+                            placeholder="OSC Address"
+                            className={`${styles.oscInput} ${styles.small}`}
+                            defaultValue={`/scene/${index + 1}`}
+                            onBlur={(e) => updateSceneOscAddress(scene.id, e.target.value)}
+                          />
+                          <button 
+                            className={styles.copyOscBtn}
+                            onClick={() => copyOscAddress(`/scene/${index + 1}`)}
+                            title="Copy OSC Address"
+                          >
+                            <LucideIcon name="Copy" />
+                          </button>
+                        </div>
+                      </div>
+
                       <button 
                         className={styles.loadSceneBtn}
                         onClick={() => loadScene(index)}
