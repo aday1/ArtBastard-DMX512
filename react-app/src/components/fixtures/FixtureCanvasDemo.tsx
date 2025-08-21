@@ -4,22 +4,28 @@ import { FixtureCanvasKonva } from './FixtureCanvasKonva';
 // Demo data for testing the new Konva canvas
 const demoFixtures = [
   {
+    id: 'fixture_1',
     name: 'Moving Head 1',
+    type: 'moving_head',
+    startAddress: 1,
     channels: [
-      { name: 'pan', description: 'Pan movement' },
-      { name: 'tilt', description: 'Tilt movement' },
-      { name: 'dimmer', description: 'Intensity' },
-      { name: 'color', description: 'Color wheel' }
+      { name: 'pan', type: 'movement' },
+      { name: 'tilt', type: 'movement' },
+      { name: 'dimmer', type: 'intensity' },
+      { name: 'color', type: 'color' }
     ]
   },
   {
+    id: 'fixture_2',
     name: 'LED Par',
+    type: 'led_par',
+    startAddress: 10,
     channels: [
-      { name: 'red', description: 'Red channel' },
-      { name: 'green', description: 'Green channel' },
-      { name: 'blue', description: 'Blue channel' },
-      { name: 'white', description: 'White channel' },
-      { name: 'dimmer', description: 'Master dimmer' }
+      { name: 'red', type: 'color' },
+      { name: 'green', type: 'color' },
+      { name: 'blue', type: 'color' },
+      { name: 'white', type: 'color' },
+      { name: 'dimmer', type: 'intensity' }
     ]
   }
 ];
@@ -27,6 +33,7 @@ const demoFixtures = [
 const demoPlacedFixtures = [
   {
     id: 'demo_1',
+    fixtureId: 'fixture_1',
     name: 'Moving Head 1',
     fixtureStoreId: 'Moving Head 1',
     startAddress: 1,
@@ -38,7 +45,7 @@ const demoPlacedFixtures = [
       {
         id: 'ctrl_1',
         label: 'Pan/Tilt',
-        type: 'xypad',
+        type: 'xypad' as const,
         channelNameInFixture: 'pan',
         xOffset: 80,
         yOffset: 0,
@@ -49,7 +56,7 @@ const demoPlacedFixtures = [
       {
         id: 'ctrl_2',
         label: 'Dimmer',
-        type: 'slider',
+        type: 'slider' as const,
         channelNameInFixture: 'dimmer',
         xOffset: -80,
         yOffset: 0,
@@ -59,6 +66,7 @@ const demoPlacedFixtures = [
   },
   {
     id: 'demo_2',
+    fixtureId: 'fixture_2',
     name: 'LED Par 1',
     fixtureStoreId: 'LED Par',
     startAddress: 10,
@@ -70,7 +78,7 @@ const demoPlacedFixtures = [
       {
         id: 'ctrl_3',
         label: 'Red',
-        type: 'slider',
+        type: 'slider' as const,
         channelNameInFixture: 'red',
         xOffset: -60,
         yOffset: -40,
@@ -79,7 +87,7 @@ const demoPlacedFixtures = [
       {
         id: 'ctrl_4',
         label: 'Green',
-        type: 'slider',
+        type: 'slider' as const,
         channelNameInFixture: 'green',
         xOffset: 0,
         yOffset: -40,
@@ -88,7 +96,7 @@ const demoPlacedFixtures = [
       {
         id: 'ctrl_5',
         label: 'Blue',
-        type: 'slider',
+        type: 'slider' as const,
         channelNameInFixture: 'blue',
         xOffset: 60,
         yOffset: -40,
@@ -103,12 +111,7 @@ const demoPlacedFixtures = [
  * Features:
  * - Professional rendering with Konva.js
  * - MIDI Learn/Forget buttons for all controls
- * - OSC address quick copy functionality
- * - Interactive XY pads and sliders
- * - Grid snapping and smooth animations
- * - Hover-based control panel display
- */
-export const FixtureCanvasDemo: React.FC = () => {
+ export const FixtureCanvasDemo: React.FC = () => {
   const [placedFixtures, setPlacedFixtures] = React.useState(demoPlacedFixtures);
 
   const handleUpdatePlacedFixtures = (updatedFixtures: any[]) => {
