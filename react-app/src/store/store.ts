@@ -1906,6 +1906,15 @@ export const useStore = create<State>()(
             f.channels.some(c => ['red', 'green', 'blue'].includes(c.type))
           );
 
+          // Only log debug info every 2 seconds to avoid spam
+          const shouldDebug = Math.floor(now / 2000) !== Math.floor((now - 50) / 2000);
+          if (shouldDebug) {
+            console.log('🎨 Color Autopilot Debug:');
+            console.log('  Total fixtures:', get().fixtures.length);
+            console.log('  RGB fixtures found:', fixtures.length);
+            console.log('  RGB fixtures:', fixtures.map(f => f.name));
+          }
+
           if (fixtures.length > 0) {
             const speed = colorSliderAutopilot.syncToBPM ? (bpm / 60) * colorSliderAutopilot.speed : colorSliderAutopilot.speed;
             const phaseOffset = (colorSliderAutopilot.phase / 360) * 2 * Math.PI;
@@ -1975,6 +1984,11 @@ export const useStore = create<State>()(
 
             const rgb = hsvToRgb(hue, saturation, value);
 
+            if (shouldDebug) {
+              console.log('  Calculated HSV:', { h: hue.toFixed(1), s: saturation, v: value });
+              console.log('  Calculated RGB:', rgb);
+            }
+
             // Apply to all RGB fixtures
             fixtures.forEach(fixture => {
               const redChannel = fixture.channels.find(c => c.type === 'red');
@@ -2008,12 +2022,25 @@ export const useStore = create<State>()(
                   blueDmxAddress = (fixture.startAddress || 1) + blueChannelIndex - 1; // Convert to 0-based
                 }
 
+                if (shouldDebug) {
+                  console.log(`  Fixture "${fixture.name}":`, {
+                    redAddr: redDmxAddress,
+                    greenAddr: greenDmxAddress, 
+                    blueAddr: blueDmxAddress,
+                    rgbValues: rgb
+                  });
+                }
+
                 updates[redDmxAddress] = rgb.r;
                 updates[greenDmxAddress] = rgb.g;
                 updates[blueDmxAddress] = rgb.b;
                 hasUpdates = true;
+              } else if (shouldDebug) {
+                console.log(`  Fixture "${fixture.name}": Missing RGB channels`);
               }
             });
+          } else if (shouldDebug) {
+            console.log('  No RGB fixtures found!');
           }
         }
 
