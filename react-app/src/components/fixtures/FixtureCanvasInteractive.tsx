@@ -3,6 +3,8 @@ import Draggable from 'react-draggable';
 import { Fixture, PlacedFixture, PlacedControl, useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import { LucideIcon } from '../ui/LucideIcon';
+import DraggableFixturePalette from './DraggableFixturePalette';
+import { fixtureTemplates } from './fixtureTemplates';
 import styles from './FixtureCanvasInteractive.module.scss';
 
 interface FixtureCanvasInteractiveProps {
@@ -25,10 +27,11 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
   const [gridEnabled, setGridEnabled] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [selectedTool, setSelectedTool] = useState<'select' | 'add'>('select');
-  const [fixtureToAdd, setFixtureToAdd] = useState<string>('');
   const [showControls, setShowControls] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [showFixturePalette, setShowFixturePalette] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const { 
     dmxChannels,
@@ -80,22 +83,48 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
   };
 
   const handleCanvasClick = (event: React.MouseEvent) => {
-    if (selectedTool === 'add' && fixtureToAdd) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (event.clientX - rect.left) / zoom - canvasOffset.x;
-        const y = (event.clientY - rect.top) / zoom - canvasOffset.y;
-        addFixtureToCanvas(fixtureToAdd, x, y);
-        setSelectedTool('select');
-      }
-    } else {
-      setSelectedFixture(null);
-      setShowControls(false);
+    setSelectedFixture(null);
+    setShowControls(false);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const fixtureId = event.dataTransfer.getData('text/plain');
+    
+    if (!fixtureId) return;
+    
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = (event.clientX - rect.left) / zoom - canvasOffset.x;
+      const y = (event.clientY - rect.top) / zoom - canvasOffset.y;
+      addFixtureToCanvas(fixtureId, x, y);
     }
   };
 
   const addFixtureToCanvas = (fixtureType: string, x: number, y: number) => {
-    const fixtureDef = fixtures.find(f => f.id === fixtureType);
+    // Find template or existing fixture
+    let fixtureDef = fixtures.find(f => f.id === fixtureType);
+    let template = fixtureTemplates.find(t => t.id === fixtureType);
+
+    if (!fixtureDef && !template) return;
+
+    // Use template if no existing fixture found
+    if (!fixtureDef && template) {
+      fixtureDef = template as any; // Cast template to fixture format
+    }
+
     if (!fixtureDef) return;
 
     const { x: snapX, y: snapY } = snapToGridPosition(x, y);
@@ -122,7 +151,10 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
       message: `Added ${fixtureDef.name} to canvas`,
     });
 
-    setFixtureToAdd('');
+    // Generate controls immediately after adding the fixture
+    setTimeout(() => {
+      generateControlsForFixture(newPlacedFixture.id);
+    }, 100);
   };
 
   const getNextAvailableAddress = (): number => {
@@ -219,7 +251,15 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
 
   const generateControlsForFixture = (fixtureId: string) => {
     const placedFixture = placedFixturesData.find(f => f.id === fixtureId);
-    const fixtureDef = fixtures.find(f => f.id === placedFixture?.fixtureStoreId);
+    let fixtureDef = fixtures.find(f => f.id === placedFixture?.fixtureStoreId);
+    
+    // If not found in fixtures, check if it's a template
+    if (!fixtureDef && placedFixture?.fixtureStoreId) {
+      const template = fixtureTemplates.find(t => t.id === placedFixture.fixtureStoreId);
+      if (template) {
+        fixtureDef = template as any; // Cast template to fixture format
+      }
+    }
     
     if (!placedFixture || !fixtureDef) return;
 
@@ -314,7 +354,17 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
 
   const handleControlValueChange = (fixtureId: string, controlId: string, value: number, controlType?: 'pan' | 'tilt') => {
     const placedFixture = placedFixturesData.find(f => f.id === fixtureId);
-    const fixtureDef = fixtures.find(f => f.id === placedFixture?.fixtureStoreId);
+    
+    // First try to find existing fixture
+    let fixtureDef = fixtures.find(f => f.id === placedFixture?.fixtureStoreId);
+    
+    // If not found, look in templates
+    if (!fixtureDef && placedFixture) {
+      const template = fixtureTemplates.find(t => t.id === placedFixture.fixtureStoreId);
+      if (template) {
+        fixtureDef = template as any; // Cast template to fixture format
+      }
+    }
     
     if (!placedFixture || !fixtureDef) return;
 
@@ -416,31 +466,14 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
               Select
             </button>
             <button
-              className={`${styles.toolButton} ${selectedTool === 'add' ? styles.active : ''}`}
-              onClick={() => setSelectedTool('add')}
-              title="Add new fixtures to canvas"
+              className={`${styles.toolButton} ${showFixturePalette ? styles.active : ''}`}
+              onClick={() => setShowFixturePalette(!showFixturePalette)}
+              title="Show/hide fixture palette"
             >
-              <LucideIcon name="Plus" />
-              Add Fixture
+              <LucideIcon name="Package" />
+              Fixture Library
             </button>
           </div>
-
-          {selectedTool === 'add' && (
-            <div className={styles.toolGroup}>
-              <select
-                className={styles.fixtureSelect}
-                value={fixtureToAdd}
-                onChange={(e) => setFixtureToAdd(e.target.value)}
-              >
-                <option value="">Select fixture type...</option>
-                {fixtures.map(fixture => (
-                  <option key={fixture.id} value={fixture.id}>
-                    {fixture.name} ({fixture.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
         <div className={styles.toolSection}>
@@ -520,8 +553,11 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
       {/* Interactive Canvas */}
       <div 
         ref={canvasRef}
-        className={styles.canvasWrapper}
+        className={`${styles.canvasWrapper} ${isDragOver ? styles.dragOver : ''}`}
         onClick={handleCanvasClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{ 
           transform: `scale(${zoom})`,
           transformOrigin: 'top left'
@@ -553,7 +589,17 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
 
         {/* Draggable Fixtures */}
         {placedFixturesData.map(placedFixture => {
-          const fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+          // First try to find existing fixture
+          let fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+          
+          // If not found, look in templates
+          if (!fixtureDef) {
+            const template = fixtureTemplates.find(t => t.id === placedFixture.fixtureStoreId);
+            if (template) {
+              fixtureDef = template as any; // Cast template to fixture format
+            }
+          }
+          
           if (!fixtureDef) return null;
 
           return (
@@ -630,7 +676,17 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
         {placedFixturesData.map(placedFixture => {
           if (!placedFixture.controls || placedFixture.controls.length === 0) return null;
 
-          const fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+          // First try to find existing fixture
+          let fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+          
+          // If not found, look in templates
+          if (!fixtureDef) {
+            const template = fixtureTemplates.find(t => t.id === placedFixture.fixtureStoreId);
+            if (template) {
+              fixtureDef = template as any; // Cast template to fixture format
+            }
+          }
+          
           if (!fixtureDef) return null;
 
           return (
@@ -910,6 +966,15 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
             </div>
           </div>
         </div>
+      )}
+
+      {/* Draggable Fixture Palette */}
+      {showFixturePalette && (
+        <DraggableFixturePalette
+          fixtures={fixtures}
+          onFixtureDrop={addFixtureToCanvas}
+          canvasRef={canvasRef}
+        />
       )}
     </div>
   );

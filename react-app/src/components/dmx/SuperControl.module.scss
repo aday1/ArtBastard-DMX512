@@ -1605,10 +1605,72 @@
   flex-direction: column;
   overflow: hidden;
   transition: all 0.3s ease-in-out;
+  position: relative; // Added for resize handles
 }
 
 .gridItem:hover {
   border-color: rgba(0, 212, 255, 0.5);
+}
+
+// Resize handle styles for react-grid-layout
+:global(.react-resizable-handle) {
+  position: absolute;
+  background-color: rgba(0, 212, 255, 0.6) !important;
+  transition: all 0.3s ease;
+  border: none !important;
+  border-radius: 2px;
+}
+
+:global(.react-resizable-handle):hover {
+  background-color: rgba(0, 212, 255, 1) !important;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
+}
+
+:global(.react-resizable-handle-se) {
+  bottom: 4px !important;
+  right: 4px !important;
+  width: 16px !important;
+  height: 16px !important;
+  background: linear-gradient(135deg, transparent 0%, transparent 40%, rgba(0, 212, 255, 0.6) 50%, rgba(0, 212, 255, 0.8) 100%) !important;
+  border-radius: 0 0 6px 0 !important;
+  cursor: nw-resize !important;
+}
+
+:global(.react-resizable-handle-s) {
+  bottom: 4px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 20px !important;
+  height: 6px !important;
+  cursor: ns-resize !important;
+}
+
+:global(.react-resizable-handle-e) {
+  top: 50% !important;
+  right: 4px !important;
+  transform: translateY(-50%) !important;
+  width: 6px !important;
+  height: 20px !important;
+  cursor: ew-resize !important;
+}
+
+// Grid layout container
+:global(.react-grid-layout) {
+  position: relative;
+  transition: height 0.2s ease;
+}
+
+:global(.react-grid-item) {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+:global(.react-grid-item.react-grid-placeholder) {
+  background: rgba(0, 212, 255, 0.2) !important;
+  border: 2px dashed rgba(0, 212, 255, 0.5) !important;
+  border-radius: 8px !important;
+  opacity: 0.8;
+  transition: all 0.3s ease;
 }
 
 .gridItemHeader {

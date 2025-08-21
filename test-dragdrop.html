@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag and Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .palette {
+            background: #2a2a2a;
+            border: 2px solid #404040;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .fixture-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #363636;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: grab;
+            margin-bottom: 10px;
+        }
+        
+        .fixture-item:hover {
+            background: #404040;
+            border-color: #007acc;
+        }
+        
+        .fixture-item.dragging {
+            cursor: grabbing;
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+        
+        .canvas {
+            width: 800px;
+            height: 600px;
+            background: #1e1e1e;
+            border: 2px solid #404040;
+            border-radius: 8px;
+            position: relative;
+            margin: 20px 0;
+        }
+        
+        .canvas.drag-over {
+            border-color: #007acc;
+            background: #1e2a3a;
+        }
+        
+        .placed-fixture {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #007acc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: move;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎭 ArtBastard DMX512 - Drag & Drop Test</h1>
+    
+    <div class="palette">
+        <h3>Fixture Palette</h3>
+        <div class="fixture-item" draggable="true" data-fixture-id="template-moving-head">
+            <span style="background: #ff6b6b; padding: 8px; border-radius: 4px;">⚡</span>
+            Moving Head
+        </div>
+        <div class="fixture-item" draggable="true" data-fixture-id="template-par-rgb">
+            <span style="background: #4ecdc4; padding: 8px; border-radius: 4px;">●</span>
+            RGB Par Can
+        </div>
+        <div class="fixture-item" draggable="true" data-fixture-id="template-led-strip">
+            <span style="background: #45b7d1; padding: 8px; border-radius: 4px;">–</span>
+            LED Strip
+        </div>
+    </div>
+    
+    <div id="canvas" class="canvas">
+        <p style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.5;">
+            Drop fixtures here
+        </p>
+    </div>
+    
+    <div id="log" style="background: #2a2a2a; padding: 15px; border-radius: 8px; max-height: 200px; overflow-y: auto;">
+        <h3>Event Log</h3>
+    </div>
+
+    <script>
+        let placedFixtures = [];
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div style="margin: 5px 0; font-size: 12px;">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Add drag event listeners to fixture items
+        document.querySelectorAll('.fixture-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                const fixtureId = e.target.getAttribute('data-fixture-id');
+                e.dataTransfer.setData('text/plain', fixtureId);
+                e.dataTransfer.effectAllowed = 'copy';
+                e.target.classList.add('dragging');
+                log(`🟡 Started dragging: ${fixtureId}`);
+            });
+            
+            item.addEventListener('dragend', (e) => {
+                e.target.classList.remove('dragging');
+                log(`🔵 Ended dragging`);
+            });
+        });
+        
+        // Canvas drag and drop handlers
+        const canvas = document.getElementById('canvas');
+        
+        canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            canvas.classList.add('drag-over');
+        });
+        
+        canvas.addEventListener('dragleave', (e) => {
+            canvas.classList.remove('drag-over');
+        });
+        
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvas.classList.remove('drag-over');
+            
+            const fixtureId = e.dataTransfer.getData('text/plain');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            log(`🟢 Dropped fixture: ${fixtureId} at (${x.toFixed(0)}, ${y.toFixed(0)})`);
+            
+            // Create visual fixture
+            const fixture = document.createElement('div');
+            fixture.className = 'placed-fixture';
+            fixture.style.left = (x - 20) + 'px';
+            fixture.style.top = (y - 20) + 'px';
+            
+            // Set fixture content based on type
+            const fixtureSymbols = {
+                'template-moving-head': '⚡',
+                'template-par-rgb': '●',
+                'template-led-strip': '–'
+            };
+            fixture.textContent = fixtureSymbols[fixtureId] || '?';
+            
+            canvas.appendChild(fixture);
+            placedFixtures.push({ id: Date.now(), type: fixtureId, x, y });
+            
+            log(`✅ Added fixture to canvas. Total fixtures: ${placedFixtures.length}`);
+        });
+        
+        log('🚀 Drag & Drop test initialized');
+    </script>
+</body>
+</html>
