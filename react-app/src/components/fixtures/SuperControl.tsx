@@ -191,6 +191,120 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     processMidiForControl(latestMessage, controlHandlers);
   }, [midiMessages, groups, processMidiForControl]);
 
+  // Sync SuperControl sliders with actual DMX channel values
+  // This is crucial for showing autocolor/autopilot updates in the UI
+  useEffect(() => {
+    const syncInterval = setInterval(() => {
+      const affectedFixtures = getAffectedFixtures();
+      
+      if (affectedFixtures.length > 0) {
+        // Take the first fixture as reference for display values
+        const referenceFixture = affectedFixtures[0];
+        
+        // Sync color values (RGB)
+        const redChannel = referenceFixture.channels.find(c => c.type === 'red');
+        if (redChannel) {
+          let redAddress: number;
+          if (redChannel.dmxAddress !== undefined) {
+            redAddress = redChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(redChannel);
+            redAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentRed = getDmxChannelValue(redAddress);
+          if (currentRed !== undefined && currentRed !== red) {
+            setRed(currentRed);
+          }
+        }
+        
+        const greenChannel = referenceFixture.channels.find(c => c.type === 'green');
+        if (greenChannel) {
+          let greenAddress: number;
+          if (greenChannel.dmxAddress !== undefined) {
+            greenAddress = greenChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(greenChannel);
+            greenAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentGreen = getDmxChannelValue(greenAddress);
+          if (currentGreen !== undefined && currentGreen !== green) {
+            setGreen(currentGreen);
+          }
+        }
+        
+        const blueChannel = referenceFixture.channels.find(c => c.type === 'blue');
+        if (blueChannel) {
+          let blueAddress: number;
+          if (blueChannel.dmxAddress !== undefined) {
+            blueAddress = blueChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(blueChannel);
+            blueAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentBlue = getDmxChannelValue(blueAddress);
+          if (currentBlue !== undefined && currentBlue !== blue) {
+            setBlue(currentBlue);
+          }
+        }
+        
+        // Sync dimmer
+        const dimmerChannel = referenceFixture.channels.find(c => c.type === 'dimmer');
+        if (dimmerChannel) {
+          let dimmerAddress: number;
+          if (dimmerChannel.dmxAddress !== undefined) {
+            dimmerAddress = dimmerChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(dimmerChannel);
+            dimmerAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentDimmer = getDmxChannelValue(dimmerAddress);
+          if (currentDimmer !== undefined && currentDimmer !== dimmer) {
+            setDimmer(currentDimmer);
+          }
+        }
+        
+        // Sync pan/tilt
+        const panChannel = referenceFixture.channels.find(c => c.type === 'pan');
+        if (panChannel) {
+          let panAddress: number;
+          if (panChannel.dmxAddress !== undefined) {
+            panAddress = panChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(panChannel);
+            panAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentPan = getDmxChannelValue(panAddress);
+          if (currentPan !== undefined && currentPan !== panValue) {
+            setPanValue(currentPan);
+            // Update XY pad position
+            const newX = (currentPan / 255) * 100;
+            setPanTiltXY(prev => ({ ...prev, x: newX }));
+          }
+        }
+        
+        const tiltChannel = referenceFixture.channels.find(c => c.type === 'tilt');
+        if (tiltChannel) {
+          let tiltAddress: number;
+          if (tiltChannel.dmxAddress !== undefined) {
+            tiltAddress = tiltChannel.dmxAddress;
+          } else {
+            const channelIndex = referenceFixture.channels.indexOf(tiltChannel);
+            tiltAddress = (referenceFixture.startAddress || 1) + channelIndex - 1;
+          }
+          const currentTilt = getDmxChannelValue(tiltAddress);
+          if (currentTilt !== undefined && currentTilt !== tiltValue) {
+            setTiltValue(currentTilt);
+            // Update XY pad position (invert Y axis)
+            const newY = (1 - currentTilt / 255) * 100;
+            setPanTiltXY(prev => ({ ...prev, y: newY }));
+          }
+        }
+      }
+    }, 100); // Update every 100ms for responsive UI
+    
+    return () => clearInterval(syncInterval);
+  }, [selectedFixtures, fixtures, getDmxChannelValue]);
+
   // Basic Control State
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);

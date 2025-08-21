@@ -728,3 +728,209 @@
     }
   }
 }
+
+// Canvas Controls Styles
+.controlWrapper {
+  position: absolute;
+  z-index: 50;
+  cursor: move;
+  
+  &.highlighted {
+    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
+    
+    .canvasSlider, .canvasXYPad {
+      border-color: rgba(0, 212, 255, 0.9);
+      box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+    }
+  }
+}
+
+.canvasSlider {
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid rgba(0, 212, 255, 0.6);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 60px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  
+  &.vertical {
+    height: 120px;
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  &.horizontal {
+    width: 120px;
+    height: 60px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.controlLabel {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #00d4ff;
+  text-align: center;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.sliderInput {
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  appearance: slider-vertical; /* Standard */
+  background: linear-gradient(to top, #333, #666);
+  width: 6px;
+  height: 80px;
+  outline: none;
+  border-radius: 3px;
+  cursor: pointer;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
+  }
+  
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
+  }
+}
+
+.sliderValue {
+  font-size: 0.65rem;
+  color: #fff;
+  text-align: center;
+  margin-top: 2px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.canvasXYPad {
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid rgba(255, 107, 107, 0.6);
+  border-radius: 12px;
+  padding: 8px;
+  width: 100px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.xyPadArea {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(45deg, #222 0%, #333 50%, #222 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  position: relative;
+  cursor: crosshair;
+  margin: 4px 0;
+}
+
+.xyGridLines {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.xyHandle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, #ff6b6b 0%, #ff4757 100%);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.8);
+}
+
+.xyValues {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  
+  span {
+    font-size: 0.6rem;
+    color: #ccc;
+    font-weight: 500;
+  }
+}
+
+.controlActions {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.controlsButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(155, 89, 182, 0.2);
+  border: 1px solid rgba(155, 89, 182, 0.4);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(155, 89, 182, 0.3);
+    border-color: rgba(155, 89, 182, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Connection Lines
+.connectionLine {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// Visual enhancements
+.canvasSlider:hover,
+.canvasXYPad:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+.miniButton:hover {
+  background-color: rgba(0, 212, 255, 0.3);
+  transform: scale(1.1);
+}
