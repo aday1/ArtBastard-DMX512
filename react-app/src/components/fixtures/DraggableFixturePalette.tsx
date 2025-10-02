@@ -6,7 +6,7 @@ import styles from './DraggableFixturePalette.module.scss';
 
 interface DraggableFixturePaletteProps {
   fixtures: Fixture[];
-  onFixtureDrop: (fixtureId: string, x: number, y: number) => void;
+  onFixtureDrop?: (fixtureId: string, x: number, y: number) => void;
   canvasRef: React.RefObject<HTMLDivElement>;
 }
 

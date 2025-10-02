@@ -59,189 +59,161 @@ export const TouchDmxChannel: React.FC<TouchDmxChannelProps> = ({
   const intensity = (localValue / 255) * 100;
   return (
     <div
+      className="card card-interactive"
       style={{
         background: isSelected
-          ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(78, 205, 196, 0.4))'
-          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.1))',
-        border: `2px solid ${isSelected ? 'rgba(78, 205, 196, 0.7)' : 'rgba(255, 255, 255, 0.2)'}`,
-        borderRadius: '8px',
-        padding: '0.75rem',
+          ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.15), rgba(78, 205, 196, 0.08))'
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03))',
+        border: `2px solid ${isSelected ? 'rgba(78, 205, 196, 0.6)' : 'rgba(255, 255, 255, 0.15)'}`,
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-md)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '0.5rem',
-        minHeight: '220px', // Reduced from 280px for better scrolling
-        minWidth: '160px', // Reduced from 180px for better fit
+        gap: 'var(--space-sm)',
+        minHeight: '200px',
+        minWidth: '140px',
         position: 'relative',
-        transition: 'all 0.2s ease',
+        transition: 'all var(--transition-normal)',
         touchAction: 'manipulation',
-        color: '#ffffff' // Ensure text is visible on dark backgrounds
+        color: 'var(--color-text-primary)',
+        backdropFilter: 'blur(15px)',
+        boxShadow: isSelected
+          ? '0 8px 32px rgba(78, 205, 196, 0.25)'
+          : '0 4px 16px rgba(0, 0, 0, 0.1)'
       }}
     >      {/* Channel Header */}
       <div
+        className="touch-target"
         onClick={() => onToggleSelection(index)}
         style={{
           width: '100%',
           textAlign: 'center',
           cursor: 'pointer',
-          padding: '0.4rem',
-          borderRadius: '6px',
+          padding: 'var(--space-sm)',
+          borderRadius: 'var(--radius-md)',
           background: isSelected ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          touchAction: 'manipulation'
+          border: `1px solid ${isSelected ? 'rgba(78, 205, 196, 0.4)' : 'rgba(255, 255, 255, 0.2)'}`,
+          touchAction: 'manipulation',
+          transition: 'all var(--transition-fast)'
         }}
       >
         <div style={{
-          fontSize: '0.8rem',
-          fontWeight: '600',
-          color: isSelected ? '#4ecdc4' : '#ffffff',
-          marginBottom: '0.2rem'
+          fontSize: 'var(--text-sm)',
+          fontWeight: 'var(--font-semibold)',
+          color: isSelected ? 'var(--color-dmx-selected)' : 'var(--color-text-primary)',
+          marginBottom: 'var(--space-xs)'
         }}>
           {channelName}
         </div>
         <div style={{
-          fontSize: '1.2rem',
-          fontWeight: '700',
-          color: localValue > 0 ? '#4ecdc4' : 'rgba(255, 255, 255, 0.6)'
+          fontSize: 'var(--text-lg)',
+          fontWeight: 'var(--font-bold)',
+          color: localValue > 0 ? 'var(--color-dmx-value)' : 'var(--color-text-disabled)'
         }}>
           {localValue}
         </div>
         <div style={{
-          fontSize: '0.8rem',
-          color: 'rgba(255, 255, 255, 0.7)'
+          fontSize: 'var(--text-xs)',
+          color: 'var(--color-text-tertiary)'
         }}>
           {intensity.toFixed(1)}%
         </div>
       </div>
 
       {/* Fine Control Buttons (+10 / -10) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '0.5rem',
-        width: '100%'
-      }}>
+      <div className="grid grid-cols-2 gap-sm" style={{ width: '100%' }}>
         <button
+          className="btn btn-danger touch-target"
           onMouseDown={handleBigDecrement}
           onTouchStart={handleBigDecrement}
           style={{
-            background: 'linear-gradient(135deg, rgba(231, 76, 60, 0.3), rgba(231, 76, 60, 0.5))',
-            border: '2px solid rgba(231, 76, 60, 0.6)',
-            color: '#e74c3c',
-            padding: '0.75rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            minHeight: '50px',
+            background: 'linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(231, 76, 60, 0.3))',
+            border: '2px solid rgba(231, 76, 60, 0.4)',
+            color: 'var(--color-error-500)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--font-bold)',
             touchAction: 'manipulation',
-            transition: 'all 0.1s ease'
+            transition: 'all var(--transition-fast)'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           -10
         </button>
         <button
+          className="btn btn-success touch-target"
           onMouseDown={handleBigIncrement}
           onTouchStart={handleBigIncrement}
           style={{
-            background: 'linear-gradient(135deg, rgba(46, 213, 115, 0.3), rgba(46, 213, 115, 0.5))',
-            border: '2px solid rgba(46, 213, 115, 0.6)',
-            color: '#2ed573',
-            padding: '0.75rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            minHeight: '50px',
+            background: 'linear-gradient(135deg, rgba(46, 213, 115, 0.2), rgba(46, 213, 115, 0.3))',
+            border: '2px solid rgba(46, 213, 115, 0.4)',
+            color: 'var(--color-success-500)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--font-bold)',
             touchAction: 'manipulation',
-            transition: 'all 0.1s ease'
+            transition: 'all var(--transition-fast)'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           +10
         </button>
       </div>
 
       {/* Main Slider */}
-      <div style={{
+      <div className="flex flex-col items-center justify-center gap-sm" style={{
         flex: 1,
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center', // Center the slider vertically if flex:1
-        gap: '0.5rem'
-      }}>        <input
+        width: '100%'
+      }}>
+        <input
           type="range"
           min="0"
           max="255"
           value={localValue}
           onChange={handleSliderChange}
+          className="slider slider-touch"
           style={{
             width: '100%',
-            height: '60px',
-            background: `linear-gradient(to right, rgba(78, 205, 196, 0.3) 0%, rgba(78, 205, 196, 0.3) ${(localValue / 255) * 100}%, rgba(255, 255, 255, 0.2) ${(localValue / 255) * 100}%, rgba(255, 255, 255, 0.2) 100%)`,
+            background: `linear-gradient(to right, var(--color-dmx-value) 0%, var(--color-dmx-value) ${(localValue / 255) * 100}%, var(--color-border) ${(localValue / 255) * 100}%, var(--color-border) 100%)`,
             outline: 'none',
             cursor: 'pointer',
             touchAction: 'manipulation',
             WebkitAppearance: 'none',
             appearance: 'none',
-            borderRadius: '30px',
-            border: '2px solid rgba(255, 255, 255, 0.3)'
+            borderRadius: 'var(--radius-full)',
+            border: '2px solid var(--color-border)'
           }}
-          className="touch-dmx-slider"
         />
       </div>
 
       {/* Precise Control Buttons (+1 / -1) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '0.5rem',
-        width: '100%'
-      }}>
+      <div className="grid grid-cols-2 gap-sm" style={{ width: '100%' }}>
         <button
+          className="btn btn-secondary btn-sm touch-target"
           onMouseDown={handleDecrement}
           onTouchStart={handleDecrement}
           style={{
-            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.5))',
-            border: '2px solid rgba(255, 193, 7, 0.6)',
-            color: '#ffc107',
-            padding: '0.75rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            minHeight: '50px',
+            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0.3))',
+            border: '2px solid rgba(255, 193, 7, 0.4)',
+            color: 'var(--color-warning-500)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--font-bold)',
             touchAction: 'manipulation',
-            transition: 'all 0.1s ease'
+            transition: 'all var(--transition-fast)'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           -1
         </button>
         <button
+          className="btn btn-secondary btn-sm touch-target"
           onMouseDown={handleIncrement}
           onTouchStart={handleIncrement}
           style={{
-            background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(78, 205, 196, 0.5))',
-            border: '2px solid rgba(78, 205, 196, 0.6)',
-            color: '#4ecdc4',
-            padding: '0.75rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            minHeight: '50px',
+            background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(78, 205, 196, 0.3))',
+            border: '2px solid rgba(78, 205, 196, 0.4)',
+            color: 'var(--color-dmx-value)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--font-bold)',
             touchAction: 'manipulation',
-            transition: 'all 0.1s ease'
+            transition: 'all var(--transition-fast)'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           +1
         </button>

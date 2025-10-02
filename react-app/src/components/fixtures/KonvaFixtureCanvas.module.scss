@@ -1,0 +1,243 @@
+// Konva-based Fixture Canvas
+.konvaCanvasContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-background);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--color-border);
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
+    border: 2px solid rgba(78, 205, 196, 0.3);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4);
+  }
+}
+
+// Canvas Controls
+.canvasControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-lg);
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+    backdrop-filter: blur(10px);
+  }
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  
+  label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text-primary);
+    min-width: 80px;
+  }
+  
+  span {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    min-width: 40px;
+    text-align: center;
+  }
+}
+
+.controlButton {
+  @extend .touch-target !optional;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  
+  &:hover {
+    border-color: var(--color-interactive);
+    color: var(--color-interactive);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(78, 205, 196, 0.2);
+    
+    &:hover {
+      border-color: rgba(78, 205, 196, 0.5);
+      background: rgba(78, 205, 196, 0.1);
+      box-shadow: 0 4px 16px rgba(78, 205, 196, 0.2);
+    }
+  }
+}
+
+.slider {
+  width: 100px;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--color-interactive);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    
+    &:hover {
+      transform: scale(1.2);
+      box-shadow: var(--shadow-md);
+    }
+  }
+  
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--color-interactive);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    
+    &:hover {
+      transform: scale(1.2);
+      box-shadow: var(--shadow-md);
+    }
+  }
+}
+
+// Stage Container
+.stageContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-background);
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.8) 0%, rgba(20, 20, 30, 0.8) 100%);
+  }
+}
+
+.konvaStage {
+  width: 100% !important;
+  height: 100% !important;
+  cursor: crosshair;
+  
+  &:hover {
+    cursor: crosshair;
+  }
+}
+
+// Canvas Info
+.canvasInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(78, 205, 196, 0.2);
+    backdrop-filter: blur(10px);
+  }
+}
+
+.infoItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  
+  span {
+    font-weight: var(--font-medium);
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .canvasControls {
+    flex-direction: column;
+    gap: var(--space-md);
+    padding: var(--space-sm);
+  }
+  
+  .controlGroup {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .controlButton {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .slider {
+    width: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .canvasControls {
+    padding: var(--space-xs);
+  }
+  
+  .controlGroup {
+    gap: var(--space-xs);
+    
+    label {
+      min-width: 60px;
+      font-size: var(--text-xs);
+    }
+    
+    span {
+      min-width: 30px;
+      font-size: var(--text-xs);
+    }
+  }
+  
+  .controlButton {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .slider {
+    width: 60px;
+  }
+}

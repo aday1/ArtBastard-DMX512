@@ -17,6 +17,7 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^12.16.0",
     "jszip": "^3.10.1",
+    "konva": "^9.3.22",
     "leva": "^0.9.35",
     "lucide-react": "^0.303.0",
     "react": "^18.3.1",
@@ -25,7 +26,9 @@
     "react-draggable": "^4.4.6",
     "react-grid-layout": "^1.5.2",
     "react-icons": "^4.12.0",
+    "react-konva": "^18.2.10",
     "react-scripts": "^0.0.0",
+    "react-toastify": "^11.0.5",
     "react-window": "^1.8.11",
     "socket.io-client": "^4.7.4",
     "three": "^0.160.1",
@@ -44,6 +47,7 @@
     "@types/node": "^20.11.16",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@types/react-toastify": "^4.0.2",
     "@types/three": "^0.160.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.5.1",
@@ -90,6 +94,6 @@
     "@rollup/rollup-darwin-arm64": "^4.46.3",
     "@rollup/rollup-darwin-x64": "^4.46.3",
     "@rollup/rollup-linux-x64-gnu": "^4.46.3",
-    "@rollup/rollup-win32-x64-msvc": "^4.47.1"
+    "@rollup/rollup-win32-x64-msvc": "^4.52.3"
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { FixtureCanvasInteractive } from '../components/fixtures/FixtureCanvasInteractive'
+import KonvaFixtureCanvas from '../components/fixtures/KonvaFixtureCanvas'
+import KonvaDraggableFixturePalette from '../components/fixtures/KonvaDraggableFixturePalette'
 import { CanvasImageUpload } from '../components/fixtures/CanvasImageUpload'
 import ScenePanel from '../components/scenes/ScenePanel'
 import { useStore } from '../store'
@@ -112,12 +113,35 @@ const CanvasPage: React.FC = () => {
             />
           </div>
           
-          {/* Professional Interactive 2D Canvas */}
-          <FixtureCanvasInteractive
-            fixtures={fixtures}
-            placedFixturesData={fixtureLayout}
-            onUpdatePlacedFixtures={handleUpdatePlacedFixtures}
-          />
+          {/* Konva-based Canvas Layout */}
+          <div className={styles.konvaCanvasLayout}>
+            {/* Fixture Palette */}
+            <div className={styles.paletteSection}>
+              <KonvaDraggableFixturePalette
+                onFixtureDrop={(fixture, x, y) => {
+                  // Handle fixture drop from palette
+                  console.log('Fixture dropped:', fixture, x, y);
+                }}
+              />
+            </div>
+            
+            {/* Main Canvas */}
+            <div className={styles.mainCanvasSection}>
+              <KonvaFixtureCanvas
+                width={800}
+                height={600}
+                onFixtureSelect={(fixture) => {
+                  console.log('Fixture selected:', fixture);
+                }}
+                onFixtureMove={(fixture) => {
+                  console.log('Fixture moved:', fixture);
+                }}
+                onFixtureDelete={(fixtureId) => {
+                  console.log('Fixture deleted:', fixtureId);
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

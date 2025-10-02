@@ -1,5 +1,6 @@
 // Import font fallbacks for better loading performance
 @use './font-fallbacks.scss';
+@use './design-system.scss';
 /* emoji-fixes removed to restore default icon and text rendering */
 
 // Base variables
@@ -370,4 +371,54 @@ input[type="range"] {
 // Root container for React app
 #root {
   min-height: 100vh;
+}
+
+// Modern Interface Styles
+body.modern-interface {
+  --color-background: #0a0a0a;
+  --color-surface: #1a1a1a;
+  --color-border: #333333;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #cccccc;
+  --color-interactive: #4ecdc4;
+  --color-primary: #4ecdc4;
+  
+  // Enhanced shadows and effects
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  // Enhanced transitions
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  // Enhanced backdrop filters
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  
+  // Enhanced gradients
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+  
+  // Enhanced animations
+  * {
+    transition: all var(--transition-normal);
+  }
+  
+  // Enhanced focus states
+  *:focus {
+    outline: 2px solid var(--color-interactive);
+    outline-offset: 2px;
+  }
+  
+  // Enhanced hover states
+  button:hover, .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  // Enhanced active states
+  button:active, .card-interactive:active {
+    transform: translateY(0);
+  }
 }

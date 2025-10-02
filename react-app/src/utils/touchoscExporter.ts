@@ -108,6 +108,10 @@ export interface ExportOptions {
   includeFixtureControls: boolean;
   includeMasterSliders: boolean;
   includeAllDmxChannels: boolean;
+  paginateAllDmx?: boolean; // Split all channels across multiple pages based on resolution
+  dmxChannelsPerPageOverride?: number; // Optional fixed channels per page
+  includeScenesPage?: boolean; // Add a Scenes page
+  includeAutopilotPage?: boolean; // Add an Autopilot page
 }
 
 const RESOLUTIONS = {
@@ -129,7 +133,8 @@ export const generateTouchOscLayout = (
   options: ExportOptions,
   placedFixtures: PlacedFixture[], // Changed from fixtures: Fixture[]
   masterSliders: MasterSlider[],
-  allFixtures: Fixture[] // Added allFixtures for definitions
+  allFixtures: Fixture[], // Added allFixtures for definitions
+  scenes?: Array<{ name: string; oscAddress?: string }>
 ): string => {
   const { width: toscCanvasWidth, height: toscCanvasHeight, orientation } = RESOLUTIONS[options.resolution];
   const pages: TouchOscPage[] = [];
@@ -184,7 +189,7 @@ export const generateTouchOscLayout = (
             y: Math.max(0, labelY), // Ensure within bounds
             w: toscFaderWidth,
             h: toscLabelHeight,
-            color: '#FFFFFFFF', // White
+            color: '#FFCCCCCC', // Dimmed white for dark theme
             textSize: 10,
           });
 
@@ -196,7 +201,7 @@ export const generateTouchOscLayout = (
             y: Math.max(0, faderY), // Ensure within bounds
             w: toscFaderWidth,
             h: toscFaderHeight,
-            color: pFixture.color ? pFixture.color.replace('#', '#FF') : '#FF0077FF', // Use fixture color or default
+            color: pFixture.color ? pFixture.color.replace('#', '#FF') : '#FF3355AA', // Darker default
             osc_cs: `/dmx/${dmxAddress}/value`,
             scalef: 0.0,
             scalet: 1.0,
@@ -246,7 +251,7 @@ export const generateTouchOscLayout = (
         y: currentY,
         w: masterFaderWidth,
         h: masterLabelHeight,
-        color: '#FFFFFFFF',
+        color: '#FFCCCCCC',
         textSize: 12,
       });
       mainPageControls.push({
@@ -256,7 +261,7 @@ export const generateTouchOscLayout = (
         y: currentY + masterLabelHeight + labelFaderSpacing,
         w: masterFaderWidth,
         h: masterFaderHeight,
-        color: '#FFFF7700', // Orangeish
+        color: '#FFAA5500', // Darker orange
         osc_cs: `/master/${safeSliderName}/value`,
         scalef: 0.0,
         scalet: 1.0,
@@ -270,55 +275,131 @@ export const generateTouchOscLayout = (
 
   pages.push({ name: "Main", width: toscCanvasWidth, height: toscCanvasHeight, controls: mainPageControls });
 
-  // --- Page for All DMX Channels (if selected) ---
+  // --- Page(s) for All DMX Channels (if selected) ---
   // This section remains largely the same, using its own layout logic based on toscCanvasWidth/Height
   if (options.includeAllDmxChannels) {
-    const dmxPageControls: TouchOscControl[] = [];
-    const dmxFaderWidth = 60; // Renamed for clarity
-    const dmxFaderHeight = 180; // Renamed for clarity
-    const dmxLabelHeight = 15; // Renamed for clarity
-    const dmxSpacing = 10; // Renamed for clarity
+    const dmxFaderWidth = 60;
+    const dmxFaderHeight = 180;
+    const dmxLabelHeight = 15;
+    const dmxSpacing = 10;
 
-    const dmxFadersPerRow = Math.floor((toscCanvasWidth - dmxSpacing) / (dmxFaderWidth + dmxSpacing));
-    const numRows = Math.ceil(512 / dmxFadersPerRow);
-    
-    // This page might become very tall. TouchOSC handles scrolling within a page.
-    // const dmxPageHeight = numRows * (dmxFaderHeight + dmxLabelHeight + dmxSpacing * 2) + dmxSpacing; // Not directly used for page def
+    const dmxFadersPerRow = Math.max(1, Math.floor((toscCanvasWidth - dmxSpacing) / (dmxFaderWidth + dmxSpacing)));
+    const rowsPerPage = Math.max(1, Math.floor((toscCanvasHeight - dmxSpacing) / (dmxFaderHeight + dmxLabelHeight + dmxSpacing * 2)));
+    const channelsPerPageAuto = dmxFadersPerRow * rowsPerPage;
+    const channelsPerPage = options.dmxChannelsPerPageOverride || channelsPerPageAuto || 64;
+    const totalPages = Math.ceil(512 / channelsPerPage);
 
-    for (let i = 0; i < 512; i++) {
-      const row = Math.floor(i / dmxFadersPerRow);
-      const col = i % dmxFadersPerRow;
-      const dmxChannelNum = i + 1;
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      const startChannel = pageIndex * channelsPerPage + 1;
+      const endChannel = Math.min(512, startChannel + channelsPerPage - 1);
+      const dmxPageControls: TouchOscControl[] = [];
 
-      const xPos = dmxSpacing + col * (dmxFaderWidth + dmxSpacing);
-      const yPos = dmxSpacing + row * (dmxFaderHeight + dmxLabelHeight + dmxSpacing * 2); // Adjusted for label height
-      
-      dmxPageControls.push({
-        type: 'label',
-        name: `lbl_dmx_${dmxChannelNum}`,
-        text: `DMX ${dmxChannelNum}`,
-        x: xPos,
-        y: yPos,
-        w: dmxFaderWidth,
-        h: dmxLabelHeight,
-        color: '#FFCCCCCC',
-        textSize: 8,
-      });
-      dmxPageControls.push({
-        type: 'faderv',
-        name: `fader_dmx_${dmxChannelNum}`,
-        x: xPos,
-        y: yPos + dmxLabelHeight + labelFaderSpacing, // Position fader below its label
-        w: dmxFaderWidth,
-        h: dmxFaderHeight,
-        color: '#FF444444', // Grey
-        osc_cs: `/dmx/${dmxChannelNum}/value`,
-        scalef: 0.0,
-        scalet: 1.0,
-        response: 'absolute',
-      });
+      for (let ch = startChannel; ch <= endChannel; ch++) {
+        const idx = ch - startChannel; // zero-based within page
+        const row = Math.floor(idx / dmxFadersPerRow);
+        const col = idx % dmxFadersPerRow;
+        const xPos = dmxSpacing + col * (dmxFaderWidth + dmxSpacing);
+        const yPos = dmxSpacing + row * (dmxFaderHeight + dmxLabelHeight + dmxSpacing * 2);
+
+        dmxPageControls.push({
+          type: 'label',
+          name: `lbl_dmx_${ch}`,
+          text: `DMX ${ch}`,
+          x: xPos,
+          y: yPos,
+          w: dmxFaderWidth,
+          h: dmxLabelHeight,
+          color: '#FFCCCCCC',
+          textSize: 8,
+        });
+        dmxPageControls.push({
+          type: 'faderv',
+          name: `fader_dmx_${ch}`,
+          x: xPos,
+          y: yPos + dmxLabelHeight + labelFaderSpacing,
+          w: dmxFaderWidth,
+          h: dmxFaderHeight,
+          color: '#FF444444',
+          osc_cs: `/dmx/${ch}/value`,
+          scalef: 0.0,
+          scalet: 1.0,
+          response: 'absolute',
+        });
+      }
+
+      pages.push({ name: `All_DMX_${pageIndex + 1}`, width: toscCanvasWidth, height: toscCanvasHeight, controls: dmxPageControls });
+      if (!options.paginateAllDmx) break; // if pagination disabled, we already made one page
     }
-    pages.push({ name: "All_DMX", width: toscCanvasWidth, height: toscCanvasHeight, controls: dmxPageControls });
+  }
+
+  // --- Optional Scenes Page ---
+  if (options.includeScenesPage && scenes && scenes.length > 0) {
+    const controls: TouchOscControl[] = [];
+    const buttonW = 160;
+    const buttonH = 60;
+    const spacing = 12;
+    let x = spacing;
+    let y = spacing;
+
+    // Header label
+    controls.push({
+      type: 'label',
+      name: 'lbl_scenes_header',
+      text: 'Scenes',
+      x,
+      y,
+      w: 200,
+      h: 24,
+      color: '#FFCCCCCC',
+      properties: [{ name: 'textSize', value: 14 }]
+    });
+    y += 24 + spacing;
+
+    // Save / Prev / Next
+    const headerButtons: Array<{ name: string; text: string; osc: string; color: string }> = [
+      { name: 'save_scene', text: 'Save', osc: '/super_control/save_scene', color: '#FF00AA00' },
+      { name: 'prev_scene', text: 'Prev', osc: '/super_control/prev_scene', color: '#FF0077AA' },
+      { name: 'next_scene', text: 'Next', osc: '/super_control/next_scene', color: '#FF0077AA' },
+    ];
+    headerButtons.forEach((btn, i) => {
+      controls.push({
+        type: 'button',
+        name: `btn_${btn.name}`,
+        x: x + i * (buttonW + spacing),
+        y,
+        w: buttonW,
+        h: buttonH,
+        color: btn.color,
+        osc_cs: btn.osc,
+        buttonType: 1,
+        properties: [{ name: 'text', value: btn.text }, { name: 'textSize', value: 12 }]
+      } as any);
+    });
+    y += buttonH + spacing * 2;
+
+    // Scene buttons grid
+    const perRow = Math.max(1, Math.floor((toscCanvasWidth - spacing) / (buttonW + spacing)));
+    scenes.forEach((scene, idx) => {
+      const col = idx % perRow;
+      const row = Math.floor(idx / perRow);
+      const sx = spacing + col * (buttonW + spacing);
+      const sy = y + row * (buttonH + spacing);
+      const osc = scene.oscAddress || `/scene/${sanitizeName(scene.name).toLowerCase()}`;
+      controls.push({
+        type: 'button',
+        name: `btn_scene_${sanitizeName(scene.name)}`,
+        x: sx,
+        y: sy,
+        w: buttonW,
+        h: buttonH,
+        color: '#FF333333',
+        osc_cs: osc,
+        buttonType: 1,
+        properties: [{ name: 'text', value: scene.name.substring(0, 16) }, { name: 'textSize', value: 11 }]
+      } as any);
+    });
+
+    pages.push({ name: 'Scenes', width: toscCanvasWidth, height: toscCanvasHeight, controls });
   }
   
   const layoutDefinition: TouchOscLayout = {
@@ -336,10 +417,11 @@ export const exportToToscFile = async (
   placedFixtures: PlacedFixture[], // Changed
   masterSliders: MasterSlider[],
   allFixtures: Fixture[], // Added
+  scenes?: Array<{ name: string; oscAddress?: string }>,
   filename: string = "ArtBastardOSC.tosc"
 ) => {
   try {
-    const indexXmlContent = generateTouchOscLayout(options, placedFixtures, masterSliders, allFixtures);
+    const indexXmlContent = generateTouchOscLayout(options, placedFixtures, masterSliders, allFixtures, scenes);
     
     const zip = new JSZip();
     zip.file("index.xml", indexXmlContent);

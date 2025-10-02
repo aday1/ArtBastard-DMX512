@@ -38,7 +38,9 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
     setDmxChannelValue,
     startMidiLearn,
     midiLearnTarget,
-    addNotification
+    addNotification,
+    midiMappings,
+    removeMidiMapping
   } = useStore();
 
   const { socket } = useSocket();
@@ -134,11 +136,13 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
       fixtureId: fixtureDef.id,
       fixtureStoreId: fixtureDef.id,
       name: `${fixtureDef.name} ${placedFixturesData.length + 1}`,
+      type: fixtureDef.type,
       x: snapX,
       y: snapY,
       color: getFixtureColor(fixtureDef.type),
       radius: 40,
       startAddress: getNextAvailableAddress(),
+      dmxAddress: getNextAvailableAddress(),
       scale: 1,
       controls: [], // Initialize empty controls array
     };
@@ -236,6 +240,56 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
         message: `OSC address copied: ${oscAddress}`,
       });
     }
+  };
+
+  const forgetMidiMappingForControl = (fixtureId: string, controlId: string) => {
+    const placedFixture = placedFixturesData.find(f => f.id === fixtureId);
+    if (!placedFixture) return;
+
+    const control = placedFixture.controls?.find(c => c.id === controlId);
+    if (!control) return;
+
+    // Find the DMX channel for this control
+    const fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+    if (!fixtureDef) return;
+
+    const channelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.channelNameInFixture);
+    if (channelIndex === -1) return;
+
+    const dmxChannel = placedFixture.startAddress + channelIndex;
+    removeMidiMapping(dmxChannel);
+  };
+
+  const getOscAddressForControl = (fixtureId: string, controlId: string): string => {
+    const placedFixture = placedFixturesData.find(f => f.id === fixtureId);
+    if (!placedFixture) return '';
+
+    const control = placedFixture.controls?.find(c => c.id === controlId);
+    if (!control) return '';
+
+    if (control.type === 'xypad') {
+      return `/fixture/${placedFixture.name.replace(/\s+/g, '_').toLowerCase()}/pantilt`;
+    } else {
+      const safeChannelName = control.channelNameInFixture.replace(/\s+/g, '_').toLowerCase();
+      return `/fixture/${placedFixture.name.replace(/\s+/g, '_').toLowerCase()}/${safeChannelName}`;
+    }
+  };
+
+  const getMidiMappingForControl = (fixtureId: string, controlId: string) => {
+    const placedFixture = placedFixturesData.find(f => f.id === fixtureId);
+    if (!placedFixture) return null;
+
+    const control = placedFixture.controls?.find(c => c.id === controlId);
+    if (!control) return null;
+
+    const fixtureDef = fixtures.find(f => f.id === placedFixture.fixtureStoreId);
+    if (!fixtureDef) return null;
+
+    const channelIndex = fixtureDef.channels.findIndex(ch => ch.name === control.channelNameInFixture);
+    if (channelIndex === -1) return null;
+
+    const dmxChannel = placedFixture.startAddress + channelIndex;
+    return midiMappings[dmxChannel] || null;
   };
 
   const getSelectedFixtureData = () => {
@@ -764,7 +818,13 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                         <div className={styles.sliderValue}>{control.currentValue}</div>
                         <div className={styles.controlActions}>
                           <button
-                            className={styles.miniButton}
+                            className={`${styles.miniButton} ${
+                              midiLearnTarget?.type === 'placedControl' &&
+                              midiLearnTarget.fixtureId === placedFixture.id &&
+                              midiLearnTarget.controlId === `fixture-${placedFixture.id}-control-${control.id}`
+                                ? styles.learning
+                                : ''
+                            }`}
                             onClick={() => startMidiLearnForControl(placedFixture.id, control.id)}
                             title="MIDI Learn"
                           >
@@ -777,6 +837,18 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                           >
                             O
                           </button>
+                          {getMidiMappingForControl(placedFixture.id, control.id) && (
+                            <button
+                              className={styles.miniButton}
+                              onClick={() => forgetMidiMappingForControl(placedFixture.id, control.id)}
+                              title="Forget MIDI"
+                            >
+                              F
+                            </button>
+                          )}
+                        </div>
+                        <div className={styles.oscAddress}>
+                          {getOscAddressForControl(placedFixture.id, control.id)}
                         </div>
                       </div>
                     ) : control.type === 'xypad' ? (
@@ -823,7 +895,13 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                         </div>
                         <div className={styles.controlActions}>
                           <button
-                            className={styles.miniButton}
+                            className={`${styles.miniButton} ${
+                              midiLearnTarget?.type === 'placedControl' &&
+                              midiLearnTarget.fixtureId === placedFixture.id &&
+                              midiLearnTarget.controlId === `fixture-${placedFixture.id}-control-${control.id}`
+                                ? styles.learning
+                                : ''
+                            }`}
                             onClick={() => startMidiLearnForControl(placedFixture.id, control.id)}
                             title="MIDI Learn Pan"
                           >
@@ -836,6 +914,18 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                           >
                             O
                           </button>
+                          {getMidiMappingForControl(placedFixture.id, control.id) && (
+                            <button
+                              className={styles.miniButton}
+                              onClick={() => forgetMidiMappingForControl(placedFixture.id, control.id)}
+                              title="Forget MIDI"
+                            >
+                              F
+                            </button>
+                          )}
+                        </div>
+                        <div className={styles.oscAddress}>
+                          {getOscAddressForControl(placedFixture.id, control.id)}
                         </div>
                       </div>
                     ) : null}
@@ -903,7 +993,8 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                     <button
                       className={`${styles.midiButton} ${
                         midiLearnTarget?.type === 'placedControl' &&
-                        midiLearnTarget.fixtureId === selectedFixture
+                        midiLearnTarget.fixtureId === selectedFixture &&
+                        midiLearnTarget.controlId === `fixture-${selectedFixture}-control-channel-${index}`
                           ? styles.learning
                           : ''
                       }`}
@@ -921,6 +1012,19 @@ export const FixtureCanvasInteractive: React.FC<FixtureCanvasInteractiveProps> =
                       <LucideIcon name="Copy" />
                       OSC
                     </button>
+                    {getMidiMappingForControl(selectedFixture, `channel-${index}`) && (
+                      <button
+                        className={styles.forgetButton}
+                        onClick={() => forgetMidiMappingForControl(selectedFixture, `channel-${index}`)}
+                        title="Forget MIDI Mapping"
+                      >
+                        <LucideIcon name="X" />
+                        Forget
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.oscAddress}>
+                    {getOscAddressForControl(selectedFixture, `channel-${index}`)}
                   </div>
                 </div>
               );

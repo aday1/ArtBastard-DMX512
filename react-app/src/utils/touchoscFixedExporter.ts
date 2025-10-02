@@ -301,7 +301,7 @@ export const generateCrashProofTouchOscLayout = (
             y: currentY,
             w: controlWidth,
             h: 20,
-            color: '#FFFFFFFF'
+            color: '#FFCCCCCC'
           });
           
           // Add fader
@@ -348,7 +348,7 @@ export const generateCrashProofTouchOscLayout = (
         y: currentY,
         w: controlWidth,
         h: 20,
-        color: '#FFFFFFFF'
+        color: '#FFCCCCCC'
       });
       
       // Add fader
@@ -359,8 +359,8 @@ export const generateCrashProofTouchOscLayout = (
         y: currentY + 25,
         w: controlWidth,
         h: controlHeight,
-        color: '#FFFF6600', // Orange for master
-        osc_cs: `/master/${sanitizeNameForTouchOSC(slider.name)}`,
+        color: '#FFAA5500', // darker orange for master (dark theme)
+        osc_cs: `/master/${sanitizeNameForTouchOSC(slider.name)}/value`,
         scalef: 0,
         scalet: 255,
         response: 'absolute'
@@ -404,7 +404,7 @@ export const generateCrashProofTouchOscLayout = (
         y: y,
         w: dmxFaderWidth,
         h: 15,
-        color: '#FFFFFFFF'
+        color: '#FFCCCCCC'
       });
       
       // Add fader
@@ -415,7 +415,7 @@ export const generateCrashProofTouchOscLayout = (
         y: y + 20,
         w: dmxFaderWidth,
         h: dmxFaderHeight,
-        color: '#FF666666', // Gray for DMX channels
+        color: '#FF444444', // darker gray for DMX channels
         osc_cs: `/dmx/${dmxChannel}/value`,
         scalef: 0,
         scalet: 255,

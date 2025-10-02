@@ -40,6 +40,7 @@ const TouchOSCControlPanel: React.FC<TouchOSCControlPanelProps> = ({
         fixtureLayout,
         masterSliders,
         allFixtures,
+        undefined,          // scenes (optional)
         'ArtBastard_Fixtures.tosc'
       );
 
@@ -102,6 +103,7 @@ const TouchOSCControlPanel: React.FC<TouchOSCControlPanelProps> = ({
         [],
         [],
         allFixtures,
+        undefined,          // scenes (optional)
         'DMX512_AllChannels.tosc'
       );
 

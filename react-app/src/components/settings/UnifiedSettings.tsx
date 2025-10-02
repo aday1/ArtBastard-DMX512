@@ -110,6 +110,16 @@ export const UnifiedSettings: React.FC = () => {
   const [localDebugTools, setLocalDebugTools] = useState(debugTools);
   const [activeSection, setActiveSection] = useState<string>('general');
 
+  // Load saved UI mode on component mount
+  useEffect(() => {
+    const savedUIMode = localStorage.getItem('artbastard-ui-mode');
+    if (savedUIMode === 'modern') {
+      document.body.classList.add('modern-interface');
+    } else {
+      document.body.classList.remove('modern-interface');
+    }
+  }, []);
+
   // Network settings
   const [networkSettings, setNetworkSettings] = useState({
     dmxInterface: 'default',
@@ -478,6 +488,55 @@ export const UnifiedSettings: React.FC = () => {
             {activeSection === 'theme' && (
               <div className={styles.settingsSection}>
                 <h3><i className="fas fa-palette"></i> Theme & Appearance</h3>
+                
+                <div className={styles.settingGroup}>
+                  <label className={styles.settingLabel}>
+                    <i className="fas fa-desktop"></i>
+                    Interface Mode
+                  </label>
+                  <div className={styles.interfaceModeOptions}>
+                    <div 
+                      className={`${styles.interfaceModeOption} ${!document.body.classList.contains('modern-interface') ? styles.active : ''}`}
+                      onClick={() => {
+                        document.body.classList.remove('modern-interface');
+                        localStorage.setItem('artbastard-ui-mode', 'classic');
+                      }}
+                    >
+                      <div className={styles.interfaceModePreview}>
+                        <div className={styles.classicPreview}>
+                          <div className={styles.classicHeader}></div>
+                          <div className={styles.classicContent}></div>
+                        </div>
+                      </div>
+                      <div className={styles.interfaceModeInfo}>
+                        <h4>Classic Interface</h4>
+                        <p>Traditional layout with standard controls</p>
+                      </div>
+                    </div>
+                    
+                    <div 
+                      className={`${styles.interfaceModeOption} ${document.body.classList.contains('modern-interface') ? styles.active : ''}`}
+                      onClick={() => {
+                        document.body.classList.add('modern-interface');
+                        localStorage.setItem('artbastard-ui-mode', 'modern');
+                      }}
+                    >
+                      <div className={styles.interfaceModePreview}>
+                        <div className={styles.modernPreview}>
+                          <div className={styles.modernHeader}></div>
+                          <div className={styles.modernContent}></div>
+                        </div>
+                      </div>
+                      <div className={styles.interfaceModeInfo}>
+                        <h4>Modern Interface</h4>
+                        <p>Enhanced UI with glassmorphism and animations</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className={styles.settingDescription}>
+                    Choose between classic and modern interface styles
+                  </p>
+                </div>
                 
                 <div className={styles.settingGroup}>
                   <label className={styles.settingLabel}>

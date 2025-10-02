@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import CustomPathEditor from '../automation/CustomPathEditor';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
+import { TouchChannelMatrix } from './TouchChannelMatrix';
 import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';

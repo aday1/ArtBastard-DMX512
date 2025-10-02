@@ -1,97 +1,43 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Layout } from './components/layout/Layout'
-import { SocketProvider } from './context/SocketContext'
 import { ThemeProvider } from './context/ThemeContext'
-import { DockingProvider } from './context/DockingContext'
-import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
+import { SocketProvider } from './context/SocketContext'
 import { PanelProvider } from './context/PanelContext'
+import { DockingProvider } from './context/DockingContext'
+import { PinningProvider } from './context/PinningContext'
 import { ExternalWindowProvider } from './context/ExternalWindowContext'
-import { useStore } from './store'
-import { useBrowserMidi } from './hooks/useBrowserMidi'
-import MidiDmxProcessor from './components/midi/MidiDmxProcessor'
-import MidiDebugHelper from './components/midi/MidiDebugHelper'
-import MidiDmxDebug from './components/midi/MidiDmxDebug'
-import OscMonitor from './components/osc/OscMonitor'
-import { HelpOverlay } from './components/ui/HelpOverlay';
-import { UIResetButton } from './components/layout/UIResetButton';
-import './utils/midiTestUtils'
-import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation';
-import ErrorBoundary from './components/ErrorBoundary';
-import { StateManager } from './utils/stateManager';
+import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
-  // All hooks must be at the top level, outside of try-catch blocks
-  const fetchInitialState = useStore((state) => state.fetchInitialState)
-  // const isTransitioning = useStore((state) => state.isTransitioning); // Moved to useSceneTransitionAnimation
-  // const currentTransitionFrame = useStore((state) => state.currentTransitionFrame); // Moved to useSceneTransitionAnimation
-  // const setCurrentTransitionFrameId = useStore((state) => state.setCurrentTransitionFrameId); // Moved to useSceneTransitionAnimation
-  
-  const { browserInputs, connectBrowserInput, refreshDevices, isSupported } = useBrowserMidi();
-
-  // Initialize Scene Transition Animation Hook
-  useSceneTransitionAnimation();
-
-  // Auto-connect to MIDI devices
-  useEffect(() => {
-    if (isSupported) {
-      // Attempt to connect to any initially found devices
-      if (browserInputs.length > 0) {
-        browserInputs.forEach(input => {
-          // Assuming connectBrowserInput handles cases where a device might already be connected
-          // or an attempt is in progress.
-          connectBrowserInput(input.id);
-        });
-      } else {
-        console.log('[App] MIDI supported, but no inputs found initially. Will check periodically.');
-      }
-
-      // Periodically refresh devices to detect new connections
-      const intervalId = setInterval(() => {
-        refreshDevices();
-      }, 10000); // Every 10 seconds
-
-      // Cleanup function
-      return () => {
-        clearInterval(intervalId);
-      };
-    } else {
-      console.log('[App] WebMIDI API not supported by this browser.');
-    }  }, [connectBrowserInput, refreshDevices, isSupported, browserInputs]);
-  useEffect(() => {
-    // Fetch initial state
-    fetchInitialState()
-    
-    // Initialize auto-save functionality
-    const cleanup = StateManager.enableAutoSave(5); // Auto-save every 5 minutes
-    console.log('💾 ArtBastard auto-save initialized');
-    
-    return cleanup;
-  }, [fetchInitialState])
-  
-  // Scene Transition Animation is handled by useSceneTransitionAnimation hook
   return (
     <ThemeProvider>
-      <ChromaticEnergyManipulatorProvider>
-        <SocketProvider>
+      <SocketProvider>
+        <PanelProvider>
           <DockingProvider>
-            <PanelProvider>
+            <PinningProvider>
               <ExternalWindowProvider>
-                {/* Debug and background processors */}
-                <div style={{ display: 'none' }}>
-                  <MidiDmxProcessor />
-                  <MidiDebugHelper />
-                  <MidiDmxDebug />
-                </div>                {/* Main UI should live inside SocketProvider */}
-                <HelpOverlay />
-                <UIResetButton />
-                <ErrorBoundary>
+                <ChromaticEnergyManipulatorProvider>
                   <Layout />
-                </ErrorBoundary>
+                  <ToastContainer 
+                    position="top-right"
+                    autoClose={3000}
+                    hideProgressBar={false}
+                    newestOnTop={false}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="dark"
+                  />
+                </ChromaticEnergyManipulatorProvider>
               </ExternalWindowProvider>
-            </PanelProvider>
+            </PinningProvider>
           </DockingProvider>
-        </SocketProvider>
-      </ChromaticEnergyManipulatorProvider>
+        </PanelProvider>
+      </SocketProvider>
     </ThemeProvider>
   );
 }

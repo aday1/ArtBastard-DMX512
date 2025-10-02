@@ -272,7 +272,6 @@ export const PanelProvider: React.FC<PanelProviderProps> = ({ children }) => {
         'top-left': { components: [], ...defaultLayout['top-left'], ...loadedLayout['top-left'] },
         'top-right': { components: [], ...defaultLayout['top-right'], ...loadedLayout['top-right'] },
         'bottom': { components: [], ...defaultLayout['bottom'], ...loadedLayout['bottom'] },
-        'fourth': { components: [], ...defaultLayout['fourth'], ...loadedLayout['fourth'] },
         'external': { components: [], ...defaultLayout['external'], ...loadedLayout['external'] },
         splitterPositions: { ...defaultLayout.splitterPositions, ...loadedLayout.splitterPositions }
       };

@@ -213,7 +213,7 @@ export const TouchOSCExporter: React.FC = () => {
         includeAllDmxChannels: false // This can be made configurable later
       };
         // Corrected arguments order: options, fixtureLayout (as placedFixtures), masterSliders, allFixtures
-      await exportToToscFile(options, fixtureLayout, masterSliders, allFixtures, 'ArtBastardOSC.tosc');
+      await exportToToscFile(options, fixtureLayout, masterSliders, allFixtures, undefined, 'ArtBastardOSC.tosc');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {

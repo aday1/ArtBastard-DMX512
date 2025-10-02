@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { TouchDmxChannel } from './TouchDmxChannel';
 import { TouchPanelManager } from '../touch/TouchPanelManager';
@@ -73,6 +73,8 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
   const [currentPage, setCurrentPage] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [showPanelManager, setShowPanelManager] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Scene management state
   const [showSceneControls, setShowSceneControls] = useState(false);
@@ -277,6 +279,40 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
   useEffect(() => {
     setCurrentPage(0);
   }, [selectedFilter, channelsPerPage]);
+
+  // Fullscreen change listener to keep local state in sync
+  useEffect(() => {
+    const handleFsChange = () => {
+      const currentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(currentlyFullscreen);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange as any);
+    document.addEventListener('mozfullscreenchange', handleFsChange as any);
+    document.addEventListener('MSFullscreenChange', handleFsChange as any);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange as any);
+      document.removeEventListener('mozfullscreenchange', handleFsChange as any);
+      document.removeEventListener('MSFullscreenChange', handleFsChange as any);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const node = containerRef.current as any;
+    if (!node) return;
+    if (!document.fullscreenElement) {
+      if (node.requestFullscreen) node.requestFullscreen();
+      else if (node.webkitRequestFullscreen) node.webkitRequestFullscreen();
+      else if (node.mozRequestFullScreen) node.mozRequestFullScreen();
+      else if (node.msRequestFullscreen) node.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+      else if ((document as any).mozCancelFullScreen) (document as any).mozCancelFullScreen();
+      else if ((document as any).msExitFullscreen) (document as any).msExitFullscreen();
+    }
+  };
   // Calculate active channels
   const activeChannels = dmxChannels.filter(val => val > 0).length;
 
@@ -404,9 +440,9 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
       </div>
     );  }
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       width: '100%',
-      height: '100vh',
+      height: isFullscreen ? '100dvh' : '100vh',
       background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       color: '#ffffff',
       display: 'flex',
@@ -449,15 +485,32 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
           }}>
             🎛️ DMX Touch
           </h2>
-          <div style={{
-            background: 'rgba(78, 205, 196, 0.2)',
-            padding: '0.2rem 0.5rem',
-            borderRadius: '8px',
-            border: '1px solid rgba(78, 205, 196, 0.4)',
-            fontSize: '0.7rem',
-            color: '#4ecdc4'
-          }}>
-            {activeChannels} Active
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              style={{
+                background: isFullscreen ? 'rgba(255, 99, 71, 0.3)' : 'rgba(78, 205, 196, 0.3)',
+                border: `1px solid ${isFullscreen ? 'rgba(255, 99, 71, 0.6)' : 'rgba(78, 205, 196, 0.6)'}`,
+                color: '#ffffff',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.8rem'
+              }}
+            >
+              {isFullscreen ? '🗗' : '🗖'}
+            </button>
+            <div style={{
+              background: 'rgba(78, 205, 196, 0.2)',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '8px',
+              border: '1px solid rgba(78, 205, 196, 0.4)',
+              fontSize: '0.7rem',
+              color: '#4ecdc4'
+            }}>
+              {activeChannels} Active
+            </div>
           </div>
         </div>
 

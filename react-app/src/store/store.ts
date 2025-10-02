@@ -177,12 +177,14 @@ export interface PlacedFixture {
   fixtureId: string;
   fixtureStoreId: string; 
   name: string; 
+  type: string; // Fixture type (spotlight, wash, beam, etc.)
   x: number;
   y: number;
   color: string;
   radius: number;
   scale?: number; // Scale for 2D canvas display
   startAddress: number; // DMX start address for this fixture
+  dmxAddress: number; // Alias for startAddress for compatibility
   controls?: PlacedControl[]; // Optional array for controls associated with this fixture
 }
 
@@ -480,6 +482,11 @@ interface State {
   setSelectedFixtures: (fixtureIds: string[]) => void
   toggleFixtureSelection: (fixtureId: string) => void
   deselectAllFixtures: () => void
+  
+  // Placed Fixture Actions
+  addPlacedFixture: (fixture: Omit<PlacedFixture, 'id'>) => void
+  updatePlacedFixture: (id: string, updates: Partial<PlacedFixture>) => void
+  removePlacedFixture: (id: string) => void
   
   setOscAssignment: (channelIndex: number, address: string) => void
   reportOscActivity: (channelIndex: number, value: number) => void 
@@ -1360,6 +1367,34 @@ export const useStore = create<State>()(
           ? selectedFixtures.filter(id => id !== fixtureId)
           : [...selectedFixtures, fixtureId];
         set({ selectedFixtures: newSelection });
+      },
+
+      // Placed Fixture Actions
+      addPlacedFixture: (fixture: Omit<PlacedFixture, 'id'>) => {
+        const { placedFixtures } = get();
+        const newFixture: PlacedFixture = {
+          ...fixture,
+          id: `placed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          // Ensure dmxAddress is set from startAddress if not provided
+          dmxAddress: fixture.dmxAddress || fixture.startAddress || 1,
+          // Ensure type is set
+          type: fixture.type || 'generic'
+        };
+        set({ placedFixtures: [...placedFixtures, newFixture] });
+      },
+
+      updatePlacedFixture: (id: string, updates: Partial<PlacedFixture>) => {
+        const { placedFixtures } = get();
+        const updatedFixtures = placedFixtures.map(fixture =>
+          fixture.id === id ? { ...fixture, ...updates } : fixture
+        );
+        set({ placedFixtures: updatedFixtures });
+      },
+
+      removePlacedFixture: (id: string) => {
+        const { placedFixtures } = get();
+        const filteredFixtures = placedFixtures.filter(fixture => fixture.id !== id);
+        set({ placedFixtures: filteredFixtures });
       },
       
       setOscAssignment: (channelIndex, address) => {

@@ -1,59 +1,125 @@
 .superControl {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-radius: 12px;
-  padding: 20px;
-  margin: 10px 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin: var(--space-md) 0;
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--color-border);
+  backdrop-filter: blur(20px);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
   user-select: none;
   cursor: default;
+  transition: all var(--transition-normal);
+  
+  &:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+  }
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
+    border: 2px solid rgba(78, 205, 196, 0.3);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(30px);
+    
+    &:hover {
+      border-color: rgba(78, 205, 196, 0.6);
+      box-shadow: 0 20px 80px rgba(78, 205, 196, 0.2);
+    }
+  }
 }
 
 .header {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
   text-align: center;
   
   h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #00d4ff;
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    gap: var(--space-sm);
+    margin: 0 0 var(--space-sm) 0;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-interactive);
+    text-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+    transition: all var(--transition-normal);
   }
   
   p {
     margin: 0;
     opacity: 0.8;
-    font-size: 0.9rem;
-    color: #ccc;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    h3 {
+      color: var(--color-interactive);
+      text-shadow: 0 0 30px rgba(78, 205, 196, 0.8);
+      animation: shimmer 3s ease-in-out infinite;
+    }
   }
 }
 
 .controlGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
+  gap: var(--space-lg);
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: var(--space-xl);
+  }
 }
 
 .section {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  border: 2px solid var(--color-border);
+  transition: all var(--transition-normal);
+  
+  &:hover {
+    border-color: var(--color-interactive);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(78, 205, 196, 0.2);
+    backdrop-filter: blur(15px);
+    
+    &:hover {
+      border-color: rgba(78, 205, 196, 0.5);
+      box-shadow: 0 8px 32px rgba(78, 205, 196, 0.2);
+    }
+  }
   
   h4 {
-    margin: 0 0 16px 0;
-    font-size: 1.1rem;
-    color: #00d4ff;
+    margin: 0 0 var(--space-md) 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-interactive);
     text-align: center;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
-    padding-bottom: 8px;
+    border-bottom: 2px solid var(--color-border);
+    padding-bottom: var(--space-sm);
+    transition: all var(--transition-normal);
+  }
+  
+  // Modern interface enhancements
+  :global(body.modern-interface) & {
+    h4 {
+      color: var(--color-interactive);
+      border-bottom: 2px solid rgba(78, 205, 196, 0.3);
+      text-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+    }
   }
 }
 

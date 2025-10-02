@@ -1,7 +1,7 @@
 /* Modern navbar styling with improved typography and animations */
 :root {
-  --navbar-expanded-width: 220px;
-  --navbar-collapsed-width: 56px;
+  --navbar-expanded-width: 240px;
+  --navbar-collapsed-width: 64px;
 }
 
 .navbarContainer {
@@ -10,22 +10,20 @@
   top: 0;
   height: 100vh;
   width: var(--navbar-expanded-width);
-  z-index: 1001;
+  z-index: var(--z-fixed);
   display: flex;
-  flex-direction: column; /* Changed from row to column */
-  align-items: stretch; /* Ensure children take full width */
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
   font-family: var(--font-body);
   letter-spacing: -0.2px;
-  background: var(--bg-secondary); /* Added background to container */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-left: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1)); /* Added border */
-  box-shadow:
-    -2px 0 8px rgba(0, 0, 0, 0.1),  /* Adjusted shadow for left border */
-    -8px 0 24px rgba(0, 0, 0, 0.1);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0.5rem; /* Added padding to container */
+  background: var(--color-surface);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  transition: width var(--transition-normal);
+  padding: var(--space-sm);
 }
 
 .navBarCollapsedState { /* New class for controlling overall navbar width */
@@ -77,34 +75,36 @@
 }
 
 .collapseToggle {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary);
-  font-size: 0.875rem;
+  @extend .touch-target !optional;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1002; /* Ensure it's above navContent if overlapping */
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  z-index: var(--z-fixed);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%; /* Full width of the collapsed bar / or fixed size */
-  height: 40px; /* Increased height for better visibility */
-  margin-bottom: 0.5rem; /* Space between toggle and first button */
-  /* backdrop-filter: blur(8px); */ /* Removed as container has blur */
-  /* -webkit-backdrop-filter: blur(8px); */
+  width: 100%;
+  height: var(--touch-target-comfortable);
+  margin-bottom: var(--space-sm);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   
   svg {
-    width: 20px; /* Ensure toggle icon is properly sized */
-    height: 20px;
+    width: 24px;
+    height: 24px;
     opacity: 1;
+    transition: all var(--transition-fast);
   }
 
   &:hover {
-    background: var(--bg-tertiary); /* Slightly different hover for distinction */
+    background: var(--color-neutral-100);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     
     svg {
       transform: scale(1.1);
@@ -113,6 +113,7 @@
 
   &:active {
     transform: translateY(0);
+    background: var(--color-neutral-200);
   }
 }
 
@@ -126,11 +127,31 @@
 }
 
 .navButton {
+  @extend .touch-target !optional;
   pointer-events: auto;
-  display: flex; /* Changed from inline-flex for better control */
+  display: flex;
   align-items: center;
-  gap: 0.5rem; /* Adjusted from 0.75rem */
+  gap: var(--space-sm);
   position: relative;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  width: 100%;
+  justify-content: flex-start;
+  transition: all var(--transition-fast);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-body);
+  overflow: hidden;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 
   &[data-tooltip] {
     &:hover::after {
@@ -139,18 +160,19 @@
       right: calc(100% + 10px);
       top: 50%;
       transform: translateY(-50%);
-      background: var(--bg-floating);
-      color: var(--text-primary);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 14px;
+      background: var(--color-surface-elevated);
+      color: var(--color-text-primary);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
       white-space: pre-wrap;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-lg);
       opacity: 0;
-      animation: fadeIn 0.2s ease-out forwards;
+      animation: fadeIn var(--transition-fast) ease-out forwards;
       font-style: italic;
       max-width: 300px;
-      z-index: 1000;
+      z-index: var(--z-tooltip);
+      border: 1px solid var(--color-border);
     }
   }
 
@@ -164,45 +186,26 @@
       transform: translate(0, -50%);
     }
   }
-  padding: 0.5rem 0.6rem; /* Adjusted from 0.625rem 0.75rem */
-  border: none;
-  border-radius: 6px;
-  background: transparent; /* Transparent background, rely on container */
-  color: var(--text-primary);
-  font-size: 0.8rem; /* Adjusted from 0.875rem */
-  line-height: 1.3;
-  font-weight: 450;
-  cursor: pointer;
-  width: 100%; /* Buttons take full width of their container */
-  justify-content: flex-start; /* Align content (icon + text) to the start */
-  position: relative;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  font-family: var(--font-body);
-  overflow: hidden; /* Hide text that overflows during collapse */
-  white-space: nowrap; /* Prevent text wrapping */
 
 
   svg {
-    width: 16px; /* Adjusted from 18px */
-    height: 16px; /* Adjusted from 18px */
+    width: 20px;
+    height: 20px;
     color: inherit;
     opacity: 0.9;
-    transition: transform 0.2s ease;
-    flex-shrink: 0; /* Prevent icon from shrinking */
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
   }
 
   span {
     font-weight: inherit;
-    transition: opacity 0.2s ease; /* Smoothly fade out text */
+    transition: opacity var(--transition-fast);
     opacity: 1;
   }
 
   &:hover {
-    background: var(--bg-hover); /* Use a general hover variable */
-    /* transform: translateY(-1px); Remove transform for vertical items */
-    box-shadow: none; /* Remove individual shadow, rely on container */
+    background: var(--color-neutral-100);
+    transform: translateX(2px);
 
     svg {
       transform: scale(1.1);
@@ -211,17 +214,19 @@
   }
 
   &:active {
-    transform: translateY(0);
-    background: var(--bg-active); /* Use a general active variable */
+    transform: translateX(0);
+    background: var(--color-neutral-200);
   }
 
   &.active {
-    background: var(--color-primary);
-    color: white;
-    font-weight: 500;
+    background: var(--color-interactive);
+    color: var(--color-text-inverse);
+    font-weight: var(--font-semibold);
+    box-shadow: var(--shadow-md);
 
     svg {
       opacity: 1;
+      color: var(--color-text-inverse);
     }
   }
 
@@ -291,6 +296,51 @@
   }
   50% {
     opacity: 0.8;
+  }
+}
+
+// Modern Interface Toggle
+.modernInterfaceToggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.modernToggleButton {
+  @extend .touch-target !optional;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  
+  &:hover {
+    background: var(--color-interactive);
+    border-color: var(--color-interactive);
+    color: var(--color-text-inverse);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  &.active {
+    background: var(--color-interactive);
+    border-color: var(--color-interactive);
+    color: var(--color-text-inverse);
+    box-shadow: 0 0 0 3px rgba(var(--color-interactive), 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 }
 

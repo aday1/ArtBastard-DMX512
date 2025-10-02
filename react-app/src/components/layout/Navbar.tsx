@@ -9,6 +9,7 @@ import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
 import * as Icons from 'lucide-react'
 import { ViewType } from '../router/PageRouter'
+import { useRouter } from '../../context/RouterContext'
 
 // Updated navigation items with Lucide icon names
 const navItems: Array<{
@@ -81,6 +82,16 @@ const navItems: Array<{
     }
   },
   {
+    id: 'acts',
+    icon: 'Workflow',
+    title: {
+    artsnob: "Les Actes Dramatiques",
+      standard: 'Acts',
+      minimal: 'Acts',
+      tooltip: "Complex scene sequences and automation workflows."
+    }
+  },
+  {
     id: 'audio',
     icon: 'WaveformCircle',
     title: {
@@ -118,13 +129,34 @@ const navItems: Array<{
       standard: 'State Management',
       minimal: 'State'
     }
+  },
+  {
+    id: 'acts',
+    icon: 'Play',
+    title: {
+      artsnob: "Les Actes Dramatiques",
+      standard: 'Acts',
+      minimal: 'Acts',
+      tooltip: "Node-based act management system"
+    }
+  },
+  {
+    id: 'scenes',
+    icon: 'Film',
+    title: {
+      artsnob: "Les Scènes Épiques",
+      standard: 'Scenes',
+      minimal: 'Scenes',
+      tooltip: "Scene management and playback"
+    }
   }
 ]
 
 export const Navbar: React.FC = () => {
   const { theme } = useTheme()
-  const [activeView, setActiveView] = useState<ViewType>('main')
+  const { currentView, setCurrentView } = useRouter()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [modernInterface, setModernInterface] = useState(false)
   const navVisibility = useStore((state) => state.navVisibility)
   const { connected } = useSocket()
   const { activeBrowserInputs } = useBrowserMidi()
@@ -152,12 +184,21 @@ export const Navbar: React.FC = () => {
   }, [toDmxValues]);
 
   const handleViewChange = (view: ViewType) => {
-    setActiveView(view)
-    window.dispatchEvent(new CustomEvent('changeView', { detail: { view } }))
+    setCurrentView(view)
   }
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed)
+  }
+
+  const toggleModernInterface = () => {
+    setModernInterface(!modernInterface)
+    // Apply modern interface class to body
+    if (!modernInterface) {
+      document.body.classList.add('modern-interface')
+    } else {
+      document.body.classList.remove('modern-interface')
+    }
   }
 
   useEffect(() => {
@@ -195,13 +236,15 @@ export const Navbar: React.FC = () => {
             <button
               key={item.id}
               onClick={() => handleViewChange(item.id)}
-              className={`${styles.navButton} ${activeView === item.id ? styles.active : ''}`}
+              className={`${styles.navButton} ${currentView === item.id ? styles.active : ''}`}
               title={item.title.tooltip || item.title[theme as keyof typeof item.title]}
               data-tooltip={item.title.tooltip}
             >
               <LucideIcon name={item.icon as keyof typeof Icons} />
               <span>{item.title[theme as keyof typeof item.title]}</span>
-            </button>          ))}        </div>
+            </button>
+          ))}
+        </div>
           {/* Status icons container - visible in both expanded and collapsed states */}
         <div className={`${styles.statusIcons} ${isCollapsed ? styles.statusIconsCollapsed : styles.statusIconsExpanded}`}>
           {/* Connection Status */}
@@ -240,12 +283,26 @@ export const Navbar: React.FC = () => {
           {/* Current View Indicator */}
           <div 
             className={`${styles.statusIcon} ${styles.statusHighlight}`}
-            title={`Current View: ${navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}`}
+            title={`Current View: ${navItems.find(item => item.id === currentView)?.title[theme as keyof typeof navItems[0]['title']] || currentView}`}
           >
-            <LucideIcon name={navItems.find(item => item.id === activeView)?.icon as keyof typeof Icons || 'Layout'} />
+            <LucideIcon name={navItems.find(item => item.id === currentView)?.icon as keyof typeof Icons || 'Layout'} />
             {!isCollapsed && <span className={styles.statusLabel}>
-              {navItems.find(item => item.id === activeView)?.title[theme as keyof typeof navItems[0]['title']] || activeView}
+              {navItems.find(item => item.id === currentView)?.title[theme as keyof typeof navItems[0]['title']] || currentView}
             </span>}
+          </div>
+          
+          {/* Modern Interface Toggle */}
+          <div className={styles.modernInterfaceToggle}>
+            <button
+              onClick={toggleModernInterface}
+              className={`${styles.modernToggleButton} ${modernInterface ? styles.active : ''}`}
+              title={modernInterface ? 'Switch to Classic Interface' : 'Switch to Modern Interface'}
+            >
+              <LucideIcon name={modernInterface ? 'Palette' : 'Sparkles'} />
+              {!isCollapsed && <span className={styles.statusLabel}>
+                {modernInterface ? 'Modern' : 'Classic'}
+              </span>}
+            </button>
           </div>
         </div>
       </div>

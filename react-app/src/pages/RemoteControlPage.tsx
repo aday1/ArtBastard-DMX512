@@ -69,6 +69,7 @@ const RemoteControlPage: React.FC = () => {
         fixtureLayout, 
         masterSliders, 
         allFixtures, 
+        undefined,          // scenes (optional)
         'ArtBastard_TouchOSC.tosc'
       )
       
