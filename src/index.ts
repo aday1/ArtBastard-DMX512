@@ -787,6 +787,42 @@ function updateDmxChannel(channel: number, value: number) {
     }
 }
 
+// Function to set all DMX channels at once (for state restoration)
+function setDmxChannels(channels: number[]) {
+    if (!Array.isArray(channels) || channels.length > 512) {
+        log('Invalid channels array for setDmxChannels', 'ERROR', { length: channels?.length });
+        return;
+    }
+    
+    // Update all channels
+    for (let i = 0; i < Math.min(channels.length, 512); i++) {
+        const value = Math.max(0, Math.min(255, channels[i] || 0)); // Ensure value is between 0-255
+        dmxChannels[i] = value;
+    }
+    
+    // Send all channels to ArtNet at once
+    if (artnetSender) {
+        for (let i = 0; i < channels.length && i < 512; i++) {
+            artnetSender.setChannel(i, dmxChannels[i]);
+        }
+        artnetSender.transmit();
+        log(`Set ${channels.length} DMX channels`, 'DMX');
+    } else {
+        log('ArtNet sender not initialized - channels set in memory only', 'WARN');
+    }
+    
+    // Send OSC updates for assigned channels
+    if (oscConfig.sendEnabled && oscSendPort) {
+        for (let i = 0; i < channels.length && i < 512; i++) {
+            if (oscAssignments[i]) {
+                const oscAddress = oscAssignments[i];
+                const normalizedValue = dmxChannels[i] / 255.0;
+                sendOscMessage(oscAddress, [{ type: 'f', value: normalizedValue }]);
+            }
+        }
+    }
+}
+
 // OSC message sending function
 function sendOscMessage(address: string, args: any[]) {
     if (!oscConfig.sendEnabled || !oscSendPort) {
@@ -1143,6 +1179,7 @@ export {
     disconnectMidiInput,
     addSocketHandlers,
     updateDmxChannel as setDmxChannel, // Export with alias
+    setDmxChannels, // Export new function for bulk channel setting
     loadScene,    saveScene,
     updateScene,
     loadScenes,

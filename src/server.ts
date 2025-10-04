@@ -128,6 +128,110 @@ try {
     log('Unhandled Rejection', 'ERROR', { reason });
   });
 
+  // Function to restore last saved state on startup
+  function restoreLastState(io: Server) {
+    try {
+      const statePath = path.join(__dirname, '..', 'data', 'last-state.json');
+      
+      if (fs.existsSync(statePath)) {
+        const stateData = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+        
+        log('Found previous state - restoring...', 'SYSTEM', { 
+          savedOn: stateData.savedOn,
+          timestamp: stateData.timestamp 
+        });
+        
+        // Restore DMX channels if available
+        if (stateData.dmxChannels && Array.isArray(stateData.dmxChannels)) {
+          // Import the setDmxChannels function to restore state
+          const { setDmxChannels } = require('./core');
+          
+          // Restore the DMX state
+          if (typeof setDmxChannels === 'function') {
+            setDmxChannels(stateData.dmxChannels);
+            log('DMX state restored successfully', 'SYSTEM', { 
+              channelsRestored: stateData.dmxChannels.filter((val: number) => val > 0).length 
+            });
+            
+            // Notify all clients about the restored state
+            io.emit('dmxUpdate', stateData.dmxChannels);
+          }
+        }
+        
+        log('State restoration completed', 'SYSTEM');
+      } else {
+        log('No previous state found - starting fresh', 'SYSTEM');
+      }
+    } catch (error) {
+      log('Error restoring last state', 'ERROR', { 
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined 
+      });
+    }
+  }
+
+  // Graceful shutdown handler - Save all states when Ctrl+C is pressed
+  function gracefulShutdown(signal: string) {
+    log(`Received ${signal} - Starting graceful shutdown...`, 'SYSTEM');
+    
+    try {
+      // Import saveConfig and saveScenes from core
+      const { saveConfig, saveScenes, getDmxChannels } = require('./core');
+      
+      // Save current configuration (MIDI mappings, OSC assignments, etc.)
+      log('Saving configuration...', 'SYSTEM');
+      saveConfig();
+      
+      // Save current scenes
+      log('Saving scenes...', 'SYSTEM');
+      saveScenes();
+      
+      // Save current DMX state to a state file
+      const currentDmxState = getDmxChannels();
+      if (currentDmxState && currentDmxState.length > 0) {
+        const statePath = path.join(__dirname, '..', 'data', 'last-state.json');
+        const stateData = {
+          timestamp: new Date().toISOString(),
+          dmxChannels: currentDmxState,
+          savedOn: 'graceful-shutdown'
+        };
+        fs.writeFileSync(statePath, JSON.stringify(stateData, null, 2));
+        log('DMX state saved to last-state.json', 'SYSTEM');
+      }
+      
+      log('All states saved successfully. Shutting down...', 'SYSTEM');
+      
+      // Close server gracefully
+      server.close(() => {
+        log('Server closed. Goodbye!', 'SYSTEM');
+        process.exit(0);
+      });
+      
+      // Force exit after 5 seconds if graceful shutdown hangs
+      setTimeout(() => {
+        log('Force shutdown after timeout', 'SYSTEM');
+        process.exit(1);
+      }, 5000);
+      
+    } catch (error) {
+      log('Error during graceful shutdown', 'ERROR', { 
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined 
+      });
+      process.exit(1);
+    }
+  }
+
+  // Register shutdown handlers for different signals
+  process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+
+  // Handle Windows-specific shutdown signals
+  if (process.platform === 'win32') {
+    process.on('SIGBREAK', () => gracefulShutdown('SIGBREAK (Ctrl+Break)'));
+  }
+
   // Socket.IO connection handler
   io.on('connection', (socket) => {
     log('A user connected', 'SERVER', { socketId: socket.id, transport: socket.conn.transport.name });
@@ -409,6 +513,10 @@ try {
     // Initialize application with Socket.IO instance
     try {
       startLaserTime(io);
+      
+      // Restore last saved state if available
+      restoreLastState(io);
+      
     } catch (error) {
       log('ERROR initializing application', 'ERROR', { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
     }

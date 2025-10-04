@@ -357,17 +357,17 @@ const KonvaFixtureCanvas: React.FC<KonvaFixtureCanvasProps> = ({
 
       {/* Konva Stage */}
       <div className={styles.stageContainer}>
-        {(Stage as any)({
-          ref: stageRef,
-          width: width,
-          height: height,
-          scaleX: zoom,
-          scaleY: zoom,
-          x: pan.x,
-          y: pan.y,
-          onClick: handleStageClick,
-          onTap: handleStageClick,
-          children: (
+        <Stage
+          ref={stageRef}
+          width={width}
+          height={height}
+          scaleX={zoom}
+          scaleY={zoom}
+          x={pan.x}
+          y={pan.y}
+          onClick={handleStageClick}
+          onTap={handleStageClick}
+        >
           <Layer ref={layerRef}>
             {/* Grid */}
             {renderGrid()}
@@ -375,8 +375,7 @@ const KonvaFixtureCanvas: React.FC<KonvaFixtureCanvasProps> = ({
             {/* Fixtures */}
             {placedFixtures.map(renderFixture)}
           </Layer>
-          )
-        })}
+        </Stage>
       </div>
 
       {/* Canvas Info */}
