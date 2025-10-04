@@ -12,6 +12,7 @@ const FIXTURE_TEMPLATES = [
   { name: 'MINI BEAM', channels: 16, description: 'MINI BEAM Moving Head', commonChannels: ['Color Wheel', 'Strobe', 'Dimmer', 'Gobo', 'Prism 1', 'Prism Rotation', 'Prism 2', 'Frost', 'Focus', 'Pan', 'Pan Fine', 'Tilt', 'Tilt Fine', 'Speed', 'Reset', 'Lamp'] },
   { name: 'LED Spider Light', channels: 15, description: 'Dual Motor RGBW Effect Light', commonChannels: ['Motor 1 Rotate', 'Motor 2 Rotate', 'Master Dimmer', 'Strobe', 'M1 Red', 'M1 Green', 'M1 Blue', 'M1 White', 'M2 Red', 'M2 Green', 'M2 Blue', 'M2 White', 'Effect Programs', 'Effect Speed', 'Reset'] },
   { name: 'EL1000RGB Laser', channels: 16, description: 'RGB Laser Projector', commonChannels: ['Laser On/Off', 'Color Control', 'Color Speed', 'Pattern Option', 'Pattern Group', 'Pattern Size', 'Auto Zoom', 'Center Rotation', 'H Rotation', 'V Rotation', 'H Move', 'V Move', 'Wave Effect', 'Drawing', 'Dynamic Effect', 'Effect Speed'] },
+  { name: 'Laser Sparkler', channels: 5, description: 'Laser Sparkler Effect Light', commonChannels: ['Mode', 'Running Direction', 'Running Speed', 'Twinkle Speed', 'Color Section'] },
   { name: 'Dimmer', channels: 1, description: 'Single channel dimmer', commonChannels: ['Dimmer'] },
   { name: 'Strobe Light', channels: 2, description: 'Basic strobe light', commonChannels: ['Dimmer', 'Strobe Rate'] },
   { name: 'Custom', channels: 1, description: 'Custom fixture definition', commonChannels: [] }

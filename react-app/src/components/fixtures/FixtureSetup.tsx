@@ -251,6 +251,17 @@ const fixtureTemplates: Array<{
       { name: 'Inner Effect Speed', type: 'speed' },
     ],
   },
+  {
+    templateName: 'Laser Sparkler',
+    defaultNamePrefix: 'Laser Sparkler',
+    channels: [
+      { name: 'Mode', type: 'macro' },
+      { name: 'Running Direction', type: 'pan' },
+      { name: 'Running Speed', type: 'speed' },
+      { name: 'Twinkle Speed', type: 'speed' },
+      { name: 'Color Section', type: 'color_wheel' },
+    ],
+  },
 ];
 
 export const FixtureSetup: React.FC = () => {

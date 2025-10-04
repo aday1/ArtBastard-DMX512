@@ -72,5 +72,17 @@ export const fixtureTemplates: FixtureTemplate[] = [
       { name: 'Output', type: 'dimmer' },
       { name: 'Fan Speed', type: 'speed' }
     ]
+  },
+  {
+    id: 'template-laser-sparkler',
+    name: 'Laser Sparkler',
+    type: 'laser',
+    channels: [
+      { name: 'Mode', type: 'macro' },
+      { name: 'Running Direction', type: 'pan' },
+      { name: 'Running Speed', type: 'speed' },
+      { name: 'Twinkle Speed', type: 'speed' },
+      { name: 'Color Section', type: 'color_wheel' }
+    ]
   }
 ];

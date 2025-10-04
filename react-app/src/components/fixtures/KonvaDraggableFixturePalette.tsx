@@ -266,11 +266,11 @@ const KonvaDraggableFixturePalette: React.FC<KonvaDraggableFixturePaletteProps> 
       </div>
       
       <div className={styles.stageContainer}>
-        {(Stage as any)({
-          ref: stageRef,
-          width: width,
-          height: height,
-          children: (
+        <Stage
+          ref={stageRef}
+          width={width}
+          height={height}
+        >
           <Layer ref={layerRef}>
             {/* Fixture templates */}
             {fixtureTemplates.map((fixture, index) => renderFixtureTemplate(fixture, index))}
@@ -278,8 +278,7 @@ const KonvaDraggableFixturePalette: React.FC<KonvaDraggableFixturePaletteProps> 
             {/* Drag preview */}
             {renderDragPreview()}
           </Layer>
-          )
-        })}
+        </Stage>
       </div>
       
       <div className={styles.paletteFooter}>
