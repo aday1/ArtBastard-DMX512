@@ -120,6 +120,38 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('[SocketContext] MIDI clock input changed to:', inputName);
       });
 
+      // Listen for DMX channel updates from backend
+      socketInstance.on('dmxUpdate', ({ channel, value }: { channel: number; value: number }) => {
+        console.log('[SocketContext] Received DMX update:', { channel, value });
+        // Update the store with the new DMX channel value (don't send back to backend to avoid loops)
+        const store = useStore.getState();
+        store.setDmxChannel(channel, value, false);
+      });
+
+      // Listen for scene loaded events from backend
+      socketInstance.on('sceneLoaded', ({ name, channelValues }: { name: string; channelValues: number[] }) => {
+        console.log('[SocketContext] Received scene loaded:', { name, channelValues });
+        console.log('[SocketContext] Channel values length:', channelValues.length);
+        console.log('[SocketContext] First 10 channel values:', channelValues.slice(0, 10));
+        
+        // Cancel any ongoing frontend transition FIRST since backend has loaded the scene
+        const store = useStore.getState();
+        if (store.isTransitioning && store.currentTransitionFrame) {
+          window.cancelAnimationFrame(store.currentTransitionFrame);
+          useStore.setState({ currentTransitionFrame: null, isTransitioning: false });
+          console.log('[SocketContext] Cancelled frontend transition for backend scene load');
+        }
+        
+        // Update all DMX channels with the scene values using bulk update
+        const updates: Record<number, number> = {};
+        channelValues.forEach((value, index) => {
+          updates[index] = value;
+        });
+        console.log('[SocketContext] About to call setMultipleDmxChannels with updates:', Object.keys(updates).length, 'channels');
+        store.setMultipleDmxChannels(updates, false); // Don't send back to backend to avoid loops
+        console.log('[SocketContext] Applied scene values to DMX channels');
+      });
+
       setSocket(socketInstance);
 
       // Cleanup function
@@ -128,6 +160,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (socketInstance) {
           socketInstance.off('masterClockUpdate');
           socketInstance.off('availableClockSources');
+          socketInstance.off('midiClockInputs');
+          socketInstance.off('midiClockInputChanged');
+          socketInstance.off('dmxUpdate');
+          socketInstance.off('sceneLoaded');
           socketInstance.disconnect();
         }
         setSocket(null);

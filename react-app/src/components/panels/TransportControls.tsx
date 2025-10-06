@@ -51,7 +51,9 @@ const TransportControls: React.FC<TransportControlsProps> = ({
     startAutomationPlayback,
     stopAutomationPlayback,
     setAutomationPosition,
-    applyAutomationPreset
+    applyAutomationPreset,
+    // Scene functions
+    loadScene: storeLoadScene,
   } = useStore();
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -587,7 +589,7 @@ const TransportControls: React.FC<TransportControlsProps> = ({
                       </div>
                       <div className={styles.sceneActions}>                        <button
                           className={styles.sceneActionButton}
-                          onClick={() => loadScene(index)}
+                          onClick={() => storeLoadScene(scene.name)}
                           title="Load Scene"
                         >
                           ▶

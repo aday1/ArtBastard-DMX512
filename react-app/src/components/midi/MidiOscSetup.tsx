@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useStore } from '../../store'
 import { useSocket } from '../../context/SocketContext'
 import { useTheme } from '../../context/ThemeContext'
-import { useBrowserMidi } from '../../hooks/useBrowserMidi'
+import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi'
 import { MidiVisualizer } from './MidiVisualizer'
 import styles from './MidiOscSetup.module.scss'
 
@@ -17,13 +17,11 @@ export const MidiOscSetup: React.FC = () => {
     connectBrowserInput,
     disconnectBrowserInput,
     refreshDevices
-  } = useBrowserMidi()
-    const [midiInterfaces, setMidiInterfaces] = useState<string[]>([])
-  const [activeInterfaces, setActiveInterfaces] = useState<string[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  } = useGlobalBrowserMidi()
+  
   const [oscConfig, setOscConfig] = useState({ 
     host: '127.0.0.1', 
-    port: 57121,
+    port: 8000,
     sendEnabled: true,
     sendHost: '127.0.0.1',
     sendPort: 57120
@@ -31,26 +29,35 @@ export const MidiOscSetup: React.FC = () => {
   // Add OSC status state
   const [oscReceiveStatus, setOscReceiveStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
   const [oscSendStatus, setOscSendStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
+  const [isRefreshing, setIsRefreshing] = useState(false)
   
   const midiMessages = useStore(state => state.midiMessages)
   const clearAllMidiMappings = useStore(state => state.clearAllMidiMappings)
   
-  // Request MIDI interfaces on component mount
+  // Get MIDI interfaces and active interfaces from global state
+  const midiInterfaces = useStore(state => state.midiInterfaces)
+  const activeInterfaces = useStore(state => state.activeInterfaces)
+  const { connectMidiInterface, disconnectMidiInterface, refreshMidiInterfaces } = useStore(state => ({
+    connectMidiInterface: (name: string) => {
+      if (socket && connected) {
+        socket.emit('selectMidiInterface', name)
+      }
+    },
+    disconnectMidiInterface: (name: string) => {
+      if (socket && connected) {
+        socket.emit('disconnectMidiInterface', name)
+      }
+    },
+    refreshMidiInterfaces: () => {
+      if (socket && connected) {
+        socket.emit('getMidiInterfaces')
+      }
+    }
+  }))
+  
+  // Listen for OSC status updates
   useEffect(() => {
     if (socket && connected) {
-      socket.emit('getMidiInterfaces')
-      
-      // Listen for MIDI interfaces
-      const handleMidiInterfaces = (interfaces: string[]) => {
-        setMidiInterfaces(interfaces)
-        setIsRefreshing(false)
-      }
-      
-      // Listen for active MIDI interfaces
-      const handleActiveInterfaces = (active: string[]) => {
-        setActiveInterfaces(active)
-      }
-      
       // Listen for OSC status updates
       const handleOscStatus = (status: { status: string, receivePort?: number, message?: string }) => {
         if (status.status === 'connected') {
@@ -71,15 +78,11 @@ export const MidiOscSetup: React.FC = () => {
           setOscSendStatus('disconnected')
         }
       }
-      
-      socket.on('midiInterfaces', handleMidiInterfaces)
-      socket.on('midiInputsActive', handleActiveInterfaces)
+
       socket.on('oscStatus', handleOscStatus)
       socket.on('oscSendStatus', handleOscSendStatus)
-      
+
       return () => {
-        socket.off('midiInterfaces', handleMidiInterfaces)
-        socket.off('midiInputsActive', handleActiveInterfaces)
         socket.off('oscStatus', handleOscStatus)
         socket.off('oscSendStatus', handleOscSendStatus)
       }
@@ -88,29 +91,26 @@ export const MidiOscSetup: React.FC = () => {
   
   // Refresh all MIDI interfaces
   const handleRefreshMidi = () => {
-    if (socket && connected) {
-      setIsRefreshing(true)
-      socket.emit('getMidiInterfaces')
-    }
+    setIsRefreshing(true)
+    refreshMidiInterfaces()
     
     // Also refresh browser MIDI devices
     if (browserMidiSupported) {
       refreshDevices()
     }
+    
+    // Reset refreshing state after a short delay
+    setTimeout(() => setIsRefreshing(false), 1000)
   }
   
   // Connect to server MIDI interface
   const handleConnectMidi = (interfaceName: string) => {
-    if (socket && connected) {
-      socket.emit('selectMidiInterface', interfaceName)
-    }
+    connectMidiInterface(interfaceName)
   }
   
   // Disconnect from server MIDI interface
   const handleDisconnectMidi = (interfaceName: string) => {
-    if (socket && connected) {
-      socket.emit('disconnectMidiInterface', interfaceName)
-    }
+    disconnectMidiInterface(interfaceName)
   }
     // Save OSC configuration
   const handleSaveOscConfig = () => {
@@ -145,7 +145,7 @@ export const MidiOscSetup: React.FC = () => {
       </h2>
 
       <div className={styles.connectedDevicesSummary}>
-        Connected MIDI Devices: Server (<b>{activeInterfaces.length}</b>), Browser (<b>{activeBrowserInputs.size}</b>)
+        Connected MIDI Devices: Server (<b>{activeInterfaces.length}</b>), Browser (<b>{activeBrowserInputs.length}</b>)
       </div>
       
       <div className={styles.setupGrid}>
@@ -292,11 +292,11 @@ export const MidiOscSetup: React.FC = () => {
                         {input.name}
                         <span className={styles.interfaceManufacturer}>{input.manufacturer}</span>
                       </span>
-                      <span className={`${styles.interfaceStatus} ${activeBrowserInputs.has(input.id) ? styles.active : ''}`}>
-                        {activeBrowserInputs.has(input.id) ? 'Connected' : 'Disconnected'}
+                      <span className={`${styles.interfaceStatus} ${activeBrowserInputs.includes(input.id) ? styles.active : ''}`}>
+                        {activeBrowserInputs.includes(input.id) ? 'Connected' : 'Disconnected'}
                       </span>
                       <div className={styles.interfaceActions}>
-                        {activeBrowserInputs.has(input.id) ? (
+                        {activeBrowserInputs.includes(input.id) ? (
                           <button 
                             className={`${styles.actionButton} ${styles.disconnectButton}`}
                             onClick={() => disconnectBrowserInput(input.id)}
@@ -368,7 +368,7 @@ export const MidiOscSetup: React.FC = () => {
             </div>
             
             <div className={styles.formGroup}>
-              <label htmlFor="oscPort" title="Network port number for receiving OSC messages. Common values: 57121 (default), 8000, 9000">
+              <label htmlFor="oscPort" title="Network port number for receiving OSC messages. Common values: 8000 (default), 57121, 9000">
                 Receive Port:
               </label>
               <input
@@ -376,8 +376,8 @@ export const MidiOscSetup: React.FC = () => {
                 id="oscPort"
                 value={oscConfig.port}
                 onChange={(e) => setOscConfig({ ...oscConfig, port: parseInt(e.target.value) })}
-                placeholder="57121"
-                title="Network port for receiving OSC messages. Default: 57121"
+                placeholder="8000"
+                title="Network port for receiving OSC messages. Default: 8000"
               />
             </div>
             

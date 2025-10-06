@@ -26,6 +26,7 @@ export const useMidiLearn = () => {
     console.log(`[MidiLearn] Starting MIDI Learn for DMX CH ${channel}`);
     console.log(`[MidiLearn] Current midiLearnTarget:`, midiLearnTarget);
     console.log(`[MidiLearn] Available MIDI messages:`, midiMessages.length);
+    console.log(`[MidiLearn] Store state:`, useStore.getState());
     
     const target = { type: 'dmxChannel' as const, channelIndex: channel };
     
@@ -36,6 +37,11 @@ export const useMidiLearn = () => {
     
     startMidiLearnAction(target)
     setLearnStatus('learning')
+    
+    // Verify the target was set correctly
+    const updatedTarget = useStore.getState().midiLearnTarget;
+    console.log(`[MidiLearn] Target set in store:`, updatedTarget);
+    
     addNotification({
       message: `🎵 MIDI Learn active for DMX CH ${channel + 1}. Move any MIDI control!`,
       type: 'info',
@@ -142,8 +148,32 @@ export const useMidiLearn = () => {
         window.clearTimeout(timeoutId)
         setTimeoutId(null)
       }
+    } else if (messageType === 'noteon' && latestMessage.note !== undefined) {
+      const mapping: MidiMapping = {
+        channel: latestMessage.channel,
+        note: latestMessage.note
+      }
+      console.log(`[MidiLearn] Creating Note mapping for DMX CH ${channel}:`, mapping);
+      
+      addMidiMapping(channel, mapping)
+      
+      const event = new CustomEvent('midiMappingCreated', { detail: { channel, mapping } })
+      window.dispatchEvent(event)
+      
+      setLearnStatus('success')
+      addNotification({
+        message: `✅ DMX CH ${channel + 1} mapped to MIDI Note ${mapping.note} on CH ${mapping.channel + 1}!`,
+        type: 'success',
+        priority: 'normal'
+      });
+      console.log(`[MidiLearn] Success for DMX CH ${channel}. Status: success.`);
+      
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+        setTimeoutId(null)
+      }
     } else {
-      console.log('[MidiLearn] Ignoring non-CC message or message without controller. Type:', messageType, 'Controller:', latestMessage.controller);
+      console.log('[MidiLearn] Ignoring message. Type:', messageType, 'Controller:', latestMessage.controller, 'Note:', latestMessage.note);
     }
   }, [midiMessages, midiLearnTarget, learnStatus, addMidiMapping, timeoutId, addNotification, cancelMidiLearnAction]);
   

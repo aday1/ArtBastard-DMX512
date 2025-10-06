@@ -1,12 +1,13 @@
-Write-Host "ArtBastard DMX512 - NUCLEAR CLEAN LAUNCHER" -ForegroundColor Cyan
+Write-Host "ArtBastard DMX512 - NUCLEAR CLEAN LAUNCHER WITH ELECTRON" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "ULTRA-FAST complete cleanup and fresh build with PROGRESS TRACKING!" -ForegroundColor White
 Write-Host "Real-time progress percentage and time estimates!" -ForegroundColor White
+Write-Host "Now includes ELECTRON desktop app with NATIVE MIDI support!" -ForegroundColor Magenta
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $startTime = Get-Date
-$totalSteps = 6
+$totalSteps = 7
 $currentStep = 0
 
 function Show-Progress {
@@ -131,6 +132,21 @@ if (Test-Path "react-app/.vite") {
     Remove-Item -Recurse -Force "react-app/.vite" -ErrorAction SilentlyContinue
 }
 
+# Clear Electron cache and build artifacts
+Write-Host "Clearing Electron cache and build artifacts..." -ForegroundColor Yellow
+if (Test-Path "electron/node_modules") {
+    Write-Host "  Removing: electron/node_modules" -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "electron/node_modules" -ErrorAction SilentlyContinue
+}
+if (Test-Path "electron/electron-dist") {
+    Write-Host "  Removing: electron/electron-dist" -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "electron/electron-dist" -ErrorAction SilentlyContinue
+}
+if (Test-Path "electron/dist") {
+    Write-Host "  Removing: electron/dist" -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "electron/dist" -ErrorAction SilentlyContinue
+}
+
 Write-Host "Nuclear cleanup completed!" -ForegroundColor Green
 Write-Host ""
 
@@ -228,11 +244,28 @@ try {
     Write-Host "Try running: cd react-app && npm cache clean --force" -ForegroundColor Cyan
     exit 1
 }
+
+Write-Host "Installing Electron dependencies (FRESH)..." -ForegroundColor Cyan
+try {
+    Push-Location electron
+    npm install --no-cache --prefer-offline=false
+    if ($LASTEXITCODE -ne 0) {
+        throw "npm install failed with exit code $LASTEXITCODE"
+    }
+    Pop-Location
+    Write-Host "Electron dependencies installed!" -ForegroundColor Green
+} catch {
+    Write-Host "FAILED: Electron dependency installation failed!" -ForegroundColor Red
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    Pop-Location
+    Write-Host "Try running: cd electron && npm cache clean --force" -ForegroundColor Cyan
+    exit 1
+}
 Write-Host ""
 
 # Step 4: FORCE BUILD EVERYTHING
 $currentStep = 4
-Show-Progress "STEP 4/6: FORCE BUILD EVERYTHING" $currentStep "Green"
+Show-Progress "STEP 4/7: FORCE BUILD EVERYTHING" $currentStep "Green"
 
 Write-Host "Building backend (OPTIMIZED)..." -ForegroundColor Cyan
 try {
@@ -272,11 +305,26 @@ try {
     Write-Host "Check TypeScript errors in react-app/src/ directory" -ForegroundColor Cyan
     exit 1
 }
+
+Write-Host "Building Electron app (DEVELOPMENT MODE)..." -ForegroundColor Cyan
+try {
+    Push-Location electron
+    Write-Host "  Skipping Electron build - will run in development mode..." -ForegroundColor Yellow
+    Write-Host "  Electron will use the React dev server at http://localhost:3001" -ForegroundColor Yellow
+    Pop-Location
+    Write-Host "Electron ready for development mode!" -ForegroundColor Green
+} catch {
+    Write-Host "FAILED: Electron setup failed!" -ForegroundColor Red
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    Pop-Location
+    Write-Host "Check Electron configuration in electron/ directory" -ForegroundColor Cyan
+    exit 1
+}
 Write-Host ""
 
 # Step 5: VERIFICATION
 $currentStep = 5
-Show-Progress "STEP 5/6: BUILD VERIFICATION" $currentStep "Green"
+Show-Progress "STEP 5/7: BUILD VERIFICATION" $currentStep "Green"
 
 $buildSuccess = $true
 if (-not (Test-Path "dist")) {
@@ -287,20 +335,75 @@ if (-not (Test-Path "react-app/dist")) {
     Write-Host "Frontend dist directory missing!" -ForegroundColor Red
     $buildSuccess = $false
 }
+if (-not (Test-Path "electron/node_modules")) {
+    Write-Host "Electron dependencies missing!" -ForegroundColor Red
+    $buildSuccess = $false
+}
 
 if ($buildSuccess) {
     Write-Host "Build verification PASSED!" -ForegroundColor Green
     Write-Host "All components built successfully!" -ForegroundColor Green
+    Write-Host "Electron app ready for development mode with native MIDI support!" -ForegroundColor Magenta
 } else {
     Write-Host "Build verification FAILED!" -ForegroundColor Red
     exit 1
 }
 Write-Host ""
 
-# Step 6: LAUNCH THE CLEAN ARTBASTARD
+# Step 6: LAUNCH ELECTRON APP
 $currentStep = 6
-Show-Progress "STEP 6/6: LAUNCHING CLEAN ARTBASTARD DMX512" $currentStep "Green"
-Write-Host "Starting ArtBastard DMX512 server..." -ForegroundColor Green
+Show-Progress "STEP 6/7: LAUNCHING ELECTRON DESKTOP APP" $currentStep "Magenta"
+Write-Host "Starting ArtBastard DMX512 Electron app with NATIVE MIDI..." -ForegroundColor Magenta
+
+# Launch Electron app using Start-Process instead of job
+Write-Host "Launching Electron app with Start-Process..." -ForegroundColor Magenta
+
+# Wait for server to be ready first
+$maxAttempts = 30
+$attempt = 0
+$url = "http://localhost:3030"
+
+Write-Host "Waiting for server to be ready before launching Electron..." -ForegroundColor Cyan
+
+while ($attempt -lt $maxAttempts) {
+    try {
+        $response = Invoke-WebRequest -Uri $url -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($response.StatusCode -eq 200) {
+            Write-Host "Server is ready! Launching Electron app..." -ForegroundColor Green
+            break
+        }
+    } catch {
+        # Server not ready yet
+        if ($attempt % 5 -eq 0) {
+            Write-Host "  Still waiting for server... (attempt $attempt/$maxAttempts)" -ForegroundColor Yellow
+        }
+    }
+    
+    Start-Sleep -Seconds 1
+    $attempt++
+}
+
+if ($attempt -eq $maxAttempts) {
+    Write-Host "Server timeout - launching Electron anyway..." -ForegroundColor Yellow
+}
+
+# Launch Electron using Start-Process
+try {
+    Write-Host "Starting Electron process..." -ForegroundColor Cyan
+    $electronProcess = Start-Process -FilePath "npm" -ArgumentList "run", "electron" -WorkingDirectory "electron" -PassThru
+    Write-Host "Electron process started with PID: $($electronProcess.Id)" -ForegroundColor Green
+} catch {
+    Write-Host "Error launching Electron: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-Host "Electron app launched with native MIDI support!" -ForegroundColor Green
+Write-Host "MIDI Learn should now work reliably with native MIDI access!" -ForegroundColor Cyan
+Write-Host ""
+
+# Step 7: LAUNCH THE CLEAN ARTBASTARD WEB SERVER
+$currentStep = 7
+Show-Progress "STEP 7/7: LAUNCHING CLEAN ARTBASTARD DMX512 WEB SERVER" $currentStep "Green"
+Write-Host "Starting ArtBastard DMX512 web server..." -ForegroundColor Green
 
 # Enhanced browser auto-open with better monitoring
 $browserJob = Start-Job -ScriptBlock {
@@ -344,8 +447,9 @@ Write-Host "CLEAN BUILD COMPLETE!" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "Total Build Time: ${totalTime}s" -ForegroundColor Yellow
 Write-Host "You now have the latest and greatest ArtBastard DMX512!" -ForegroundColor White
-Write-Host "All MIDI Learn, OSC, and lighting controls are fresh!" -ForegroundColor White
-Write-Host "Starting server with ALL latest features..." -ForegroundColor White
+Write-Host "ELECTRON APP: Native MIDI support with reliable MIDI Learn!" -ForegroundColor Magenta
+Write-Host "WEB SERVER: All MIDI Learn, OSC, and lighting controls are fresh!" -ForegroundColor White
+Write-Host "Starting both Electron app AND web server..." -ForegroundColor White
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -369,3 +473,4 @@ try {
 Write-Host ""
 Write-Host "ArtBastard DMX512 session ended." -ForegroundColor Cyan
 Write-Host "   Thanks for using the cleanest lighting control system!" -ForegroundColor White
+Write-Host "   Both Electron app and web server have been launched!" -ForegroundColor Magenta

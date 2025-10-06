@@ -40,7 +40,7 @@ export const OSCMonitor: React.FC = () => {
   const getActiveAssignments = () => {
     return oscAssignments
       .map((address, index) => ({ channel: index + 1, address }))
-      .filter(item => item.address && item.address.trim() !== '' && item.address !== `/fixture/DMX${item.channel}`);
+      .filter(item => item.address && item.address.trim() !== '' && item.address !== `/1/fader${item.channel}`);
   };
 
   return (

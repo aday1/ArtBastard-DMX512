@@ -7,10 +7,24 @@ import { DockingProvider } from './context/DockingContext'
 import { PinningProvider } from './context/PinningContext'
 import { ExternalWindowProvider } from './context/ExternalWindowContext'
 import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
+import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation'
+import { useGlobalMidiManager } from './hooks/useGlobalMidiManager'
+import { useGlobalBrowserMidi } from './hooks/useGlobalBrowserMidi'
+import { MidiDmxProcessor } from './components/midi/MidiDmxProcessor'
+import { OscDmxProcessor } from './components/midi/OscDmxProcessor'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
+  // Initialize scene transition animation
+  useSceneTransitionAnimation();
+  
+  // Initialize global MIDI manager to persist across all pages
+  useGlobalMidiManager();
+  
+  // Initialize global browser MIDI manager to persist across all pages
+  useGlobalBrowserMidi();
+  
   return (
     <ThemeProvider>
       <SocketProvider>
@@ -19,6 +33,10 @@ function App() {
             <PinningProvider>
               <ExternalWindowProvider>
                 <ChromaticEnergyManipulatorProvider>
+                  {/* Global MIDI processor - processes MIDI messages into DMX channel updates */}
+                  <MidiDmxProcessor />
+                  {/* Global OSC processor - processes OSC messages into DMX channel updates */}
+                  <OscDmxProcessor />
                   <Layout />
                   <ToastContainer 
                     position="top-right"

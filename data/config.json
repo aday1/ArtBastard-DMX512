@@ -54,11 +54,11 @@
     }
   },
   "oscAssignments": [
-    "/dmx/1",
-    "/dmx/2",
-    "/dmx/3",
-    "/dmx/4",
-    "/dmx/5",
+    "/1/fader1",
+    "/1/fader2",
+    "/1/fader3",
+    "/1/fader4",
+    "/1/fader5",
     "/dmx/6",
     "/dmx/7",
     "/dmx/8",
@@ -569,7 +569,7 @@
   ],
   "oscConfig": {
     "host": "127.0.0.1",
-    "port": 57121,
+    "port": 8000,
     "sendEnabled": true,
     "sendHost": "127.0.0.1",
     "sendPort": 57120

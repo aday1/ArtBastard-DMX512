@@ -11,8 +11,9 @@ import AudioAnalysisPage from '../../pages/AudioAnalysisPage'
 import RemoteControlPage from '../../pages/RemoteControlPage'
 import SettingsPage from '../../pages/SettingsPage'
 import StateManagementPage from '../../pages/StateManagementPage'
+import DmxChannelControlPage from '../pages/DmxChannelControlPage'
 
-export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'acts' | 'audio' | 'touchosc' | 'misc' | 'state'
+export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'acts' | 'audio' | 'touchosc' | 'misc' | 'state' | 'dmxControl'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
@@ -40,6 +41,8 @@ const PageRouter: React.FC = () => {
         return <SettingsPage />
       case 'state':
         return <StateManagementPage />
+      case 'dmxControl':
+        return <DmxChannelControlPage />
       default:
         return <MainPage />
     }

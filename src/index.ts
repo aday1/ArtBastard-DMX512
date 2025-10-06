@@ -74,7 +74,7 @@ interface OscConfig {
 
 // Variable declarations
 let dmxChannels: number[] = new Array(512).fill(0);
-let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/dmx/${i + 1}`); // Updated default pattern
+let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`); // Updated default pattern
 let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
@@ -93,7 +93,7 @@ let oscSendPort: any = null;
 // OSC Configuration
 let oscConfig: OscConfig = {
     host: '127.0.0.1',
-    port: 57121,
+    port: 8000,
     // OSC sending configuration
     sendEnabled: true,
     sendHost: '127.0.0.1',
@@ -138,7 +138,7 @@ function loadConfig() {
         const parsedConfig = JSON.parse(data);
         artNetConfig = { ...artNetConfig, ...parsedConfig.artNetConfig };
         midiMappings = parsedConfig.midiMappings || {};
-        oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/dmx/${i + 1}`); // Load OSC assignments or use default
+        oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`); // Load OSC assignments or use default
         oscConfig = { ...oscConfig, ...parsedConfig.oscConfig }; // Load OSC config or use default
         log('Config loaded', 'INFO', { artNetConfig });
         log('MIDI mappings loaded', 'MIDI', { midiMappings });
@@ -373,6 +373,7 @@ function initOsc(io: Server) {
             // Process for DMX channel activity
             oscAssignments.forEach((assignedAddress, channelIndex) => {
                 if (oscMsg.address === assignedAddress && oscMsg.args.length > 0) {
+                    log(`OSC address match found: ${oscMsg.address} -> DMX channel ${channelIndex + 1}`, 'OSC');
                     let value = 0.0;
                     const firstArg = oscMsg.args[0];
 
@@ -398,6 +399,30 @@ function initOsc(io: Server) {
 
                     log(`OSC activity for DMX ${channelIndex + 1} (${assignedAddress}): ${value}`, 'OSC', { args: oscMsg.args });
                     io.emit('oscChannelActivity', { channelIndex, value });
+                }
+            });
+
+            // Process for scene triggers
+            scenes.forEach(scene => {
+                if (scene.oscAddress && oscMsg.address === scene.oscAddress && oscMsg.args.length > 0) {
+                    let value = 0.0;
+                    const firstArg = oscMsg.args[0];
+
+                    if (typeof firstArg === 'number') {
+                        value = parseFloat(firstArg.toString());
+                    } else if (typeof firstArg === 'object' && firstArg !== null && 'value' in firstArg && typeof (firstArg as any).value === 'number') {
+                        value = parseFloat((firstArg as any).value.toString());
+                    } else {
+                        log('OSC argument for scene trigger is not a recognized number format', 'OSC', { address: oscMsg.address, arg: firstArg });
+                        return; // Skip if argument is not a number or expected object
+                    }
+
+                    // For scene triggers, we typically want to trigger on button press (value > 0.5)
+                    // This handles both 0/1 (button press/release) and 0.0-1.0 (normalized) values
+                    if (value > 0.5) {
+                        log(`OSC scene trigger: ${scene.name} (${oscMsg.address})`, 'OSC', { args: oscMsg.args });
+                        loadScene(io, scene.name);
+                    }
                 }
             });
         });
@@ -682,7 +707,7 @@ function handleMidiMessage(io: Server, type: 'noteon' | 'cc', msg: MidiMessage) 
                 
                 // Update each channel and emit a single batch update
                 Object.entries(channelUpdates).forEach(([channelIdx, value]) => {
-                    updateDmxChannel(parseInt(channelIdx), value);
+                    updateDmxChannel(parseInt(channelIdx), value, io);
                 });
                 
                 // Send a single update to clients with all changed channels
@@ -738,7 +763,7 @@ function loadScene(io: Server, name: string) {
 
         channelValues.forEach((value, index) => {
             if (index < dmxChannels.length) {
-                updateDmxChannel(index, value);
+                updateDmxChannel(index, value, io);
             }
         });
         io.emit('sceneLoaded', { name, channelValues });
@@ -763,7 +788,7 @@ function updateScene(io: Server, originalName: string, updates: Partial<Scene>) 
     }
 }
 
-function updateDmxChannel(channel: number, value: number) {
+function updateDmxChannel(channel: number, value: number, io?: Server) {
     const previousValue = dmxChannels[channel];
     dmxChannels[channel] = value;
     
@@ -784,6 +809,11 @@ function updateDmxChannel(channel: number, value: number) {
         const oscAddress = oscAssignments[channel];
         const normalizedValue = value / 255.0; // Convert DMX 0-255 to OSC 0.0-1.0
         sendOscMessage(oscAddress, [{ type: 'f', value: normalizedValue }]);
+    }
+    
+    // Emit Socket.IO event to notify frontend clients (if io is available)
+    if (io) {
+        io.emit('dmxUpdate', { channel, value });
     }
 }
 
@@ -991,8 +1021,7 @@ function startLaserTime(io: Server) {
 
         socket.on('setDmxChannel', ({ channel, value }: { channel: number; value: number }) => {
             log('Setting DMX channel via socket', 'DMX', { channel, value, socketId: socket.id });
-            updateDmxChannel(channel, value);
-            io.emit('dmxUpdate', { channel, value });
+            updateDmxChannel(channel, value, io);
         });
 
         socket.on('saveScene', ({ name, oscAddress, state }: { name: string; oscAddress: string; state: number[] }) => {

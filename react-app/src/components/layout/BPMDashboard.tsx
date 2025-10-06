@@ -61,6 +61,19 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
     startMidiLearn,
     cancelMidiLearn,
     midiLearnTarget,
+    // Scene controls
+    scenes,
+    saveScene,
+    loadScene,
+    quickSceneSave,
+    quickSceneLoad,
+    quickSceneMidiMapping,
+    addNotification,
+    // Transition controls
+    transitionDuration,
+    transitionEasing,
+    setTransitionDuration,
+    setTransitionEasing,
   } = useStore();
 
   // Listen for MIDI input data from socket
@@ -486,6 +499,93 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 </button>
               </div>
             )}
+          </div>
+
+          <div className={styles.quickSceneSection}>
+            <label className={styles.sectionLabel}>Quick Scene Controls</label>
+            <div className={styles.quickSceneControls}>
+              <button
+                className={styles.quickSceneButton}
+                onClick={quickSceneSave}
+                title="Save current DMX state as a quick scene"
+              >
+                <span className={styles.sceneIcon}>📸</span>
+                Quick Save
+              </button>
+              
+              <button
+                className={styles.quickSceneButton}
+                onClick={quickSceneLoad}
+                title="Load the most recently saved scene"
+                disabled={scenes.length === 0}
+              >
+                <span className={styles.sceneIcon}>⚡</span>
+                Quick Load
+              </button>
+              
+              <div className={styles.midiLearnContainer}>
+                <button
+                  className={`${styles.midiLearnButton} ${midiLearnTarget?.type === 'superControl' && midiLearnTarget?.controlName === 'quickSceneLoad' ? styles.learning : ''}`}
+                  onClick={() => {
+                    if (midiLearnTarget?.type === 'superControl' && midiLearnTarget?.controlName === 'quickSceneLoad') {
+                      cancelMidiLearn();
+                    } else {
+                      startMidiLearn({ type: 'superControl', controlName: 'quickSceneLoad' });
+                    }
+                  }}
+                  title="Learn MIDI control for Quick Scene Load"
+                >
+                  Learn
+                </button>
+                <span className={styles.oscAddress}>/control/quickSceneLoad</span>
+              </div>
+            </div>
+            
+            {scenes.length > 0 && (
+              <div className={styles.sceneStatus}>
+                <span className={styles.sceneCount}>
+                  {scenes.length} scene{scenes.length !== 1 ? 's' : ''} available
+                </span>
+                <span className={styles.latestScene}>
+                  Latest: {scenes[scenes.length - 1]?.name}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.transitionSection}>
+            <label className={styles.sectionLabel}>Scene Transition Settings</label>
+            <div className={styles.transitionControls}>
+              <div className={styles.transitionDuration}>
+                <label>Duration (ms)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  step="100"
+                  value={transitionDuration}
+                  onChange={(e) => setTransitionDuration(parseInt(e.target.value) || 1000)}
+                  className={styles.transitionInput}
+                />
+              </div>
+              
+              <div className={styles.transitionEasing}>
+                <label>Easing</label>
+                <select
+                  value={transitionEasing}
+                  onChange={(e) => setTransitionEasing(e.target.value as any)}
+                  className={styles.transitionSelect}
+                >
+                  <option value="linear">Linear</option>
+                  <option value="easeInOut">Ease In/Out</option>
+                  <option value="easeIn">Ease In</option>
+                  <option value="easeOut">Ease Out</option>
+                  <option value="easeInOutCubic">Ease In/Out Cubic</option>
+                  <option value="easeInOutQuart">Ease In/Out Quart</option>
+                  <option value="easeInOutSine">Ease In/Out Sine</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className={styles.statusSection}>

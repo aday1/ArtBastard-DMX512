@@ -485,12 +485,17 @@ try {
 
   // Set up additional Socket.IO handlers from API
   setupSocketHandlers(io);
-  // Start the server
-  const port = 3030;  // Changed to 3030 to match the expected port in vite.config.ts
-  server.listen(port, '0.0.0.0', () => {
-    log(`Server running at http://0.0.0.0:${port}`, 'SERVER');
-    log(`Server accessible on local network at http://[YOUR_IP]:${port}`, 'SERVER');
-    log(`React app available at http://0.0.0.0:${port}`, 'SERVER');
+  // Start the server with automatic port fallback
+  const basePortEnv = process.env.PORT;
+  const basePort = basePortEnv ? parseInt(basePortEnv, 10) : 3030;
+  let currentPort = Number.isFinite(basePort) ? basePort : 3030;
+  const maxPortAttempts = 10;
+
+  function startListening() {
+    server.listen(currentPort, '0.0.0.0', () => {
+      log(`Server running at http://0.0.0.0:${currentPort}`, 'SERVER');
+      log(`Server accessible on local network at http://[YOUR_IP]:${currentPort}`, 'SERVER');
+      log(`React app available at http://0.0.0.0:${currentPort}`, 'SERVER');
     
     // Get and log the actual network IP for convenience
     const networkInterfaces = require('os').networkInterfaces();
@@ -506,7 +511,7 @@ try {
     
     if (networkIPs.length > 0) {
       networkIPs.forEach(ip => {
-        log(`Network access: http://${ip}:${port}`, 'SERVER');
+        log(`Network access: http://${ip}:${currentPort}`, 'SERVER');
       });
     }
     
@@ -520,16 +525,26 @@ try {
     } catch (error) {
       log('ERROR initializing application', 'ERROR', { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
     }
-  });
-  
-  // Error handler for server
+    });
+  }
+
+  // Error handler for server with fallback ports
   server.on('error', (error) => {
     if ((error as any).code === 'EADDRINUSE') {
-      log(`Port ${port} is already in use. Please close any applications using this port and try again.`, 'ERROR');
+      if (currentPort - basePort < maxPortAttempts) {
+        log(`Port ${currentPort} is in use. Trying ${currentPort + 1}...`, 'WARN');
+        currentPort += 1;
+        setTimeout(() => startListening(), 100);
+      } else {
+        log(`All attempted ports starting at ${basePort} are in use. Giving up.`, 'ERROR');
+      }
     } else {
       log('SERVER ERROR', 'ERROR', { message: error instanceof Error ? error.message : String(error) });
     }
   });
+
+  // Kick off listening
+  startListening();
 
 } catch (error) {
   log('FATAL ERROR initializing Socket.IO', 'ERROR', { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });

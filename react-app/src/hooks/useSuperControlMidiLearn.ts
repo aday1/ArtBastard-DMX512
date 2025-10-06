@@ -128,6 +128,12 @@ export const useSuperControlMidiLearn = () => {
         [controlName]: mapping
       }))
       
+      // Special handling for quickSceneLoad
+      if (controlName === 'quickSceneLoad') {
+        const { setQuickSceneMidiMapping } = useStore.getState();
+        setQuickSceneMidiMapping(mapping);
+      }
+      
       const event = new CustomEvent('superControlMidiMappingCreated', { detail: { controlName, mapping } })
       window.dispatchEvent(event)
       
@@ -158,6 +164,12 @@ export const useSuperControlMidiLearn = () => {
         ...prev,
         [controlName]: mapping
       }))
+      
+      // Special handling for quickSceneLoad
+      if (controlName === 'quickSceneLoad') {
+        const { setQuickSceneMidiMapping } = useStore.getState();
+        setQuickSceneMidiMapping(mapping);
+      }
       
       const event = new CustomEvent('superControlMidiMappingCreated', { detail: { controlName, mapping } })
       window.dispatchEvent(event)

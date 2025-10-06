@@ -41,7 +41,18 @@ const navItems: Array<{
       minimal: 'I/O',
       tooltip: "Simply input/output controls. But you wouldn't understand, mon ami."
     }
-  },  {
+  },
+  {
+    id: 'dmxControl',
+    icon: 'Zap',
+    title: {
+    artsnob: "Le Contrôle DMX Ultime",
+      standard: 'DMX Control',
+      minimal: 'DMX',
+      tooltip: "Direct DMX channel control with MIDI Learn/Forget functionality."
+    }
+  },
+  {
     id: 'fixture',
     icon: 'LampDesk',
     title: {

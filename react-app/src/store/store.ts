@@ -371,6 +371,7 @@ interface State {
   isTransitioning: boolean;
   transitionStartTime: number | null;
   transitionDuration: number; // in ms
+  transitionEasing: 'linear' | 'easeInOut' | 'easeIn' | 'easeOut' | 'easeInOutCubic' | 'easeInOutQuart' | 'easeInOutSine';
   fromDmxValues: number[] | null;
   toDmxValues: number[] | null;
   currentTransitionFrame: number | null; // requestAnimationFrame ID
@@ -399,6 +400,9 @@ interface State {
   autoSceneTapTimes: number[]; // Stores recent tap intervals
   autoSceneTempoSource: 'internal_clock' | 'manual_bpm' | 'tap_tempo';
   autoSceneIsFlashing: boolean; // Shared flashing state for downbeat border flash
+
+  // Quick Scene State
+  quickSceneMidiMapping: MidiMapping | null; // MIDI mapping for quick scene load
 
   // Autopilot Track System State (Legacy - kept for compatibility)
   autopilotTrackEnabled: boolean;
@@ -459,13 +463,14 @@ interface State {
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
-  setDmxChannel: (channel: number, value: number) => void
-  setMultipleDmxChannels: (updates: DmxChannelBatchUpdate) => void; // New action for batch updates
+  setDmxChannel: (channel: number, value: number, sendToBackend?: boolean) => void
+  setMultipleDmxChannels: (updates: DmxChannelBatchUpdate, sendToBackend?: boolean) => void; // New action for batch updates
   setDmxChannelValue: (channel: number, value: number) => void
   setDmxChannelsForTransition: (values: number[]) => void; 
   setCurrentTransitionFrameId: (frameId: number | null) => void; 
   clearTransitionState: () => void; 
-  setTransitionDuration: (duration: number) => void; 
+  setTransitionDuration: (duration: number) => void;
+  setTransitionEasing: (easing: 'linear' | 'easeInOut' | 'easeIn' | 'easeOut' | 'easeInOutCubic' | 'easeInOutQuart' | 'easeInOutSine') => void; 
   selectChannel: (channel: number) => void
   deselectChannel: (channel: number) => void
   toggleChannelSelection: (channel: number) => void
@@ -498,10 +503,12 @@ interface State {
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
   removeMidiMapping: (dmxChannel: number) => void
   clearAllMidiMappings: () => void
+  setMidiInterfaces: (interfaces: string[]) => void
+  setActiveInterfaces: (interfaces: string[]) => void
   
   // Scene Actions
   saveScene: (name: string, oscAddress: string) => void
-  loadScene: (name: string) => void
+  loadScene: (nameOrIndex: string | number) => void
   deleteScene: (name: string) => void
   updateScene: (originalName: string, updates: Partial<Scene>) => void; // New action for updating scenes
     // Config Actions
@@ -550,6 +557,11 @@ interface State {
   setManualBpm: (bpm: number) => void; // For auto-scene manual tempo
   recordTapTempo: () => void;         // For auto-scene tap tempo
   triggerAutoSceneFlash: () => void;  // Triggers the shared flashing state
+
+  // Quick Scene Functions
+  quickSceneSave: () => void;
+  quickSceneLoad: () => void;
+  setQuickSceneMidiMapping: (mapping: MidiMapping | null) => void;
 
   // Group Actions
   updateGroup: (groupId: string, groupData: Partial<Group>) => void;
@@ -676,7 +688,7 @@ export const useStore = create<State>()(
     (set, get) => ({
       // Initial state
       dmxChannels: new Array(512).fill(0),
-      oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+      oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
       channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
       selectedChannels: [],
       
@@ -763,6 +775,7 @@ export const useStore = create<State>()(
       isTransitioning: false,
       transitionStartTime: null,
       transitionDuration: 1000, // Default 1 second
+      transitionEasing: 'easeInOut', // Default to smooth easing
       fromDmxValues: null,
       toDmxValues: null,
       currentTransitionFrame: null,
@@ -795,6 +808,9 @@ export const useStore = create<State>()(
           autoSceneTempoSource: savedSettings.autoSceneTempoSource ?? 'tap_tempo',          autoSceneIsFlashing: false, // Initial flashing state
         };
       })(),
+
+      // Quick Scene State Init
+      quickSceneMidiMapping: null,
 
       // Autopilot Track System Initial State (Legacy - kept for compatibility)
       autopilotTrackEnabled: false,
@@ -1091,7 +1107,7 @@ export const useStore = create<State>()(
           if (!hasExistingFixtures) {
             set({
               dmxChannels: new Array(512).fill(0),
-              oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+              oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
               channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
               fixtures: [],
               groups: [],
@@ -1125,26 +1141,30 @@ export const useStore = create<State>()(
         return 0;
       },
       
-      setDmxChannel: (channel, value) => {
-        console.log(`[STORE] setDmxChannel called: channel=${channel}, value=${value}`);
+      setDmxChannel: (channel, value, sendToBackend = true) => {
+        console.log(`[STORE] setDmxChannel called: channel=${channel}, value=${value}, sendToBackend=${sendToBackend}`);
         const dmxChannels = [...get().dmxChannels]
         dmxChannels[channel] = value
         set({ dmxChannels })
         
-        console.log(`[STORE] Sending HTTP POST to /api/dmx: channel=${channel}, value=${value}`);
-        axios.post('/api/dmx', { channel, value })
-          .then(response => {
-            console.log(`[STORE] DMX API call successful:`, response.data);
-          })
-          .catch(error => {
-            console.error('Failed to update DMX channel:', error)
-            console.error('Error details:', error.response?.data || error.message);
-            get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
-          })
+        if (sendToBackend) {
+          console.log(`[STORE] Sending HTTP POST to /api/dmx: channel=${channel}, value=${value}`);
+          axios.post('/api/dmx', { channel, value })
+            .then(response => {
+              console.log(`[STORE] DMX API call successful:`, response.data);
+            })
+            .catch(error => {
+              console.error('Failed to update DMX channel:', error)
+              console.error('Error details:', error.response?.data || error.message);
+              get().addNotification({ message: 'Failed to update DMX channel', type: 'error', priority: 'high' }) 
+            })
+        } else {
+          console.log(`[STORE] DMX channel updated locally (no backend request): channel=${channel}, value=${value}`);
+        }
       },
 
-      setMultipleDmxChannels: (updates) => {
-        console.log('[STORE] setMultipleDmxChannels: Called with updates batch:', updates);
+      setMultipleDmxChannels: (updates, sendToBackend = true) => {
+        console.log('[STORE] setMultipleDmxChannels: Called with updates batch:', updates, 'sendToBackend:', sendToBackend);
         const currentDmxChannels = get().dmxChannels;
         const newDmxChannels = [...currentDmxChannels];
         let changesApplied = false;
@@ -1165,14 +1185,15 @@ export const useStore = create<State>()(
           console.log('[STORE] setMultipleDmxChannels: No actual changes to local DMX state after processing batch.');
         }
         
-        console.log('[STORE] setMultipleDmxChannels: Sending HTTP POST to /api/dmx/batch with payload:', updates);
-        axios.post('/api/dmx/batch', updates)
-          .then(response => {
-            console.log('[STORE] setMultipleDmxChannels: DMX batch API call successful. Response status:', response.status, 'Data:', response.data);
-          })
-          .catch(error => {
-            console.error('[STORE] setMultipleDmxChannels: Failed to update DMX channels in batch via API.');
-            if (error.response) {
+        if (sendToBackend) {
+          console.log('[STORE] setMultipleDmxChannels: Sending HTTP POST to /api/dmx/batch with payload:', updates);
+          axios.post('/api/dmx/batch', updates)
+            .then(response => {
+              console.log('[STORE] setMultipleDmxChannels: DMX batch API call successful. Response status:', response.status, 'Data:', response.data);
+            })
+            .catch(error => {
+              console.error('[STORE] setMultipleDmxChannels: Failed to update DMX channels in batch via API.');
+              if (error.response) {
               // The request was made and the server responded with a status code
               // that falls out of the range of 2xx
               console.error('[STORE] setMultipleDmxChannels: Error response data:', error.response.data);
@@ -1187,6 +1208,9 @@ export const useStore = create<State>()(
             }
             get().addNotification({ message: 'Failed to send DMX batch update to server', type: 'error', priority: 'high' });
           });
+        } else {
+          console.log('[STORE] setMultipleDmxChannels: Skipping backend request (sendToBackend=false)');
+        }
       },      setDmxChannelValue: (channel, value) => { 
         get().setDmxChannel(channel, value);
         
@@ -1219,6 +1243,10 @@ export const useStore = create<State>()(
         if (duration >= 0) { 
           set({ transitionDuration: duration });
         }
+      },
+
+      setTransitionEasing: (easing) => {
+        set({ transitionEasing: easing });
       },
       
       selectChannel: (channel) => {
@@ -1409,12 +1437,17 @@ export const useStore = create<State>()(
       },
 
       reportOscActivity: (channelIndex, value) => {
+        // Store OSC activity
         set(state => ({
           oscActivity: {
             ...state.oscActivity,
             [channelIndex]: { value, timestamp: Date.now() }
           }
         }));
+        
+        // Convert normalized value (0.0-1.0) to DMX value (0-255) and update DMX channel
+        const dmxValue = Math.round(value * 255);
+        get().setDmxChannel(channelIndex, dmxValue);
       },
       
       addOscMessage: (message) => { // Implemented addOscMessage
@@ -1528,6 +1561,14 @@ export const useStore = create<State>()(
             get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
           })
       },
+
+      setMidiInterfaces: (interfaces) => {
+        set({ midiInterfaces: interfaces });
+      },
+
+      setActiveInterfaces: (interfaces) => {
+        set({ activeInterfaces: interfaces });
+      },
       
       // Fixture Actions
       addFixture: (fixture) => {
@@ -1579,7 +1620,11 @@ export const useStore = create<State>()(
         
         set({ scenes })
         
-        axios.post('/api/scenes', newScene)
+        axios.post('/api/scenes', { 
+          name, 
+          oscAddress, 
+          channelValues: [...dmxChannels] 
+        })
           .then(() => {
             get().addNotification({ message: `Scene '${name}' saved`, type: 'success' });
           })
@@ -1588,116 +1633,33 @@ export const useStore = create<State>()(
             get().addNotification({ message: `Failed to save scene '${name}'`, type: 'error', priority: 'high' }) 
           })
       },
-        loadScene: (name) => { 
-        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
-        const scene = scenes.find(s => s.name === name);
+        loadScene: (nameOrIndex) => { 
+        const { scenes } = get();
+        let scene;
+        
+        // Handle both name and index
+        if (typeof nameOrIndex === 'string') {
+          scene = scenes.find(s => s.name === nameOrIndex);
+        } else if (typeof nameOrIndex === 'number') {
+          scene = scenes[nameOrIndex];
+        }
         
         if (scene) {
-          if (isTransitioning && currentTransitionFrame) {
-            cancelAnimationFrame(currentTransitionFrame);
-            set({ currentTransitionFrame: null }); 
-          }
-
-          // Create a copy of scene values that we can modify
-          const targetDmxValues = [...scene.channelValues];
-
-          // For each group that ignores scene changes, restore their current DMX values
-          groups.forEach(group => {
-            if (group.ignoreSceneChanges) {
-              group.fixtureIndices.forEach(fixtureIndex => {
-                const fixture = fixtures[fixtureIndex];
-                if (fixture) {
-                  // Calculate the DMX range for this fixture
-                  const startAddr = fixture.startAddress - 1; // Convert to 0-based
-                  const endAddr = startAddr + fixture.channels.length;
-                  
-                  // Copy current values for these channels
-                  for (let i = startAddr; i < endAddr; i++) {
-                    targetDmxValues[i] = currentDmxState[i];
-                  }
-                }
-              });
-            }
-          });
-
-          set({
-            isTransitioning: true,
-            fromDmxValues: [...currentDmxState], 
-            toDmxValues: targetDmxValues,
-            transitionStartTime: Date.now(),
-          });
-
-          // Restore autopilot settings if they exist in the scene
-          if (scene.autopilots) {
-            // Stop existing autopilots first
-            get().stopAutopilotSystem();
-            
-            // Set new channel autopilots
-            Object.entries(scene.autopilots).forEach(([channelStr, config]) => {
-              get().setChannelAutopilot(parseInt(channelStr), config);
-            });
-          } else {
-            // Clear all channel autopilots if scene doesn't have them
-            const { channelAutopilots } = get();
-            Object.keys(channelAutopilots).forEach(channelStr => {
-              get().removeChannelAutopilot(parseInt(channelStr));
-            });
-          }
-
-          // Restore pan/tilt autopilot settings
-          if (scene.panTiltAutopilot) {
-            get().setPanTiltAutopilot({ ...scene.panTiltAutopilot });
-          } else {
-            // Disable pan/tilt autopilot if scene doesn't have it
-            get().setPanTiltAutopilot({ enabled: false });
-          }
-
-          // Restore modular automation states
-          if (scene.modularAutomation) {
-            console.log(`[SCENES] Restoring modular automation states from scene "${name}"`);
-            
-            // Stop all current animations first
-            get().stopAllModularAnimations();
-            
-            // Restore each module's configuration
-            get().setColorAutomation(scene.modularAutomation.color);
-            get().setDimmerAutomation(scene.modularAutomation.dimmer);
-            get().setPanTiltAutomation(scene.modularAutomation.panTilt);
-            get().setEffectsAutomation(scene.modularAutomation.effects);
-            
-            // Start animations for enabled modules
-            if (scene.modularAutomation.color.enabled) {
-              get().startModularAnimation('color');
-            }
-            if (scene.modularAutomation.dimmer.enabled) {
-              get().startModularAnimation('dimmer');
-            }
-            if (scene.modularAutomation.panTilt.enabled) {
-              get().startModularAnimation('panTilt');
-            }
-            if (scene.modularAutomation.effects.enabled) {
-              get().startModularAnimation('effects');
-            }
-            
-            console.log('[SCENES] Modular automation states restored successfully');
-          } else {
-            // Disable all modular automation if scene doesn't have it
-            console.log(`[SCENES] No modular automation in scene "${name}", disabling all modules`);
-            get().setColorAutomation({ enabled: false });
-            get().setDimmerAutomation({ enabled: false });
-            get().setPanTiltAutomation({ enabled: false });
-            get().setEffectsAutomation({ enabled: false });
-            get().stopAllModularAnimations();
-          }
+          const sceneName = scene.name;
+          console.log(`[STORE] Loading scene "${sceneName}" via backend API`);
+          get().addNotification({ message: `Loading scene '${sceneName}'...`, type: 'info' });
           
-          get().addNotification({ message: `Loading scene '${name}' (${transitionDuration}ms)`, type: 'info' });
-          axios.post('/api/scenes/load', { name }) 
+          // Let the backend handle the scene loading completely
+          axios.post('/api/scenes/load', { name: sceneName }) 
+            .then(() => {
+              console.log(`[STORE] Scene "${sceneName}" loaded successfully via backend`);
+            })
             .catch(error => {
               console.error('Failed to load scene:', error)
-              get().addNotification({ message: `Failed to load scene '${name}'`, type: 'error', priority: 'high' }) 
+              get().addNotification({ message: `Failed to load scene '${sceneName}'`, type: 'error', priority: 'high' }) 
             })
         } else {
-          get().addNotification({ message: `Scene "${name}" not found`, type: 'error', priority: 'high' }) 
+          get().addNotification({ message: `Scene "${nameOrIndex}" not found`, type: 'error', priority: 'high' }) 
         }
       },
       
@@ -1734,6 +1696,45 @@ export const useStore = create<State>()(
             console.error('Failed to delete scene:', error)
             get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
           })
+      },
+
+      // Quick Scene Functions
+      quickSceneSave: () => {
+        const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-');
+        const quickName = `Quick_${timestamp}`;
+        const oscAddress = `/scene/${quickName.toLowerCase()}`;
+        
+        get().saveScene(quickName, oscAddress);
+        get().addNotification({
+          message: `Quick scene saved as "${quickName}" 📸`,
+          type: 'success',
+          priority: 'normal'
+        });
+      },
+
+      quickSceneLoad: () => {
+        const { scenes } = get();
+        if (scenes.length === 0) {
+          get().addNotification({
+            message: 'No scenes available to load',
+            type: 'warning',
+            priority: 'normal'
+          });
+          return;
+        }
+
+        // Load the most recently saved scene
+        const latestScene = scenes[scenes.length - 1];
+        get().loadScene(latestScene.name);
+        get().addNotification({
+          message: `Quick loaded scene "${latestScene.name}" ⚡`,
+          type: 'success',
+          priority: 'normal'
+        });
+      },
+
+      setQuickSceneMidiMapping: (mapping) => {
+        set({ quickSceneMidiMapping: mapping });
       },
       
       // Autopilot Actions

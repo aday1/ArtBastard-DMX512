@@ -122,9 +122,9 @@ export const useBrowserMidi = () => {
       if (midiLearnTarget && midiLearnTarget.type === 'masterSlider') {
         let learnedMapping: MidiMapping | null = null;
         if (messageType === 0xB) { // Control Change
-          learnedMapping = { channel: channel + 1, controller: data1 }; // Store channel as 1-16
+          learnedMapping = { channel: channel, controller: data1 }; // Store channel as 0-15
         } else if (messageType === 0x9 && data2 > 0) { // Note On (velocity > 0)
-          learnedMapping = { channel: channel + 1, note: data1 }; // Store channel as 1-16
+          learnedMapping = { channel: channel, note: data1 }; // Store channel as 0-15
         }
         // Could also handle Note Off for learning if desired, e.g. for toggle or specific off actions
 
@@ -145,11 +145,11 @@ export const useBrowserMidi = () => {
       // --- Normal MIDI Message Processing ---
       let messageToStore: any = null;
       if (messageType === 0x9) { // Note On
-        messageToStore = { _type: 'noteon', channel: channel + 1, note: data1, velocity: data2, source }
+        messageToStore = { _type: 'noteon', channel: channel, note: data1, velocity: data2, source }
       } else if (messageType === 0x8) { // Note Off
-        messageToStore = { _type: 'noteoff', channel: channel + 1, note: data1, velocity: data2, source }
+        messageToStore = { _type: 'noteoff', channel: channel, note: data1, velocity: data2, source }
       } else if (messageType === 0xB) { // Control Change
-        messageToStore = { _type: 'cc', channel: channel + 1, controller: data1, value: data2, source }
+        messageToStore = { _type: 'cc', channel: channel, controller: data1, value: data2, source }
       }
 
       if (messageToStore) {

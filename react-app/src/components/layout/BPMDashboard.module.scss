@@ -704,6 +704,129 @@
   }
 }
 
+// Quick Scene Controls
+.quickSceneSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickSceneControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quickSceneButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(80, 200, 120, 0.2));
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.3), rgba(80, 200, 120, 0.3));
+    border-color: rgba(74, 144, 226, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.sceneIcon {
+  font-size: 1.1rem;
+}
+
+.sceneStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.sceneCount {
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+.latestScene {
+  color: #90cdf4;
+  font-weight: 600;
+}
+
+// Transition Controls
+.transitionSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.transitionControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transitionDuration,
+.transitionEasing {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transitionDuration label,
+.transitionEasing label {
+  font-size: 0.8rem;
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+.transitionInput,
+.transitionSelect {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  
+  &:focus {
+    outline: none;
+    border-color: rgba(74, 144, 226, 0.5);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+  }
+}
+
+.transitionSelect {
+  cursor: pointer;
+}
+
 // Responsive Design
 @media (max-width: 768px) {
   .bpmDashboard {

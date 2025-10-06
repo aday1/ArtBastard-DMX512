@@ -62,6 +62,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     togglePanTiltAutopilot,
     // Debug functions
     debugAutopilotState,
+    // Scene functions
+    loadScene: storeLoadScene,
   } = useStore();
 
   // MIDI Learn functionality
@@ -2156,7 +2158,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
                       <button 
                         className={styles.loadSceneBtn}
-                        onClick={() => loadScene(index)}
+                        onClick={() => storeLoadScene(scene.name)}
                       >
                         <LucideIcon name="Play" />
                         Load Scene

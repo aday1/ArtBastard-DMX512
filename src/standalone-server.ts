@@ -77,7 +77,7 @@ interface OscConfig {
 
 // --- Global state ---
 let dmxChannels: number[] = new Array(512).fill(0);
-let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`);
+let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`);
 let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
@@ -99,7 +99,7 @@ let artNetConfig: ArtNetConfig = {
 };
 let oscConfig: OscConfig = {
     host: '127.0.0.1',
-    port: 57121
+    port: 8000
 };
 let artnetSender: any;
 
@@ -174,6 +174,33 @@ function loadScenes() {
     }
 }
 
+function loadScene(io: Server, name: string) {
+    const scene = scenes.find(s => s.name === name);
+    if (scene) {
+        let channelValues: number[];
+        if (Array.isArray(scene.channelValues)) {
+            channelValues = scene.channelValues;
+        } else if (typeof scene.channelValues === 'object') {
+            channelValues = Object.values(scene.channelValues);
+        } else {
+            log('Error loading scene: Invalid channelValues format', 'ERROR', { name });
+            io.emit('sceneLoadError', { name, error: 'Invalid channelValues format' });
+            return;
+        }
+
+        channelValues.forEach((value, index) => {
+            if (index < dmxChannels.length) {
+                updateDmxChannel(index, value, io);
+            }
+        });
+        io.emit('sceneLoaded', { name, channelValues });
+        log('Scene loaded', 'INFO', { name });
+    } else {
+        log('Error loading scene: Scene not found', 'WARN', { name });
+        io.emit('sceneLoadError', { name, error: 'Scene not found' });
+    }
+}
+
 function saveScenes(scenesToSave?: Scene[]) {
     if (scenesToSave) {
         scenes = scenesToSave;
@@ -189,13 +216,25 @@ function saveScenes(scenesToSave?: Scene[]) {
     log('Scenes saved to file', 'INFO');
 }
 
-function updateDmxChannel(channel: number, value: number) {
+function updateDmxChannel(channel: number, value: number, io?: Server) {
+    const previousValue = dmxChannels[channel];
     dmxChannels[channel] = value;
+    
+    // Send to ArtNet
     if (artnetSender) {
         artnetSender.setChannel(channel, value);
         artnetSender.transmit();
+        // Only log significant changes or errors, not every channel update
+        if (Math.abs(previousValue - value) > 50 || value === 0 || value === 255) {
+            log(`DMX channel ${channel}: ${previousValue} → ${value}`, 'DMX');
+        }
     } else {
         log('ArtNet sender not initialized', 'WARN');
+    }
+    
+    // Emit Socket.IO event to notify frontend clients (if io is available)
+    if (io) {
+        io.emit('dmxUpdate', { channel, value });
     }
 }
 
@@ -319,6 +358,68 @@ function initOsc(io: Server) {
             log('OSC error', 'ERROR', { error: error.message });
         });
 
+        oscPort.on("message", (oscMsg: any, timeTag: any, info: any) => {
+            log('Raw OSC message received', 'OSC', { address: oscMsg.address, args: oscMsg.args, info });
+
+            // Emit raw message for general purpose client-side handling if needed
+            io.emit('oscMessage', {
+                address: oscMsg.address,
+                args: oscMsg.args,
+                timestamp: Date.now()
+            });
+
+            // Process for DMX channel activity
+            oscAssignments.forEach((assignedAddress, channelIndex) => {
+                if (oscMsg.address === assignedAddress && oscMsg.args.length > 0) {
+                    let value = 0.0;
+                    const firstArg = oscMsg.args[0];
+
+                    if (typeof firstArg === 'number') {
+                        value = parseFloat(firstArg.toString());
+                    } else if (typeof firstArg === 'object' && firstArg !== null && 'value' in firstArg && typeof (firstArg as any).value === 'number') {
+                        value = parseFloat((firstArg as any).value.toString());
+                    } else {
+                        log('OSC argument for matched address is not a recognized number format', 'OSC', { address: oscMsg.address, arg: firstArg });
+                        return; // Skip if argument is not a number or expected object
+                    }
+
+                    // Normalize value to 0.0 - 1.0 (assuming it might come in various ranges, e.g. 0-127, 0-255)
+                    if (value > 1.0) { // A simple heuristic, might need refinement
+                        if (value <= 127.0) value = value / 127.0; // Common MIDI-like range
+                        else if (value <= 255.0) value = value / 255.0; // Common DMX-like range
+                    }
+                    
+                    value = Math.max(0.0, Math.min(1.0, value)); // Clamp to 0.0-1.0
+
+                    log(`OSC activity for DMX ${channelIndex + 1} (${assignedAddress}): ${value}`, 'OSC', { args: oscMsg.args });
+                    io.emit('oscChannelActivity', { channelIndex, value });
+                }
+            });
+
+            // Process for scene triggers
+            scenes.forEach(scene => {
+                if (scene.oscAddress && oscMsg.address === scene.oscAddress && oscMsg.args.length > 0) {
+                    let value = 0.0;
+                    const firstArg = oscMsg.args[0];
+
+                    if (typeof firstArg === 'number') {
+                        value = parseFloat(firstArg.toString());
+                    } else if (typeof firstArg === 'object' && firstArg !== null && 'value' in firstArg && typeof (firstArg as any).value === 'number') {
+                        value = parseFloat((firstArg as any).value.toString());
+                    } else {
+                        log('OSC argument for scene trigger is not a recognized number format', 'OSC', { address: oscMsg.address, arg: firstArg });
+                        return; // Skip if argument is not a number or expected object
+                    }
+
+                    // For scene triggers, we typically want to trigger on button press (value > 0.5)
+                    if (value > 0.5) {
+                        log(`OSC scene trigger: ${scene.name} (${oscMsg.address})`, 'OSC', { args: oscMsg.args });
+                        loadScene(io, scene.name);
+                    }
+                }
+            });
+        });
+
         oscPort.open();
         log("Opening OSC port...", 'OSC');
     } catch (error) {
@@ -403,8 +504,7 @@ function createServer() {
 
         // Handle DMX channel updates
         socket.on('setDmxChannel', ({ channel, value }) => {
-            updateDmxChannel(channel, value);
-            io.emit('dmxUpdate', { channel, value });
+            updateDmxChannel(channel, value, io);
         });
 
         // Handle ArtNet config updates
@@ -442,19 +542,8 @@ function createServer() {
 
         // Handle scene loading
         socket.on('loadScene', ({ name }) => {
-            const scene = scenes.find(s => s.name === name);
-            if (scene) {
-                let channelValues = Array.isArray(scene.channelValues) ?
-                    scene.channelValues :
-                    Object.values(scene.channelValues);
-                channelValues.forEach((value, index) => {
-                    if (index < dmxChannels.length) {
-                        updateDmxChannel(index, value as number);
-                    }
-                });
-
-                io.emit('sceneLoaded', { name, channelValues });
-            }
+            log('Loading scene via socket', 'INFO', { name, socketId: socket.id });
+            loadScene(io, name);
         });
 
         // Handle disconnect
@@ -478,7 +567,7 @@ function createServer() {
             midiMappings,
             scenes,
             dmxChannels: new Array(512).fill(0),
-            oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+            oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
             channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
             fixtures: [],
             groups: []

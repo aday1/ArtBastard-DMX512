@@ -294,9 +294,8 @@ const midiLearnHandler: RequestHandler = (req: Request, res: Response) => {
       return;
     }
     
-    // This function should be implemented in your index.ts file
-    // It should emit a socket event to start MIDI learn mode
-    global.io.emit('startMidiLearn', { channel });
+    // Emit the correct socket event that the backend is listening for
+    global.io.emit('learnMidiMapping', { channel });
     
     res.json({ success: true });
   } catch (error) {
