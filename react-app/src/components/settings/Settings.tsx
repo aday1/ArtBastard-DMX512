@@ -180,33 +180,39 @@ export const Settings: React.FC = () => {
   }
   // Factory reset handler
   const handleFactoryReset = async () => {
-    if (window.confirm('Are you sure you want to reset all settings to factory defaults? This cannot be undone.')) {
+    const confirmMessage = `Are you sure you want to perform a FACTORY RESET?\n\nThis will:\n• Delete ALL scenes and lighting setups\n• Clear ALL MIDI mappings\n• Reset ALL OSC assignments\n• Clear ArtNET configuration\n• Reset ALL automation settings\n• Clear current DMX state\n• Reset ALL UI settings\n\nThis action CANNOT be undone!`;
+    
+    if (window.confirm(confirmMessage)) {
       try {
+        setExportInProgress(true);
+        
         // Clear localStorage
-        localStorage.clear()
+        localStorage.clear();
         
-        // Clear server-side scenes
-        await fetch('/api/scenes', { method: 'DELETE' })
+        // Clear server-side data
+        await Promise.all([
+          fetch('/api/scenes', { method: 'DELETE' }),
+          fetch('/api/config', { method: 'DELETE' }),
+          fetch('/api/state', { method: 'DELETE' })
+        ]);
         
-        // Reset store to initial state (including scenes and auto-scene settings)
+        // Reset store to initial state (comprehensive reset)
         useStoreUtils.setState({
-          artNetConfig: {
-            ip: '192.168.1.199',
-            subnet: 0,
-            universe: 0,
-          },
+          // Core DMX state
+          dmxChannels: new Array(512).fill(0),
+          channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+          selectedChannels: [],
+          
+          // Fixtures and groups
           fixtures: [],
-          scenes: [], // Clear scenes array
+          groups: [],
+          selectedFixtures: [],
+          fixtureLayout: [],
+          placedFixtures: [],
           masterSliders: [],
-          midiMappings: {},
-          theme: 'standard',
-          darkMode: true,
-          debugModules: {
-            midi: false,
-            osc: false,
-            artnet: false
-          },
-          // Reset auto-scene settings to defaults
+          
+          // Scenes and automation
+          scenes: [],
           autoSceneEnabled: false,
           autoSceneList: [],
           autoSceneMode: 'forward',
@@ -219,6 +225,31 @@ export const Settings: React.FC = () => {
           autoSceneTapTimes: [],
           autoSceneTempoSource: 'internal_clock',
           autoSceneIsFlashing: false,
+          
+          // MIDI and OSC
+          midiMappings: {},
+          oscAssignments: new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
+          oscActivity: {},
+          
+          // Network configuration
+          artNetConfig: {
+            ip: '192.168.1.199',
+            subnet: 0,
+            universe: 0,
+            net: 0,
+            port: 6454,
+            base_refresh_interval: 1000
+          },
+          oscConfig: {
+            receivePort: 8000,
+            sendPort: 8001,
+            sendEnabled: false,
+            receiveEnabled: true
+          },
+          
+          // UI settings
+          theme: 'standard',
+          darkMode: true,
           navVisibility: {
             main: true,
             midiOsc: true,
@@ -236,7 +267,8 @@ export const Settings: React.FC = () => {
         })
         
         // Reset local state
-        setWebPort(3000);        setDebugModules({
+        setWebPort(3000);
+        setDebugModules({
           midi: false,
           osc: false,
           artnet: false,
@@ -250,11 +282,13 @@ export const Settings: React.FC = () => {
           audio: true,
           touchosc: true,
           misc: true
-        });        setLocalDebugTools({
+        });
+        setLocalDebugTools({
           debugButton: true,
           midiMonitor: true,
           oscMonitor: true
-        });        updateChromaticSettings({
+        });
+        updateChromaticSettings({
           enableKeyboardShortcuts: true,
           autoSelectFirstFixture: true,
           showQuickActions: false,
@@ -285,87 +319,218 @@ export const Settings: React.FC = () => {
       }
     }
   }
-  // Export settings handler
-  const handleExportSettings = () => {
+  // Export settings handler - Enhanced to include all data
+  const handleExportSettings = async () => {
     try {
-      const settings: AppSettings = {
-        theme,
-        darkMode,
-        webPort,
-        debugModules,
-        artNetConfig,
-        midiMappings,
-        fixtures,
-        masterSliders,
-        navVisibility: localNavVisibility,
-        debugTools: localDebugTools,
-        chromaticEnergyManipulator: chromaticSettings
-      }
-
-      const settingsJson = JSON.stringify(settings, null, 2)
-      const blob = new Blob([settingsJson], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
+      setExportInProgress(true);
       
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'artbastard-settings.json'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Fetch current state from server
+      const [scenesResponse, configResponse, stateResponse] = await Promise.all([
+        fetch('/api/scenes'),
+        fetch('/api/config'),
+        fetch('/api/state')
+      ]);
+      
+      const scenes = scenesResponse.ok ? await scenesResponse.json() : [];
+      const config = configResponse.ok ? await configResponse.json() : {};
+      const currentState = stateResponse.ok ? await stateResponse.json() : {};
+      
+      // Create comprehensive export data
+      const exportData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        exportType: 'complete_artbastard_backup',
+        
+        // Frontend settings
+        frontendSettings: {
+          theme,
+          darkMode,
+          webPort,
+          debugModules,
+          navVisibility: localNavVisibility,
+          debugTools: localDebugTools,
+          chromaticEnergyManipulator: chromaticSettings
+        },
+        
+        // Backend data (what gets auto-saved)
+        backendData: {
+          scenes: scenes,
+          config: config,
+          currentState: currentState
+        },
+        
+        // Store state
+        storeState: {
+          artNetConfig,
+          midiMappings,
+          fixtures,
+          masterSliders,
+          oscAssignments: useStore.getState().oscAssignments,
+          channelNames: useStore.getState().channelNames,
+          groups: useStore.getState().groups,
+          autoSceneEnabled: useStore.getState().autoSceneEnabled,
+          autoSceneList: useStore.getState().autoSceneList,
+          autoSceneMode: useStore.getState().autoSceneMode,
+          autoSceneBeatDivision: useStore.getState().autoSceneBeatDivision,
+          autoSceneManualBpm: useStore.getState().autoSceneManualBpm,
+          autoSceneTempoSource: useStore.getState().autoSceneTempoSource
+        }
+      };
+
+      const settingsJson = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([settingsJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `artbastard-complete-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       addNotification({
-        message: 'Settings exported successfully',
+        message: 'Complete ArtBastard backup exported successfully',
         type: 'success'
-      })
+      });
     } catch (error) {
+      console.error('Export error:', error);
       addNotification({
-        message: 'Failed to export settings',
+        message: 'Failed to export complete backup',
         type: 'error'
-      })
+      });
+    } finally {
+      setExportInProgress(false);
     }
-  }
+  };
 
-  // Import settings handler
+  // Import settings handler - Enhanced to handle comprehensive backups
   const handleImportSettings = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = event.target.files?.[0]
       if (!file) return
 
+      setImportInProgress(true);
       const text = await file.text()
-      const settings: AppSettings = JSON.parse(text)      // Update store with imported settings
-      useStoreUtils.setState({
-        artNetConfig: settings.artNetConfig,
-        fixtures: settings.fixtures,
-        masterSliders: settings.masterSliders,
-        midiMappings: settings.midiMappings,
-        theme: settings.theme,
-        darkMode: settings.darkMode,
-        navVisibility: settings.navVisibility,
-        debugTools: settings.debugTools
-      })
+      const importData = JSON.parse(text);
+      
+      // Check if this is a comprehensive backup or legacy settings file
+      if (importData.exportType === 'complete_artbastard_backup') {
+        // Handle comprehensive backup
+        console.log('Importing comprehensive ArtBastard backup from:', importData.timestamp);
+        
+        // Import backend data (scenes, config, state)
+        if (importData.backendData) {
+          const { scenes, config, currentState } = importData.backendData;
+          
+          // Upload scenes
+          if (scenes && scenes.length > 0) {
+            await fetch('/api/scenes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(scenes)
+            });
+          }
+          
+          // Upload config
+          if (config) {
+            await fetch('/api/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(config)
+            });
+          }
+          
+          // Upload current state
+          if (currentState) {
+            await fetch('/api/state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(currentState)
+            });
+          }
+        }
+        
+        // Import store state
+        if (importData.storeState) {
+          const storeState = importData.storeState;
+          useStoreUtils.setState({
+            artNetConfig: storeState.artNetConfig || artNetConfig,
+            fixtures: storeState.fixtures || fixtures,
+            masterSliders: storeState.masterSliders || masterSliders,
+            midiMappings: storeState.midiMappings || midiMappings,
+            oscAssignments: storeState.oscAssignments || useStore.getState().oscAssignments,
+            channelNames: storeState.channelNames || useStore.getState().channelNames,
+            groups: storeState.groups || useStore.getState().groups,
+            autoSceneEnabled: storeState.autoSceneEnabled ?? useStore.getState().autoSceneEnabled,
+            autoSceneList: storeState.autoSceneList || useStore.getState().autoSceneList,
+            autoSceneMode: storeState.autoSceneMode || useStore.getState().autoSceneMode,
+            autoSceneBeatDivision: storeState.autoSceneBeatDivision ?? useStore.getState().autoSceneBeatDivision,
+            autoSceneManualBpm: storeState.autoSceneManualBpm ?? useStore.getState().autoSceneManualBpm,
+            autoSceneTempoSource: storeState.autoSceneTempoSource || useStore.getState().autoSceneTempoSource
+          });
+        }
+        
+        // Import frontend settings
+        if (importData.frontendSettings) {
+          const frontendSettings = importData.frontendSettings;
+          setWebPort(frontendSettings.webPort || webPort);
+          setDebugModules(frontendSettings.debugModules || debugModules);
+          setLocalNavVisibility(frontendSettings.navVisibility || localNavVisibility);
+          setLocalDebugTools(frontendSettings.debugTools || localDebugTools);
+          
+          if (frontendSettings.chromaticEnergyManipulator) {
+            updateChromaticSettings(frontendSettings.chromaticEnergyManipulator);
+          }
+        }
+        
+        addNotification({
+          message: `Complete ArtBastard backup imported successfully from ${importData.timestamp}`,
+          type: 'success'
+        });
+        
+      } else {
+        // Handle legacy settings format
+        const settings: AppSettings = importData;
+        
+        // Update store with imported settings
+        useStoreUtils.setState({
+          artNetConfig: settings.artNetConfig,
+          fixtures: settings.fixtures,
+          masterSliders: settings.masterSliders,
+          midiMappings: settings.midiMappings,
+          theme: settings.theme,
+          darkMode: settings.darkMode,
+          navVisibility: settings.navVisibility,
+          debugTools: settings.debugTools
+        });
 
-      // Update state
-      setWebPort(settings.webPort)
-      setDebugModules(settings.debugModules)
-      setLocalNavVisibility(settings.navVisibility)
-      setLocalDebugTools(settings.debugTools);
-      if (settings.chromaticEnergyManipulator) {
-        updateChromaticSettings(settings.chromaticEnergyManipulator);
+        // Update state
+        setWebPort(settings.webPort);
+        setDebugModules(settings.debugModules);
+        setLocalNavVisibility(settings.navVisibility);
+        setLocalDebugTools(settings.debugTools);
+        
+        if (settings.chromaticEnergyManipulator) {
+          updateChromaticSettings(settings.chromaticEnergyManipulator);
+        }
+
+        addNotification({
+          message: 'Legacy settings imported successfully',
+          type: 'success'
+        });
       }
 
-      addNotification({
-        message: 'Settings imported successfully',
-        type: 'success'
-      })
-
       // Reload to apply changes
-      window.location.reload()
+      window.location.reload();
     } catch (error) {
+      console.error('Import error:', error);
       addNotification({
-        message: 'Failed to import settings',
+        message: 'Failed to import backup - file may be corrupted or incompatible',
         type: 'error'
-      })
+      });
+    } finally {
+      setImportInProgress(false);
     }
   }  // Debug module toggle handler
   const toggleDebugModule = (module: keyof typeof debugModules) => {
@@ -481,7 +646,7 @@ export const Settings: React.FC = () => {
               disabled={exportInProgress}
             >
               <i className="fas fa-download"></i>
-              {exportInProgress ? 'Exporting...' : 'Export All'}
+              {exportInProgress ? 'Exporting...' : 'Export Complete Backup'}
             </button>
             <label className={styles.actionButton}>
               <input
@@ -492,7 +657,7 @@ export const Settings: React.FC = () => {
                 disabled={importInProgress}
               />
               <i className="fas fa-upload"></i>
-              {importInProgress ? 'Importing...' : 'Import'}
+              {importInProgress ? 'Importing...' : 'Import Backup'}
             </label>
             <button 
               className={styles.dangerButton}
@@ -865,7 +1030,7 @@ export const Settings: React.FC = () => {
                 onClick={handleExportSettings}
               >
                 <i className="fas fa-download"></i>
-                <span>Export Settings</span>
+                <span>Export Complete Backup</span>
               </button>
 
               <label className={styles.secondaryButton}>
@@ -876,7 +1041,7 @@ export const Settings: React.FC = () => {
                   onChange={handleImportSettings}
                 />
                 <i className="fas fa-upload"></i>
-                <span>Import Settings</span>
+                <span>Import Backup</span>
               </label>
 
               <button 

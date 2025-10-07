@@ -79,6 +79,7 @@ let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
 let scenes: Scene[] = [];
+let acts: any[] = []; // ACTS data storage
 let sender: any = null;
 let midiMappings: MidiMappings = {};
 let midiInput: Input | null = null;
@@ -104,6 +105,7 @@ let oscConfig: OscConfig = {
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const SCENES_FILE = path.join(DATA_DIR, 'scenes.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const ACTS_FILE = path.join(DATA_DIR, 'acts.json');
 const EXPORT_FILE = path.join(DATA_DIR, 'export_config.json');
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
 const LOG_FILE = path.join(LOGS_DIR, 'app.log');
@@ -907,6 +909,95 @@ function loadScenes() {
     }
 }
 
+function saveActs(actsToSave?: any[]) {
+    if (actsToSave) {
+        acts = actsToSave;
+    }
+    const actsJson = JSON.stringify(acts, null, 2);
+    log('Saving acts', 'INFO', { numActs: acts.length });
+    fs.writeFileSync(ACTS_FILE, actsJson);
+    log('Acts saved to file', 'INFO');
+}
+
+function loadActs() {
+    if (fs.existsSync(ACTS_FILE)) {
+        try {
+            const data = fs.readFileSync(ACTS_FILE, 'utf-8');
+            acts = JSON.parse(data);
+            log('Acts loaded from file', 'INFO', { numActs: acts.length });
+            return acts;
+        } catch (error) {
+            log('Error loading acts from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            acts = [];
+            return acts;
+        }
+    } else {
+        log('No acts file found, starting with empty acts', 'INFO');
+        acts = [];
+        return acts;
+    }
+}
+
+function saveFixtures(fixturesToSave?: Fixture[]) {
+    if (fixturesToSave) {
+        fixtures = fixturesToSave;
+    }
+    const fixturesJson = JSON.stringify(fixtures, null, 2);
+    log('Saving fixtures', 'INFO', { numFixtures: fixtures.length });
+    fs.writeFileSync(path.join(DATA_DIR, 'fixtures.json'), fixturesJson);
+    log('Fixtures saved to file', 'INFO');
+}
+
+function loadFixtures() {
+    const fixturesFile = path.join(DATA_DIR, 'fixtures.json');
+    if (fs.existsSync(fixturesFile)) {
+        try {
+            const data = fs.readFileSync(fixturesFile, 'utf-8');
+            fixtures = JSON.parse(data);
+            log('Fixtures loaded from file', 'INFO', { numFixtures: fixtures.length });
+            return fixtures;
+        } catch (error) {
+            log('Error loading fixtures from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            fixtures = [];
+            return fixtures;
+        }
+    } else {
+        log('No fixtures file found, starting with empty fixtures', 'INFO');
+        fixtures = [];
+        return fixtures;
+    }
+}
+
+function saveGroups(groupsToSave?: Group[]) {
+    if (groupsToSave) {
+        groups = groupsToSave;
+    }
+    const groupsJson = JSON.stringify(groups, null, 2);
+    log('Saving groups', 'INFO', { numGroups: groups.length });
+    fs.writeFileSync(path.join(DATA_DIR, 'groups.json'), groupsJson);
+    log('Groups saved to file', 'INFO');
+}
+
+function loadGroups() {
+    const groupsFile = path.join(DATA_DIR, 'groups.json');
+    if (fs.existsSync(groupsFile)) {
+        try {
+            const data = fs.readFileSync(groupsFile, 'utf-8');
+            groups = JSON.parse(data);
+            log('Groups loaded from file', 'INFO', { numGroups: groups.length });
+            return groups;
+        } catch (error) {
+            log('Error loading groups from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            groups = [];
+            return groups;
+        }
+    } else {
+        log('No groups file found, starting with empty groups', 'INFO');
+        groups = [];
+        return groups;
+    }
+}
+
 function pingArtNetDevice(io: Server, ip?: string) {
     // If ip is provided, use it instead of the config IP
     const targetIp = ip || artNetConfig.ip;
@@ -1213,6 +1304,12 @@ export {
     updateScene,
     loadScenes,
     saveScenes,
+    loadActs,
+    saveActs,
+    loadFixtures,
+    saveFixtures,
+    loadGroups,
+    saveGroups,
     pingArtNetDevice,    clearMidiMappings,
     updateArtNetConfig,
     updateOscConfig,

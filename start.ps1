@@ -3,6 +3,7 @@ Write-Host "================================================================" -F
 Write-Host "ULTRA-FAST complete cleanup and fresh build with PROGRESS TRACKING!" -ForegroundColor White
 Write-Host "Real-time progress percentage and time estimates!" -ForegroundColor White
 Write-Host "Now includes ELECTRON desktop app with NATIVE MIDI support!" -ForegroundColor Magenta
+Write-Host "OFFLINE SUPPORT: Works with or without internet connection!" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -158,6 +159,23 @@ Show-Progress "STEP 3/6: DEPENDENCY VALIDATION AND INSTALLATION" $currentStep "G
 Write-Host "Validating system requirements..." -ForegroundColor Cyan
 $validationErrors = @()
 
+# Check network connectivity
+Write-Host "Checking network connectivity..." -ForegroundColor Cyan
+try {
+    $testConnection = Test-NetConnection -ComputerName "registry.npmjs.org" -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue
+    if ($testConnection) {
+        Write-Host "  Network: Online (npm registry reachable)" -ForegroundColor Green
+        $global:isOnline = $true
+    } else {
+        Write-Host "  Network: Offline (npm registry unreachable)" -ForegroundColor Yellow
+        $global:isOnline = $false
+        Write-Host "  Will attempt offline installation mode..." -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  Network: Unknown status (will try both online and offline)" -ForegroundColor Yellow
+    $global:isOnline = $null
+}
+
 # Check Node.js version
 try {
     $nodeVersion = node --version 2>$null
@@ -216,24 +234,67 @@ Write-Host ""
 
 Write-Host "Installing root dependencies (FRESH)..." -ForegroundColor Cyan
 try {
-    npm install --no-cache --prefer-offline=false
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm install failed with exit code $LASTEXITCODE"
+    if ($global:isOnline -eq $false) {
+        # We know we're offline, skip online attempt
+        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+        npm install --prefer-offline --no-optional --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) {
+            throw "Offline npm install failed with exit code $LASTEXITCODE"
+        }
+    } else {
+        # Try online first, fallback to offline
+        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
+        npm install --no-cache --prefer-offline=false
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
+            npm install --no-cache --prefer-offline --no-optional
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+                npm install --prefer-offline --no-optional --no-audit --no-fund
+                if ($LASTEXITCODE -ne 0) {
+                    throw "All npm install attempts failed with exit code $LASTEXITCODE"
+                }
+            }
+        }
     }
     Write-Host "Root dependencies installed!" -ForegroundColor Green
 } catch {
     Write-Host "FAILED: Root dependency installation failed!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "Try running: npm cache clean --force" -ForegroundColor Cyan
+    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+    Write-Host "   1. Check your internet connection" -ForegroundColor White
+    Write-Host "   2. Try running: npm cache clean --force" -ForegroundColor White
+    Write-Host "   3. Try running: npm config set registry https://registry.npmjs.org/" -ForegroundColor White
+    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
+    Write-Host "   5. Try running: npm install --prefer-offline --no-optional" -ForegroundColor White
     exit 1
 }
 
 Write-Host "Installing frontend dependencies (FRESH)..." -ForegroundColor Cyan
 try {
     Push-Location react-app
-    npm install --no-cache --prefer-offline=false
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm install failed with exit code $LASTEXITCODE"
+    if ($global:isOnline -eq $false) {
+        # We know we're offline, skip online attempt
+        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+        npm install --prefer-offline --no-optional --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) {
+            throw "Offline npm install failed with exit code $LASTEXITCODE"
+        }
+    } else {
+        # Try online first, fallback to offline
+        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
+        npm install --no-cache --prefer-offline=false
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
+            npm install --no-cache --prefer-offline --no-optional
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+                npm install --prefer-offline --no-optional --no-audit --no-fund
+                if ($LASTEXITCODE -ne 0) {
+                    throw "All npm install attempts failed with exit code $LASTEXITCODE"
+                }
+            }
+        }
     }
     Pop-Location
     Write-Host "Frontend dependencies installed!" -ForegroundColor Green
@@ -241,16 +302,39 @@ try {
     Write-Host "FAILED: Frontend dependency installation failed!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
     Pop-Location
-    Write-Host "Try running: cd react-app && npm cache clean --force" -ForegroundColor Cyan
+    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+    Write-Host "   1. Check your internet connection" -ForegroundColor White
+    Write-Host "   2. Try running: cd react-app && npm cache clean --force" -ForegroundColor White
+    Write-Host "   3. Try running: cd react-app && npm install --prefer-offline --no-optional" -ForegroundColor White
+    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
     exit 1
 }
 
 Write-Host "Installing Electron dependencies (FRESH)..." -ForegroundColor Cyan
 try {
     Push-Location electron
-    npm install --no-cache --prefer-offline=false
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm install failed with exit code $LASTEXITCODE"
+    if ($global:isOnline -eq $false) {
+        # We know we're offline, skip online attempt
+        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+        npm install --prefer-offline --no-optional --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) {
+            throw "Offline npm install failed with exit code $LASTEXITCODE"
+        }
+    } else {
+        # Try online first, fallback to offline
+        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
+        npm install --no-cache --prefer-offline=false
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
+            npm install --no-cache --prefer-offline --no-optional
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+                npm install --prefer-offline --no-optional --no-audit --no-fund
+                if ($LASTEXITCODE -ne 0) {
+                    throw "All npm install attempts failed with exit code $LASTEXITCODE"
+                }
+            }
+        }
     }
     Pop-Location
     Write-Host "Electron dependencies installed!" -ForegroundColor Green
@@ -258,7 +342,11 @@ try {
     Write-Host "FAILED: Electron dependency installation failed!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
     Pop-Location
-    Write-Host "Try running: cd electron && npm cache clean --force" -ForegroundColor Cyan
+    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+    Write-Host "   1. Check your internet connection" -ForegroundColor White
+    Write-Host "   2. Try running: cd electron && npm cache clean --force" -ForegroundColor White
+    Write-Host "   3. Try running: cd electron && npm install --prefer-offline --no-optional" -ForegroundColor White
+    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
     exit 1
 }
 Write-Host ""

@@ -154,7 +154,8 @@ try {
             });
             
             // Notify all clients about the restored state
-            io.emit('dmxUpdate', stateData.dmxChannels);
+            // Send the restored DMX state to all connected clients
+            io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
           }
         }
         
@@ -175,8 +176,8 @@ try {
     log(`Received ${signal} - Starting graceful shutdown...`, 'SYSTEM');
     
     try {
-      // Import saveConfig and saveScenes from core
-      const { saveConfig, saveScenes, getDmxChannels } = require('./core');
+      // Import save functions from core
+      const { saveConfig, saveScenes, saveActs, saveFixtures, saveGroups, getDmxChannels } = require('./core');
       
       // Save current configuration (MIDI mappings, OSC assignments, etc.)
       log('Saving configuration...', 'SYSTEM');
@@ -185,6 +186,15 @@ try {
       // Save current scenes
       log('Saving scenes...', 'SYSTEM');
       saveScenes();
+      
+      // Save current acts
+      log('Saving acts...', 'SYSTEM');
+      saveActs();
+      
+      // Save current fixtures and groups
+      log('Saving fixtures and groups...', 'SYSTEM');
+      saveFixtures();
+      saveGroups();
       
       // Save current DMX state to a state file
       const currentDmxState = getDmxChannels();

@@ -128,6 +128,87 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         store.setDmxChannel(channel, value, false);
       });
 
+      // Listen for restored DMX state from backend (on startup)
+      socketInstance.on('dmxStateRestored', ({ dmxChannels }: { dmxChannels: number[] }) => {
+        console.log('[SocketContext] Received restored DMX state:', dmxChannels.length, 'channels');
+        console.log('[SocketContext] Non-zero channels:', dmxChannels.filter(val => val > 0).length);
+        
+        // Update all DMX channels with the restored state using bulk update
+        const updates: Record<number, number> = {};
+        dmxChannels.forEach((value, index) => {
+          updates[index] = value;
+        });
+        
+        const store = useStore.getState();
+        store.setMultipleDmxChannels(updates, false); // Don't send back to backend to avoid loops
+        console.log('[SocketContext] Applied restored DMX state to frontend');
+      });
+
+      // Listen for ACTS save events from frontend
+      const handleSaveActs = (event: CustomEvent) => {
+        console.log('[SocketContext] Saving ACTS to backend:', event.detail.length, 'acts');
+        socketInstance.emit('saveActs', event.detail);
+      };
+      
+      window.addEventListener('saveActsToBackend', handleSaveActs as EventListener);
+
+      // Listen for fixtures updates from backend (multi-window sync)
+      socketInstance.on('fixturesUpdated', (fixturesData: any[]) => {
+        console.log('[SocketContext] Received fixtures update from backend:', fixturesData.length, 'fixtures');
+        const store = useStore.getState();
+        store.setFixtures(fixturesData);
+      });
+
+      socketInstance.on('fixturesLoaded', (fixturesData: any[]) => {
+        console.log('[SocketContext] Received fixtures loaded from backend:', fixturesData.length, 'fixtures');
+        const store = useStore.getState();
+        store.setFixtures(fixturesData);
+      });
+
+      // Listen for groups updates from backend (multi-window sync)
+      socketInstance.on('groupsUpdated', (groupsData: any[]) => {
+        console.log('[SocketContext] Received groups update from backend:', groupsData.length, 'groups');
+        const store = useStore.getState();
+        store.setGroups(groupsData);
+      });
+
+      socketInstance.on('groupsLoaded', (groupsData: any[]) => {
+        console.log('[SocketContext] Received groups loaded from backend:', groupsData.length, 'groups');
+        const store = useStore.getState();
+        store.setGroups(groupsData);
+      });
+
+      // Listen for quick scene save/load events
+      socketInstance.on('quickSceneSaved', (data: { name: string; slot?: number; timestamp: number }) => {
+        console.log('[SocketContext] Quick scene saved:', data.name);
+        const store = useStore.getState();
+        store.addNotification({
+          message: `Quick scene saved: ${data.name}`,
+          type: 'success',
+          priority: 'low'
+        });
+      });
+
+      socketInstance.on('quickSceneLoaded', (data: { name: string; slot?: number; timestamp: number }) => {
+        console.log('[SocketContext] Quick scene loaded:', data.name);
+        const store = useStore.getState();
+        store.addNotification({
+          message: `Quick scene loaded: ${data.name}`,
+          type: 'info',
+          priority: 'low'
+        });
+      });
+
+      socketInstance.on('quickSceneLoadError', (data: { slot: number; error: string }) => {
+        console.log('[SocketContext] Quick scene load error:', data.error);
+        const store = useStore.getState();
+        store.addNotification({
+          message: `Quick scene load failed: ${data.error}`,
+          type: 'error',
+          priority: 'low'
+        });
+      });
+
       // Listen for scene loaded events from backend
       socketInstance.on('sceneLoaded', ({ name, channelValues }: { name: string; channelValues: number[] }) => {
         console.log('[SocketContext] Received scene loaded:', { name, channelValues });
@@ -163,9 +244,18 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           socketInstance.off('midiClockInputs');
           socketInstance.off('midiClockInputChanged');
           socketInstance.off('dmxUpdate');
+          socketInstance.off('dmxStateRestored');
           socketInstance.off('sceneLoaded');
+          socketInstance.off('fixturesUpdated');
+          socketInstance.off('fixturesLoaded');
+          socketInstance.off('groupsUpdated');
+          socketInstance.off('groupsLoaded');
+          socketInstance.off('quickSceneSaved');
+          socketInstance.off('quickSceneLoaded');
+          socketInstance.off('quickSceneLoadError');
           socketInstance.disconnect();
         }
+        window.removeEventListener('saveActsToBackend', handleSaveActs as EventListener);
         setSocket(null);
         setConnected(false);
       };

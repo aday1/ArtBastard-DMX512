@@ -20,6 +20,7 @@ import { log } from './logger'; // Import the new logger
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const SCENES_FILE = path.join(DATA_DIR, 'scenes.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const ACTS_FILE = path.join(DATA_DIR, 'acts.json');
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
 const LOG_FILE = path.join(LOGS_DIR, 'app.log');
 
@@ -82,6 +83,7 @@ let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
 let scenes: Scene[] = [];
+let acts: any[] = []; // ACTS data storage
 let sender: any = null;
 let midiMappings: MidiMappings = {};
 let midiInput: easymidi.Input | null = null;
@@ -216,6 +218,110 @@ function saveScenes(scenesToSave?: Scene[]) {
     log('Scenes saved to file', 'INFO');
 }
 
+function saveActs(actsToSave?: any[]) {
+    if (actsToSave) {
+        acts = actsToSave;
+    }
+
+    // Ensure the data directory exists
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const actsJson = JSON.stringify(acts, null, 2);
+    fs.writeFileSync(ACTS_FILE, actsJson);
+    log('Acts saved to file', 'INFO');
+}
+
+function loadActs() {
+    if (fs.existsSync(ACTS_FILE)) {
+        try {
+            const data = fs.readFileSync(ACTS_FILE, 'utf-8');
+            log('Loading acts from file', 'INFO');
+            acts = JSON.parse(data);
+            return acts;
+        } catch (error) {
+            log('Error loading acts from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            acts = [];
+            return acts;
+        }
+    } else {
+        log('No acts file found, starting with empty acts', 'INFO');
+        acts = [];
+        return acts;
+    }
+}
+
+function saveFixtures(fixturesToSave?: Fixture[]) {
+    if (fixturesToSave) {
+        fixtures = fixturesToSave;
+    }
+
+    // Ensure the data directory exists
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const fixturesJson = JSON.stringify(fixtures, null, 2);
+    fs.writeFileSync(path.join(DATA_DIR, 'fixtures.json'), fixturesJson);
+    log('Fixtures saved to file', 'INFO');
+}
+
+function loadFixtures() {
+    const fixturesFile = path.join(DATA_DIR, 'fixtures.json');
+    if (fs.existsSync(fixturesFile)) {
+        try {
+            const data = fs.readFileSync(fixturesFile, 'utf-8');
+            log('Loading fixtures from file', 'INFO');
+            fixtures = JSON.parse(data);
+            return fixtures;
+        } catch (error) {
+            log('Error loading fixtures from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            fixtures = [];
+            return fixtures;
+        }
+    } else {
+        log('No fixtures file found, starting with empty fixtures', 'INFO');
+        fixtures = [];
+        return fixtures;
+    }
+}
+
+function saveGroups(groupsToSave?: Group[]) {
+    if (groupsToSave) {
+        groups = groupsToSave;
+    }
+
+    // Ensure the data directory exists
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const groupsJson = JSON.stringify(groups, null, 2);
+    fs.writeFileSync(path.join(DATA_DIR, 'groups.json'), groupsJson);
+    log('Groups saved to file', 'INFO');
+}
+
+function loadGroups() {
+    const groupsFile = path.join(DATA_DIR, 'groups.json');
+    if (fs.existsSync(groupsFile)) {
+        try {
+            const data = fs.readFileSync(groupsFile, 'utf-8');
+            log('Loading groups from file', 'INFO');
+            groups = JSON.parse(data);
+            return groups;
+        } catch (error) {
+            log('Error loading groups from file', 'ERROR', { error: error instanceof Error ? error.message : String(error) });
+            groups = [];
+            return groups;
+        }
+    } else {
+        log('No groups file found, starting with empty groups', 'INFO');
+        groups = [];
+        return groups;
+    }
+}
+
 function updateDmxChannel(channel: number, value: number, io?: Server) {
     const previousValue = dmxChannels[channel];
     dmxChannels[channel] = value;
@@ -333,6 +439,51 @@ function listMidiInterfaces() {
     }
 }
 
+// Quick save/load slot functions
+function handleQuickSaveSlot(io: Server, slot: number) {
+    const slotName = `QuickSlot_${slot}`;
+    const oscAddress = `/quick/slot/${slot}`;
+    
+    log(`OSC quick save to slot ${slot}: ${slotName}`, 'OSC');
+    
+    // Save current DMX state as a scene
+    const newScene = {
+        name: slotName,
+        channelValues: [...dmxChannels],
+        oscAddress: oscAddress
+    };
+    
+    const existingSceneIndex = scenes.findIndex(s => s.name === slotName);
+    if (existingSceneIndex !== -1) {
+        scenes[existingSceneIndex] = newScene;
+    } else {
+        scenes.push(newScene);
+    }
+    
+    saveScenes();
+    io.emit('sceneSaved', slotName);
+    io.emit('sceneList', scenes);
+    
+    // Notify all clients about the quick save
+    io.emit('quickSceneSaved', { name: slotName, slot: slot, timestamp: Date.now() });
+}
+
+function handleQuickLoadSlot(io: Server, slot: number) {
+    const slotName = `QuickSlot_${slot}`;
+    const scene = scenes.find(s => s.name === slotName);
+    
+    if (scene) {
+        log(`OSC quick load from slot ${slot}: ${slotName}`, 'OSC');
+        loadScene(io, slotName);
+        
+        // Notify all clients about the quick load
+        io.emit('quickSceneLoaded', { name: slotName, slot: slot, timestamp: Date.now() });
+    } else {
+        log(`OSC quick load failed - no scene found in slot ${slot}`, 'OSC', { slotName });
+        io.emit('quickSceneLoadError', { slot: slot, error: 'No scene found in slot' });
+    }
+}
+
 function initOsc(io: Server) {
     try {
         log('Initializing OSC...', 'OSC');
@@ -418,6 +569,83 @@ function initOsc(io: Server) {
                     }
                 }
             });
+
+            // Process for quick scene capture OSC addresses
+            if (oscMsg.args.length > 0) {
+                let value = 0.0;
+                const firstArg = oscMsg.args[0];
+
+                if (typeof firstArg === 'number') {
+                    value = parseFloat(firstArg.toString());
+                } else if (typeof firstArg === 'object' && firstArg !== null && 'value' in firstArg && typeof (firstArg as any).value === 'number') {
+                    value = parseFloat((firstArg as any).value.toString());
+                }
+
+                // Only trigger on button press (value > 0.5)
+                if (value > 0.5) {
+                    // Quick scene capture addresses
+                    if (oscMsg.address === '/artbastard/quick/save' || oscMsg.address === '/quick/save') {
+                        // Quick save current state as a scene
+                        const timestamp = new Date().toISOString().slice(11, 19).replace(/:/g, '-');
+                        const quickName = `Quick_${timestamp}`;
+                        const oscAddress = `/scene/${quickName.toLowerCase()}`;
+                        
+                        log(`OSC quick scene save: ${quickName}`, 'OSC', { address: oscMsg.address, args: oscMsg.args });
+                        
+                        // Save current DMX state as a scene
+                        const newScene = {
+                            name: quickName,
+                            channelValues: [...dmxChannels],
+                            oscAddress: oscAddress
+                        };
+                        
+                        const existingSceneIndex = scenes.findIndex(s => s.name === quickName);
+                        if (existingSceneIndex !== -1) {
+                            scenes[existingSceneIndex] = newScene;
+                        } else {
+                            scenes.push(newScene);
+                        }
+                        
+                        saveScenes();
+                        io.emit('sceneSaved', quickName);
+                        io.emit('sceneList', scenes);
+                        
+                        // Notify all clients about the quick save
+                        io.emit('quickSceneSaved', { name: quickName, timestamp: Date.now() });
+                        
+                    } else if (oscMsg.address === '/artbastard/quick/save/1' || oscMsg.address === '/quick/save/1') {
+                        // Quick save to slot 1
+                        handleQuickSaveSlot(io, 1);
+                    } else if (oscMsg.address === '/artbastard/quick/save/2' || oscMsg.address === '/quick/save/2') {
+                        // Quick save to slot 2
+                        handleQuickSaveSlot(io, 2);
+                    } else if (oscMsg.address === '/artbastard/quick/save/3' || oscMsg.address === '/quick/save/3') {
+                        // Quick save to slot 3
+                        handleQuickSaveSlot(io, 3);
+                    } else if (oscMsg.address === '/artbastard/quick/save/4' || oscMsg.address === '/quick/save/4') {
+                        // Quick save to slot 4
+                        handleQuickSaveSlot(io, 4);
+                    } else if (oscMsg.address === '/artbastard/quick/save/5' || oscMsg.address === '/quick/save/5') {
+                        // Quick save to slot 5
+                        handleQuickSaveSlot(io, 5);
+                    } else if (oscMsg.address === '/artbastard/quick/load/1' || oscMsg.address === '/quick/load/1') {
+                        // Quick load from slot 1
+                        handleQuickLoadSlot(io, 1);
+                    } else if (oscMsg.address === '/artbastard/quick/load/2' || oscMsg.address === '/quick/load/2') {
+                        // Quick load from slot 2
+                        handleQuickLoadSlot(io, 2);
+                    } else if (oscMsg.address === '/artbastard/quick/load/3' || oscMsg.address === '/quick/load/3') {
+                        // Quick load from slot 3
+                        handleQuickLoadSlot(io, 3);
+                    } else if (oscMsg.address === '/artbastard/quick/load/4' || oscMsg.address === '/quick/load/4') {
+                        // Quick load from slot 4
+                        handleQuickLoadSlot(io, 4);
+                    } else if (oscMsg.address === '/artbastard/quick/load/5' || oscMsg.address === '/quick/load/5') {
+                        // Quick load from slot 5
+                        handleQuickLoadSlot(io, 5);
+                    }
+                }
+            }
         });
 
         oscPort.open();
@@ -479,6 +707,9 @@ function createServer() {
     // Initialize core functionality
     loadConfig();
     loadScenes();
+    loadActs();
+    loadFixtures();
+    loadGroups();
     initializeArtNet();
     initOsc(io);
 
@@ -495,8 +726,13 @@ function createServer() {
             groups,
             midiMappings,
             artNetConfig,
-            scenes
+            scenes,
+            acts
         });
+
+        // Send fixtures and groups separately for multi-window sync
+        socket.emit('fixturesLoaded', fixtures);
+        socket.emit('groupsLoaded', groups);
 
         // Send MIDI interfaces
         const midiInterfaces = listMidiInterfaces();
@@ -546,6 +782,48 @@ function createServer() {
             loadScene(io, name);
         });
 
+        // Handle ACTS operations
+        socket.on('saveActs', (actsData) => {
+            log('Saving acts via socket', 'INFO', { numActs: actsData.length, socketId: socket.id });
+            saveActs(actsData);
+            io.emit('actsSaved', actsData);
+        });
+
+        socket.on('loadActs', () => {
+            log('Loading acts via socket', 'INFO', { socketId: socket.id });
+            socket.emit('actsLoaded', acts);
+        });
+
+        // Handle fixtures operations for multi-window sync
+        socket.on('saveFixtures', (fixturesData) => {
+            log('Saving fixtures via socket', 'INFO', { numFixtures: fixturesData.length, socketId: socket.id });
+            fixtures = fixturesData;
+            // Save fixtures to file (we'll need to add this function)
+            saveFixtures();
+            // Broadcast to all clients
+            io.emit('fixturesUpdated', fixtures);
+        });
+
+        socket.on('loadFixtures', () => {
+            log('Loading fixtures via socket', 'INFO', { socketId: socket.id });
+            socket.emit('fixturesLoaded', fixtures);
+        });
+
+        // Handle groups operations for multi-window sync
+        socket.on('saveGroups', (groupsData) => {
+            log('Saving groups via socket', 'INFO', { numGroups: groupsData.length, socketId: socket.id });
+            groups = groupsData;
+            // Save groups to file (we'll need to add this function)
+            saveGroups();
+            // Broadcast to all clients
+            io.emit('groupsUpdated', groups);
+        });
+
+        socket.on('loadGroups', () => {
+            log('Loading groups via socket', 'INFO', { socketId: socket.id });
+            socket.emit('groupsLoaded', groups);
+        });
+
         // Handle disconnect
         socket.on('disconnect', () => {
             log('User disconnected', 'INFO', { socketId: socket.id });
@@ -566,11 +844,12 @@ function createServer() {
             artNetConfig,
             midiMappings,
             scenes,
+            acts,
+            fixtures,
+            groups,
             dmxChannels: new Array(512).fill(0),
             oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
-            channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
-            fixtures: [],
-            groups: []
+            channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`)
         });
     });
 

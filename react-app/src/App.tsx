@@ -10,6 +10,9 @@ import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyMan
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation'
 import { useGlobalMidiManager } from './hooks/useGlobalMidiManager'
 import { useGlobalBrowserMidi } from './hooks/useGlobalBrowserMidi'
+import { useActsPlaybackEngine } from './hooks/useActsPlaybackEngine'
+import { useActsOscProcessor } from './hooks/useActsOscProcessor'
+import { useActsMidiProcessor } from './hooks/useActsMidiProcessor'
 import { MidiDmxProcessor } from './components/midi/MidiDmxProcessor'
 import { OscDmxProcessor } from './components/midi/OscDmxProcessor'
 import { ToastContainer } from 'react-toastify'
@@ -24,6 +27,13 @@ function App() {
   
   // Initialize global browser MIDI manager to persist across all pages
   useGlobalBrowserMidi();
+  
+  // Initialize ACTS playback engine
+  useActsPlaybackEngine();
+  
+  // Initialize ACTS OSC and MIDI processors
+  useActsOscProcessor();
+  useActsMidiProcessor();
   
   return (
     <ThemeProvider>

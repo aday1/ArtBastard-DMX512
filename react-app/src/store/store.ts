@@ -241,6 +241,57 @@ export type AddNotificationInput = Omit<Notification, 'id' | 'timestamp'>;
 // Type for batch DMX channel updates
 export type DmxChannelBatchUpdate = Record<number, number>;
 
+// ACTS (Automated Scene Transition Sequences) interfaces
+export interface ActStep {
+  id: string;
+  sceneName: string;
+  duration: number; // Duration in milliseconds
+  transitionDuration: number; // Transition time in milliseconds
+  autopilotSettings?: {
+    enabled: boolean;
+    groups: Array<{
+      groupId: string;
+      autopilotType: 'color' | 'dimmer' | 'panTilt' | 'custom';
+      intensity: number; // 0-100%
+      speed: number; // 0-100%
+      pattern?: 'wave' | 'random' | 'chase' | 'pulse';
+    }>;
+  };
+  notes?: string;
+}
+
+export interface ActTrigger {
+  id: string;
+  type: 'osc' | 'midi';
+  address?: string; // OSC address
+  midiNote?: number; // MIDI note number
+  midiChannel?: number; // MIDI channel (1-16)
+  action: 'play' | 'pause' | 'stop' | 'next' | 'previous' | 'toggle';
+  enabled: boolean;
+}
+
+export interface Act {
+  id: string;
+  name: string;
+  description?: string;
+  steps: ActStep[];
+  loopMode: 'none' | 'loop' | 'ping-pong';
+  totalDuration: number; // Calculated total duration
+  triggers: ActTrigger[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ActPlaybackState {
+  isPlaying: boolean;
+  currentActId: string | null;
+  currentStepIndex: number;
+  stepStartTime: number;
+  stepProgress: number; // 0-1
+  loopCount: number;
+  playbackSpeed: number; // 0.1-2.0 multiplier
+}
+
 // Auto-Scene settings interface for localStorage persistence
 interface AutoSceneSettings {
   autoSceneEnabled: boolean;
@@ -343,9 +394,17 @@ interface State {
   groups: Group[]
   selectedFixtures: string[] // Array of fixture IDs for selection
   addFixture: (fixture: Fixture) => void;
+  setFixtures: (fixtures: Fixture[]) => void;
+  setGroups: (groups: Group[]) => void;
   
   // Scenes
   scenes: Scene[]
+  
+  // ACTS (Automated Scene Transition Sequences)
+  acts: Act[]
+  actTriggers: ActTrigger[] // Global trigger registry for OSC/MIDI processing
+  actPlaybackState: ActPlaybackState
+  
     // ArtNet
   artNetConfig: ArtNetConfig
   oscConfig: OscConfig
@@ -375,6 +434,8 @@ interface State {
   fromDmxValues: number[] | null;
   toDmxValues: number[] | null;
   currentTransitionFrame: number | null; // requestAnimationFrame ID
+  lastDmxTransitionUpdate: number | null; // For throttling DMX updates during transitions
+  lastTransitionDmxValues: number[] | null; // Track last sent DMX values to only send changes
   
   // Socket state
   socket: Socket | null
@@ -511,6 +572,33 @@ interface State {
   loadScene: (nameOrIndex: string | number) => void
   deleteScene: (name: string) => void
   updateScene: (originalName: string, updates: Partial<Scene>) => void; // New action for updating scenes
+  
+  // ACTS Actions
+  createAct: (name: string, description?: string) => void
+  updateAct: (actId: string, updates: Partial<Act>) => void
+  deleteAct: (actId: string) => void
+  addActStep: (actId: string, step: Omit<ActStep, 'id'>) => void
+  updateActStep: (actId: string, stepId: string, updates: Partial<ActStep>) => void
+  removeActStep: (actId: string, stepId: string) => void
+  reorderActSteps: (actId: string, stepIds: string[]) => void
+  
+  // ACTS Trigger Actions
+  addActTrigger: (actId: string, trigger: Omit<ActTrigger, 'id'>) => void
+  updateActTrigger: (actId: string, triggerId: string, updates: Partial<ActTrigger>) => void
+  removeActTrigger: (actId: string, triggerId: string) => void
+  processActTrigger: (trigger: ActTrigger) => void
+  saveActsToBackend: () => void
+  
+  // ACTS Playback Actions
+  playAct: (actId: string) => void
+  pauseAct: () => void
+  stopAct: () => void
+  nextActStep: () => void
+  previousActStep: () => void
+  setActPlaybackSpeed: (speed: number) => void
+  setActStepProgress: (progress: number) => void
+  applyActStepAutopilot: (step: ActStep) => void
+  
     // Config Actions
   updateArtNetConfig: (config: Partial<ArtNetConfig>) => void
   updateDebugModules: (debugSettings: {midi?: boolean; osc?: boolean; artnet?: boolean; button?: boolean}) => void
@@ -728,6 +816,19 @@ export const useStore = create<State>()(
       
       scenes: [],
       
+      // ACTS (Automated Scene Transition Sequences)
+      acts: [],
+      actTriggers: [], // Global trigger registry for OSC/MIDI processing
+      actPlaybackState: {
+        isPlaying: false,
+        currentActId: null,
+        currentStepIndex: 0,
+        stepStartTime: 0,
+        stepProgress: 0,
+        loopCount: 0,
+        playbackSpeed: 1.0
+      },
+      
       artNetConfig: {
         ip: "192.168.1.199",
         subnet: 0,
@@ -779,6 +880,8 @@ export const useStore = create<State>()(
       fromDmxValues: null,
       toDmxValues: null,
       currentTransitionFrame: null,
+      lastDmxTransitionUpdate: null,
+      lastTransitionDmxValues: null,
         socket: null,
       setSocket: (socket) => set({ socket }),
       
@@ -1077,6 +1180,7 @@ export const useStore = create<State>()(
               midiMappings: state.midiMappings || {},
               artNetConfig: state.artNetConfig || get().artNetConfig,
               scenes: state.scenes || [],
+              acts: state.acts || [],
               fixtureLayout: state.fixtureLayout || [], 
               masterSliders: state.masterSliders || [] 
             })
@@ -1226,7 +1330,75 @@ export const useStore = create<State>()(
       },
 
       setDmxChannelsForTransition: (values) => { 
+        // Update local state
         set({ dmxChannels: values });
+        
+        // Balanced approach - responsive but not spammy
+        const now = Date.now();
+        const { lastDmxTransitionUpdate, lastTransitionDmxValues, transitionStartTime, transitionDuration } = get();
+        const updateInterval = 100; // Send DMX updates every 100ms (10fps) - more responsive
+        
+        // Always send final update when transition is complete
+        const isTransitionComplete = transitionStartTime && (now - transitionStartTime) >= transitionDuration;
+        
+        if (isTransitionComplete || !lastDmxTransitionUpdate || (now - lastDmxTransitionUpdate) >= updateInterval) {
+          // Only send channels that actually changed
+          const updates: Record<number, number> = {};
+          let hasChanges = false;
+          
+          if (lastTransitionDmxValues) {
+            // Compare with last sent values - send meaningful changes
+            for (let i = 0; i < values.length && i < 512; i++) {
+              const currentValue = values[i] || 0;
+              const lastValue = lastTransitionDmxValues[i] || 0;
+              
+              // Only include channels that changed by more than 3 DMX values (more responsive)
+              if (Math.abs(currentValue - lastValue) > 3) {
+                updates[i] = currentValue;
+                hasChanges = true;
+              }
+            }
+          } else {
+            // First update - send all non-zero values
+            for (let i = 0; i < values.length && i < 512; i++) {
+              const currentValue = values[i] || 0;
+              if (currentValue > 0) {
+                updates[i] = currentValue;
+                hasChanges = true;
+              }
+            }
+          }
+          
+          // Send if there are changes OR if transition is complete (to ensure final values are set)
+          if (hasChanges || isTransitionComplete) {
+            if (isTransitionComplete) {
+              // Final update - send all non-zero values to ensure we reach target
+              const finalUpdates: Record<number, number> = {};
+              for (let i = 0; i < values.length && i < 512; i++) {
+                const currentValue = values[i] || 0;
+                if (currentValue > 0) {
+                  finalUpdates[i] = currentValue;
+                }
+              }
+              axios.post('/api/dmx/batch', finalUpdates)
+                .catch(error => {
+                  console.error('Failed to send final DMX update:', error);
+                });
+            } else {
+              // Regular update - only changed channels
+              axios.post('/api/dmx/batch', updates)
+                .catch(error => {
+                  console.error('Failed to update DMX channels during transition:', error);
+                });
+            }
+          }
+          
+          // Update tracking values
+          set({ 
+            lastDmxTransitionUpdate: now,
+            lastTransitionDmxValues: [...values]
+          });
+        }
       },
 
       setCurrentTransitionFrameId: (frameId) => set({ currentTransitionFrame: frameId }),
@@ -1237,6 +1409,8 @@ export const useStore = create<State>()(
         fromDmxValues: null,
         toDmxValues: null,
         currentTransitionFrame: null,
+        lastDmxTransitionUpdate: null,
+        lastTransitionDmxValues: null,
       }),
 
       setTransitionDuration: (duration) => {
@@ -1583,6 +1757,14 @@ export const useStore = create<State>()(
           });
       },
 
+      setFixtures: (fixtures) => {
+        set({ fixtures });
+      },
+
+      setGroups: (groups) => {
+        set({ groups });
+      },
+
       // Scene Actions
       saveScene: (name, oscAddress) => {
         const { dmxChannels, channelAutopilots, panTiltAutopilot, modularAutomation } = get();
@@ -1634,7 +1816,7 @@ export const useStore = create<State>()(
           })
       },
         loadScene: (nameOrIndex) => { 
-        const { scenes } = get();
+        const { scenes, isTransitioning, currentTransitionFrame, dmxChannels: currentDmxState, transitionDuration, groups, fixtures } = get();
         let scene;
         
         // Handle both name and index
@@ -1646,10 +1828,47 @@ export const useStore = create<State>()(
         
         if (scene) {
           const sceneName = scene.name;
-          console.log(`[STORE] Loading scene "${sceneName}" via backend API`);
-          get().addNotification({ message: `Loading scene '${sceneName}'...`, type: 'info' });
+          console.log(`[STORE] Loading scene "${sceneName}" with transition`);
           
-          // Let the backend handle the scene loading completely
+          // Cancel any ongoing transition
+          if (isTransitioning && currentTransitionFrame) {
+            cancelAnimationFrame(currentTransitionFrame);
+            set({ currentTransitionFrame: null }); 
+          }
+
+          // Create a copy of scene values that we can modify
+          const targetDmxValues = [...scene.channelValues];
+
+          // For each group that ignores scene changes, restore their current DMX values
+          groups.forEach(group => {
+            if (group.ignoreSceneChanges) {
+              group.fixtureIndices.forEach(fixtureIndex => {
+                const fixture = fixtures[fixtureIndex];
+                if (fixture) {
+                  // Calculate the DMX range for this fixture
+                  const startAddr = fixture.startAddress - 1; // Convert to 0-based
+                  const endAddr = startAddr + fixture.channels.length;
+                  
+                  // Copy current values for these channels
+                  for (let i = startAddr; i < endAddr; i++) {
+                    targetDmxValues[i] = currentDmxState[i];
+                  }
+                }
+              });
+            }
+          });
+
+          // Set up transition state for smooth slider movement
+          set({
+            isTransitioning: true,
+            fromDmxValues: [...currentDmxState], 
+            toDmxValues: targetDmxValues,
+            transitionStartTime: Date.now(),
+          });
+          
+          get().addNotification({ message: `Loading scene '${sceneName}' (${transitionDuration}ms transition)`, type: 'info' });
+          
+          // Also send to backend for consistency
           axios.post('/api/scenes/load', { name: sceneName }) 
             .then(() => {
               console.log(`[STORE] Scene "${sceneName}" loaded successfully via backend`);
@@ -1696,6 +1915,547 @@ export const useStore = create<State>()(
             console.error('Failed to delete scene:', error)
             get().addNotification({ message: `Failed to delete scene '${name}'`, type: 'error' }) 
           })
+      },
+
+      // ACTS Actions
+      createAct: (name, description) => {
+        const newAct: Act = {
+          id: Math.random().toString(36).substr(2, 9),
+          name,
+          description: description || '',
+          steps: [],
+          loopMode: 'none',
+          totalDuration: 0,
+          triggers: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        
+        set(state => ({
+          acts: [...state.acts, newAct]
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+        
+        get().addNotification({ 
+          message: `Act '${name}' created`, 
+          type: 'success' 
+        });
+      },
+
+      updateAct: (actId, updates) => {
+        set(state => ({
+          acts: state.acts.map(act => 
+            act.id === actId 
+              ? { ...act, ...updates, updatedAt: Date.now() }
+              : act
+          )
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+        
+        get().addNotification({ 
+          message: `Act updated`, 
+          type: 'success' 
+        });
+      },
+
+      deleteAct: (actId) => {
+        set(state => ({
+          acts: state.acts.filter(act => act.id !== actId)
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+        
+        get().addNotification({ 
+          message: `Act deleted`, 
+          type: 'success' 
+        });
+      },
+
+      addActStep: (actId, stepData) => {
+        const newStep: ActStep = {
+          id: Math.random().toString(36).substr(2, 9),
+          ...stepData
+        };
+        
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              const updatedSteps = [...act.steps, newStep];
+              const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0);
+              return {
+                ...act,
+                steps: updatedSteps,
+                totalDuration,
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          })
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+        
+        get().addNotification({ 
+          message: `Step added to act`, 
+          type: 'success' 
+        });
+      },
+
+      updateActStep: (actId, stepId, updates) => {
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              const updatedSteps = act.steps.map(step => 
+                step.id === stepId ? { ...step, ...updates } : step
+              );
+              const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0);
+              return {
+                ...act,
+                steps: updatedSteps,
+                totalDuration,
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          })
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+      },
+
+      removeActStep: (actId, stepId) => {
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              const updatedSteps = act.steps.filter(step => step.id !== stepId);
+              const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0);
+              return {
+                ...act,
+                steps: updatedSteps,
+                totalDuration,
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          })
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+      },
+
+      reorderActSteps: (actId, stepIds) => {
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              const reorderedSteps = stepIds.map(id => 
+                act.steps.find(step => step.id === id)
+              ).filter(Boolean) as ActStep[];
+              
+              return {
+                ...act,
+                steps: reorderedSteps,
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          })
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+      },
+
+      // ACTS Trigger Actions
+      addActTrigger: (actId, triggerData) => {
+        const newTrigger: ActTrigger = {
+          id: Math.random().toString(36).substr(2, 9),
+          ...triggerData
+        };
+        
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              return {
+                ...act,
+                triggers: [...act.triggers, newTrigger],
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          }),
+          actTriggers: [...state.actTriggers, newTrigger]
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+        
+        get().addNotification({ 
+          message: `Trigger added to act`, 
+          type: 'success' 
+        });
+      },
+
+      updateActTrigger: (actId, triggerId, updates) => {
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              return {
+                ...act,
+                triggers: act.triggers.map(trigger => 
+                  trigger.id === triggerId ? { ...trigger, ...updates } : trigger
+                ),
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          }),
+          actTriggers: state.actTriggers.map(trigger => 
+            trigger.id === triggerId ? { ...trigger, ...updates } : trigger
+          )
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+      },
+
+      removeActTrigger: (actId, triggerId) => {
+        set(state => ({
+          acts: state.acts.map(act => {
+            if (act.id === actId) {
+              return {
+                ...act,
+                triggers: act.triggers.filter(trigger => trigger.id !== triggerId),
+                updatedAt: Date.now()
+              };
+            }
+            return act;
+          }),
+          actTriggers: state.actTriggers.filter(trigger => trigger.id !== triggerId)
+        }));
+        
+        // Save ACTS to backend
+        get().saveActsToBackend();
+      },
+
+      processActTrigger: (trigger) => {
+        if (!trigger.enabled) return;
+        
+        const { actPlaybackState, acts } = get();
+        const act = acts.find(a => a.id === trigger.id.split('_')[0]); // Extract act ID from trigger ID
+        
+        if (!act) return;
+        
+        switch (trigger.action) {
+          case 'play':
+            if (actPlaybackState.currentActId === act.id && actPlaybackState.isPlaying) {
+              get().pauseAct();
+            } else {
+              get().playAct(act.id);
+            }
+            break;
+            
+          case 'pause':
+            if (actPlaybackState.currentActId === act.id) {
+              get().pauseAct();
+            }
+            break;
+            
+          case 'stop':
+            if (actPlaybackState.currentActId === act.id) {
+              get().stopAct();
+            }
+            break;
+            
+          case 'next':
+            if (actPlaybackState.currentActId === act.id) {
+              get().nextActStep();
+            }
+            break;
+            
+          case 'previous':
+            if (actPlaybackState.currentActId === act.id) {
+              get().previousActStep();
+            }
+            break;
+            
+          case 'toggle':
+            if (actPlaybackState.currentActId === act.id && actPlaybackState.isPlaying) {
+              get().pauseAct();
+            } else {
+              get().playAct(act.id);
+            }
+            break;
+        }
+        
+        get().addNotification({
+          message: `Act trigger executed: ${trigger.action} for ${act.name}`,
+          type: 'info',
+          priority: 'low'
+        });
+      },
+
+      saveActsToBackend: () => {
+        const { acts } = get();
+        try {
+          // Send ACTS data to backend via Socket.IO
+          // We'll use a custom event to trigger the save
+          const event = new CustomEvent('saveActsToBackend', { detail: acts });
+          window.dispatchEvent(event);
+        } catch (error) {
+          console.error('Failed to save ACTS to backend:', error);
+          get().addNotification({
+            message: 'Failed to save ACTS to backend',
+            type: 'error'
+          });
+        }
+      },
+
+      // ACTS Playback Actions
+      playAct: (actId) => {
+        const act = get().acts.find(a => a.id === actId);
+        if (!act || act.steps.length === 0) {
+          get().addNotification({ 
+            message: 'Act not found or has no steps', 
+            type: 'error' 
+          });
+          return;
+        }
+        
+        set({
+          actPlaybackState: {
+            isPlaying: true,
+            currentActId: actId,
+            currentStepIndex: 0,
+            stepStartTime: Date.now(),
+            stepProgress: 0,
+            loopCount: 0,
+            playbackSpeed: get().actPlaybackState.playbackSpeed
+          }
+        });
+        
+        // Load the first scene and apply autopilot settings
+        const firstStep = act.steps[0];
+        get().loadScene(firstStep.sceneName);
+        
+        // Apply autopilot settings for the first step
+        if (firstStep.autopilotSettings?.enabled) {
+          get().applyActStepAutopilot(firstStep);
+        }
+        
+        get().addNotification({ 
+          message: `Playing act '${act.name}'`, 
+          type: 'info' 
+        });
+      },
+
+      pauseAct: () => {
+        set(state => ({
+          actPlaybackState: {
+            ...state.actPlaybackState,
+            isPlaying: false
+          }
+        }));
+      },
+
+      stopAct: () => {
+        set({
+          actPlaybackState: {
+            isPlaying: false,
+            currentActId: null,
+            currentStepIndex: 0,
+            stepStartTime: 0,
+            stepProgress: 0,
+            loopCount: 0,
+            playbackSpeed: 1.0
+          }
+        });
+      },
+
+      nextActStep: () => {
+        const { actPlaybackState, acts } = get();
+        if (!actPlaybackState.currentActId) return;
+        
+        const act = acts.find(a => a.id === actPlaybackState.currentActId);
+        if (!act) return;
+        
+        const nextIndex = actPlaybackState.currentStepIndex + 1;
+        
+        if (nextIndex >= act.steps.length) {
+          // Handle loop modes
+          if (act.loopMode === 'loop') {
+            set(state => ({
+              actPlaybackState: {
+                ...state.actPlaybackState,
+                currentStepIndex: 0,
+                stepStartTime: Date.now(),
+                stepProgress: 0,
+                loopCount: state.actPlaybackState.loopCount + 1
+              }
+            }));
+            const firstStep = act.steps[0];
+            get().loadScene(firstStep.sceneName);
+            if (firstStep.autopilotSettings?.enabled) {
+              get().applyActStepAutopilot(firstStep);
+            }
+          } else {
+            get().stopAct();
+          }
+        } else {
+          set(state => ({
+            actPlaybackState: {
+              ...state.actPlaybackState,
+              currentStepIndex: nextIndex,
+              stepStartTime: Date.now(),
+              stepProgress: 0
+            }
+          }));
+          const nextStep = act.steps[nextIndex];
+          get().loadScene(nextStep.sceneName);
+          if (nextStep.autopilotSettings?.enabled) {
+            get().applyActStepAutopilot(nextStep);
+          }
+        }
+      },
+
+      previousActStep: () => {
+        const { actPlaybackState, acts } = get();
+        if (!actPlaybackState.currentActId) return;
+        
+        const act = acts.find(a => a.id === actPlaybackState.currentActId);
+        if (!act) return;
+        
+        const prevIndex = actPlaybackState.currentStepIndex - 1;
+        
+        if (prevIndex >= 0) {
+          set(state => ({
+            actPlaybackState: {
+              ...state.actPlaybackState,
+              currentStepIndex: prevIndex,
+              stepStartTime: Date.now(),
+              stepProgress: 0
+            }
+          }));
+          const prevStep = act.steps[prevIndex];
+          get().loadScene(prevStep.sceneName);
+          if (prevStep.autopilotSettings?.enabled) {
+            get().applyActStepAutopilot(prevStep);
+          }
+        }
+      },
+
+      // Apply autopilot settings for an act step
+      applyActStepAutopilot: (step) => {
+        if (!step.autopilotSettings?.enabled) return;
+        
+        const { groups } = get();
+        
+        step.autopilotSettings.groups.forEach(groupConfig => {
+          const group = groups.find(g => g.id === groupConfig.groupId);
+          if (!group) return;
+          
+          // Apply autopilot settings to the group
+          switch (groupConfig.autopilotType) {
+            case 'color':
+              // Enable color autopilot for the group
+              group.fixtureIndices.forEach(fixtureIndex => {
+                const fixture = get().fixtures[fixtureIndex];
+                if (fixture) {
+                  // Find color channels and enable autopilot
+                  fixture.channels.forEach((channel, channelIndex) => {
+                    if (channel.type.toLowerCase().includes('color') || 
+                        channel.type.toLowerCase().includes('red') ||
+                        channel.type.toLowerCase().includes('green') ||
+                        channel.type.toLowerCase().includes('blue')) {
+                      const dmxChannel = fixture.startAddress - 1 + channelIndex;
+                      get().setChannelAutopilot(dmxChannel, {
+                        enabled: true,
+                        intensity: groupConfig.intensity / 100,
+                        speed: groupConfig.speed / 100,
+                        pattern: groupConfig.pattern || 'wave'
+                      });
+                    }
+                  });
+                }
+              });
+              break;
+              
+            case 'dimmer':
+              // Enable dimmer autopilot for the group
+              group.fixtureIndices.forEach(fixtureIndex => {
+                const fixture = get().fixtures[fixtureIndex];
+                if (fixture) {
+                  // Find dimmer channel and enable autopilot
+                  fixture.channels.forEach((channel, channelIndex) => {
+                    if (channel.type.toLowerCase().includes('dimmer') ||
+                        channel.type.toLowerCase().includes('intensity')) {
+                      const dmxChannel = fixture.startAddress - 1 + channelIndex;
+                      get().setChannelAutopilot(dmxChannel, {
+                        enabled: true,
+                        intensity: groupConfig.intensity / 100,
+                        speed: groupConfig.speed / 100,
+                        pattern: groupConfig.pattern || 'wave'
+                      });
+                    }
+                  });
+                }
+              });
+              break;
+              
+            case 'panTilt':
+              // Enable pan/tilt autopilot for the group
+              group.fixtureIndices.forEach(fixtureIndex => {
+                const fixture = get().fixtures[fixtureIndex];
+                if (fixture) {
+                  // Find pan/tilt channels and enable autopilot
+                  fixture.channels.forEach((channel, channelIndex) => {
+                    if (channel.type.toLowerCase().includes('pan') ||
+                        channel.type.toLowerCase().includes('tilt')) {
+                      const dmxChannel = fixture.startAddress - 1 + channelIndex;
+                      get().setChannelAutopilot(dmxChannel, {
+                        enabled: true,
+                        intensity: groupConfig.intensity / 100,
+                        speed: groupConfig.speed / 100,
+                        pattern: groupConfig.pattern || 'wave'
+                      });
+                    }
+                  });
+                }
+              });
+              break;
+          }
+        });
+        
+        get().addNotification({
+          message: `Applied autopilot settings for step: ${step.sceneName}`,
+          type: 'info',
+          priority: 'low'
+        });
+      },
+
+      setActPlaybackSpeed: (speed) => {
+        set(state => ({
+          actPlaybackState: {
+            ...state.actPlaybackState,
+            playbackSpeed: Math.max(0.1, Math.min(2.0, speed))
+          }
+        }));
+      },
+
+      setActStepProgress: (progress) => {
+        set(state => ({
+          actPlaybackState: {
+            ...state.actPlaybackState,
+            stepProgress: Math.max(0, Math.min(1, progress))
+          }
+        }));
       },
 
       // Quick Scene Functions
@@ -3009,6 +3769,29 @@ export const useStore = create<State>()(
         console.log('Total Fixtures:', state.fixtures.length);
         
         console.groupEnd();
+      },
+
+      // Notification Actions
+      addNotification: (notification) => {
+        const newNotification: Notification = {
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          ...notification
+        };
+        
+        set(state => ({
+          notifications: [...state.notifications, newNotification]
+        }));
+      },
+
+      removeNotification: (id) => {
+        set(state => ({
+          notifications: state.notifications.filter(n => n.id !== id)
+        }));
+      },
+
+      clearAllNotifications: () => {
+        set({ notifications: [] });
       },
     })
   )
