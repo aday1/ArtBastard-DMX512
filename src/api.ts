@@ -806,4 +806,143 @@ function setupSocketHandlers(io: Server) {
 // Import sendOscMessage from index.ts
 import { sendOscMessage } from './index';
 
+// Add missing API endpoints for state import/export
+apiRouter.post('/api/state', (req, res) => {
+  try {
+    const stateData = req.body;
+    
+    if (!stateData || !stateData.dmxChannels) {
+      return res.status(400).json({ 
+        error: 'Invalid state data - dmxChannels required', 
+        success: false 
+      });
+    }
+    
+    // Import setDmxChannels function
+    const { setDmxChannels } = require('./core');
+    
+    if (typeof setDmxChannels === 'function') {
+      setDmxChannels(stateData.dmxChannels);
+      
+      // Save the state to last-state.json
+      const statePath = path.join(DATA_DIR, 'last-state.json');
+      const stateToSave = {
+        timestamp: new Date().toISOString(),
+        dmxChannels: stateData.dmxChannels,
+        savedOn: 'imported-state'
+      };
+      
+      fs.writeFileSync(statePath, JSON.stringify(stateToSave, null, 2));
+      
+      log('State imported and saved successfully', 'SYSTEM', { 
+        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length 
+      });
+      
+      // Notify all clients about the imported state
+      const io = global.io;
+      if (io) {
+        io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'State imported successfully',
+        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'setDmxChannels function not available', 
+        success: false 
+      });
+    }
+  } catch (error) {
+    log('Error importing state', 'ERROR', { 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+    res.status(500).json({ 
+      error: `Failed to import state: ${error instanceof Error ? error.message : String(error)}`, 
+      success: false 
+    });
+  }
+});
+
+apiRouter.post('/api/scenes', (req, res) => {
+  try {
+    const scenesData = req.body;
+    
+    if (!Array.isArray(scenesData)) {
+      return res.status(400).json({ 
+        error: 'Invalid scenes data - array expected', 
+        success: false 
+      });
+    }
+    
+    // Save scenes to file
+    const scenesPath = path.join(DATA_DIR, 'scenes.json');
+    fs.writeFileSync(scenesPath, JSON.stringify(scenesData, null, 2));
+    
+    // Reload scenes in memory
+    const { loadScenes } = require('./core');
+    if (typeof loadScenes === 'function') {
+      loadScenes();
+    }
+    
+    log('Scenes imported successfully', 'SYSTEM', { 
+      scenesCount: scenesData.length 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Scenes imported successfully',
+      scenesCount: scenesData.length
+    });
+  } catch (error) {
+    log('Error importing scenes', 'ERROR', { 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+    res.status(500).json({ 
+      error: `Failed to import scenes: ${error instanceof Error ? error.message : String(error)}`, 
+      success: false 
+    });
+  }
+});
+
+apiRouter.post('/api/config', (req, res) => {
+  try {
+    const configData = req.body;
+    
+    if (!configData || typeof configData !== 'object') {
+      return res.status(400).json({ 
+        error: 'Invalid config data - object expected', 
+        success: false 
+      });
+    }
+    
+    // Save config to file
+    const configPath = path.join(DATA_DIR, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
+    
+    // Reload config in memory
+    const { loadConfig } = require('./core');
+    if (typeof loadConfig === 'function') {
+      loadConfig();
+    }
+    
+    log('Config imported successfully', 'SYSTEM');
+    
+    res.json({ 
+      success: true, 
+      message: 'Config imported successfully'
+    });
+  } catch (error) {
+    log('Error importing config', 'ERROR', { 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+    res.status(500).json({ 
+      error: `Failed to import config: ${error instanceof Error ? error.message : String(error)}`, 
+      success: false 
+    });
+  }
+});
+
 export { apiRouter, setupSocketHandlers };

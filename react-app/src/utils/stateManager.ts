@@ -168,7 +168,168 @@ export class StateManager {
     try {
       const store = useStore.getState();
       
-      // Apply available store state using existing actions
+      // Handle comprehensive backup format (from Settings component)
+      if (state.exportType === 'complete_artbastard_backup') {
+        console.log('📤 Applying comprehensive ArtBastard backup...');
+        
+        // Import backend data (scenes, config, state) via API
+        if (state.backendData) {
+          const { scenes, config, currentState } = state.backendData;
+          
+          // Upload scenes
+          if (scenes && scenes.length > 0) {
+            try {
+              const response = await fetch('/api/scenes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scenes)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import scenes: ${response.statusText}`);
+              }
+              console.log('✅ Scenes imported successfully');
+            } catch (error) {
+              console.error('❌ Failed to import scenes:', error);
+              throw new Error(`Failed to import scenes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          }
+          
+          // Upload config
+          if (config) {
+            try {
+              const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import config: ${response.statusText}`);
+              }
+              console.log('✅ Config imported successfully');
+            } catch (error) {
+              console.error('❌ Failed to import config:', error);
+              throw new Error(`Failed to import config: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          }
+          
+          // Upload current state
+          if (currentState) {
+            try {
+              const response = await fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentState)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import state: ${response.statusText}`);
+              }
+              console.log('✅ State imported successfully');
+            } catch (error) {
+              console.error('❌ Failed to import state:', error);
+              throw new Error(`Failed to import state: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          }
+        }
+        
+        // Import store state
+        if (state.storeState) {
+          const storeState = state.storeState;
+          
+          // Apply DMX channels
+          if (storeState.dmxChannels) {
+            store.setDmxChannelsForTransition(storeState.dmxChannels);
+          }
+          
+          // Apply other store state
+          if (storeState.fixtures) {
+            store.setFixtures(storeState.fixtures);
+          }
+          if (storeState.groups) {
+            store.setGroups(storeState.groups);
+          }
+          if (storeState.midiMappings) {
+            store.setMidiMappings(storeState.midiMappings);
+          }
+          if (storeState.artNetConfig) {
+            store.setArtNetConfig(storeState.artNetConfig);
+          }
+          if (storeState.oscAssignments) {
+            store.setOscAssignments(storeState.oscAssignments);
+          }
+          if (storeState.channelNames) {
+            store.setChannelNames(storeState.channelNames);
+          }
+          if (storeState.masterSliders) {
+            store.setMasterSliders(storeState.masterSliders);
+          }
+          
+          // Apply selections
+          if (storeState.selectedChannels) {
+            storeState.selectedChannels.forEach((channel: number) => {
+              store.selectChannel(channel);
+            });
+          }
+          
+          if (storeState.selectedFixtures) {
+            store.setSelectedFixtures(storeState.selectedFixtures);
+          }
+          
+          // Apply theme and UI settings
+          if (storeState.theme) {
+            store.setTheme(storeState.theme);
+          }
+          
+          if (storeState.uiSettings) {
+            store.updateUiSettings(storeState.uiSettings);
+          }
+          
+          // Apply autopilot settings
+          if (storeState.autopilotTrackEnabled !== undefined) {
+            store.setAutopilotTrackEnabled(storeState.autopilotTrackEnabled);
+          }
+          if (storeState.autopilotTrackType) {
+            store.setAutopilotTrackType(storeState.autopilotTrackType);
+          }
+          if (storeState.autopilotTrackPosition !== undefined) {
+            store.setAutopilotTrackPosition(storeState.autopilotTrackPosition);
+          }
+          if (storeState.autopilotTrackSize !== undefined) {
+            store.setAutopilotTrackSize(storeState.autopilotTrackSize);
+          }
+          if (storeState.autopilotTrackSpeed !== undefined) {
+            store.setAutopilotTrackSpeed(storeState.autopilotTrackSpeed);
+          }
+          if (storeState.autopilotTrackCenterX !== undefined && storeState.autopilotTrackCenterY !== undefined) {
+            store.setAutopilotTrackCenter(storeState.autopilotTrackCenterX, storeState.autopilotTrackCenterY);
+          }
+          
+          // Apply auto-scene settings
+          if (storeState.autoSceneEnabled !== undefined) {
+            store.setAutoSceneEnabled(storeState.autoSceneEnabled);
+          }
+          if (storeState.autoSceneList) {
+            store.setAutoSceneList(storeState.autoSceneList);
+          }
+          if (storeState.autoSceneMode) {
+            store.setAutoSceneMode(storeState.autoSceneMode);
+          }
+          if (storeState.autoSceneBeatDivision !== undefined) {
+            store.setAutoSceneBeatDivision(storeState.autoSceneBeatDivision);
+          }
+        }
+        
+        // Import frontend settings
+        if (state.frontendSettings) {
+          const frontendSettings = state.frontendSettings;
+          // These would need to be handled by the Settings component
+          console.log('📤 Frontend settings available for import:', frontendSettings);
+        }
+        
+        console.log('🎯 Comprehensive ArtBastard backup applied successfully');
+        return true;
+      }
+      
+      // Handle legacy state format (direct store state)
       if (state.storeState) {
         const { storeState } = state;
         

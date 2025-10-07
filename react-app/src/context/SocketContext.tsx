@@ -51,6 +51,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('Socket.IO connected');
         setConnected(true);
         setError(null);
+        
+        // Fetch initial state from server when connected
+        const store = useStore.getState();
+        store.fetchInitialState().catch(error => {
+          console.error('Failed to fetch initial state:', error);
+        });
       });
 
       socketInstance.on('disconnect', (reason) => {

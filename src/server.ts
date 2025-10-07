@@ -141,6 +141,15 @@ try {
           timestamp: stateData.timestamp 
         });
         
+        // Create backup of current state before restoring
+        const backupPath = path.join(__dirname, '..', 'data', `last-state-backup-${Date.now()}.json`);
+        try {
+          fs.copyFileSync(statePath, backupPath);
+          log('Created backup of previous state', 'SYSTEM', { backupPath });
+        } catch (backupError) {
+          log('Failed to create backup', 'WARN', { error: backupError instanceof Error ? backupError.message : String(backupError) });
+        }
+        
         // Restore DMX channels if available
         if (stateData.dmxChannels && Array.isArray(stateData.dmxChannels)) {
           // Import the setDmxChannels function to restore state
@@ -156,7 +165,11 @@ try {
             // Notify all clients about the restored state
             // Send the restored DMX state to all connected clients
             io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
+          } else {
+            log('setDmxChannels function not available for restoration', 'ERROR');
           }
+        } else {
+          log('No valid DMX channels found in state file', 'WARN');
         }
         
         log('State restoration completed', 'SYSTEM');

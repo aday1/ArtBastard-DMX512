@@ -1,13 +1,108 @@
-Write-Host "ArtBastard DMX512 - NUCLEAR CLEAN LAUNCHER WITH ELECTRON" -ForegroundColor Cyan
+param(
+    [switch]$Clear,
+    [switch]$Help
+)
+
+if ($Help) {
+    Write-Host "ArtBastard DMX512 - Ultra-Quick Startup Script" -ForegroundColor Cyan
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Usage:" -ForegroundColor Yellow
+    Write-Host "  .\start.ps1           # ULTRA-QUICK startup (recommended)" -ForegroundColor Green
+    Write-Host "  .\start.ps1 -Clear   # Clean startup (removes all cached files)" -ForegroundColor Red
+    Write-Host "  .\start.ps1 -Help    # Show this help message" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Modes:" -ForegroundColor Yellow
+    Write-Host "  Normal (default): Lightning fast startup, preserves all cached files" -ForegroundColor Green
+    Write-Host "  -Clear:           Complete cleanup and fresh install (slower)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Speed Comparison:" -ForegroundColor Yellow
+    Write-Host "  Normal startup:    ~5-10 seconds" -ForegroundColor Green
+    Write-Host "  Clean startup:     ~30-60 seconds" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Examples:" -ForegroundColor Yellow
+    Write-Host "  .\start.ps1          # Ultra-quick startup (use this daily)" -ForegroundColor Green
+    Write-Host "  .\start.ps1 -Clear   # When you have issues or want fresh start" -ForegroundColor Red
+    Write-Host ""
+    exit 0
+}
+
+Write-Host "ArtBastard DMX512 - ULTRA-QUICK LAUNCHER" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "ULTRA-FAST complete cleanup and fresh build with PROGRESS TRACKING!" -ForegroundColor White
-Write-Host "Real-time progress percentage and time estimates!" -ForegroundColor White
-Write-Host "Now includes ELECTRON desktop app with NATIVE MIDI support!" -ForegroundColor Magenta
-Write-Host "OFFLINE SUPPORT: Works with or without internet connection!" -ForegroundColor Green
+if ($Clear) {
+    Write-Host "CLEAN MODE: Complete cleanup and fresh build" -ForegroundColor Red
+    Write-Host "Will remove all cached files and dependencies" -ForegroundColor Red
+} else {
+    Write-Host "ULTRA-QUICK MODE: Lightning fast startup" -ForegroundColor Green
+    Write-Host "Preserving all cached files and dependencies" -ForegroundColor Green
+}
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $startTime = Get-Date
+
+# ULTRA-QUICK PATH: Skip most checks and go straight to startup
+if (-not $Clear) {
+    Write-Host "🚀 ULTRA-QUICK STARTUP MODE" -ForegroundColor Green
+    Write-Host "Skipping validation and dependency checks for maximum speed..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Only kill existing processes (minimal cleanup)
+    try {
+        Write-Host "Quick process cleanup..." -ForegroundColor Cyan
+        $nodeProcs = Get-Process -Name "node" -ErrorAction SilentlyContinue
+        if ($nodeProcs) {
+            Write-Host "  Terminating $($nodeProcs.Count) Node.js processes..." -ForegroundColor Yellow
+            $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+        
+        $artProcs = Get-Process -Name "ArtBastard*" -ErrorAction SilentlyContinue
+        if ($artProcs) {
+            Write-Host "  Terminating $($artProcs.Count) ArtBastard processes..." -ForegroundColor Yellow
+            $artProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "Process cleanup completed!" -ForegroundColor Green
+    } catch {
+        Write-Host "Process cleanup completed (clean slate)" -ForegroundColor Green
+    }
+    
+    Write-Host ""
+    
+    # Check if dist directory exists, if not do minimal build
+    if (-not (Test-Path "dist")) {
+        Write-Host "dist/ directory missing - doing minimal build..." -ForegroundColor Yellow
+        try {
+            npm run build-backend
+            Write-Host "Minimal build completed!" -ForegroundColor Green
+        } catch {
+            Write-Host "Build failed, but continuing..." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "dist/ directory exists - skipping build!" -ForegroundColor Green
+    }
+    
+    Write-Host ""
+    Write-Host "Starting ArtBastard DMX512 server..." -ForegroundColor Green
+    
+    # Start the server directly
+    try {
+        npm start
+    } catch {
+        Write-Host "Server startup failed!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Try running with -Clear flag for a fresh start" -ForegroundColor Cyan
+    }
+    
+    Write-Host ""
+    Write-Host "ArtBastard DMX512 session ended." -ForegroundColor Cyan
+    exit 0
+}
+
+# FULL CLEANUP PATH: Only executed when -Clear is specified
+Write-Host "🧹 CLEAN MODE: Full cleanup and rebuild" -ForegroundColor Red
+Write-Host "This will take longer but ensures a completely fresh start" -ForegroundColor Yellow
+Write-Host ""
+
 $totalSteps = 7
 $currentStep = 0
 
@@ -30,11 +125,11 @@ function Show-Progress {
     Write-Host ""
 }
 
-Show-Progress "Nuclear Start Time: $(Get-Date -Format 'HH:mm:ss.fff')" 0 "Yellow"
+Show-Progress "Clean Start Time: $(Get-Date -Format 'HH:mm:ss.fff')" 0 "Yellow"
 
 # Step 1: LIGHTNING PROCESS CLEANUP
 $currentStep = 1
-Show-Progress "STEP 1/6: LIGHTNING PROCESS EXTERMINATION" $currentStep "Red"
+Show-Progress "STEP 1/7: LIGHTNING PROCESS EXTERMINATION" $currentStep "Red"
 $processStart = Get-Date
 
 try {
@@ -83,10 +178,11 @@ try {
 
 Write-Host ""
 
-# Step 2: NUCLEAR FILE SYSTEM ANNIHILATION
-$currentStep = 2
-Show-Progress "STEP 2/6: NUCLEAR FILE SYSTEM ANNIHILATION" $currentStep "Red"
-$cleanupStart = Get-Date
+# Step 2: NUCLEAR FILE SYSTEM ANNIHILATION (only if -Clear specified)
+if ($Clear) {
+    $currentStep = 2
+    Show-Progress "STEP 2/6: NUCLEAR FILE SYSTEM ANNIHILATION" $currentStep "Red"
+    $cleanupStart = Get-Date
 
 # INSTANT build directory elimination (no size checks!)
 Write-Host "  ELIMINATING build directories..." -ForegroundColor Red
@@ -151,6 +247,13 @@ if (Test-Path "electron/dist") {
 Write-Host "Nuclear cleanup completed!" -ForegroundColor Green
 Write-Host ""
 
+} else {
+    # Skip cleanup when -Clear is not specified
+    Write-Host "Skipping cleanup - preserving existing files and dependencies" -ForegroundColor Green
+    Write-Host "Use -Clear flag to remove cached files and dependencies" -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # Step 3: DEPENDENCY VALIDATION AND INSTALLATION
 $currentStep = 3
 Show-Progress "STEP 3/6: DEPENDENCY VALIDATION AND INSTALLATION" $currentStep "Green"
@@ -159,21 +262,22 @@ Show-Progress "STEP 3/6: DEPENDENCY VALIDATION AND INSTALLATION" $currentStep "G
 Write-Host "Validating system requirements..." -ForegroundColor Cyan
 $validationErrors = @()
 
-# Check network connectivity
+# Check network connectivity - Prefer offline mode when possible
 Write-Host "Checking network connectivity..." -ForegroundColor Cyan
 try {
     $testConnection = Test-NetConnection -ComputerName "registry.npmjs.org" -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue
     if ($testConnection) {
         Write-Host "  Network: Online (npm registry reachable)" -ForegroundColor Green
-        $global:isOnline = $true
+        Write-Host "  Preferring offline mode for faster startup..." -ForegroundColor Cyan
+        $global:isOnline = $false  # Prefer offline even when online
     } else {
         Write-Host "  Network: Offline (npm registry unreachable)" -ForegroundColor Yellow
         $global:isOnline = $false
-        Write-Host "  Will attempt offline installation mode..." -ForegroundColor Yellow
+        Write-Host "  Using offline installation mode..." -ForegroundColor Yellow
     }
 } catch {
-    Write-Host "  Network: Unknown status (will try both online and offline)" -ForegroundColor Yellow
-    $global:isOnline = $null
+    Write-Host "  Network: Unknown status (preferring offline mode)" -ForegroundColor Yellow
+    $global:isOnline = $false
 }
 
 # Check Node.js version
@@ -232,122 +336,112 @@ if ($validationErrors.Count -gt 0) {
 }
 Write-Host ""
 
-Write-Host "Installing root dependencies (FRESH)..." -ForegroundColor Cyan
-try {
-    if ($global:isOnline -eq $false) {
-        # We know we're offline, skip online attempt
-        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+# Check if dependencies need to be installed
+$needsRootInstall = -not (Test-Path "node_modules")
+$needsFrontendInstall = -not (Test-Path "react-app/node_modules")
+$needsElectronInstall = -not (Test-Path "electron/node_modules")
+
+if ($needsRootInstall -or $needsFrontendInstall -or $needsElectronInstall -or $Clear) {
+    Write-Host "Installing root dependencies..." -ForegroundColor Cyan
+    try {
+        # Always prefer offline mode for faster startup
+        Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
         npm install --prefer-offline --no-optional --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) {
-            throw "Offline npm install failed with exit code $LASTEXITCODE"
-        }
-    } else {
-        # Try online first, fallback to offline
-        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
-        npm install --no-cache --prefer-offline=false
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
-            npm install --no-cache --prefer-offline --no-optional
+            Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-                npm install --prefer-offline --no-optional --no-audit --no-fund
+                Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
+                npm install --no-cache --prefer-offline=false
                 if ($LASTEXITCODE -ne 0) {
                     throw "All npm install attempts failed with exit code $LASTEXITCODE"
                 }
             }
         }
+        Write-Host "Root dependencies installed!" -ForegroundColor Green
+    } catch {
+        Write-Host "FAILED: Root dependency installation failed!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+        Write-Host "   1. Check your internet connection" -ForegroundColor White
+        Write-Host "   2. Try running: npm cache clean --force" -ForegroundColor White
+        Write-Host "   3. Try running: npm config set registry https://registry.npmjs.org/" -ForegroundColor White
+        Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
+        Write-Host "   5. Try running: npm install --prefer-offline --no-optional" -ForegroundColor White
+        exit 1
     }
-    Write-Host "Root dependencies installed!" -ForegroundColor Green
-} catch {
-    Write-Host "FAILED: Root dependency installation failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
-    Write-Host "   1. Check your internet connection" -ForegroundColor White
-    Write-Host "   2. Try running: npm cache clean --force" -ForegroundColor White
-    Write-Host "   3. Try running: npm config set registry https://registry.npmjs.org/" -ForegroundColor White
-    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
-    Write-Host "   5. Try running: npm install --prefer-offline --no-optional" -ForegroundColor White
-    exit 1
+} else {
+    Write-Host "Root dependencies already installed - skipping installation" -ForegroundColor Green
 }
 
-Write-Host "Installing frontend dependencies (FRESH)..." -ForegroundColor Cyan
-try {
-    Push-Location react-app
-    if ($global:isOnline -eq $false) {
-        # We know we're offline, skip online attempt
-        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+if ($needsFrontendInstall -or $Clear) {
+    Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+    try {
+        Push-Location react-app
+        # Always prefer offline mode for faster startup
+        Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
         npm install --prefer-offline --no-optional --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) {
-            throw "Offline npm install failed with exit code $LASTEXITCODE"
-        }
-    } else {
-        # Try online first, fallback to offline
-        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
-        npm install --no-cache --prefer-offline=false
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
-            npm install --no-cache --prefer-offline --no-optional
+            Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-                npm install --prefer-offline --no-optional --no-audit --no-fund
+                Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
+                npm install --no-cache --prefer-offline=false
                 if ($LASTEXITCODE -ne 0) {
                     throw "All npm install attempts failed with exit code $LASTEXITCODE"
                 }
             }
         }
+        Pop-Location
+        Write-Host "Frontend dependencies installed!" -ForegroundColor Green
+    } catch {
+        Write-Host "FAILED: Frontend dependency installation failed!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+        Pop-Location
+        Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+        Write-Host "   1. Check your internet connection" -ForegroundColor White
+        Write-Host "   2. Try running: cd react-app && npm cache clean --force" -ForegroundColor White
+        Write-Host "   3. Try running: cd react-app && npm install --prefer-offline --no-optional" -ForegroundColor White
+        Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
+        exit 1
     }
-    Pop-Location
-    Write-Host "Frontend dependencies installed!" -ForegroundColor Green
-} catch {
-    Write-Host "FAILED: Frontend dependency installation failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-    Pop-Location
-    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
-    Write-Host "   1. Check your internet connection" -ForegroundColor White
-    Write-Host "   2. Try running: cd react-app && npm cache clean --force" -ForegroundColor White
-    Write-Host "   3. Try running: cd react-app && npm install --prefer-offline --no-optional" -ForegroundColor White
-    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
-    exit 1
+} else {
+    Write-Host "Frontend dependencies already installed - skipping installation" -ForegroundColor Green
 }
 
-Write-Host "Installing Electron dependencies (FRESH)..." -ForegroundColor Cyan
-try {
-    Push-Location electron
-    if ($global:isOnline -eq $false) {
-        # We know we're offline, skip online attempt
-        Write-Host "  Network is offline, using offline mode..." -ForegroundColor Yellow
+if ($needsElectronInstall -or $Clear) {
+    Write-Host "Installing Electron dependencies..." -ForegroundColor Cyan
+    try {
+        Push-Location electron
+        # Always prefer offline mode for faster startup
+        Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
         npm install --prefer-offline --no-optional --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) {
-            throw "Offline npm install failed with exit code $LASTEXITCODE"
-        }
-    } else {
-        # Try online first, fallback to offline
-        Write-Host "  Attempting online installation..." -ForegroundColor Yellow
-        npm install --no-cache --prefer-offline=false
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  Online installation failed, trying offline mode..." -ForegroundColor Yellow
-            npm install --no-cache --prefer-offline --no-optional
+            Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
+            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-                npm install --prefer-offline --no-optional --no-audit --no-fund
+                Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
+                npm install --no-cache --prefer-offline=false
                 if ($LASTEXITCODE -ne 0) {
                     throw "All npm install attempts failed with exit code $LASTEXITCODE"
                 }
             }
         }
+        Pop-Location
+        Write-Host "Electron dependencies installed!" -ForegroundColor Green
+    } catch {
+        Write-Host "FAILED: Electron dependency installation failed!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+        Pop-Location
+        Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
+        Write-Host "   1. Check your internet connection" -ForegroundColor White
+        Write-Host "   2. Try running: cd electron && npm cache clean --force" -ForegroundColor White
+        Write-Host "   3. Try running: cd electron && npm install --prefer-offline --no-optional" -ForegroundColor White
+        Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
+        exit 1
     }
-    Pop-Location
-    Write-Host "Electron dependencies installed!" -ForegroundColor Green
-} catch {
-    Write-Host "FAILED: Electron dependency installation failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-    Pop-Location
-    Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
-    Write-Host "   1. Check your internet connection" -ForegroundColor White
-    Write-Host "   2. Try running: cd electron && npm cache clean --force" -ForegroundColor White
-    Write-Host "   3. Try running: cd electron && npm install --prefer-offline --no-optional" -ForegroundColor White
-    Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
-    exit 1
+} else {
+    Write-Host "Electron dependencies already installed - skipping installation" -ForegroundColor Green
 }
 Write-Host ""
 

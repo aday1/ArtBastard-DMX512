@@ -425,29 +425,62 @@ export const Settings: React.FC = () => {
           
           // Upload scenes
           if (scenes && scenes.length > 0) {
-            await fetch('/api/scenes', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(scenes)
-            });
+            try {
+              const response = await fetch('/api/scenes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scenes)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import scenes: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error('Failed to import scenes:', error);
+              addNotification({
+                message: `Failed to import scenes: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                type: 'error'
+              });
+            }
           }
           
           // Upload config
           if (config) {
-            await fetch('/api/config', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(config)
-            });
+            try {
+              const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import config: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error('Failed to import config:', error);
+              addNotification({
+                message: `Failed to import config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                type: 'error'
+              });
+            }
           }
           
           // Upload current state
           if (currentState) {
-            await fetch('/api/state', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(currentState)
-            });
+            try {
+              const response = await fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentState)
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to import state: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error('Failed to import state:', error);
+              addNotification({
+                message: `Failed to import state: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                type: 'error'
+              });
+            }
           }
         }
         
