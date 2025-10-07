@@ -570,6 +570,44 @@ function initOsc(io: Server) {
                 }
             });
 
+            // Process for ACT triggers
+            acts.forEach(act => {
+                if (act.triggers && act.triggers.length > 0) {
+                    act.triggers.forEach(trigger => {
+                        if (trigger.type === 'osc' && 
+                            trigger.enabled && 
+                            trigger.address && 
+                            oscMsg.address === trigger.address && 
+                            oscMsg.args.length > 0) {
+                            
+                            let value = 0.0;
+                            const firstArg = oscMsg.args[0];
+
+                            if (typeof firstArg === 'number') {
+                                value = parseFloat(firstArg.toString());
+                            } else if (typeof firstArg === 'object' && firstArg !== null && 'value' in firstArg && typeof (firstArg as any).value === 'number') {
+                                value = parseFloat((firstArg as any).value.toString());
+                            } else {
+                                log('OSC argument for ACT trigger is not a recognized number format', 'OSC', { address: oscMsg.address, arg: firstArg });
+                                return; // Skip if argument is not a number or expected object
+                            }
+
+                            // For ACT triggers, we typically want to trigger on button press (value > 0.5)
+                            if (value > 0.5) {
+                                log(`OSC ACT trigger: ${act.name} - ${trigger.action} (${oscMsg.address})`, 'OSC', { args: oscMsg.args });
+                                
+                                // Emit ACT trigger event to frontend
+                                io.emit('actTrigger', { 
+                                    actId: act.id, 
+                                    action: trigger.action,
+                                    triggerId: trigger.id
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+
             // Process for quick scene capture OSC addresses
             if (oscMsg.args.length > 0) {
                 let value = 0.0;

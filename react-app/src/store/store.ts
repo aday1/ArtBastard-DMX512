@@ -1160,6 +1160,7 @@ export const useStore = create<State>()(
       // Actions
       fetchInitialState: async () => {
         try {
+          console.log('🔄 Fetching initial state from server...');
           const response = await axios.get('/api/state', {
             timeout: 5000,
             headers: {
@@ -1170,6 +1171,12 @@ export const useStore = create<State>()(
           
           if (response.status === 200 && response.data) {
             const state = response.data
+            console.log('📥 Received initial state from server:', {
+              dmxChannels: state.dmxChannels?.filter((val: number) => val > 0).length || 0,
+              scenes: state.scenes?.length || 0,
+              fixtures: state.fixtures?.length || 0,
+              groups: state.groups?.length || 0
+            });
             
             set({
               dmxChannels: state.dmxChannels || new Array(512).fill(0),
@@ -1188,11 +1195,13 @@ export const useStore = create<State>()(
             if (state.settings && typeof state.settings.transitionDuration === 'number') {
                 set({ transitionDuration: state.settings.transitionDuration });
             }
+            
+            console.log('✅ Initial state applied successfully');
             // No explicit success notification here, to avoid clutter on normal startup
             return 
           }
           throw new Error('Invalid response from server')        } catch (error: any) {
-          console.error('Failed to fetch initial state:', error)
+          console.error('❌ Failed to fetch initial state:', error)
           get().addNotification({ 
             message:
               error.code === 'ECONNABORTED'

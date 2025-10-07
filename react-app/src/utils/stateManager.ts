@@ -240,27 +240,19 @@ export class StateManager {
             store.setDmxChannelsForTransition(storeState.dmxChannels);
           }
           
-          // Apply other store state
-          if (storeState.fixtures) {
-            store.setFixtures(storeState.fixtures);
-          }
-          if (storeState.groups) {
-            store.setGroups(storeState.groups);
-          }
-          if (storeState.midiMappings) {
-            store.setMidiMappings(storeState.midiMappings);
-          }
-          if (storeState.artNetConfig) {
-            store.setArtNetConfig(storeState.artNetConfig);
-          }
-          if (storeState.oscAssignments) {
-            store.setOscAssignments(storeState.oscAssignments);
-          }
-          if (storeState.channelNames) {
-            store.setChannelNames(storeState.channelNames);
-          }
-          if (storeState.masterSliders) {
-            store.setMasterSliders(storeState.masterSliders);
+          // Apply other store state using direct state updates
+          const updates: any = {};
+          if (storeState.fixtures) updates.fixtures = storeState.fixtures;
+          if (storeState.groups) updates.groups = storeState.groups;
+          if (storeState.midiMappings) updates.midiMappings = storeState.midiMappings;
+          if (storeState.artNetConfig) updates.artNetConfig = storeState.artNetConfig;
+          if (storeState.oscAssignments) updates.oscAssignments = storeState.oscAssignments;
+          if (storeState.channelNames) updates.channelNames = storeState.channelNames;
+          if (storeState.masterSliders) updates.masterSliders = storeState.masterSliders;
+          
+          // Apply all updates at once
+          if (Object.keys(updates).length > 0) {
+            store.setState(updates);
           }
           
           // Apply selections
