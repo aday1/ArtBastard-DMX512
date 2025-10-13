@@ -5,11 +5,15 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative; /* allow absolute centering of left section */
 
   .left {
     display: flex;
     gap: 1rem;
     align-items: center;
+    position: absolute; /* center the network status button */
+    left: 50%;
+    transform: translateX(-50%);
 
     .networkButton {
       display: flex;

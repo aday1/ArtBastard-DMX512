@@ -41,14 +41,13 @@ export const StatusBar: React.FC = () => {
             <i className="fas fa-network-wired"></i>
             {theme !== 'minimal' && <span>Network Status</span>}
           </button>
-        </div>
-
-        <div className={styles.right}>
           <div className={`${styles.connectionStatus} ${connected ? styles.connected : styles.disconnected}`}>
             <i className={`fas fa-${connected ? 'plug' : 'plug-circle-xmark'}`}></i>
             <span>{connected ? 'Connected' : 'Disconnected'}</span>
           </div>
         </div>
+
+        <div className={styles.right}></div>
       </div>
 
       {showNetworkModal && (

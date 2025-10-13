@@ -317,25 +317,7 @@ export const FixtureSetup: React.FC = () => {
   const [newFlagCategory, setNewFlagCategory] = useState('');
   const [showNodeEditor, setShowNodeEditor] = useState(false);
   const [nodeEditorFixtureId, setNodeEditorFixtureId] = useState<string | null>(null);
-  // Discovery Wizard state
-  const [wizardActive, setWizardActive] = useState(false);
-  const [wizardStep, setWizardStep] = useState(0);
-  const [scanResults, setScanResults] = useState<number[]>([]); // list of active DMX channels detected
-  const [probeValue, setProbeValue] = useState(255);
-  const [probeRangeStart, setProbeRangeStart] = useState(1);
-  const [probeRangeEnd, setProbeRangeEnd] = useState(50);
-  const [scanInProgress, setScanInProgress] = useState(false);
-  const [scanDiff, setScanDiff] = useState<Record<number, number>>({});
-  const [snapshotBefore, setSnapshotBefore] = useState<Record<number, number>>({});
-  const [snapshotAfter, setSnapshotAfter] = useState<Record<number, number>>({});
-  const [wizardTransactions, setWizardTransactions] = useState<Array<{ id: string; createdIds: string[]; timestamp: number; snapshotBefore?: Record<number, number>; snapshotAfter?: Record<number, number> }>>([]);
-  const [lastWizardBatchId, setLastWizardBatchId] = useState<string | null>(null);
-  const [allowFullPower, setAllowFullPower] = useState(false);
-  const storeHelpers = useStore(state => ({
-    getDmxChannelValue: state.getDmxChannelValue,
-    setDmxChannel: state.setDmxChannel,
-    setMultipleDmxChannels: state.setMultipleDmxChannels
-  }));
+  // Discovery Wizard removed
 
   // Filter fixtures based on search term
   const filteredFixtures = fixtures.filter(fixture =>
@@ -1106,7 +1088,9 @@ export const FixtureSetup: React.FC = () => {
               {theme === 'artsnob' && 'Existing Fixtures: The Gallery of Light Instruments'}
               {theme === 'standard' && 'Fixture Library'}
               {theme === 'minimal' && 'Library'}
-            </h3>            <div className={styles.headerActions}>
+            </h3>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Active: {fixtures.length}</div>
+            <div className={styles.headerActions}>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1642,210 +1626,7 @@ export const FixtureSetup: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {/* Discovery Wizard */}
-              <div className={styles.card} style={{ marginTop: 16 }}>
-                <div className={styles.cardHeader}>
-                  <h3>Discovery Wizard</h3>
-                </div>
-                <div className={styles.cardBody}>
-                    <>
-                      {!wizardActive ? (
-                        <>
-                          <p>Use this guided wizard to discover undocumented fixtures by probing DMX channels interactively.</p>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                            <input type="number" min={1} max={512} value={probeRangeStart} onChange={e => setProbeRangeStart(Math.max(1, Math.min(512, parseInt(e.target.value||'1'))))} />
-                            <span>to</span>
-                            <input type="number" min={1} max={512} value={probeRangeEnd} onChange={e => setProbeRangeEnd(Math.max(1, Math.min(512, parseInt(e.target.value||'50'))))} />
-                            <label style={{ marginLeft: 8 }}>Probe Level:</label>
-                            <input type="number" min={0} max={255} value={probeValue} onChange={e => setProbeValue(Math.max(0, Math.min(255, parseInt(e.target.value||'255'))))} style={{ width: 80 }} />
-                          </div>
-                          <div style={{ marginTop: 8 }}>
-                            <label style={{ fontSize: 12, color: '#b33' }}><input type="checkbox" checked={allowFullPower} onChange={e => setAllowFullPower(e.target.checked)} /> Allow high-power probes (unsafe)</label>
-                          </div>
-                          <div style={{ marginTop: 12 }}>
-                            <button className={styles.saveButton} onClick={() => { setWizardActive(true); setWizardStep(1); }}>Start Wizard</button>
-                            <button className={styles.cancelButton} style={{ marginLeft: 8 }} onClick={() => { setWizardActive(false); setWizardStep(0); setScanResults([]); }}>Cancel</button>
-                            {wizardTransactions.length > 0 && (
-                              <button className={styles.cancelButton} style={{ marginLeft: 8 }} onClick={() => {
-                                // undo last wizard batch
-                                const last = wizardTransactions[wizardTransactions.length - 1];
-                                if (!last) return;
-                                if (!window.confirm(`Undo created ${last.createdIds.length} fixtures from last discovery batch?`)) return;
-                                useStoreUtils.setState(state => ({ fixtures: state.fixtures.filter(f => !last.createdIds.includes(f.id)) }));
-                                setWizardTransactions(prev => prev.slice(0, -1));
-                                useStoreUtils.getState().addNotification({ message: `Undid ${last.createdIds.length} discovered fixtures`, type: 'info', priority: 'normal' });
-                              }}>Undo Last Discovery</button>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p>Step {wizardStep} — {wizardStep === 1 ? 'Scan Range' : wizardStep === 2 ? 'Group & Label' : 'Confirm & Save'}</p>
-                          {wizardStep === 1 && (
-                            <div>
-                              <p>Scanning DMX {probeRangeStart} → {probeRangeEnd} using multiple probe patterns. This is safer and aggregates confirmations.</p>
-                              <div style={{ display: 'flex', gap: 8 }}>
-                                <button className={styles.saveButton} onClick={async () => {
-                                  if (scanInProgress) return;
-                                  setScanInProgress(true);
-                                  const start = probeRangeStart; const end = probeRangeEnd;
-                                  const before: Record<number,number> = {};
-                                  for (let ch = start; ch <= end; ch++) before[ch] = storeHelpers.getDmxChannelValue?.(ch-1) || 0;
-                                  setSnapshotBefore(before);
-
-                                  const patterns: Array<any> = [
-                                    { name: 'low', value: Math.max(10, Math.min(60, probeValue > 0 ? Math.min(60, probeValue) : 30)), wait: 180 },
-                                    { name: 'sweep', perChannel: true, value: Math.max(30, Math.min(120, probeValue > 0 ? Math.min(120, probeValue) : 60)), wait: 90 },
-                                    { name: 'high', value: probeValue, wait: 220, requiresConfirm: true }
-                                  ];
-
-                                  const scores: Record<number, number> = {};
-                                  for (const p of patterns) {
-                                    if (p.requiresConfirm && !allowFullPower) continue;
-                                    if (p.perChannel) {
-                                      for (let ch = start; ch <= end; ch++) {
-                                        const upd: Record<number,number> = {}; upd[ch-1] = p.value;
-                                        storeHelpers.setMultipleDmxChannels(upd as any);
-                                        await new Promise(res => setTimeout(res, p.wait));
-                                        const val = storeHelpers.getDmxChannelValue?.(ch-1) || 0;
-                                        const delta = Math.abs(val - (before[ch] || 0));
-                                        if (delta > Math.max(2, Math.round(p.value * 0.07))) scores[ch] = (scores[ch] || 0) + 1;
-                                        // restore single channel quickly
-                                        const restore: Record<number,number> = {}; restore[ch-1] = before[ch]; storeHelpers.setMultipleDmxChannels(restore as any);
-                                        await new Promise(res => setTimeout(res, 30));
-                                      }
-                                    } else {
-                                      const upd: Record<number,number> = {};
-                                      for (let ch = start; ch <= end; ch++) upd[ch-1] = p.value;
-                                      storeHelpers.setMultipleDmxChannels(upd as any);
-                                      await new Promise(res => setTimeout(res, p.wait));
-                                      for (let ch = start; ch <= end; ch++) {
-                                        const val = storeHelpers.getDmxChannelValue?.(ch-1) || 0;
-                                        const delta = Math.abs(val - (before[ch] || 0));
-                                        if (delta > Math.max(2, Math.round(p.value * 0.07))) scores[ch] = (scores[ch] || 0) + 1;
-                                      }
-                                      // restore
-                                      const restore: Record<number,number> = {};
-                                      for (let ch = start; ch <= end; ch++) restore[ch-1] = before[ch];
-                                      storeHelpers.setMultipleDmxChannels(restore as any);
-                                      await new Promise(res => setTimeout(res, 60));
-                                    }
-                                  }
-
-                                  const after: Record<number,number> = {};
-                                  for (let ch = start; ch <= end; ch++) after[ch] = storeHelpers.getDmxChannelValue?.(ch-1) || 0;
-                                  setSnapshotAfter(after);
-
-                                  // Confidence: score / number of applied patterns
-                                  const appliedPatternCount = patterns.filter((p: any) => !(p.requiresConfirm && !allowFullPower)).length || 1;
-                                  const detected = Object.keys(scores).map(k => parseInt(k)).filter(k => (scores[k] || 0) > 0).sort((a,b)=>a-b);
-                                  setScanResults(detected);
-                                  const diffs: Record<number,number> = {};
-                                  for (let ch = start; ch <= end; ch++) diffs[ch] = (after[ch] || 0) - (before[ch] || 0);
-                                  setScanDiff(diffs);
-                                  setScanInProgress(false);
-                                }}>{scanInProgress ? 'Scanning...' : 'Run Multi-Pattern Scan'}</button>
-                                <button className={styles.cancelButton} onClick={() => { setWizardActive(false); setWizardStep(0); setScanResults([]); }}>Stop</button>
-                              </div>
-
-                              <div style={{ marginTop: 12 }}>
-                                <strong>Detected channels:</strong>
-                                <div style={{ marginTop: 8 }}>{scanResults.length === 0 ? <em>None yet</em> : scanResults.join(', ')}</div>
-                              </div>
-
-                              {/* DMX diff preview (simple heatmap) */}
-                              <div style={{ marginTop: 12 }}>
-                                <strong>DMX Diff Preview</strong>
-                                <div style={{ display: 'flex', gap: 2, marginTop: 6, flexWrap: 'wrap' }}>
-                                  {Array.from({ length: (probeRangeEnd - probeRangeStart + 1) }, (_, i) => probeRangeStart + i).map(ch => {
-                                    const d = scanDiff[ch] || 0; const intensity = Math.min(1, Math.abs(d) / 255);
-                                    const bg = d === 0 ? '#f2f2f2' : (d > 0 ? `rgba(0,160,0,${0.15 + intensity * 0.85})` : `rgba(160,0,0,${0.15 + intensity * 0.85})`);
-                                    return (<div key={ch} title={`DMX ${ch}: ${d > 0 ? '+' : ''}${d}`} style={{ width: 18, height: 18, background: bg, borderRadius: 2, display: 'inline-block' }} />);
-                                  })}
-                                </div>
-                              </div>
-
-                              <div style={{ marginTop: 12 }}>
-                                <button className={styles.saveButton} onClick={() => setWizardStep(2)} disabled={scanResults.length === 0}>Next: Group & Label</button>
-                              </div>
-                            </div>
-                          )}
-
-                          {wizardStep === 2 && (
-                            <div>
-                              <p>Group contiguous detected channels into fixture candidates. Edit name and channel count before saving.</p>
-                              {(() => {
-                                const groups: Array<{start:number,end:number}> = [];
-                                const sorted = [...scanResults].sort((a,b)=>a-b);
-                                let gStart = -1, gPrev = -1;
-                                for (const ch of sorted) {
-                                  if (gStart === -1) { gStart = ch; gPrev = ch; }
-                                  else if (ch === gPrev + 1) { gPrev = ch; }
-                                  else { groups.push({start: gStart, end: gPrev}); gStart = ch; gPrev = ch; }
-                                }
-                                if (gStart !== -1) groups.push({start: gStart, end: gPrev});
-                                return groups.length === 0 ? <em>No groups</em> : groups.map((grp, idx) => (
-                                  <div key={idx} style={{ border: '1px solid #ddd', padding: 8, marginBottom: 8 }}>
-                                    <div>Candidate #{idx+1}: DMX {grp.start} - {grp.end} ({grp.end - grp.start + 1} channels)</div>
-                                    <div style={{ marginTop: 6 }}>
-                                      <input placeholder="Fixture name" defaultValue={`Discovered ${grp.start}`} id={`wizard-name-${idx}`} />
-                                      <button style={{ marginLeft: 8 }} onClick={() => {
-                                        const nameEl = document.getElementById(`wizard-name-${idx}`) as HTMLInputElement | null;
-                                        const name = nameEl?.value || `Discovered ${grp.start}`;
-                                        const channels = [] as any[];
-                                        for (let c = 0; c < (grp.end - grp.start + 1); c++) {
-                                          channels.push({ name: `Channel ${c+1}`, type: 'other', dmxAddress: grp.start + c });
-                                        }
-                                        const newFixtureId = `disco-${Date.now()}-${Math.random()}`;
-                                        const newFixture = {
-                                          id: newFixtureId,
-                                          name,
-                                          type: 'Discovered',
-                                          manufacturer: '',
-                                          model: '',
-                                          mode: '',
-                                          startAddress: grp.start,
-                                          channels,
-                                          notes: 'Discovered via Wizard'
-                                        };
-
-                                        // ensure transaction exists
-                                        let txId = lastWizardBatchId;
-                                        if (!txId) {
-                                          txId = `wiz-${Date.now()}-${Math.random()}`;
-                                          setLastWizardBatchId(txId);
-                                          setWizardTransactions(prev => [...prev, { id: txId!, createdIds: [], timestamp: Date.now(), snapshotBefore: snapshotBefore }]);
-                                        }
-
-                                        useStoreUtils.setState(state => ({ fixtures: [...state.fixtures, newFixture] }));
-                                        // record created id in transaction
-                                        setWizardTransactions(prev => prev.map(tx => tx.id === txId ? { ...tx, createdIds: [...tx.createdIds, newFixtureId], snapshotAfter: snapshotAfter } : tx));
-                                        useStoreUtils.getState().addNotification({ message: `Added fixture ${name}`, type: 'success', priority: 'normal' });
-                                      }}>Save</button>
-                                    </div>
-                                  </div>
-                                ));
-                              })()}
-                              <div style={{ marginTop: 12 }}>
-                                <button className={styles.saveButton} onClick={() => setWizardStep(3)}>Next: Confirm</button>
-                                <button className={styles.cancelButton} style={{ marginLeft: 8 }} onClick={() => { setWizardActive(false); setWizardStep(0); setScanResults([]); }}>Cancel</button>
-                              </div>
-                            </div>
-                          )}
-
-                          {wizardStep === 3 && (
-                            <div>
-                              <p>Finished. Review created fixtures in the list and edit as needed.</p>
-                              <div style={{ marginTop: 12 }}>
-                                <button className={styles.saveButton} onClick={() => { setWizardActive(false); setWizardStep(0); setScanResults([]); setLastWizardBatchId(null); }}>Done</button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </>
-                </div>
-              </div>
+              {/* Discovery Wizard removed */}
               {/* end fixture form */}
               </> ) : (              <button 
                 className={styles.createButton}
