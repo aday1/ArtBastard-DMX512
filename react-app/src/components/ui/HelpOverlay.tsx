@@ -95,7 +95,7 @@ export const HelpOverlay: React.FC = () => {
               <ul>
                 <li><strong>DMX Control Panel:</strong> Main fader interface for direct channel control</li>
                 <li><strong>Scene Control:</strong> Save and recall lighting scenes</li>
-                <li><strong>2D Canvas:</strong> Visual fixture layout and control</li>
+                
                 <li><strong>SuperControl:</strong> Advanced fixture control with MIDI/OSC</li>
                 <li><strong>Master Fader:</strong> Global brightness control</li>
                 <li><strong>Monitors:</strong> MIDI and OSC message monitoring</li>
@@ -362,7 +362,6 @@ export const HelpOverlay: React.FC = () => {
             <div className={styles.section}>
               <h5>⚡ Quick Save Options</h5>
               <ul>
-                <li><strong>2D Canvas Quick Save:</strong> Save current canvas state as scene</li>
                 <li><strong>Keyboard Shortcuts:</strong> Rapid scene saving with hotkeys</li>
                 <li><strong>Auto-naming:</strong> Timestamp-based naming for rapid workflow</li>
                 <li><strong>Overwrite Protection:</strong> Prevent accidental scene overwrites</li>
@@ -463,27 +462,7 @@ export const HelpOverlay: React.FC = () => {
               </div>
             </div>
 
-            <div className={styles.section}>
-              <h5>🖼️ 2D Canvas</h5>
-              <div className={styles.shortcutList}>
-                <div className={styles.shortcut}>
-                  <kbd>Ctrl</kbd> + <kbd>Q</kbd>
-                  <span>Quick Save Canvas to Scene</span>
-                </div>
-                <div className={styles.shortcut}>
-                  <kbd>Ctrl</kbd> + <kbd>Click</kbd>
-                  <span>Multi-select Fixtures</span>
-                </div>
-                <div className={styles.shortcut}>
-                  <kbd>Shift</kbd> + <kbd>Drag</kbd>
-                  <span>Select Multiple Fixtures</span>
-                </div>
-                <div className={styles.shortcut}>
-                  <kbd>Del</kbd>
-                  <span>Delete Selected Fixtures</span>
-                </div>
-              </div>
-            </div>
+            
 
             <div className={styles.section}>
               <h5>🔍 Navigation</h5>
