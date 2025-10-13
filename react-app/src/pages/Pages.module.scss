@@ -5,7 +5,7 @@
   flex-direction: column;
   padding: 1rem;
   gap: 1rem;
-  overflow: hidden;
+  overflow: auto; /* Allow scrolling on long pages (Electron) */
 }
 
 
@@ -104,7 +104,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  overflow: hidden;
+  overflow: auto; /* Enable vertical scroll when content exceeds viewport */
   min-height: 0; /* Allow shrinking below content size */
 }
 

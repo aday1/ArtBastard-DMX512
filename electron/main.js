@@ -261,6 +261,30 @@ const template = [
       },
       { type: 'separator' },
       {
+        label: 'Zoom In',
+        accelerator: 'CmdOrCtrl+=',
+        click: () => {
+          const current = mainWindow.webContents.getZoomFactor();
+          mainWindow.webContents.setZoomFactor(Math.min(3, current + 0.1));
+        }
+      },
+      {
+        label: 'Zoom Out',
+        accelerator: 'CmdOrCtrl+-',
+        click: () => {
+          const current = mainWindow.webContents.getZoomFactor();
+          mainWindow.webContents.setZoomFactor(Math.max(0.5, current - 0.1));
+        }
+      },
+      {
+        label: 'Reset Zoom',
+        accelerator: 'CmdOrCtrl+0',
+        click: () => {
+          mainWindow.webContents.setZoomFactor(1.0);
+        }
+      },
+      { type: 'separator' },
+      {
         label: 'Toggle Fullscreen',
         accelerator: process.platform === 'darwin' ? 'Ctrl+Cmd+F' : 'F11',
         click: () => {
