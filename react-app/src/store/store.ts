@@ -351,8 +351,6 @@ interface State {
     midiOsc: boolean
     fixture: boolean
     scenes: boolean
-    audio: boolean
-    touchosc: boolean
     misc: boolean
   }
 
@@ -786,8 +784,6 @@ export const useStore = create<State>()(
         midiOsc: true,
         fixture: true,
         scenes: true,
-        audio: true,
-        touchosc: true,
         misc: true
       },
       

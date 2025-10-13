@@ -1,58 +1,147 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useStore } from '../../store'
-import styles from './BpmIndicator.module.scss'
+import React, { useState, useEffect } from 'react';
+import { useStore } from '../../store';
+import { LucideIcon } from '../ui/LucideIcon';
+import styles from './BpmIndicator.module.scss';
 
-export const BpmIndicator: React.FC = () => {
-  const [isDownbeat, setIsDownbeat] = useState(false)
-  const [beatCount, setBeatCount] = useState(0)
-  const lastBeatTimeRef = useRef<number>(0)
-  
-  // Get BPM from store (you may need to adjust this based on your store structure)
-  const bpm = useStore(state => state.bpm || 120) // Default to 120 BPM
-  const isPlaying = useStore(state => state.isPlaying || false)
+const BpmIndicator: React.FC = () => {
+  const {
+    midiClockBpm,
+    midiClockIsPlaying,
+    midiClockCurrentBeat,
+    midiClockCurrentBar,
+    availableMidiClockHosts,
+    selectedMidiClockHostId,
+    setMidiClockBpm,
+    requestToggleMasterClockPlayPause,
+    requestMidiClockInputList,
+    requestSetMidiClockInput,
+    recordTapTempo,
+    autoSceneTapTempoBpm
+  } = useStore();
 
+  const [manualBpm, setManualBpm] = useState(midiClockBpm);
+  const [tapCount, setTapCount] = useState(0);
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const tapTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Update manual BPM when MIDI clock BPM changes
   useEffect(() => {
-    if (!isPlaying || bpm <= 0) return
+    setManualBpm(midiClockBpm);
+  }, [midiClockBpm]);
 
-    const beatInterval = (60 / bpm) * 1000 // Convert BPM to milliseconds
+  // Flash effect when playing
+  useEffect(() => {
+    if (midiClockIsPlaying) {
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [midiClockCurrentBeat]);
+
+  // Handle tap tempo
+  const handleTap = () => {
+    const currentTime = Date.now();
     
-    const beatTimer = setInterval(() => {
-      const now = Date.now()
-      lastBeatTimeRef.current = now
-      
-      setBeatCount(prev => {
-        const newCount = (prev + 1) % 4 // 4/4 time signature
-        setIsDownbeat(newCount === 0) // Downbeat is the first beat of the measure
-        return newCount
-      })
-      
-      // Flash effect duration
-      setTimeout(() => setIsDownbeat(false), 100)
-    }, beatInterval)
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+    
+    if (lastTapTime > 0 && (currentTime - lastTapTime) < 2000) {
+      setTapCount(prev => prev + 1);
+    } else {
+      setTapCount(1);
+    }
+    
+    setLastTapTime(currentTime);
+    recordTapTempo();
+    
+    // Reset tap count after 3 seconds
+    tapTimeoutRef.current = setTimeout(() => {
+      setTapCount(0);
+      setLastTapTime(0);
+    }, 3000);
+  };
 
-    return () => clearInterval(beatTimer)
-  }, [bpm, isPlaying])
+  // Handle BPM input change
+  const handleBpmChange = (value: number) => {
+    const newBpm = Math.max(60, Math.min(200, value));
+    setManualBpm(newBpm);
+    setMidiClockBpm(newBpm);
+  };
 
-  if (!isPlaying) return null
+  // Handle MIDI clock source change
+  const handleMidiSourceChange = (sourceId: string) => {
+    requestSetMidiClockInput(sourceId);
+  };
+
+  // Request MIDI inputs on mount
+  useEffect(() => {
+    requestMidiClockInputList();
+  }, []);
+
+  const currentBpm = autoSceneTapTempoBpm || midiClockBpm;
 
   return (
-    <div className={styles.bpmContainer}>
-      <div className={`${styles.bpmIndicator} ${isDownbeat ? styles.downbeat : styles.beat}`}>
+    <div className={styles.bpmIndicator}>
+      <div className={styles.bpmSection}>
         <div className={styles.bpmDisplay}>
-          <span className={styles.bpmValue}>{bpm}</span>
-          <span className={styles.bpmLabel}>BPM</span>
+          <div className={`${styles.bpmValue} ${isFlashing ? styles.flash : ''}`}>
+            {Math.round(currentBpm)}
+          </div>
+          <div className={styles.bpmLabel}>BPM</div>
+          <div className={`${styles.playStatus} ${midiClockIsPlaying ? styles.playing : styles.stopped}`}>
+            <LucideIcon name={midiClockIsPlaying ? 'Play' : 'Pause'} />
+          </div>
         </div>
-        <div className={styles.beatCounter}>
-          {[0, 1, 2, 3].map(beat => (
-            <div 
-              key={beat}
-              className={`${styles.beatDot} ${beatCount === beat ? styles.active : ''} ${beatCount === beat && isDownbeat ? styles.downbeatDot : ''}`}
-            />
-          ))}
+        
+        <div className={styles.beatBarDisplay}>
+          <span className={styles.beatBar}>
+            {midiClockCurrentBar}.{midiClockCurrentBeat}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.controlsSection}>
+        <div className={styles.bpmControls}>
+          <input
+            type="number"
+            min="60"
+            max="200"
+            value={manualBpm}
+            onChange={(e) => handleBpmChange(parseInt(e.target.value) || 120)}
+            className={styles.bpmInput}
+            title="Manual BPM"
+          />
+          <button
+            onClick={handleTap}
+            className={styles.tapButton}
+            title={`Tap Tempo (${tapCount} taps)`}
+          >
+            <LucideIcon name="MousePointerClick" />
+            TAP
+          </button>
+        </div>
+
+
+        <div className={styles.midiSourceControls}>
+          <select
+            value={selectedMidiClockHostId || 'internal'}
+            onChange={(e) => handleMidiSourceChange(e.target.value)}
+            className={styles.midiSourceSelect}
+            title="MIDI Clock Source"
+          >
+            <option value="internal">Internal Clock</option>
+            {availableMidiClockHosts.map((host) => (
+              <option key={host.id} value={host.id}>
+                {host.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default BpmIndicator
+export default BpmIndicator;

@@ -4,26 +4,26 @@
 /* emoji-fixes removed to restore default icon and text rendering */
 
 // Base variables
-:root {  // Light mode colors - Warmer, more comfortable color scheme
-  --color-background: #f5f0e1; /* Warmer off-white */
-  --color-text: #5a5047; /* Slightly warmer dark gray */
-  --color-primary: #c77f5b; /* Adjusted for warmth */
-  --color-secondary: #8f7a5d; /* Adjusted for warmth */
-  --color-accent: #d9781f; /* Adjusted for warmth */
+:root {  // Light mode colors - Orange-forward, warm palette
+  --color-background: #fff7ed; /* Orange 50 - subtle warm background */
+  --color-text: #5a4333; /* Warm brown for readability */
+  --color-primary: #f59e0b; /* Amber/Orange primary */
+  --color-secondary: #b45309; /* Deeper orange-brown secondary */
+  --color-accent: #fb923c; /* Bright orange accent */
   --color-success: #2ecc71; // Keeping original success color
   --color-warning: #f39c12; // Keeping original warning color
   --color-error: #e74c3c;   // Keeping original error color
-  --color-card-bg: #faf3e8; /* Warmer card background */
-  --color-card-border: #e6dacb; /* Warmer card border */
-  --color-slider-track: #e6dacb; /* Warmer slider track */
-  --color-slider-thumb: #c77f5b; /* Matches new primary */
-  --color-button-bg: #c77f5b; /* Matches new primary */
-  --color-button-text: #fcfaf7; /* Off-white instead of pure white */
-  --color-nav-active: #c77f5b; /* Matches new primary */
-  --color-nav-inactive: #8f7a5d; /* Matches new secondary */
-  --color-channel-bg: #faf3e8; /* Warmer channel background */
-  --color-channel-border: #e0d8ce; /* Warmer channel border */
-  --color-channel-selected: rgba(199, 127, 91, 0.1); /* Based on new primary */
+  --color-card-bg: #fffbeb; /* Orange 50/100 card */
+  --color-card-border: #f3e8d3; /* Warm border */
+  --color-slider-track: #f3e8d3; /* Warm slider track */
+  --color-slider-thumb: var(--color-primary);
+  --color-button-bg: var(--color-primary);
+  --color-button-text: #fff7ed; /* Very light warm */
+  --color-nav-active: var(--color-primary);
+  --color-nav-inactive: #a16207; /* Muted amber */
+  --color-channel-bg: #fff7ed; /* Warm channel background */
+  --color-channel-border: #f3e8d3; /* Warm channel border */
+  --color-channel-selected: rgba(245, 158, 11, 0.12); /* Based on primary */
   --color-status-connected: #2aa764; /* Slightly desaturated green */
   --color-status-disconnected: #e24338; /* Slightly desaturated red */
   --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
@@ -31,14 +31,14 @@
     // Additional UI variables for components
   --bg-primary: var(--color-background);
   --bg-secondary: var(--color-card-bg);
-  --bg-tertiary: #f0e9d8; /* Even lighter for depth */
-  --bg-hover: #e6dacb;
+  --bg-tertiary: #ffedd5; /* Deeper warm layer */
+  --bg-hover: #fde8c9;
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
-  --accent-color: #ed8936; /* Light orange accent for overall harmony */
+  --accent-color: #f97316; /* Vibrant orange */
   --border-color: var(--color-card-border);
-  --header-bg: #e6dacb;
-  --input-bg: #faf3e8;
+  --header-bg: #ffedd5;
+  --input-bg: #fffbeb;
   --error-color: var(--color-error);
   --system-sans: var(--font-body);
   
@@ -373,52 +373,3 @@ input[type="range"] {
   min-height: 100vh;
 }
 
-// Modern Interface Styles
-body.modern-interface {
-  --color-background: #0a0a0a;
-  --color-surface: #1a1a1a;
-  --color-border: #333333;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #cccccc;
-  --color-interactive: #4ecdc4;
-  --color-primary: #4ecdc4;
-  
-  // Enhanced shadows and effects
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  
-  // Enhanced transitions
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  // Enhanced backdrop filters
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  
-  // Enhanced gradients
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
-  
-  // Enhanced animations
-  * {
-    transition: all var(--transition-normal);
-  }
-  
-  // Enhanced focus states
-  *:focus {
-    outline: 2px solid var(--color-interactive);
-    outline-offset: 2px;
-  }
-  
-  // Enhanced hover states
-  button:hover, .card-interactive:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-  }
-  
-  // Enhanced active states
-  button:active, .card-interactive:active {
-    transform: translateY(0);
-  }
-}

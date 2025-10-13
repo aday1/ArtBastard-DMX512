@@ -113,7 +113,7 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
   'touch-fixture-controller': {
     type: 'touch-fixture-controller',
     title: 'Touch Super Control',
-    description: 'Touch-optimized fixture control with haptic feedback and large controls for external monitors',
+    description: 'Touch-optimized fixture control with haptic feedback and large controls for touch screens',
     category: 'fixtures',
     icon: 'fas fa-hand-pointer',
     component: TouchSuperControl,

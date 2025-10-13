@@ -1,33 +1,41 @@
 .themeToggleContainer {
-  position: fixed;
-  top: 70px; // Moved down from 20px to avoid overlapping with Debug button
-  right: 20px;
-  z-index: 1050;
   display: flex;
-  gap: 8px; // Space between the buttons
-  padding: 6px; // Padding for the container itself
+  gap: 4px; // Reduced space between the buttons
+  padding: 4px; // Reduced padding for the container itself
   background-color: var(--color-card-bg);
-  border-radius: var(--border-radius, 8px); // Use global border-radius or a default
+  border-radius: var(--border-radius, 6px); // Smaller border radius
   box-shadow: var(--card-shadow);
+  
+  // Navbar variant - when used inside navbar
+  :global(.darkModeToggle) & {
+    position: static;
+    top: auto;
+    right: auto;
+    z-index: auto;
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+    gap: var(--space-sm);
+  }
 }
 
 .iconButton {
   background-color: transparent; // Buttons themselves are transparent
   border: none;
   border-radius: 50%; // Keep buttons circular
-  width: 38px;        // Slightly smaller to fit padding in container
-  height: 38px;
+  width: 28px;        // Smaller size
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 8px;       // Padding inside each button for the icon
+  padding: 4px;       // Reduced padding
   color: var(--color-text); // Icon color
   transition: all 0.2s ease;
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 16px;      // Smaller icon
+    height: 16px;
   }
 
   &:hover {
@@ -38,5 +46,41 @@
   &:focus {
     outline: none;
     box-shadow: 0 0 0 2px var(--color-primary); // Focus indicator
+  }
+  
+  // Navbar variant - when used inside navbar
+  :global(.darkModeToggle) & {
+    width: auto;
+    height: auto;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    &:hover {
+      background-color: var(--color-interactive);
+      border-color: var(--color-interactive);
+      color: var(--color-text-inverse);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+    
+    span {
+      margin-left: var(--space-xs);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+    }
   }
 }

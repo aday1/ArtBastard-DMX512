@@ -5,7 +5,6 @@ import { SocketProvider } from './context/SocketContext'
 import { PanelProvider } from './context/PanelContext'
 import { DockingProvider } from './context/DockingContext'
 import { PinningProvider } from './context/PinningContext'
-import { ExternalWindowProvider } from './context/ExternalWindowContext'
 import { ChromaticEnergyManipulatorProvider } from './context/ChromaticEnergyManipulatorContext'
 import { useSceneTransitionAnimation } from './hooks/useSceneTransitionAnimation'
 import { useGlobalMidiManager } from './hooks/useGlobalMidiManager'
@@ -41,27 +40,25 @@ function App() {
         <PanelProvider>
           <DockingProvider>
             <PinningProvider>
-              <ExternalWindowProvider>
-                <ChromaticEnergyManipulatorProvider>
-                  {/* Global MIDI processor - processes MIDI messages into DMX channel updates */}
-                  <MidiDmxProcessor />
-                  {/* Global OSC processor - processes OSC messages into DMX channel updates */}
-                  <OscDmxProcessor />
-                  <Layout />
-                  <ToastContainer 
-                    position="top-right"
-                    autoClose={3000}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="dark"
-                  />
-                </ChromaticEnergyManipulatorProvider>
-              </ExternalWindowProvider>
+              <ChromaticEnergyManipulatorProvider>
+                {/* Global MIDI processor - processes MIDI messages into DMX channel updates */}
+                <MidiDmxProcessor />
+                {/* Global OSC processor - processes OSC messages into DMX channel updates */}
+                <OscDmxProcessor />
+                <Layout />
+                <ToastContainer 
+                  position="top-right"
+                  autoClose={3000}
+                  hideProgressBar={false}
+                  newestOnTop={false}
+                  closeOnClick
+                  rtl={false}
+                  pauseOnFocusLoss
+                  draggable
+                  pauseOnHover
+                  theme="dark"
+                />
+              </ChromaticEnergyManipulatorProvider>
             </PinningProvider>
           </DockingProvider>
         </PanelProvider>

@@ -218,25 +218,6 @@
               font-size: 0.8rem;
             }
 
-            &.playButton {
-              background: var(--success-color);
-              color: white;
-
-              &:hover:not(:disabled) {
-                background: var(--success-hover-color);
-                transform: scale(1.1);
-              }
-
-              &.playing {
-                background: var(--warning-color);
-              }
-
-              &:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-              }
-            }
-
             &.editButton {
               background: var(--primary-color);
               color: white;

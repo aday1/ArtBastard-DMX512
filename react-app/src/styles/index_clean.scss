@@ -2,26 +2,26 @@
 @use './font-fallbacks.scss';
 
 // Base variables
-:root {  // Light mode colors - Warmer, more comfortable color scheme
-  --color-background: #f5f0e1; /* Warmer off-white */
-  --color-text: #5a5047; /* Slightly warmer dark gray */
-  --color-primary: #c77f5b; /* Adjusted for warmth */
-  --color-secondary: #8f7a5d; /* Adjusted for warmth */
-  --color-accent: #d9781f; /* Adjusted for warmth */
+:root {  // Light mode colors - Orange-forward, warm palette
+  --color-background: #fff7ed; /* Orange 50 - subtle warm background */
+  --color-text: #5a4333; /* Warm brown for readability */
+  --color-primary: #f59e0b; /* Amber/Orange primary */
+  --color-secondary: #b45309; /* Deeper orange-brown secondary */
+  --color-accent: #fb923c; /* Bright orange accent */
   --color-success: #2ecc71; // Keeping original success color
   --color-warning: #f39c12; // Keeping original warning color
   --color-error: #e74c3c;   // Keeping original error color
-  --color-card-bg: #faf3e8; /* Warmer card background */
-  --color-card-border: #e6dacb; /* Warmer card border */
-  --color-slider-track: #e6dacb; /* Warmer slider track */
-  --color-slider-thumb: #c77f5b; /* Matches new primary */
-  --color-button-bg: #c77f5b; /* Matches new primary */
-  --color-button-text: #fcfaf7; /* Off-white instead of pure white */
-  --color-nav-active: #c77f5b; /* Matches new primary */
-  --color-nav-inactive: #8f7a5d; /* Matches new secondary */
-  --color-channel-bg: #faf3e8; /* Warmer channel background */
-  --color-channel-border: #e0d8ce; /* Warmer channel border */
-  --color-channel-selected: rgba(199, 127, 91, 0.1); /* Based on new primary */
+  --color-card-bg: #fffbeb; /* Orange 50/100 card */
+  --color-card-border: #f3e8d3; /* Warm border */
+  --color-slider-track: #f3e8d3; /* Warm slider track */
+  --color-slider-thumb: var(--color-primary);
+  --color-button-bg: var(--color-primary);
+  --color-button-text: #fff7ed; /* Very light warm */
+  --color-nav-active: var(--color-primary);
+  --color-nav-inactive: #a16207; /* Muted amber */
+  --color-channel-bg: #fff7ed; /* Warm channel background */
+  --color-channel-border: #f3e8d3; /* Warm channel border */
+  --color-channel-selected: rgba(245, 158, 11, 0.12); /* Based on primary */
   --color-status-connected: #2aa764; /* Slightly desaturated green */
   --color-status-disconnected: #e24338; /* Slightly desaturated red */
   --color-status-inactive: #c9c0b5; /* Warmer gray for inactive status */
@@ -32,7 +32,7 @@
   --bg-secondary: var(--color-card-bg);
   --text-primary: var(--color-text);
   --text-secondary: var(--color-secondary);
-  --accent-color: #ed8936; /* Light orange accent for overall harmony */
+  --accent-color: #f97316; /* Vibrant orange */
   
   // Fonts
   --font-heading: 'Playfair Display', serif;

@@ -3,7 +3,6 @@ import { useStore } from '../../store'
 import { useSocket } from '../../context/SocketContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi'
-import { MidiVisualizer } from './MidiVisualizer'
 import styles from './MidiOscSetup.module.scss'
 
 export const MidiOscSetup: React.FC = () => {
@@ -349,7 +348,7 @@ export const MidiOscSetup: React.FC = () => {
           </div>          <div className={styles.cardBody}>
             <p className={styles.cardDescription}>
               OSC (Open Sound Control) enables bidirectional network communication between devices and applications. 
-              Configure both receiving and sending settings for TouchOSC integration.
+              Configure both receiving and sending settings for OSC integration.
             </p>
             
             <h4>OSC Receiving (Incoming Messages)</h4>
@@ -383,7 +382,7 @@ export const MidiOscSetup: React.FC = () => {
             
             <h4>OSC Sending (Outgoing Messages)</h4>
             <div className={styles.formGroup}>
-              <label htmlFor="oscSendEnabled" title="Enable sending OSC messages to TouchOSC interfaces for bidirectional communication">
+              <label htmlFor="oscSendEnabled" title="Enable sending OSC messages to OSC interfaces for bidirectional communication">
                 <input
                   type="checkbox"
                   id="oscSendEnabled"
@@ -397,7 +396,7 @@ export const MidiOscSetup: React.FC = () => {
             {oscConfig.sendEnabled && (
               <>
                 <div className={styles.formGroup}>
-                  <label htmlFor="oscSendHost" title="IP address where OSC messages will be sent. Use 127.0.0.1 for local TouchOSC or the device IP for remote TouchOSC">
+                  <label htmlFor="oscSendHost" title="IP address where OSC messages will be sent. Use 127.0.0.1 for local OSC or the device IP for remote OSC">
                     Send Host Address:
                   </label>
                   <input
@@ -406,7 +405,7 @@ export const MidiOscSetup: React.FC = () => {
                     value={oscConfig.sendHost}
                     onChange={(e) => setOscConfig({ ...oscConfig, sendHost: e.target.value })}
                     placeholder="127.0.0.1"
-                    title="Enter the IP address where OSC messages will be sent (TouchOSC device)"
+                    title="Enter the IP address where OSC messages will be sent (OSC device)"
                   />
                 </div>
                 
@@ -513,68 +512,7 @@ export const MidiOscSetup: React.FC = () => {
           </div>
         </div>
         
-        {/* MIDI Messages Card */}
-        <div className={`${styles.card} ${styles.fullWidth}`}>
-          <div className={styles.cardHeader}>
-            <h3 title="Real-time display of incoming MIDI messages from all connected devices">
-              {theme === 'artsnob' && 'Incoming Messages: The Whispers of Digital Muses'}
-              {theme === 'standard' && 'MIDI Messages'}
-              {theme === 'minimal' && 'Messages'}
-            </h3>
-            <button 
-              className={styles.clearButton}
-              onClick={handleClearMidiMessages}
-              title="Clear all MIDI messages from the display"
-            >
-              <i className="fas fa-eraser"></i>
-              {theme !== 'minimal' && 'Clear'}
-            </button>
-          </div>
-          <div className={styles.cardBody}>
-            <p className={styles.cardDescription}>
-              Watch real-time MIDI data from your connected devices. Use this to test connections and troubleshoot MIDI mappings.
-            </p>
-            {/* MIDI Visualizer Component */}
-            <MidiVisualizer />
-            
-            {/* Text-based MIDI Messages */}
-            <div className={styles.midiMessages}>
-              {midiMessages.length === 0 ? (
-                <div className={styles.emptyMessages}>
-                  <p>No MIDI messages received yet. Try pressing keys or moving controls on your MIDI device.</p>
-                </div>
-              ) : (
-                midiMessages.slice(-50).map((msg, index) => (
-                  <div 
-                    key={index} 
-                    className={styles.midiMessage}
-                    title={`${msg._type} message from ${msg.source || 'unknown source'} at ${new Date().toLocaleTimeString()}`}
-                  >
-                    <span className={styles.timestamp}>
-                      {new Date().toLocaleTimeString()}
-                    </span>
-                    <span className={`${styles.messageType} ${styles[msg._type]} ${msg.source === 'browser' ? styles.browser : ''}`}>
-                      {msg._type} {msg.source === 'browser' ? '(browser)' : ''}
-                    </span>
-                    {msg._type === 'noteon' || msg._type === 'noteoff' ? (
-                      <span className={styles.messageContent}>
-                        Ch: {msg.channel}, Note: {msg.note}, Vel: {msg.velocity}
-                      </span>
-                    ) : msg._type === 'cc' ? (
-                      <span className={styles.messageContent}>
-                        Ch: {msg.channel}, CC: {msg.controller}, Val: {msg.value}
-                      </span>
-                    ) : (
-                      <span className={styles.messageContent}>
-                        {JSON.stringify(msg)}
-                      </span>
-                    )}
-                  </div>
-                )).reverse()
-              )}
-            </div>
-          </div>        
-        </div>
+        
       </div>
     </div>
   )

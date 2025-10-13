@@ -28,9 +28,8 @@
 
 ### **Advanced Control Methods**
 - **MIDI integration** - Hardware controller support
-- **OSC/TouchOSC** - Wireless tablet/phone control  
+- **OSC Protocol** - Wireless tablet/phone control  
 - **Keyboard shortcuts** - Rapid access to key functions
-- **External monitor support** - Dedicated control surfaces
 
 ## 🎪 **Performance & Show Control**
 

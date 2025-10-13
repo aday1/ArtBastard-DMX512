@@ -322,23 +322,6 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
             )}
           </div>
 
-          <div className={styles.transportSection}>
-            <label className={styles.sectionLabel}>Transport</label>
-            <div className={styles.transportControls}>
-              <button
-                className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                onClick={handlePlayPause}
-              >
-                {isPlaying ? '⏸️ Stop' : '▶️ Start'}
-              </button>
-              <button
-                className={styles.resetButton}
-                onClick={handleReset}
-              >
-                🔄 Reset
-              </button>
-            </div>
-          </div>
 
           <div className={styles.bpmSection}>
             <label className={styles.sectionLabel}>BPM Setting</label>

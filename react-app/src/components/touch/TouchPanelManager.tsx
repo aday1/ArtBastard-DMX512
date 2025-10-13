@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { usePanels } from '../../context/PanelContext';
-import { useExternalWindow } from '../../context/ExternalWindowContext';
 
 interface TouchPanelManagerProps {
   isVisible: boolean;

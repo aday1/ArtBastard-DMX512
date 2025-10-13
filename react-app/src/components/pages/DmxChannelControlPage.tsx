@@ -3,10 +3,14 @@ import { useStore } from '../../store';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
 import { useElectronMidi } from '../../hooks/useElectronMidi';
+import { useTheme } from '../../context/ThemeContext';
 import { LucideIcon } from '../ui/LucideIcon';
 import styles from './DmxChannelControlPage.module.scss';
+import pageStyles from '../../pages/Pages.module.scss';
 
 export const DmxChannelControlPage: React.FC = () => {
+  const { theme } = useTheme();
+  
   // State management
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
   const [filter, setFilter] = useState<'all' | 'active' | 'selected' | 'range'>('all');
@@ -290,14 +294,31 @@ export const DmxChannelControlPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.dmxChannelControlPage}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.titleSection}>
-          <h1 className={styles.title}>
-            <LucideIcon name="Sliders" />
-            DMX Channel Control
-          </h1>
+    <div className={pageStyles.pageContainer}>
+      <div className={pageStyles.pageHeader}>
+        <div className={pageStyles.headerContent}>
+          <h2>
+            {theme === 'artsnob' && 'Le Contrôle DMX Ultime'}
+            {theme === 'standard' && 'DMX Channel Control'}
+            {theme === 'minimal' && 'DMX Control'}
+          </h2>
+          <p>
+            {theme === 'artsnob' && 'Direct DMX channel control with MIDI Learn/Forget functionality'}
+            {theme === 'standard' && 'Direct DMX channel control with MIDI Learn/Forget functionality'}
+            {theme === 'minimal' && 'Direct DMX channel control'}
+          </p>
+        </div>
+      </div>
+      
+      <div className={pageStyles.pageContent}>
+        <div className={styles.dmxChannelControlPage}>
+          {/* Header */}
+          <div className={styles.header}>
+            <div className={styles.titleSection}>
+              <h1 className={styles.title}>
+                <LucideIcon name="Sliders" />
+                DMX Channel Control
+              </h1>
           <div className={styles.stats}>
             <span className={styles.stat}>
               <LucideIcon name="Zap" />
@@ -839,6 +860,8 @@ export const DmxChannelControlPage: React.FC = () => {
           <span>Page {currentPage + 1} of {totalPages}</span>
           <span>•</span>
           <span>{Object.keys(midiMappings).length} MIDI mappings</span>
+        </div>
+      </div>
         </div>
       </div>
     </div>

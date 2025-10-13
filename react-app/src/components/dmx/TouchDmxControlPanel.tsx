@@ -298,19 +298,51 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
     };
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     const node = containerRef.current as any;
-    if (!node) return;
-    if (!document.fullscreenElement) {
-      if (node.requestFullscreen) node.requestFullscreen();
-      else if (node.webkitRequestFullscreen) node.webkitRequestFullscreen();
-      else if (node.mozRequestFullScreen) node.mozRequestFullScreen();
-      else if (node.msRequestFullscreen) node.msRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
-      else if ((document as any).mozCancelFullScreen) (document as any).mozCancelFullScreen();
-      else if ((document as any).msExitFullscreen) (document as any).msExitFullscreen();
+    if (!node) {
+      console.warn('TouchDmxControlPanel: No container ref for fullscreen');
+      return;
+    }
+    
+    try {
+      if (!document.fullscreenElement) {
+        // Try to enter fullscreen
+        if (node.requestFullscreen) {
+          await node.requestFullscreen();
+        } else if (node.webkitRequestFullscreen) {
+          await node.webkitRequestFullscreen();
+        } else if (node.mozRequestFullScreen) {
+          await node.mozRequestFullScreen();
+        } else if (node.msRequestFullscreen) {
+          await node.msRequestFullscreen();
+        } else {
+          console.warn('TouchDmxControlPanel: Fullscreen API not supported');
+          addNotification({
+            message: 'Fullscreen not supported in this browser',
+            type: 'warning',
+            priority: 'normal'
+          });
+        }
+      } else {
+        // Try to exit fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+      }
+    } catch (error) {
+      console.error('TouchDmxControlPanel: Fullscreen error:', error);
+      addNotification({
+        message: `Fullscreen failed: ${error.message}`,
+        type: 'error',
+        priority: 'normal'
+      });
     }
   };
   // Calculate active channels
@@ -436,7 +468,7 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
     // Return standard DMX control panel for non-touch interfaces
     return (
       <div style={{ padding: '1rem' }}>
-        <p>Standard DMX Control Panel - Switch to touch mode in external monitor</p>
+        <p>Standard DMX Control Panel - Switch to touch mode for better mobile experience</p>
       </div>
     );  }
   return (
@@ -850,22 +882,6 @@ export const TouchDmxControlPanel: React.FC<{ touchOptimized?: boolean }> = ({ t
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={handleAutoSceneToggle}
-                    style={{
-                      background: autoSceneEnabled ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 255, 0, 0.8)',
-                      border: `1px solid ${autoSceneEnabled ? 'rgba(255, 0, 0, 0.9)' : 'rgba(0, 255, 0, 0.9)'}`,
-                      color: '#ffffff',
-                      padding: '0.4rem 0.8rem',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.7rem',
-                      fontWeight: '600',
-                      touchAction: 'manipulation'
-                    }}
-                  >
-                    {autoSceneEnabled ? '⏹️ STOP' : '▶️ START'}
-                  </button>
                 </div>
 
                 {/* Auto Scene Configuration */}

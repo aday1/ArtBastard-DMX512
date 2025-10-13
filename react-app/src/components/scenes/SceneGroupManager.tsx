@@ -521,16 +521,6 @@ export const SceneGroupManager: React.FC<SceneGroupManagerProps> = ({
             <div className={styles.groupDetails}>
               <div className={styles.sectionHeader}>
                 <h3>{selectedGroup.name}</h3>
-                <div className={styles.playbackControls}>
-                  <button
-                    onClick={isPlaying ? stopPlayback : startPlayback}
-                    className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                    disabled={selectedGroup.scenes.length === 0}
-                  >
-                    <LucideIcon name={isPlaying ? "Pause" : "Play"} />
-                    {isPlaying ? "Stop" : "Play"}
-                  </button>
-                </div>
               </div>
 
               {/* Auto-pilot Settings */}

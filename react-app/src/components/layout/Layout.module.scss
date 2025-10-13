@@ -17,14 +17,14 @@
     display: flex;
     gap: 1rem;
     padding: 1rem;
+    padding-right: calc(var(--navbar-expanded-width) + 1rem); /* Add right padding for vertical navbar */
     position: relative;
     overflow: visible;
-    margin-right: var(--navbar-expanded-width); /* Default margin for expanded navbar */
-    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Styling for when navbar is collapsed - applied via body class */
     :global(body.navbar-is-collapsed) & {
-      margin-right: var(--navbar-collapsed-width);
+      padding-right: calc(var(--navbar-collapsed-width) + 1rem); /* Reduced padding for collapsed navbar */
     }
 
     .statusPanel {
@@ -56,7 +56,21 @@
           font-weight: 300;
           margin-left: 0.5rem;
           color: var(--text-secondary);
+          background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+          background-size: 400% 400%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: rainbowCycle 3s ease-in-out infinite;
         }
+      }
+
+      .titleControls {
+        margin: 1rem 0;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        align-items: center;
       }
 
       .artQuote {
@@ -76,6 +90,69 @@
 
       .contentArea {
         flex: 1;
+      }
+
+      .bottomControls {
+        margin: 1rem 0;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 0;
+        border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      }
+
+      .themeControls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .themeButton {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--color-surface, rgba(255, 255, 255, 0.1));
+        border: 1px solid var(--color-border, rgba(255, 255, 255, 0.2));
+        border-radius: 6px;
+        color: var(--color-text-primary, #ffffff);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        
+        &:hover {
+          background: var(--color-interactive, rgba(78, 205, 196, 0.2));
+          border-color: var(--color-interactive, #4ecdc4);
+          transform: translateY(-1px);
+        }
+        
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+        
+        // Language-specific styles
+        &.artsnob {
+          background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+          border-color: #D2691E;
+          color: #FFF8DC;
+          
+          &:hover {
+            background: linear-gradient(135deg, #A0522D 0%, #CD853F 100%);
+            border-color: #F4A460;
+          }
+        }
+        
+        &.standard {
+          background: var(--color-surface, rgba(255, 255, 255, 0.1));
+          border-color: var(--color-border, rgba(255, 255, 255, 0.2));
+          
+          &:hover {
+            background: var(--color-interactive, rgba(78, 205, 196, 0.2));
+            border-color: var(--color-interactive, #4ecdc4);
+          }
+        }
       }
     }
 
@@ -139,5 +216,18 @@
         background: rgba(78, 205, 196, 0.1);
       }
     }
+  }
+}
+
+// Rainbow animation keyframes
+@keyframes rainbowCycle {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }

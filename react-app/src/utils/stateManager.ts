@@ -252,7 +252,7 @@ export class StateManager {
           
           // Apply all updates at once
           if (Object.keys(updates).length > 0) {
-            store.setState(updates);
+            (store as any).setState(updates);
           }
           
           // Apply selections

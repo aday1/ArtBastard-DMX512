@@ -227,36 +227,6 @@ export const AutoSceneControlMini: React.FC<AutoSceneControlMiniProps> = ({
 
     return (
       <div className={styles.content}>        <div className={styles.controls}>
-          <button
-            className={`${styles.toggleButton} ${autoSceneEnabled ? styles.active : ''}`}
-            onClick={() => {
-              if (!autoSceneEnabled) {
-                setAutoSceneEnabled(true);
-                // Start playing automatically when enabling AutoScene
-                if (autoSceneTempoSource === 'internal_clock') {
-                  requestToggleMasterClockPlayPause();
-                } else {
-                  setIsLocalClockPlaying(true);
-                  setLocalBeatCounter(0);
-                }
-              } else {
-                // Stop when disabling
-                setAutoSceneEnabled(false);
-                if (autoSceneTempoSource !== 'internal_clock') {
-                  setIsLocalClockPlaying(false);
-                }
-              }
-            }}
-            title={autoSceneEnabled ? 'Stop Auto Scene' : 'Start Auto Scene'}
-          >
-            {autoSceneEnabled ? (
-              <LucideIcon name="Pause" size={14} />
-            ) : (
-              <LucideIcon name="Play" size={14} />
-            )}
-            {autoSceneEnabled ? 'STOP' : 'START'}
-          </button>
-
           <div className={styles.info}>
             <div className={styles.bpmDisplay}>
               {getCurrentBpm().toFixed(1)} BPM

@@ -222,7 +222,7 @@ export const TouchDmxChannel: React.FC<TouchDmxChannelProps> = ({
   );
 };
 
-// Basic CSS for .touch-dmx-slider (can be moved to a global CSS file or <style> tag in ExternalWindow)
+// Basic CSS for .touch-dmx-slider (can be moved to a global CSS file or <style> tag)
 // This is a minimal example; more specific styling might be needed.
 /*
 .touch-dmx-slider::-webkit-slider-thumb {

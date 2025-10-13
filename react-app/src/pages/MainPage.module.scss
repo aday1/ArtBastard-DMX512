@@ -118,7 +118,7 @@
     margin: 0 auto;
     padding: 2rem;
     padding-left: 300px; // Space for left dock
-    padding-right: 300px; // Space for right dock
+    padding-right: 300px; // Space for right dock (navbar now on right)
     position: relative; // Normal document flow
     z-index: 1; // Lower than docked components
   }

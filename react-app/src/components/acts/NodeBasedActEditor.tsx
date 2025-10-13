@@ -583,16 +583,6 @@ export const NodeBasedActEditor: React.FC<NodeBasedActEditorProps> = ({
                 MIDI
               </button>
             </div>
-            <div className={styles.playbackControls}>
-              <button
-                onClick={currentAct.isPlaying ? stopPlayback : startPlayback}
-                className={`${styles.playButton} ${currentAct.isPlaying ? styles.playing : ''}`}
-                disabled={currentAct.nodes.length === 0}
-              >
-                <LucideIcon name={currentAct.isPlaying ? "Pause" : "Play"} />
-                {currentAct.isPlaying ? "Stop" : "Play"}
-              </button>
-            </div>
             <button onClick={saveAct} className={styles.saveButton}>
               <LucideIcon name="Save" />
               Save

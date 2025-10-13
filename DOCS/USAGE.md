@@ -11,7 +11,6 @@ ArtBastard's interface is designed for both precision and speed - essential for 
 - **Group Controls** - Batch fixture management  
 - **Master Fader** - Global intensity control
 - **Scene Manager** - Saved lighting states
-- **Transport Controls** - Playback and timing
 
 ## 🎨 **Basic Operation**
 
@@ -44,7 +43,7 @@ ArtBastard's interface is designed for both precision and speed - essential for 
 - **Behringer BCF2000** - 8 motorized faders
 - **Akai APC40** - Grid-based control
 - **NanoKontrol** - Compact solution
-- **TouchOSC** - Tablet/phone wireless control
+- **OSC Protocol** - Wireless control via mobile devices
 
 ## 📱 **Touch Interface**
 
@@ -54,11 +53,6 @@ ArtBastard's interface is designed for both precision and speed - essential for 
 - **Gesture Support**: Pinch-to-zoom, swipe navigation
 - **Haptic Feedback**: Visual response to touches
 
-### **External Touch Monitor**
-- Configure secondary display for dedicated control
-- Full-screen touch interface
-- Custom page layouts
-- Ideal for professional installations
 
 ## ⚡ **Live Performance Workflow**
 

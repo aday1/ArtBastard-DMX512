@@ -10,22 +10,15 @@
 
 ## ⚡ **Quick Install**
 
-### 1. **Clone & Install**
+### 1. **Clone & Launch**
 ```bash
 git clone https://github.com/aday1/ArtBastard-DMX512.git
 cd ArtBastard-DMX512
-npm install
-cd react-app && npm install && cd ..
+.\start.ps1
 ```
+Navigate to: `http://localhost:3030`
 
-### 2. **Build & Launch**
-```bash
-npm run build
-npm start
-```
-Navigate to: `http://localhost:3000`
-
-### 3. **DMX Hardware Setup**
+### 2. **DMX Hardware Setup**
 - **USB DMX**: Connect interface, install drivers if needed
 - **Art-Net**: Configure network settings (usually auto-detects)
 - **Verify**: Check status bar for connection indicator
@@ -34,11 +27,8 @@ Navigate to: `http://localhost:3000`
 
 ### Build Issues
 ```bash
-# Clean rebuild (manual minimal)
-pwsh ./UNIFIED-TOOLS.ps1 clean --full
-npm install
-cd react-app && npm install && cd ..
-npm run build
+# Clean rebuild
+.\start.ps1 -Clear
 ```
 
 ### DMX Connection Problems
@@ -56,10 +46,6 @@ For professional touch consoles:
 1. Set display scaling to 100%
 2. Calibrate touch sensitivity
 3. Enable fullscreen mode (F11)
-4. Configure external monitor if dual-screen
 
 ---
 **Next:** [Fixture Setup](./FIXTURES.md) | [Usage Guide](./USAGE.md)
-
-For developer convenience you can optionally launch the WPF helper:
-`pwsh ./TOOLS-GUI.ps1`

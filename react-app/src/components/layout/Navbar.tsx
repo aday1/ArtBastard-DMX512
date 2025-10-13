@@ -7,6 +7,7 @@ import { DmxChannelStats } from '../dmx/DmxChannelStats'
 import styles from './Navbar.module.scss'
 import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
+import { ThemeToggleButton } from './ThemeToggleButton'
 import * as Icons from 'lucide-react'
 import { ViewType } from '../router/PageRouter'
 import { useRouter } from '../../context/RouterContext'
@@ -26,7 +27,7 @@ const navItems: Array<{
     id: 'main',
     icon: 'Layout',
     title: {
-    artsnob: "Le Dashboard Magnifique™",
+    artsnob: "🎭 Dashboard Magnifique™",
       standard: 'Dashboard',
       minimal: 'Main',
       tooltip: "For the uninitiated: It's just a dashboard, darling."
@@ -36,7 +37,7 @@ const navItems: Array<{
     id: 'midiOsc',
     icon: 'Sliders',
     title: {
-    artsnob: "La MIDI & OSC Pour L'Élite Éclairée",
+    artsnob: "🎵 MIDI & OSC Éclairée",
       standard: 'MIDI & OSC',
       minimal: 'I/O',
       tooltip: "Simply input/output controls. But you wouldn't understand, mon ami."
@@ -46,7 +47,7 @@ const navItems: Array<{
     id: 'dmxControl',
     icon: 'Zap',
     title: {
-    artsnob: "Le Contrôle DMX Ultime",
+    artsnob: "⚡ Contrôle DMX Ultime",
       standard: 'DMX Control',
       minimal: 'DMX',
       tooltip: "Direct DMX channel control with MIDI Learn/Forget functionality."
@@ -56,123 +57,53 @@ const navItems: Array<{
     id: 'fixture',
     icon: 'LampDesk',
     title: {
-    artsnob: "Les Fixtures Extraordinaires",
+    artsnob: "💡 Fixture Extraordinaire",
       standard: 'Fixtures',
       minimal: 'Fix',
       tooltip: "Mere light fixtures. *sigh* How pedestrian of you to ask."
     }
   },
   {
-    id: 'planner',
-    icon: 'MapPin',
+    id: 'scenesActs',
+    icon: 'Theater',
     title: {
-    artsnob: "Le Grand Planificateur DMX",
-      standard: 'DMX Planner',
-      minimal: 'Plan',
-      tooltip: "A planner. For lights. Do try to keep up, chéri."
-    }
-  },
-  {
-    id: 'canvas',
-    icon: 'PaintBucket',
-    title: {
-    artsnob: "La Toile Sublime de L'Artiste",
-      standard: '2D Canvas',
-      minimal: '2D',
-      tooltip: "A 2D drawing space. Though calling it 'drawing' feels so... bourgeois."
-    }
-  },
-  {
-    id: 'scenes',
-    icon: 'Store',
-    title: {
-    artsnob: "Les Scènes Sophistiquées",
+    artsnob: "🎬 Scènes Dramatiques",
       standard: 'Scenes',
-      minimal: 'Scn',
-      tooltip: "Light presets. Though calling them 'presets' is painfully gauche."
-    }
-  },
-  {
-    id: 'acts',
-    icon: 'Workflow',
-    title: {
-    artsnob: "Les Actes Dramatiques",
-      standard: 'Acts',
-      minimal: 'Acts',
-      tooltip: "Complex scene sequences and automation workflows."
-    }
-  },
-  {
-    id: 'audio',
-    icon: 'WaveformCircle',
-    title: {
-    artsnob: "L'Audio Pour Les Connoisseurs",
-      standard: 'Audio',
-      minimal: 'FFT',
-      tooltip: "Sound analysis. *adjusts monocle* Though explaining it feels rather déclassé."
-    }
-  },
-  {
-    id: 'touchosc',
-    icon: 'Smartphone',
-    title: {
-    artsnob: "Le TouchOSC Très Exclusive",
-      standard: 'TouchOSC',
-      minimal: 'OSC',
-      tooltip: "Mobile control interface. Though if you need this explained, perhaps stick to finger painting."
+      minimal: 'Scenes',
+      tooltip: "Create, manage, and orchestrate lighting scenes and automated sequences. The heart of your lighting control."
     }
   },
   {
     id: 'misc',
     icon: 'Settings',
     title: {
-    artsnob: "Les Paramètres des Cognoscenti",
+    artsnob: "⚙️ Paramètres Cognoscenti",
       standard: 'Settings',
       minimal: 'Cfg',
       tooltip: "Configuration settings. Do try not to strain yourself understanding that, darling."
     }
   },
   {
-    id: 'state',
-    icon: 'Database',
+    id: 'debug',
+    icon: 'Bug',
     title: {
-    artsnob: "Le State Management du Patron",
-      standard: 'State Management',
-      minimal: 'State'
+    artsnob: "🐛 Debug & Aide Supérieure",
+      standard: 'Debug & Help',
+      minimal: 'Debug',
+      tooltip: "Debug tools and help for the truly enlightened. *adjusts monocle*"
     }
   },
-  {
-    id: 'acts',
-    icon: 'Play',
-    title: {
-      artsnob: "Les Actes Dramatiques",
-      standard: 'Acts',
-      minimal: 'Acts',
-      tooltip: "Node-based act management system"
-    }
-  },
-  {
-    id: 'scenes',
-    icon: 'Film',
-    title: {
-      artsnob: "Les Scènes Épiques",
-      standard: 'Scenes',
-      minimal: 'Scenes',
-      tooltip: "Scene management and playback"
-    }
-  }
 ]
 
 export const Navbar: React.FC = () => {
-  const { theme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { currentView, setCurrentView } = useRouter()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [modernInterface, setModernInterface] = useState(false)
   const navVisibility = useStore((state) => state.navVisibility)
   const { connected } = useSocket()
   const { activeBrowserInputs } = useBrowserMidi()
   const midiMessages = useStore(state => state.midiMessages)
-  const toDmxValues = useStore(state => state.toDmxValues)
+  const dmxChannels = useStore(state => state.dmxChannels)
   const [midiActivity, setMidiActivity] = useState(false)
   const [dmxActivity, setDmxActivity] = useState(false)
 
@@ -187,12 +118,12 @@ export const Navbar: React.FC = () => {
 
   // Monitor DMX activity
   useEffect(() => {
-    if (toDmxValues && Object.values(toDmxValues).some(value => value > 0)) {
+    if (dmxChannels && dmxChannels.some(value => value > 0)) {
       setDmxActivity(true);
       const timer = setTimeout(() => setDmxActivity(false), 1000);
       return () => clearTimeout(timer);
     }
-  }, [toDmxValues]);
+  }, [dmxChannels]);
 
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view)
@@ -202,15 +133,6 @@ export const Navbar: React.FC = () => {
     setIsCollapsed(!isCollapsed)
   }
 
-  const toggleModernInterface = () => {
-    setModernInterface(!modernInterface)
-    // Apply modern interface class to body
-    if (!modernInterface) {
-      document.body.classList.add('modern-interface')
-    } else {
-      document.body.classList.remove('modern-interface')
-    }
-  }
 
   useEffect(() => {
     if (isCollapsed) {
@@ -235,7 +157,7 @@ export const Navbar: React.FC = () => {
         className={styles.collapseToggle}
         title={isCollapsed ? 'Expand Navigation' : 'Collapse Navigation'}
       >
-        <LucideIcon name={isCollapsed ? 'PanelRightOpen' : 'PanelLeftClose'} />
+        <LucideIcon name={isCollapsed ? 'ChevronLeft' : 'ChevronRight'} />
       </button>
 
       {/* Sparkles component can be placed here if it needs to be part of the main navbar scrollable content */}
@@ -244,77 +166,75 @@ export const Navbar: React.FC = () => {
       <div className={`${styles.navContent} ${isCollapsed ? styles.navContentCollapsed : ''}`}>
         <div className={styles.navButtons}>
           {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleViewChange(item.id)}
-              className={`${styles.navButton} ${currentView === item.id ? styles.active : ''}`}
-              title={item.title.tooltip || item.title[theme as keyof typeof item.title]}
-              data-tooltip={item.title.tooltip}
-            >
-              <LucideIcon name={item.icon as keyof typeof Icons} />
-              <span>{item.title[theme as keyof typeof item.title]}</span>
-            </button>
+            <div key={item.id} className={styles.navItemContainer}>
+              <button
+                onClick={() => handleViewChange(item.id)}
+                className={`${styles.navButton} ${currentView === item.id ? styles.active : ''}`}
+                title={item.title.tooltip || item.title[theme as keyof typeof item.title]}
+                data-tooltip={item.title.tooltip}
+              >
+                <LucideIcon name={item.icon as keyof typeof Icons} />
+                <span>{item.title[theme as keyof typeof item.title]}</span>
+              </button>
+              
+              {/* Status indicators under each menu item */}
+              {!isCollapsed && (
+                <div className={styles.itemStatusIndicators}>
+                  {/* Connection Status for main item */}
+                  {item.id === 'main' && (
+                    <div 
+                      className={`${styles.itemStatusIcon} ${connected ? styles.statusOk : styles.statusError}`}
+                      title={connected ? 'Connected to server' : 'Disconnected from server'}
+                    >
+                      <LucideIcon name={connected ? 'Wifi' : 'WifiOff'} />
+                      <span className={styles.itemStatusLabel}>
+                        {connected ? 'Connected' : 'Disconnected'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* MIDI Activity for midiOsc item */}
+                  {item.id === 'midiOsc' && (
+                    <div 
+                      className={`${styles.itemStatusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
+                      title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
+                    >
+                      <LucideIcon name="Music" />
+                      <span className={styles.itemStatusLabel}>
+                        MIDI ({activeBrowserInputs?.size || 0})
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* DMX Activity for dmxControl item */}
+                  {item.id === 'dmxControl' && (
+                    <div 
+                      className={`${styles.itemStatusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
+                      title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
+                    >
+                      <LucideIcon name="Lightbulb" />
+                      <span className={styles.itemStatusLabel}>
+                        DMX {dmxActivity ? '(Active)' : '(Idle)'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Current View Indicator */}
+                  {item.id === currentView && (
+                    <div 
+                      className={`${styles.itemStatusIcon} ${styles.statusHighlight}`}
+                      title={`Current View: ${item.title[theme as keyof typeof item.title]}`}
+                    >
+                      <LucideIcon name="CheckCircle" />
+                      <span className={styles.itemStatusLabel}>
+                        Active
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
-        </div>
-          {/* Status icons container - visible in both expanded and collapsed states */}
-        <div className={`${styles.statusIcons} ${isCollapsed ? styles.statusIconsCollapsed : styles.statusIconsExpanded}`}>
-          {/* Connection Status */}
-          <div 
-            className={`${styles.statusIcon} ${connected ? styles.statusOk : styles.statusError}`}
-            title={connected ? 'Connected to server' : 'Disconnected from server'}
-          >
-            <LucideIcon name={connected ? 'Wifi' : 'WifiOff'} />
-            {!isCollapsed && <span className={styles.statusLabel}>
-              {connected ? 'Connected' : 'Disconnected'}
-            </span>}
-          </div>
-          
-          {/* MIDI Activity */}
-          <div 
-            className={`${styles.statusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
-            title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
-          >
-            <LucideIcon name="Music" />
-            {!isCollapsed && <span className={styles.statusLabel}>
-              MIDI ({activeBrowserInputs?.size || 0})
-            </span>}
-          </div>
-          
-          {/* DMX Activity */}
-          <div 
-            className={`${styles.statusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
-            title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
-          >
-            <LucideIcon name="Lightbulb" />
-            {!isCollapsed && <span className={styles.statusLabel}>
-              DMX {dmxActivity ? '(Active)' : '(Idle)'}
-            </span>}
-          </div>
-          
-          {/* Current View Indicator */}
-          <div 
-            className={`${styles.statusIcon} ${styles.statusHighlight}`}
-            title={`Current View: ${navItems.find(item => item.id === currentView)?.title[theme as keyof typeof navItems[0]['title']] || currentView}`}
-          >
-            <LucideIcon name={navItems.find(item => item.id === currentView)?.icon as keyof typeof Icons || 'Layout'} />
-            {!isCollapsed && <span className={styles.statusLabel}>
-              {navItems.find(item => item.id === currentView)?.title[theme as keyof typeof navItems[0]['title']] || currentView}
-            </span>}
-          </div>
-          
-          {/* Modern Interface Toggle */}
-          <div className={styles.modernInterfaceToggle}>
-            <button
-              onClick={toggleModernInterface}
-              className={`${styles.modernToggleButton} ${modernInterface ? styles.active : ''}`}
-              title={modernInterface ? 'Switch to Classic Interface' : 'Switch to Modern Interface'}
-            >
-              <LucideIcon name={modernInterface ? 'Palette' : 'Sparkles'} />
-              {!isCollapsed && <span className={styles.statusLabel}>
-                {modernInterface ? 'Modern' : 'Classic'}
-              </span>}
-            </button>
-          </div>
         </div>
       </div>
        {/* If Sparkles is meant to be fixed at the bottom or outside scroll, place it here, relative to navbarContainer */}

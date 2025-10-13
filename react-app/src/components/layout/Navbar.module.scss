@@ -33,18 +33,13 @@
 .navContent {
   display: flex;
   flex-direction: column; /* Stack items vertically */
-  justify-content: flex-start; /* Align items to the top */
+  justify-content: flex-start; /* Align items to top */
+  align-items: stretch;
   gap: 0.5rem;
-  /* padding: 0.375rem 0.5rem; Removed padding, now on container */
-  /* background: var(--bg-secondary); Moved to container */
-  /* backdrop-filter: blur(10px); Moved to container */
-  /* -webkit-backdrop-filter: blur(10px); Moved to container */
-  /* border-radius: 10px; Not needed for full height bar */
-  /* box-shadow: none; Moved to container */
   flex-grow: 1;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* May need opacity transition */
-  overflow-y: auto; /* Allow scrolling if content exceeds height */
-  overflow-x: hidden; /* Hide horizontal overflow during transition */  &.navContentCollapsed {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden; /* Hide horizontal overflow */
+  overflow-y: auto; /* Allow vertical scrolling if content exceeds height */  &.navContentCollapsed {
     /* display: none;  Replaced: Now controls content visibility within buttons */
     /* Instead of hiding the whole content, we hide text in buttons and center icons */
     .navButton {
@@ -88,9 +83,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 100%; /* Full width of navbar */
   height: var(--touch-target-comfortable);
-  margin-bottom: var(--space-sm);
+  margin-top: auto; /* Push to bottom of sidebar */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   
@@ -121,9 +116,45 @@
   display: flex;
   flex-direction: column; /* Stack buttons vertically */
   gap: 0.375rem;
-  /* flex-wrap: wrap; Not needed for single column */
   pointer-events: auto;
-  width: 100%; /* Ensure it takes full width of navContent */
+  width: 100%; /* Take full width of sidebar */
+}
+
+.navItemContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.itemStatusIndicators {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-left: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+}
+
+.itemStatusIcon {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+  
+  svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+}
+
+.itemStatusLabel {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 .navButton {
@@ -205,7 +236,7 @@
 
   &:hover {
     background: var(--color-neutral-100);
-    transform: translateX(2px);
+    transform: translateY(-1px);
 
     svg {
       transform: scale(1.1);
@@ -214,7 +245,7 @@
   }
 
   &:active {
-    transform: translateX(0);
+    transform: translateY(0);
     background: var(--color-neutral-200);
   }
 
@@ -299,17 +330,27 @@
   }
 }
 
-// Modern Interface Toggle
-.modernInterfaceToggle {
+// Theme Switcher
+.themeSwitcher {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: var(--space-sm);
-  padding: var(--space-md);
-  border-top: 1px solid var(--color-border);
+  padding: var(--space-sm);
+  border-left: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
-.modernToggleButton {
+// Dark Mode Toggle
+.darkModeToggle {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.themeButton {
   @extend .touch-target !optional;
   display: flex;
   align-items: center;
@@ -332,15 +373,30 @@
     box-shadow: var(--shadow-md);
   }
   
-  &.active {
-    background: var(--color-interactive);
-    border-color: var(--color-interactive);
-    color: var(--color-text-inverse);
-    box-shadow: 0 0 0 3px rgba(var(--color-interactive), 0.2);
-  }
-  
   &:active {
     transform: translateY(0);
+  }
+  
+  // Language-specific styles
+  &.artsnob {
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+    border-color: #D2691E;
+    color: #FFF8DC;
+    
+    &:hover {
+      background: linear-gradient(135deg, #A0522D 0%, #CD853F 100%);
+      border-color: #F4A460;
+    }
+  }
+  
+  &.standard {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    
+    &:hover {
+      background: var(--color-interactive);
+      border-color: var(--color-interactive);
+    }
   }
 }
 
@@ -400,17 +456,17 @@
 .statusIcons {
   display: flex;
   gap: 0.375rem;
-  margin-top: auto;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1));
+  margin-left: auto;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border-color-soft, rgba(255, 255, 255, 0.1));
 }
 
 .statusIconsCollapsed {
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .statusIconsExpanded {
-  flex-direction: column;
+  flex-direction: row;
   gap: 0.25rem;
 }
 
@@ -428,10 +484,10 @@
   }
 }
 
-// Expanded state: icon + text, left-aligned, full width
+// Expanded state: icon + text, left-aligned, compact width
 .statusIconsExpanded .statusIcon {
   justify-content: flex-start;
-  width: 100%;
+  width: auto;
   height: auto;
   padding: 0.375rem 0.5rem;
   gap: 0.5rem;

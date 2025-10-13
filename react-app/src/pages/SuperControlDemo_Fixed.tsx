@@ -14,7 +14,7 @@ import { LucideIcon } from '../components/ui/LucideIcon';
  * - Collapsible panel interfaces
  * 
  * TouchSuperControl is perfect for:
- * - External monitor touchscreen interfaces
+ * - Touchscreen interfaces
  * - Tablet/phone control surfaces
  * - Fullscreen touch experiences
  * - Simplified, gesture-based control
@@ -113,7 +113,7 @@ const SuperControlDemo: React.FC = () => {
             Touch Super Control
           </h2>
           <p style={{ marginBottom: '20px', opacity: 0.8 }}>
-            Full-screen touch interface optimized for external monitors and tablets. 
+            Full-screen touch interface optimized for touch screens and tablets. 
             Features gesture controls and large touch targets.
           </p>
           

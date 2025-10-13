@@ -164,11 +164,6 @@
     .themePreviewLine { background-color: #444; &:first-child { width: 50%; } }
   }
   
-  &[data-theme="minimal"] {
-    background-color: #1a1a1a;
-    .themePreviewHeader { background-color: #111; }
-    .themePreviewLine { background-color: #333; &:first-child { width: 30%; } }
-  }
 }
 
 .themePreviewHeader {

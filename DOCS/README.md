@@ -11,7 +11,7 @@ Professional DMX512 lighting control that doesn't insult your intelligence. Buil
 ### 🎯 **Core Capabilities**
 - **DMX512 Universe Control** - Complete fixture command authority
 - **Real-time MIDI Integration** - Hardware controller harmony  
-- **TouchOSC/OSC Protocol** - Wireless control sophistication
+- **OSC Protocol** - Wireless control sophistication
 - **Professional Fixture Library** - Pre-configured luminaire profiles
 - **Scene Management** - Moment capture & playback
 - **Live Performance Interface** - Touch-optimized control surfaces
@@ -27,10 +27,11 @@ Professional DMX512 lighting control that doesn't insult your intelligence. Buil
 2. **[Setup Fixtures](./FIXTURES.md)**
 3. **[Usage Guide](./USAGE.md)**
 4. **[Features](./FEATURES.md)**
-5. Run `UNIFIED-TOOLS.ps1` or launch `TOOLS-GUI.ps1` for dev workflow
+5. **[History / Changelog](./HISTORY.md)**
+6. Dev workflow: Run `start.ps1` (preferred) or `UNIFIED-TOOLS.ps1`.
 
 ## 🎭 **Philosophy**
 *"Light is not merely illumination - it is emotion made visible. ArtBastard gives you the tools; you provide the vision."*
 
 ---
-**ArtBastard DMX512 V5.12** | [Documentation](./DOCS/) | [History](./HISTORY.md)
+**ArtBastard DMX512 V5.12** | [Repository Root](../README.md) | [History](./HISTORY.md)

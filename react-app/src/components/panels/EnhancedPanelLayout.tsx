@@ -1,13 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { usePanels } from '../../context/PanelContext'
-import { useExternalWindow } from '../../context/ExternalWindowContext'
 import ResizablePanel from './ResizablePanel'
 import { ComponentToolbar } from './ComponentToolbar'
 import styles from './EnhancedPanelLayout.module.scss'
 
 export const EnhancedPanelLayout: React.FC = () => {
   const { layout, addComponentToPanel, updateSplitterPosition } = usePanels()
-  const { externalWindow, openExternalWindow, closeExternalWindow } = useExternalWindow()
   const [isDragging, setIsDragging] = useState<'horizontal' | 'vertical' | null>(null)
   const layoutRef = useRef<HTMLDivElement>(null)
 
@@ -53,29 +51,11 @@ export const EnhancedPanelLayout: React.FC = () => {
     setIsDragging(null)
   }, [])
 
-  const toggleExternalMonitor = () => {
-    if (externalWindow.isOpen) {
-      closeExternalWindow()
-    } else {
-      openExternalWindow()
-    }
-  }
-
   const { horizontal, vertical } = layout.splitterPositions
 
   return (
     <div className={styles.layoutContainer}>
       <ComponentToolbar />
-      
-      <div className={styles.panelControls}>
-        <button 
-          onClick={toggleExternalMonitor}
-          className={`${styles.panelToggle} ${externalWindow.isOpen ? styles.active : ''}`}
-          title={externalWindow.isOpen ? 'Close External Monitor' : 'Open External Monitor'}
-        >
-          External Monitor
-        </button>
-      </div>
 
       <div
         ref={layoutRef}

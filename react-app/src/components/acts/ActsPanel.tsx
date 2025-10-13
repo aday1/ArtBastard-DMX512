@@ -117,16 +117,6 @@ export const ActsPanel: React.FC = () => {
                     <h4>{act.name}</h4>
                     <div className={styles.actActions}>
                       <button
-                        className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayAct(act.id);
-                        }}
-                        disabled={act.steps.length === 0}
-                      >
-                        <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
-                      </button>
-                      <button
                         className={styles.editButton}
                         onClick={(e) => {
                           e.stopPropagation();

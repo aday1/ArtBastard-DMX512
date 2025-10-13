@@ -3,17 +3,12 @@ import { useRouter } from '../../context/RouterContext'
 import MainPage from '../../pages/MainPage'
 import ControlSetupPage from '../../pages/ControlSetupPage'
 import FixturePage from '../../pages/FixturePage'
-import PlannerPage from '../../pages/PlannerPage'
-import CanvasPage from '../../pages/CanvasPage'
-import SceneLibraryPage from '../../pages/SceneLibraryPage'
-import ActsPage from '../../pages/ActsPage'
-import AudioAnalysisPage from '../../pages/AudioAnalysisPage'
-import RemoteControlPage from '../../pages/RemoteControlPage'
+import ActsScenesPage from '../../pages/ActsScenesPage'
 import SettingsPage from '../../pages/SettingsPage'
-import StateManagementPage from '../../pages/StateManagementPage'
 import DmxChannelControlPage from '../pages/DmxChannelControlPage'
+import DebugPage from '../../pages/DebugPage'
 
-export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'canvas' | 'scenes' | 'acts' | 'audio' | 'touchosc' | 'misc' | 'state' | 'dmxControl'
+export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenesActs' | 'misc' | 'dmxControl' | 'debug'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
@@ -25,24 +20,14 @@ const PageRouter: React.FC = () => {
         return <ControlSetupPage />
       case 'fixture':
         return <FixturePage />
-      case 'planner':
-        return <PlannerPage />
-      case 'canvas':
-        return <CanvasPage />
-      case 'scenes':
-        return <SceneLibraryPage />
-      case 'acts':
-        return <ActsPage />
-      case 'audio':
-        return <AudioAnalysisPage />
-      case 'touchosc':
-        return <RemoteControlPage />
+      case 'scenesActs':
+        return <ActsScenesPage />
       case 'misc':
         return <SettingsPage />
-      case 'state':
-        return <StateManagementPage />
       case 'dmxControl':
         return <DmxChannelControlPage />
+      case 'debug':
+        return <DebugPage />
       default:
         return <MainPage />
     }

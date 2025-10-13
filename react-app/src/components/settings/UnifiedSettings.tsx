@@ -9,6 +9,7 @@ import { DebugMenu } from '../debug/DebugMenu'
 
 import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version';
 import { ReleaseNotes } from './ReleaseNotes'
+import SettingsPanel from './SettingsPanel'
 import styles from './UnifiedSettings.module.scss'
 
 interface TouchOscExportOptionsUI {
@@ -48,8 +49,6 @@ interface AppSettings {
     midiOsc: boolean;
     fixture: boolean;
     scenes: boolean;
-    audio: boolean;
-    touchosc: boolean;
     misc: boolean;
   };
   debugTools: {
@@ -74,8 +73,6 @@ export const UnifiedSettings: React.FC = () => {
       midiOsc: true,
       fixture: true,
       scenes: true,
-      audio: true,
-      touchosc: true,
       misc: true
     },
     debugTools = {
@@ -110,15 +107,6 @@ export const UnifiedSettings: React.FC = () => {
   const [localDebugTools, setLocalDebugTools] = useState(debugTools);
   const [activeSection, setActiveSection] = useState<string>('general');
 
-  // Load saved UI mode on component mount
-  useEffect(() => {
-    const savedUIMode = localStorage.getItem('artbastard-ui-mode');
-    if (savedUIMode === 'modern') {
-      document.body.classList.add('modern-interface');
-    } else {
-      document.body.classList.remove('modern-interface');
-    }
-  }, []);
 
   // Network settings
   const [networkSettings, setNetworkSettings] = useState({
@@ -181,8 +169,6 @@ export const UnifiedSettings: React.FC = () => {
             midiOsc: true,
             fixture: true,
             scenes: true,
-            audio: true,
-            touchosc: true,
             misc: true
           },
           debugTools: {
@@ -196,7 +182,7 @@ export const UnifiedSettings: React.FC = () => {
         setDebugModules({ midi: false, osc: false, artnet: false, button: true });
         setLocalNavVisibility({
           main: true, midiOsc: true, fixture: true, scenes: true,
-          audio: true, touchosc: true, misc: true
+          misc: true
         });
         setLocalDebugTools({ debugButton: true, midiMonitor: true, oscMonitor: true });
         updateChromaticSettings({
@@ -378,7 +364,6 @@ export const UnifiedSettings: React.FC = () => {
             <i className="fas fa-cog"></i>
             {theme === 'artsnob' && 'Configuration Sanctuary'}
             {theme === 'standard' && 'Configuration & Settings'}
-            {theme === 'minimal' && 'Config'}
           </h2>
           <div className={styles.panelActions}>
             <button 
@@ -421,9 +406,9 @@ export const UnifiedSettings: React.FC = () => {
               { id: 'theme', label: 'Theme', icon: 'fas fa-palette' },
               { id: 'network', label: 'Network', icon: 'fas fa-network-wired' },
               { id: 'performance', label: 'Performance', icon: 'fas fa-tachometer-alt' },
-              { id: 'navigation', label: 'Navigation', icon: 'fas fa-bars' },
               { id: 'debug', label: 'Debug', icon: 'fas fa-bug' },
-              { id: 'advanced', label: 'Advanced', icon: 'fas fa-tools' }
+              { id: 'advanced', label: 'Advanced', icon: 'fas fa-tools' },
+              { id: 'state', label: 'State Management', icon: 'fas fa-database' }
             ].map(section => (
               <button
                 key={section.id}
@@ -489,54 +474,6 @@ export const UnifiedSettings: React.FC = () => {
               <div className={styles.settingsSection}>
                 <h3><i className="fas fa-palette"></i> Theme & Appearance</h3>
                 
-                <div className={styles.settingGroup}>
-                  <label className={styles.settingLabel}>
-                    <i className="fas fa-desktop"></i>
-                    Interface Mode
-                  </label>
-                  <div className={styles.interfaceModeOptions}>
-                    <div 
-                      className={`${styles.interfaceModeOption} ${!document.body.classList.contains('modern-interface') ? styles.active : ''}`}
-                      onClick={() => {
-                        document.body.classList.remove('modern-interface');
-                        localStorage.setItem('artbastard-ui-mode', 'classic');
-                      }}
-                    >
-                      <div className={styles.interfaceModePreview}>
-                        <div className={styles.classicPreview}>
-                          <div className={styles.classicHeader}></div>
-                          <div className={styles.classicContent}></div>
-                        </div>
-                      </div>
-                      <div className={styles.interfaceModeInfo}>
-                        <h4>Classic Interface</h4>
-                        <p>Traditional layout with standard controls</p>
-                      </div>
-                    </div>
-                    
-                    <div 
-                      className={`${styles.interfaceModeOption} ${document.body.classList.contains('modern-interface') ? styles.active : ''}`}
-                      onClick={() => {
-                        document.body.classList.add('modern-interface');
-                        localStorage.setItem('artbastard-ui-mode', 'modern');
-                      }}
-                    >
-                      <div className={styles.interfaceModePreview}>
-                        <div className={styles.modernPreview}>
-                          <div className={styles.modernHeader}></div>
-                          <div className={styles.modernContent}></div>
-                        </div>
-                      </div>
-                      <div className={styles.interfaceModeInfo}>
-                        <h4>Modern Interface</h4>
-                        <p>Enhanced UI with glassmorphism and animations</p>
-                      </div>
-                    </div>
-                  </div>
-                  <p className={styles.settingDescription}>
-                    Choose between classic and modern interface styles
-                  </p>
-                </div>
                 
                 <div className={styles.settingGroup}>
                   <label className={styles.settingLabel}>
@@ -546,8 +483,7 @@ export const UnifiedSettings: React.FC = () => {
                   <div className={styles.themeOptions}>
                     {[
                       { id: 'artsnob', name: 'Art Snob', description: 'Artistic and expressive' },
-                      { id: 'standard', name: 'Standard', description: 'Professional and clean' },
-                      { id: 'minimal', name: 'Minimal', description: 'Simple and focused' }
+                      { id: 'standard', name: 'Standard', description: 'Professional and clean' }
                     ].map(themeOption => (
                       <div 
                         key={themeOption.id}
@@ -761,43 +697,6 @@ export const UnifiedSettings: React.FC = () => {
               </div>
             )}
 
-            {/* Navigation Settings */}
-            {activeSection === 'navigation' && (
-              <div className={styles.settingsSection}>
-                <h3><i className="fas fa-bars"></i> Navigation Menu Items</h3>
-                <p className={styles.sectionDescription}>
-                  Control which navigation menu items are visible in the interface
-                </p>
-                
-                <div className={styles.toggleGrid}>
-                  {Object.entries(localNavVisibility).map(([key, value]) => (
-                    <div key={key} className={styles.toggleItem}>
-                      <div className={styles.toggleSwitch}>
-                        <input
-                          type="checkbox"
-                          id={`nav-${key}`}
-                          checked={value}
-                          onChange={() => handleNavVisibilityChange(key as keyof typeof navVisibility)}
-                        />
-                        <label htmlFor={`nav-${key}`} className={styles.toggleLabel}>
-                          <span className={styles.toggleSlider}></span>
-                        </label>
-                      </div>
-                      <span className={styles.toggleText}>{
-                        key === 'main' ? 'Main Control' :
-                        key === 'midiOsc' ? 'MIDI/OSC Setup' :
-                        key === 'fixture' ? 'Fixture Setup' :
-                        key === 'scenes' ? 'Scenes' :
-                        key === 'audio' ? 'Audio' :
-                        key === 'touchosc' ? 'TouchOSC' :
-                        key === 'misc' ? 'Settings' :
-                        key
-                      }</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Debug Section */}
             {activeSection === 'debug' && (
@@ -810,7 +709,7 @@ export const UnifiedSettings: React.FC = () => {
                     Debug Menu
                   </label>
                   <p className={styles.settingDescription}>
-                    Comprehensive debugging tools for MIDI, OSC, DMX, and TouchOSC functionality.
+                    Comprehensive debugging tools for MIDI, OSC, and DMX functionality.
                   </p>
                   
                   {/* Embedded Debug Menu without overlay */}
@@ -930,6 +829,13 @@ export const UnifiedSettings: React.FC = () => {
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* State Management */}
+            {activeSection === 'state' && (
+              <div className={styles.settingsSection}>
+                <SettingsPanel />
               </div>
             )}
           </div>

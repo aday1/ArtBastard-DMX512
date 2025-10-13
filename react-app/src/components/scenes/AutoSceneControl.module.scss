@@ -130,52 +130,6 @@ button {
   background-color: var(--color-background);
 }
 
-/* Transport Controls Styles */
-.playButton {
-  padding: 0.75rem 1.5rem !important;
-  font-size: 1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: var(--border-radius);
-  transition: all 0.2s ease;
-  
-  &:not(:disabled) {
-    background-color: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
-    
-    &:hover {
-      background-color: var(--color-primary-dark, var(--color-primary));
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    
-    &.playing {
-      background-color: #dc3545; /* Red for pause/stop */
-      border-color: #dc3545;
-      
-      &:hover {
-        background-color: #c82333;
-      }
-    }
-  }
-  
-  i {
-    font-size: 0.9em;
-  }
-}
-
-.playStatus {
-  font-size: 0.9rem;
-  font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--border-radius);
-  background-color: rgba(var(--color-primary-rgb), 0.1);
-  color: var(--color-primary);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
-}
 
 .header {
   display: flex;

@@ -29,7 +29,7 @@ interface ChromaticEnergyManipulatorSettings {
 }
 
 interface AppSettings {
-  theme: 'artsnob' | 'standard' | 'minimal'
+  theme: 'artsnob' | 'standard'
   darkMode: boolean
   webPort: number
   debugModules: {
@@ -47,8 +47,6 @@ interface AppSettings {
     midiOsc: boolean;
     fixture: boolean;
     scenes: boolean;
-    audio: boolean;
-    touchosc: boolean;
     misc: boolean;
   };
   debugTools: {
@@ -73,8 +71,6 @@ export const Settings: React.FC = () => {
       midiOsc: true,
       fixture: true,
       scenes: true,
-      audio: true,
-      touchosc: true,
       misc: true
     },
     debugTools = {
@@ -163,7 +159,7 @@ export const Settings: React.FC = () => {
   })
 
   // Theme change handlers
-  const handleThemeChange = (newTheme: 'artsnob' | 'standard' | 'minimal') => {
+  const handleThemeChange = (newTheme: 'artsnob' | 'standard') => {
     setTheme(newTheme)
     addNotification({
       message: `Theme changed to ${newTheme}`,
@@ -255,8 +251,6 @@ export const Settings: React.FC = () => {
             midiOsc: true,
             fixture: true,
             scenes: true,
-            audio: true,
-            touchosc: true,
             misc: true
           },
           debugTools: {
@@ -279,8 +273,6 @@ export const Settings: React.FC = () => {
           midiOsc: true,
           fixture: true,
           scenes: true,
-          audio: true,
-          touchosc: true,
           misc: true
         });
         setLocalDebugTools({
@@ -670,7 +662,6 @@ export const Settings: React.FC = () => {
             <i className="fas fa-cog"></i>
             {theme === 'artsnob' && 'Configuration Sanctuary'}
             {theme === 'standard' && 'Configuration & Settings'}
-            {theme === 'minimal' && 'Config'}
           </h2>
           <div className={styles.panelActions}>
             <button 
@@ -702,44 +693,7 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        <div className={styles.panelContent}>{/* Navigation Visibility Card */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>Navigation Menu Items</h3>
-          </div>
-          <div className={styles.cardBody}>
-            <div className={styles.toggleGrid}>
-              {Object.entries(localNavVisibility).map(([key, value]) => (
-                <div key={key} className={styles.toggleItem}>
-                  <div className={styles.toggleSwitch}>
-                    <input
-                      type="checkbox"
-                      id={`nav-${key}`}
-                      checked={value}
-                      onChange={() => handleNavVisibilityChange(key as keyof typeof navVisibility)}
-                    />
-                    <label htmlFor={`nav-${key}`} className={styles.toggleLabel}>
-                      <span className={styles.toggleDot}>
-                        <i className={`fas ${value ? 'fa-eye' : 'fa-eye-slash'}`}></i>
-                      </span>
-                    </label>
-                    <span className={styles.toggleText}>{
-                      key === 'main' ? 'Main Control' :
-                      key === 'midiOsc' ? 'MIDI/OSC Setup' :
-                      key === 'fixture' ? 'Fixture Setup' :
-                      key === 'scenes' ? 'Scenes' :
-                      key === 'audio' ? 'Audio' :
-                      key === 'touchosc' ? 'TouchOSC' :
-                      key === 'misc' ? 'Settings' :
-                      key
-                    }</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
+        <div className={styles.panelContent}>
         {/* Debug Tools Card */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -998,19 +952,6 @@ export const Settings: React.FC = () => {
                 <span className={styles.themeName}>Standard</span>
               </div>
 
-              <div 
-                className={`${styles.themeOption} ${theme === 'minimal' ? styles.active : ''}`}
-                onClick={() => handleThemeChange('minimal')}
-              >
-                <div className={styles.themePreview} data-theme="minimal">
-                  <div className={styles.themePreviewHeader}></div>
-                  <div className={styles.themePreviewBody}>
-                    <div className={styles.themePreviewLine}></div>
-                    <div className={styles.themePreviewLine}></div>
-                  </div>
-                </div>
-                <span className={styles.themeName}>Minimal</span>
-              </div>
             </div>
 
             <div className={styles.toggleSwitch}>

@@ -7,36 +7,33 @@
 
 Built for theaters, clubs, installations, and anywhere photons need proper discipline. No more bloated interfaces or cryptic controls - just elegant power.
 
-### 🎯 **What ArtBastard V5.12 Delivers**
-- **Professional DMX512 Control** - Complete universe management
+### 🎯 **Core Capabilities**
+- **DMX512 Universe Control** - Complete fixture command authority
 - **Real-time MIDI Integration** - Hardware controller harmony  
-- **Touch-Optimized Interface** - Responsive control surfaces
-- **Intelligent Fixture Profiles** - Pre-configured luminaire support
-- **Live Performance Ready** - Stable, fast, reliable
+- **OSC Protocol** - Wireless control sophistication
+- **Professional Fixture Library** - Pre-configured luminaire profiles
+- **Scene Management** - Moment capture & playback
+- **Live Performance Interface** - Touch-optimized control surfaces
 
-### ✨ **V5.12 "Photonic Supremacy" Refinements**
-- **Streamlined Documentation** - Actually readable guides
-- **Enhanced UI Polish** - Refined aesthetics without complexity
-- **Intelligent Help System** - Concise guidance when needed
+### ✨ **V5.12 "Photonic Supremacy" Enhancements**
+- **Unified Tooling** - Single PowerShell script for all operations
+- **Streamlined Documentation** - Focused, accurate, current
+- **Enhanced UI Polish** - Refined aesthetic without sacrificing power
 - **Optimized Performance** - Smoother operation across devices
-- **Professional Color Schemes** - Easy on eyes during long shows
 
 ## 🚀 **Quick Start**
 
-### **1. Installation**
+### **1. Installation & Launch**
 ```bash
 git clone https://github.com/aday1/ArtBastard-DMX512.git
 cd ArtBastard-DMX512
-npm install
-cd react-app && npm install && cd ..
-npm run build
-npm start
+.\start.ps1
 ```
 
 ### **2. Basic Setup**
 1. Connect your DMX interface
 2. Configure fixtures in **Fixture Setup**
-3. Test controls in **Channel Control**  
+3. Test controls in **SuperControl**  
 4. Create scenes in **Scene Manager**
 
 ### **3. Hardware Integration** 
@@ -46,13 +43,9 @@ npm start
 - **Touch Screens**: Optimized interface scaling
 
 ## 📚 **Documentation**
-Current docs reflect the lean environment (extraneous validation assets removed):
 
-- **[Installation](./DOCS/INSTALL.md)**
-- **[Fixture Setup](./DOCS/FIXTURES.md)**  
-- **[Usage Guide](./DOCS/USAGE.md)**
-- **[Features](./DOCS/FEATURES.md)**
-- **[History](./DOCS/HISTORY.md)**
+- **Start here: [DOCS/README](./DOCS/README.md)**
+- Installation, Usage, Fixtures, Features, and History are all linked from the DOCS index
 
 ## 🎛️ **Core Control Features**
 
@@ -66,7 +59,6 @@ Current docs reflect the lean environment (extraneous validation assets removed)
 - **Scene Management** - Instant lighting state recall
 - **MIDI Integration** - Hardware controller mapping
 - **Touch Optimization** - Tablet and touch screen ready
-- **External Monitor** - Dedicated control surfaces
 
 ## 🔧 **Technical Specifications**
 - **DMX512 Protocol** - Full universe support (512 channels)
@@ -83,12 +75,14 @@ graph TB
         UI[Web Interface]
         MIDI[MIDI Controllers]
         OSC[TouchOSC/Tablets]
+        Electron[Electron Desktop]
     end
     
     subgraph "⚙️ PROCESSING CORE"
         Engine[ArtBastard Engine]
         Scenes[Scene Manager]
         Fixtures[Fixture Profiles]
+        SuperControl[SuperControl Panel]
     end
     
     subgraph "📡 OUTPUT LAYER"
@@ -100,8 +94,10 @@ graph TB
     UI --> Engine
     MIDI --> Engine
     OSC --> Engine
+    Electron --> Engine
     Engine --> Scenes
     Engine --> Fixtures
+    Engine --> SuperControl
     Engine --> DMX
     Engine --> ArtNet
     DMX --> Lights
@@ -139,13 +135,13 @@ graph TB
 ### **Project Structure**
 ```
 ArtBastard-DMX512/
-├── DOCS/                # Documentation
-├── src/                 # Backend source
-├── react-app/           # Frontend (React)
-├── UNIFIED-TOOLS.ps1    # Power dev script (kill/clean/build/start)
-├── TOOLS-GUI.ps1        # WPF GUI wrapper for common tasks
-├── package.json         # Dependencies & scripts
-└── README.md            # This file
+├── DOCS/               # Documentation (index + guides)
+├── src/                # Backend source
+├── react-app/          # Frontend (React)
+├── electron/           # Electron desktop app
+├── start.ps1           # Unified startup script
+├── package.json        # Dependencies & scripts
+└── README.md           # This file
 ```
 
 ---

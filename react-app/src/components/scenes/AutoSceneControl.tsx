@@ -245,44 +245,6 @@ export const AutoSceneControl: React.FC<AutoSceneControlProps> = ({
             </div>
           </div>
 
-          {/* Auto-Scene Transport Controls */}
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Transport Controls</h3>
-            <div className={styles.controlGroup}>
-              <button
-                className={`${styles.playButton} ${isPlaying ? styles.playing : ''}`}
-                onClick={handlePlayPauseToggle}
-                disabled={!autoSceneEnabled || autoSceneList.length === 0}
-                title={isPlaying ? 'Pause Auto-Scene Control' : 'Start Auto-Scene Control'}
-              >
-                {isPlaying ? (
-                  <>
-                    <i className="fas fa-pause"></i>
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-play"></i>
-                    Play
-                  </>
-                )}
-              </button>
-              <button
-                className={styles.resetButton}
-                onClick={handleResetDownbeat}
-                disabled={!autoSceneEnabled}
-                title="Reset downbeat synchronization"
-              >
-                <i className="fas fa-redo"></i>
-                RESET
-              </button>
-              <span className={styles.playStatus}>
-                {!autoSceneEnabled ? 'Auto-Scene Disabled' :
-                 autoSceneList.length === 0 ? 'No Scenes Selected' :
-                 isPlaying ? 'Running' : 'Stopped'}
-              </span>
-            </div>
-          </div>
 
           {/* Scene Selection Section */}
           <div className={styles.section}>

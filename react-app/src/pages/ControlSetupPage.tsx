@@ -1,32 +1,27 @@
 import React from 'react'
 import { MidiOscSetup } from '../components/midi/MidiOscSetup'
-import { MidiMonitor } from '../components/midi/MidiMonitor'
-import { OscMonitor } from '../components/osc/OscMonitor'
+import { PageHeader } from '../components/ui/PageHeader'
 import styles from './Pages.module.scss'
 
 const ControlSetupPage: React.FC = () => {
   return (
     <div className={styles.pageContainer}>
-      <div className={styles.pageHeader}>
-        <h2>Control Setup - MIDI & OSC Configuration</h2>
-        <p>Configure MIDI and OSC inputs/outputs for external control</p>
-      </div>
+      <PageHeader
+        title={{
+          artsnob: 'Le Contrôle MIDI & OSC Pour L\'Élite Éclairée',
+          standard: 'MIDI & OSC Control Setup',
+          minimal: 'MIDI & OSC'
+        }}
+        description={{
+          artsnob: 'Configure MIDI and OSC inputs/outputs for external control. Simply input/output controls. But you wouldn\'t understand, mon ami.',
+          standard: 'Configure MIDI and OSC inputs/outputs for external control',
+          minimal: 'Configure MIDI and OSC controls'
+        }}
+      />
       
       <div className={styles.pageContent}>
         <div className={styles.setupSection}>
           <MidiOscSetup />
-        </div>
-        
-        <div className={styles.monitorSection}>
-          <div className={styles.monitorPanel}>
-            <h3>MIDI Monitor</h3>
-            <MidiMonitor />
-          </div>
-          
-          <div className={styles.monitorPanel}>
-            <h3>OSC Monitor</h3>
-            <OscMonitor />
-          </div>
         </div>
       </div>
     </div>

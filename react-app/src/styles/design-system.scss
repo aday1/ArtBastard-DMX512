@@ -79,16 +79,16 @@
 
 :root {
   // Primary Colors
-  --color-primary-50: #fef7ee;
-  --color-primary-100: #fdedd3;
-  --color-primary-200: #fbd7a5;
-  --color-primary-300: #f8b86d;
-  --color-primary-400: #f59432;
-  --color-primary-500: #f2760a;
-  --color-primary-600: #e35d05;
-  --color-primary-700: #bc4608;
-  --color-primary-800: #96380e;
-  --color-primary-900: #7a2f0f;
+  --color-primary-50: #fff7ed; // Orange 50
+  --color-primary-100: #ffedd5; // Orange 100
+  --color-primary-200: #fed7aa; // Orange 200
+  --color-primary-300: #fdba74; // Orange 300
+  --color-primary-400: #fb923c; // Orange 400
+  --color-primary-500: #f97316; // Orange 500
+  --color-primary-600: #ea580c; // Orange 600
+  --color-primary-700: #c2410c; // Orange 700
+  --color-primary-800: #9a3412; // Orange 800
+  --color-primary-900: #7c2d12; // Orange 900
 
   // Neutral Colors
   --color-neutral-50: #fafafa;
@@ -124,7 +124,7 @@
   --color-info-700: #1d4ed8;
 
   // Background Colors
-  --color-background: var(--color-neutral-50);
+  --color-background: var(--color-primary-50);
   --color-surface: #ffffff;
   --color-surface-elevated: #ffffff;
   --color-surface-overlay: rgba(255, 255, 255, 0.95);

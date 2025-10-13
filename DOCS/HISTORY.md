@@ -29,7 +29,7 @@ The early code was written exclusively between 2 AM and 4 AM, when the creative 
 - Bug count reduced to merely catastrophic levels
 
 ### **V3.0 - "Photonic Pretension"**
-- TouchOSC support for wireless control from artisanal tablets
+- OSC protocol support for wireless control from mobile devices
 - Scene management for those who plan ahead (peasants)
 - Professional color schemes inspired by Monet's lighting rig
 - French error messages added for authentic experience

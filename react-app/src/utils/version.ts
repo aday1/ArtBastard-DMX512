@@ -74,7 +74,7 @@ export const VERSION_HISTORY: VersionInfo[] = [
     buildDate: '2025-06-16',
     releaseType: 'stable',
     features: [
-      'Touch-Friendly Manual Resize Handles for External Monitor Components',
+      'Touch-Friendly Manual Resize Handles for Touch Components',
       'Native React-Grid-Layout Manual Corner Drag Resizing',
       'Large, Visible Touch-Optimized Resize Handles with Custom CSS',
       'Eliminated Button-Based Resizing for Better Touch Experience',
@@ -82,14 +82,14 @@ export const VERSION_HISTORY: VersionInfo[] = [
       'Improved Touch Interaction on Professional Touch Screens',
       'Cross-Platform Touch Compatibility for Desktop and Tablet Use',
       'Streamlined UI with Intuitive Drag-to-Resize Functionality',
-      'Professional-Grade Touch Interface for External Monitor Setups'
+      'Professional-Grade Touch Interface for Touch Screen Setups'
     ],
     changelog: [
       'Luminous Mastery Edition - Touch-Friendly Manual Resize Implementation',
       'Replaced button-based resizing with native manual corner drag resizing',
       'Added large, touch-optimized resize handles using custom CSS styling',
       'Enhanced .react-resizable-handle-se with 20px size and visual prominence',
-      'Improved touch interaction for professional touchscreen external monitors',
+      'Improved touch interaction for professional touchscreen displays',
       'Eliminated redundant resize buttons for cleaner, more intuitive interface',
       'Enhanced visual feedback with contrasting colors and hover effects',
       'Optimized for cross-platform touch compatibility (desktop + tablet)',

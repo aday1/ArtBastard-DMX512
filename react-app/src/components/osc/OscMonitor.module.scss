@@ -1,6 +1,6 @@
 .oscMonitor {
   position: fixed;
-  right: 20px; /* Keep on right side */
+  right: 280px; /* Move left to avoid overlapping with right-side navbar */
   bottom: 20px; /* Bottom positioning */
   width: 400px;
   max-height: 300px; /* This will be the overall max-height including header */

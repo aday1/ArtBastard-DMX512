@@ -69,6 +69,7 @@ export const HelpOverlay: React.FC = () => {
             <div className={styles.section}>
               <h5>🎯 Quick Start Guide</h5>
               <ol className={styles.stepList}>
+                <li><strong>Launch System:</strong> Run <code>.\start.ps1</code> for instant startup</li>
                 <li><strong>Connect Hardware:</strong> Connect your DMX interface to your lighting fixtures</li>
                 <li><strong>Configure Fixtures:</strong> Go to Fixture Setup to define your lighting fixtures</li>
                 <li><strong>Create Scenes:</strong> Set up lighting scenes and save them for later use</li>
@@ -80,6 +81,7 @@ export const HelpOverlay: React.FC = () => {
             <div className={styles.section}>
               <h5>🔧 System Requirements</h5>
               <ul>
+                <li>Node.js 18+ (for backend server)</li>
                 <li>Modern web browser (Chrome, Firefox, Safari, Edge)</li>
                 <li>USB DMX interface or Art-Net compatible device</li>
                 <li>DMX512 lighting fixtures</li>
@@ -94,6 +96,7 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>DMX Control Panel:</strong> Main fader interface for direct channel control</li>
                 <li><strong>Scene Control:</strong> Save and recall lighting scenes</li>
                 <li><strong>2D Canvas:</strong> Visual fixture layout and control</li>
+                <li><strong>SuperControl:</strong> Advanced fixture control with MIDI/OSC</li>
                 <li><strong>Master Fader:</strong> Global brightness control</li>
                 <li><strong>Monitors:</strong> MIDI and OSC message monitoring</li>
               </ul>
@@ -144,6 +147,7 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>Flickering:</strong> Check for loose connections or missing terminator</li>
                 <li><strong>Wrong Colors:</strong> Verify fixture addressing and channel mapping</li>
                 <li><strong>Partial Control:</strong> Check fixture mode matches your configuration</li>
+                <li><strong>Startup Issues:</strong> Use <code>.\start.ps1 -Clear</code> for clean rebuild</li>
               </ul>
             </div>
           </div>        );
@@ -180,7 +184,6 @@ export const HelpOverlay: React.FC = () => {
                 <li><strong>Channel Faders:</strong> Map controller faders to DMX channels</li>
                 <li><strong>Scene Triggers:</strong> Assign pads/keys to trigger lighting scenes</li>
                 <li><strong>Master Controls:</strong> Map rotary knobs to master brightness and effects</li>
-                <li><strong>Transport Controls:</strong> Use play/stop buttons for sequence control</li>
               </ul>
             </div>
 
