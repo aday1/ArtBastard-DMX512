@@ -20,8 +20,6 @@ export const DmxChannelControlPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showSceneControls, setShowSceneControls] = useState(true);
   const [showMidiControls, setShowMidiControls] = useState(true);
-  const [showMidiMonitor, setShowMidiMonitor] = useState(false);
-  const [midiMonitorMessages, setMidiMonitorMessages] = useState<any[]>([]);
   const [showOscControls, setShowOscControls] = useState(false);
 
   // Store hooks
@@ -121,23 +119,7 @@ export const DmxChannelControlPage: React.FC = () => {
     setCurrentPage(0);
   }, [filter, range, searchTerm]);
 
-  // MIDI message monitoring
-  useEffect(() => {
-    if (!showMidiMonitor) return;
-
-    const unsubscribe = useStore.subscribe((state) => {
-      const midiMessages = state.midiMessages;
-      if (midiMessages.length > 0) {
-        const latestMessage = midiMessages[midiMessages.length - 1];
-        setMidiMonitorMessages(prev => {
-          const newMessages = [...prev, latestMessage].slice(-50); // Keep last 50 messages
-          return newMessages;
-        });
-      }
-    });
-
-    return unsubscribe;
-  }, [showMidiMonitor]);
+  // Embedded MIDI monitor removed; floating monitor remains available globally
 
   // Debug MIDI mappings changes
   useEffect(() => {
@@ -509,13 +491,7 @@ export const DmxChannelControlPage: React.FC = () => {
               <LucideIcon name="Music" />
               MIDI Controls
             </button>
-            <button 
-              className={`${styles.toggleButton} ${showMidiMonitor ? styles.active : ''}`}
-              onClick={() => setShowMidiMonitor(!showMidiMonitor)}
-            >
-              <LucideIcon name="Activity" />
-              MIDI Monitor
-            </button>
+            {/* Embedded MIDI Monitor toggle removed (floating monitor remains) */}
             <button 
               className={`${styles.toggleButton} ${showOscControls ? styles.active : ''}`}
               onClick={() => setShowOscControls(!showOscControls)}
@@ -677,73 +653,31 @@ export const DmxChannelControlPage: React.FC = () => {
         </div>
       )}
 
-      {/* MIDI Monitor */}
-      {showMidiMonitor && (
-        <div className={styles.midiMonitor}>
-          <div className={styles.monitorSection}>
-            <h3 className={styles.sectionTitle}>
-              <LucideIcon name="Activity" />
-              MIDI Monitor
-            </h3>
-            
-            <div className={styles.monitorControls}>
-              <button 
-                className={styles.clearMonitorButton}
-                onClick={() => setMidiMonitorMessages([])}
-                title="Clear MIDI monitor"
-              >
-                <LucideIcon name="Trash2" />
-                Clear Monitor
-              </button>
-              <span className={styles.monitorCount}>
-                {midiMonitorMessages.length} messages
-              </span>
-            </div>
+      {/* Embedded MIDI Monitor section removed */}
 
-            <div className={styles.monitorMessages}>
-              {midiMonitorMessages.length === 0 ? (
-                <div className={styles.noMessages}>
-                  No MIDI messages received yet. Move a MIDI control to see messages here.
-                </div>
-              ) : (
-                midiMonitorMessages.slice().reverse().map((message, index) => (
-                  <div key={index} className={styles.monitorMessage}>
-                    <span className={styles.messageTime}>
-                      {new Date().toLocaleTimeString()}
-                    </span>
-                    <span className={styles.messageType}>
-                      {message._type?.toUpperCase() || 'UNKNOWN'}
-                    </span>
-                    <span className={styles.messageChannel}>
-                      Ch {message.channel + 1}
-                    </span>
-                    {message._type === 'cc' && (
-                      <>
-                        <span className={styles.messageController}>
-                          CC {message.controller}
-                        </span>
-                        <span className={styles.messageValue}>
-                          {message.value}
-                        </span>
-                      </>
-                    )}
-                    {message._type === 'noteon' && (
-                      <>
-                        <span className={styles.messageNote}>
-                          Note {message.note}
-                        </span>
-                        <span className={styles.messageVelocity}>
-                          Vel {message.velocity}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+      {/* Active DMX Channels Summary */}
+      {(() => {
+        const activeChannels = Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
+        return (
+          <div className={styles.sceneSection}>
+            <h3 className={styles.sectionTitle}>
+              <LucideIcon name="Zap" />
+              Active Channels
+            </h3>
+            {activeChannels.length === 0 ? (
+              <div>No active channels (Idle)</div>
+            ) : (
+              <div>
+                {activeChannels.map((i) => (
+                  <span key={i} style={{ display: 'inline-block', marginRight: '8px', marginBottom: '6px' }}>
+                    CH {i + 1}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* DMX Channels Display */}
       <div className={`${styles.dmxChannelsContainer} ${styles[viewMode]}`}>
@@ -763,7 +697,7 @@ export const DmxChannelControlPage: React.FC = () => {
               <div className={styles.channelHeader}>
                 <div className={styles.channelInfo}>
                   <span className={styles.channelNumber}>{channelIndex + 1}</span>
-                  <span className={styles.channelName}>{channelName}</span>
+                  <span className={styles.channelName}>{channelName} <small>{value > 0 ? 'Active' : '(Idle)'}</small></span>
                 </div>
                 <div className={styles.channelValue}>
                   <span className={styles.valueDisplay}>{value}</span>
