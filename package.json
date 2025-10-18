@@ -38,11 +38,14 @@
     "express": "^4.21.0",
     "framer-motion": "^12.15.0",
     "konva": "^9.3.22",
+    "lucide-react": "^0.546.0",
     "osc": "^2.4.3",
     "ping": "^0.4.4",
+    "react-beautiful-dnd": "^13.1.1",
     "react-draggable": "^4.4.6",
     "react-grid-layout": "^1.5.1",
     "react-konva": "^19.0.7",
+    "react-toastify": "^11.0.5",
     "socket.io": "^4.8.0"
   },
   "devDependencies": {
