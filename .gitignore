@@ -27,6 +27,7 @@ push-to-github.sh
 push-with-token.sh
 push-now.sh
 .git-push-helper
+git.sh
 
 # Other
 errors.log # If you want to specifically ignore a top-level errors.log
