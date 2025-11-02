@@ -1,0 +1,19 @@
+{
+  "dmxApiUrl": "http://localhost:3030/api/dmx/batch",
+  "panChannel": 1,
+  "tiltChannel": 2,
+  "cameraIndex": 0,
+  "updateRate": 30,
+  "panSensitivity": 1.0,
+  "tiltSensitivity": 1.0,
+  "panOffset": 128,
+  "tiltOffset": 128,
+  "showPreview": true,
+  "smoothingFactor": 0.8,
+  "brightness": 1.5,
+  "contrast": 1.2,
+  "cameraExposure": -1,
+  "cameraBrightness": -1,
+  "autoExposure": true
+}
+
