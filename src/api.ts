@@ -945,4 +945,116 @@ apiRouter.post('/api/config', (req, res) => {
   }
 });
 
+// Face Tracker Configuration endpoints
+const FACE_TRACKER_CONFIG_PATH = path.join(__dirname, '..', 'face-tracker', 'face-tracker-config.json');
+
+apiRouter.get('/face-tracker/config', (req, res) => {
+  try {
+    if (!fs.existsSync(FACE_TRACKER_CONFIG_PATH)) {
+      // Return default config if file doesn't exist
+      const defaultConfig = {
+        dmxApiUrl: "http://localhost:3030/api/dmx/batch",
+        panChannel: 1,
+        tiltChannel: 2,
+        irisChannel: 0,
+        zoomChannel: 0,
+        focusChannel: 0,
+        cameraIndex: 0,
+        updateRate: 30,
+        panSensitivity: 1.0,
+        tiltSensitivity: 1.0,
+        panOffset: 128,
+        tiltOffset: 128,
+        irisValue: 128,
+        zoomValue: 128,
+        focusValue: 128,
+        showPreview: true,
+        show3DVisualization: true,
+        smoothingFactor: 0.85,
+        maxVelocity: 50.0,
+        brightness: 1.0,
+        contrast: 1.0,
+        cameraExposure: -1,
+        cameraBrightness: -1,
+        autoExposure: true,
+        useOSC: false,
+        oscHost: "127.0.0.1",
+        oscPort: 9000,
+        oscPanPath: "/pan",
+        oscTiltPath: "/tilt",
+        oscIrisPath: "/iris",
+        oscZoomPath: "/zoom",
+        oscFocusPath: "/focus",
+        panMin: 0,
+        panMax: 255,
+        tiltMin: 0,
+        tiltMax: 255,
+        irisMin: 0,
+        irisMax: 255,
+        zoomMin: 0,
+        zoomMax: 255,
+        focusMin: 0,
+        focusMax: 255,
+        panScale: 1.0,
+        tiltScale: 1.0,
+        panDeadZone: 0.0,
+        tiltDeadZone: 0.0,
+        panLimit: 1.0,
+        tiltLimit: 1.0,
+        panGear: 1.0,
+        tiltGear: 1.0
+      };
+      res.json(defaultConfig);
+      return;
+    }
+    
+    const configData = fs.readFileSync(FACE_TRACKER_CONFIG_PATH, 'utf-8');
+    const config = JSON.parse(configData);
+    res.json(config);
+  } catch (error) {
+    log('Error reading face tracker config', 'ERROR', { error });
+    res.status(500).json({ 
+      error: `Failed to read face tracker config: ${error instanceof Error ? error.message : String(error)}`, 
+      success: false 
+    });
+  }
+});
+
+apiRouter.put('/face-tracker/config', (req, res) => {
+  try {
+    const configData = req.body;
+    
+    if (!configData || typeof configData !== 'object') {
+      return res.status(400).json({ 
+        error: 'Invalid config data - object expected', 
+        success: false 
+      });
+    }
+    
+    // Ensure directory exists
+    const configDir = path.dirname(FACE_TRACKER_CONFIG_PATH);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    // Save config to file
+    fs.writeFileSync(FACE_TRACKER_CONFIG_PATH, JSON.stringify(configData, null, 2));
+    
+    log('Face tracker config saved successfully', 'SYSTEM');
+    
+    res.json({ 
+      success: true, 
+      message: 'Face tracker config saved successfully'
+    });
+  } catch (error) {
+    log('Error saving face tracker config', 'ERROR', { 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+    res.status(500).json({ 
+      error: `Failed to save face tracker config: ${error instanceof Error ? error.message : String(error)}`, 
+      success: false 
+    });
+  }
+});
+
 export { apiRouter, setupSocketHandlers };

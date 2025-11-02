@@ -39,7 +39,6 @@
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
-    "@rollup/rollup-win32-x64-msvc": "^4.46.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -95,7 +94,7 @@
   "optionalDependencies": {
     "@rollup/rollup-darwin-arm64": "^4.46.3",
     "@rollup/rollup-darwin-x64": "^4.46.3",
-    "@rollup/rollup-linux-x64-gnu": "^4.46.3",
+    "@rollup/rollup-linux-x64-gnu": "^4.52.5",
     "@rollup/rollup-win32-x64-msvc": "^4.52.5"
   }
 }

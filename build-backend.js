@@ -10,7 +10,7 @@ try {
   // Ensure typescript is installed
   if (!fs.existsSync(path.join(__dirname, 'node_modules', 'typescript'))) {
     console.log('TypeScript not found, installing...');
-    execSync('npm install typescript --save-dev', { stdio: 'inherit' });
+    execSync('npm install typescript --save-dev --legacy-peer-deps', { stdio: 'inherit' });
   }
   
   // Run the TypeScript compiler using the local installation

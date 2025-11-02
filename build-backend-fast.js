@@ -12,7 +12,7 @@ try {
   
   if (!fs.existsSync(tscPath)) {
     console.log('Installing TypeScript...');
-    execSync('npm install typescript --save-dev --prefer-offline', { stdio: 'inherit' });
+    execSync('npm install typescript --save-dev --prefer-offline --legacy-peer-deps', { stdio: 'inherit' });
   }
   
   // Fast TypeScript compilation with optimizations
