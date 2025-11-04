@@ -31,3 +31,6 @@ git.sh
 
 # Other
 errors.log # If you want to specifically ignore a top-level errors.log
+# Rust build artifacts
+face-tracker/target/
+face-tracker/**/*.rs.bk
