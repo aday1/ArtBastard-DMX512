@@ -1,5 +1,7 @@
 #include <opencv2/opencv.hpp>
+#ifdef HAVE_OPENCV_FACE
 #include <opencv2/face.hpp>
+#endif
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
@@ -20,7 +22,9 @@
 #include <nlohmann/json.hpp>
 
 using namespace cv;
+#ifdef HAVE_OPENCV_FACE
 using namespace cv::face;
+#endif
 using json = nlohmann::json;
 
 // Configuration structure
@@ -87,7 +91,11 @@ struct Config {
 // Global state
 struct FaceTrackerState {
     Ptr<CascadeClassifier> faceCascade;
+#ifdef HAVE_OPENCV_FACE
     Ptr<Facemark> facemark;
+#else
+    void* facemark = nullptr;  // Placeholder when face module not available
+#endif
     std::vector<Point2f> landmarks;
     Point2f headCenter;
     float currentPan = 0.0f;
@@ -1876,14 +1884,20 @@ void trackFace(VideoCapture& cap, FaceTrackerState& state) {
             
             // Detect facial landmarks
             std::vector<Point2f> landmarks;
-                    if (state.facemark->fit(frame, faces, shapes)) {
-                        if (shapes.size() > 0 && shapes[0].size() >= 68) {
-                            landmarks = shapes[0];
-                            state.landmarks = landmarks;
-                            
-                            // Estimate head pose
-                            float pan = 0.0f, tilt = 0.0f;
-                            estimateHeadPose(landmarks, frame.size(), pan, tilt);
+            bool landmarksDetected = false;
+            
+#ifdef HAVE_OPENCV_FACE
+            if (state.facemark && state.facemark.get()) {
+                std::vector<std::vector<Point2f>> shapes;
+                if (state.facemark->fit(frame, faces, shapes)) {
+                    if (shapes.size() > 0 && shapes[0].size() >= 68) {
+                        landmarks = shapes[0];
+                        state.landmarks = landmarks;
+                        landmarksDetected = true;
+                        
+                        // Estimate head pose
+                        float pan = 0.0f, tilt = 0.0f;
+                        estimateHeadPose(landmarks, frame.size(), pan, tilt);
                     
                     // Apply smoothing
                     // Improved smoothing with velocity limiting
@@ -1952,7 +1966,10 @@ void trackFace(VideoCapture& cap, FaceTrackerState& state) {
                         // Pan/tilt values moved to theatre overlay, not on preview frame
                     }
                 }
-            } else {
+            }
+#endif
+            // Fallback to face center if landmarks not detected or face module not available
+            if (!landmarksDetected) {
                 // Face detected but landmarks failed - use face center for basic tracking
                 state.faceDetected = true;
                 Point2f faceCenter(faceRect.x + faceRect.width / 2.0f, faceRect.y + faceRect.height / 2.0f);
@@ -2491,6 +2508,7 @@ int main(int /*argc*/, char** /*argv*/) {
     std::cout << "Loaded face cascade from: " << loadedPath << std::endl;
     
     // Initialize facemark detector (for landmarks)
+#ifdef HAVE_OPENCV_FACE
     state.facemark = FacemarkLBF::create();
     std::vector<std::string> facemarkPaths = {
         "lbfmodel.yaml",  // Current directory
@@ -2519,6 +2537,12 @@ int main(int /*argc*/, char** /*argv*/) {
         std::cout << "You can download the model from OpenCV's face module" << std::endl;
         state.facemark = Ptr<Facemark>(); // Will use basic face center tracking
     }
+#else
+    std::cout << "OpenCV face module not available - using basic face center tracking" << std::endl;
+    std::cout << "To enable facial landmark tracking, install OpenCV with contrib modules:" << std::endl;
+    std::cout << "  vcpkg install opencv[contrib]:x64-windows" << std::endl;
+    state.facemark = nullptr; // Will use basic face center tracking
+#endif
     
     // Open camera
     VideoCapture cap(config.cameraIndex);

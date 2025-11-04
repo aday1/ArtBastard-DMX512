@@ -7,7 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find required packages
 find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)
-find_package(PkgConfig REQUIRED)
+# PkgConfig is not needed on Windows and may not be available
+# find_package(PkgConfig REQUIRED)
 
 # Find nlohmann_json (header-only)
 # Try to find it in standard locations
@@ -62,6 +63,26 @@ foreach(lib ${OpenCV_LIBS})
     endif()
 endforeach()
 
+# Check if OpenCV face module is available (from contrib modules)
+find_library(OPENCV_FACE_LIB 
+    NAMES opencv_face
+    PATHS ${OpenCV_LIB_DIR} ${OpenCV_LIB_DIRS}
+    NO_DEFAULT_PATH
+)
+
+# If not found in explicit paths, try default paths
+if(NOT OPENCV_FACE_LIB)
+    find_library(OPENCV_FACE_LIB NAMES opencv_face)
+endif()
+
+if(OPENCV_FACE_LIB)
+    message(STATUS "Found OpenCV face module: ${OPENCV_FACE_LIB}")
+    add_definitions(-DHAVE_OPENCV_FACE)
+else()
+    message(STATUS "OpenCV face module not found - will use basic face center tracking")
+    message(STATUS "To enable facial landmark tracking, install OpenCV with contrib modules")
+endif()
+
 # Use only essential OpenCV modules for face tracking
 # Explicitly link only what we need to avoid dependency issues
 target_link_libraries(face-tracker
@@ -71,15 +92,20 @@ target_link_libraries(face-tracker
     opencv_highgui
     opencv_videoio
     opencv_objdetect
-    opencv_face
     ${CURL_LIBRARIES}
 )
 
-# Compiler options
+# Link face module if available
+if(OPENCV_FACE_LIB)
+    target_link_libraries(face-tracker ${OPENCV_FACE_LIB})
+endif()
+
+# Compiler options - use compiler-specific flags
 target_compile_options(face-tracker PRIVATE
-    -Wall
-    -Wextra
-    -O3
+    # MSVC flags
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
+    # GCC/Clang flags
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Wextra -O3>
 )
 
 # Output directory
