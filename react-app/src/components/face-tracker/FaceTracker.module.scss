@@ -611,11 +611,17 @@
   width: 100%;
   box-sizing: border-box;
   
+  // Shrink-wrap to content
+  height: fit-content;
+  min-height: auto;
+  
   // Ensure preview containers fill their grid cells
   > .previewContainer,
   > .fixture3DContainer {
     width: 100%;
     min-width: 0;
+    height: fit-content; // Shrink to content
+    min-height: auto;
   }
   
   @media (max-width: 1200px) {
@@ -738,11 +744,9 @@
 }
 
 .previewContainer {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 0;
   position: relative;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
@@ -750,6 +754,11 @@
   padding: 0.5rem;
   overflow: hidden;
   transition: all 0.2s ease;
+  
+  // Shrink-wrap to content
+  width: 100%;
+  height: fit-content;
+  min-height: auto;
   
   &:hover {
     border-color: var(--accent-color);
@@ -782,17 +791,20 @@
 }
 
 .fixture3DContainer {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 0;
   position: relative;
   overflow: hidden;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 0.5rem;
+  
+  // Shrink-wrap to content
+  width: 100%;
+  height: fit-content;
+  min-height: auto;
   z-index: 10; /* Position above lattice/grid */
   transition: all 0.2s ease;
   
@@ -1050,29 +1062,35 @@
   padding: 1.5rem;
   margin-top: 1rem;
   overflow-y: auto;
-  flex: 1;
-  min-height: 0;
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
+  
+  // Shrink-wrap to content
+  height: fit-content;
+  min-height: auto;
 }
 
 .allControls {
   display: grid;
   grid-template-columns: repeat(2, 1fr); // Force 2 columns - USE FULL WIDTH
-  grid-auto-rows: minmax(auto, 1fr); // Allow rows to grow to fill space
+  grid-auto-rows: auto; // Changed from minmax(auto, 1fr) to auto - shrink to content
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  align-items: stretch; // Stretch items to fill row height
+  align-items: start; // Changed from stretch to start - align to top
+  
+  // Shrink-wrap to content
+  height: fit-content;
   
   // Ensure control sections fill their grid cells
   > .controlSection {
     width: 100%;
     min-width: 0;
-    align-self: stretch; // Stretch to fill grid cell
+    align-self: start; // Changed from stretch to start - align to top
   }
   
   // On smaller screens, stack vertically
@@ -1118,15 +1136,17 @@
   max-width: 100%;
   resize: both;
   overflow: auto;
-  min-width: 300px;
-  min-height: 200px;
+  min-width: 250px; // Reduced from 300px
+  min-height: auto; // Changed from 200px to auto - shrink to content
   cursor: move;
   
   // Ensure sections fill grid columns properly - each section takes 1 column
   grid-column: span 1;
   
-  // Make sections fill available height to prevent empty space
-  align-self: stretch;
+  // Shrink-wrap to content - align to top instead of stretching
+  align-self: start;
+  height: fit-content;
+  max-height: 100%;
 }
 
 .cameraControls {
