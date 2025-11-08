@@ -47,71 +47,9 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     midiMessages: state.midiMessages,
   }));
   const { socket } = useSocket();
-  const { startLearn, cancelLearn, midiLearnTarget } = useMidiLearn();
+  const { startLearn, cancelLearn, currentLearningChannel } = useMidiLearn();
+  const midiLearnTarget = useStore((state) => state.midiLearnTarget);
   
-  // Listen for MIDI messages when mapped
-  useEffect(() => {
-    if (!midiMessages || midiMessages.length === 0 || !midiCC) return;
-    
-    const latestMessage = midiMessages[midiMessages.length - 1];
-    
-    // Check if this message matches our MIDI mapping
-    if (latestMessage._type === 'cc' && 
-        latestMessage.controller === midiCC && 
-        latestMessage.channel === (midiChannel - 1)) { // Convert 1-16 to 0-15
-      // Scale MIDI CC value (0-127) to master fader range (0-255)
-      const newValue = Math.round((latestMessage.value / 127) * 255);
-      handleValueChange(newValue);
-    }
-  }, [midiMessages, midiCC, midiChannel, handleValueChange]);
-  
-  // Listen for OSC messages
-  useEffect(() => {
-    if (!socket) return;
-    
-    const handleOscMessage = (message: any) => {
-      if (message.address === oscAddress && message.args && message.args.length > 0) {
-        // OSC value is typically 0.0-1.0, scale to 0-255
-        const oscValue = message.args[0].value || message.args[0];
-        const newValue = Math.round(Math.max(0, Math.min(255, oscValue * 255)));
-        handleValueChange(newValue);
-      }
-    };
-    
-    socket.on('oscMessage', handleOscMessage);
-    
-    return () => {
-      socket.off('oscMessage', handleOscMessage);
-    };
-  }, [socket, oscAddress, handleValueChange]);
-  
-  // Listen for MIDI learn completion
-  useEffect(() => {
-    if (midiLearnTarget === null || midiLearnTarget !== 0) return; // Master fader uses channel 0
-    
-    const handleMidiMappingCreated = (event: CustomEvent) => {
-      const { channel, mapping } = event.detail;
-      if (channel === 0) { // Master fader channel
-        if (mapping.controller !== undefined) {
-          setMidiCC(mapping.controller);
-          setMidiChannel(mapping.channel + 1); // Convert 0-15 to 1-16
-          setIsLearning(false);
-          console.log('[MasterFader] MIDI learned:', mapping);
-        } else if (mapping.note !== undefined) {
-          // For note mappings, we could use note on/off to toggle or set value
-          setMidiCC(null); // Notes not supported for continuous control
-          setIsLearning(false);
-        }
-      }
-    };
-    
-    window.addEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
-    
-    return () => {
-      window.removeEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
-    };
-  }, [midiLearnTarget]);
-
   const isChannelIgnored = useCallback((channelIndex: number): boolean => {
     if (!fixtures || !groups) return false;
 
@@ -133,6 +71,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     }
     return false; // Not found in any group that ignores master fader
   }, [fixtures, groups]);
+  
   // Save baseline state when master fader is first activated
   const saveBaselineState = useCallback(() => {
     // Only save baseline if we don't have one yet AND master fader is at full (255)
@@ -189,7 +128,8 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       setIsMasterFaderActive(false);
     }
   }, [baselineChannelValues, value, dmxChannels, isChannelIgnored, setMultipleDmxChannels, masterFaderValueWhenActivated]);
-
+  
+  // Define handleValueChange after dependencies are defined
   const handleValueChange = useCallback((newValue: number) => {
     const previousValue = value;
     setValue(newValue);
@@ -202,112 +142,129 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       restoreBaselineState();
       // Continue to send OSC update
       if (socket && oscAddress) {
-        socket.emit('osc-send', {
-          address: oscAddress,
-          args: [{ type: 'f', value: newValue / 255 }]
-        });
+        try {
+          (socket as any).emit('sendOsc', {
+            address: oscAddress,
+            args: [{ type: 'f', value: newValue / 255.0 }]
+          });
+        } catch (error) {
+          console.error('[MasterFader] Failed to send OSC:', error);
+        }
       }
-      return; // Early return after restoration
+      return; // Don't update DMX channels, baseline restoration handles that
     }
 
-    // If we have a baseline, always scale from it (not from current values)
-    // This ensures consistent behavior when moving slider up and down
-    if (baselineChannelValues && isMasterFaderActive) {
-      const scaleFactor = newValue / 255; // Scale factor based on master fader position
-      
-      // Scale all channels from baseline
+    // If master fader is at 0, set all channels to 0
+    if (newValue === 0) {
       for (let i = 0; i < 512; i++) {
-        if (isChannelIgnored(i)) {
-          dmxUpdates[i] = dmxChannels[i]; // Keep ignored channels as-is
-        } else {
-          const baselineValue = baselineChannelValues[i] || 0;
-          const scaledValue = Math.round(baselineValue * scaleFactor);
-          dmxUpdates[i] = Math.min(255, Math.max(0, scaledValue));
+        if (!isChannelIgnored(i)) {
+          dmxUpdates[i] = 0;
         }
       }
     } else {
-      // Legacy behavior when no baseline is saved (for backward compatibility)
-      if (newValue === 0 && previousValue > 0) { // Fading to black
-        const currentValuesToSaveNormalized: { [key: number]: number } = {};
-        Object.keys(dmxChannels).forEach(channelKey => {
-          const channelNum = parseInt(channelKey);
-          if (isChannelIgnored(channelNum)) {
-            dmxUpdates[channelNum] = dmxChannels[channelNum];
-            return;
-          }
-          const currentDmxValue = dmxChannels[channelNum];
-
-          if (currentDmxValue > 0) {
-            let normalizedValue = currentDmxValue;
-            if (previousValue > 0 && previousValue < 255) {
-              normalizedValue = (currentDmxValue / previousValue) * 255;
-            }
-            currentValuesToSaveNormalized[channelNum] = Math.min(255, Math.max(0, Math.round(normalizedValue)));
-            dmxUpdates[channelNum] = 0;
-          } else {
-            dmxUpdates[channelNum] = 0;
-          }
-        });
-        setPreviousChannelValues(currentValuesToSaveNormalized);
-      } else if (newValue > 0 && previousValue === 0) { // Fading up from black
-        Object.keys(previousChannelValues).forEach(channelKey => {
-          const channelNum = parseInt(channelKey);
-          if (isChannelIgnored(channelNum)) {
-            dmxUpdates[channelNum] = dmxChannels[channelNum];
-            return;
-          }
-          const normalizedOriginalValue = previousChannelValues[channelNum];
-          const proportionalValue = Math.round((normalizedOriginalValue * newValue) / 255);
-          dmxUpdates[channelNum] = proportionalValue;
-        });
+      // Scale all channels based on master fader value
+      // If we have a baseline, use it; otherwise use current channel values
+      const scaleFactor = newValue / 255.0;
+      
+      if (baselineChannelValues) {
+        // Scale from baseline
         for (let i = 0; i < 512; i++) {
-          if (isChannelIgnored(i) && dmxUpdates[i] === undefined) {
-            dmxUpdates[i] = dmxChannels[i];
-          } else if (dmxUpdates[i] === undefined && dmxChannels[i] === 0) {
-            dmxUpdates[i] = 0;
+          if (!isChannelIgnored(i)) {
+            const baselineValue = baselineChannelValues[i] ?? 0;
+            dmxUpdates[i] = Math.round(baselineValue * scaleFactor);
           }
         }
-      } else if (newValue > 0 && previousValue > 0) { // Adjusting level
-        if (previousValue !== 0) {
-          const adjustmentFactor = newValue / previousValue;
-          Object.keys(dmxChannels).forEach(key => {
-            const num = parseInt(key);
-            if (isChannelIgnored(num)) {
-              dmxUpdates[num] = dmxChannels[num];
-              return;
-            }
-            const currentVal = dmxChannels[num];
-            if (currentVal > 0) {
-              const adjustedValue = Math.round(currentVal * adjustmentFactor);
-              dmxUpdates[num] = Math.min(255, Math.max(0, adjustedValue));
-            } else {
-              dmxUpdates[num] = 0;
-            }
-          });
-        }
-      } else if (newValue === 0 && previousValue === 0) {
-        Object.keys(dmxChannels).forEach(key => {
-          const num = parseInt(key);
-          if (isChannelIgnored(num)) {
-            dmxUpdates[num] = dmxChannels[num];
-          } else {
-            dmxUpdates[num] = 0;
+      } else {
+        // Scale from current values (fallback)
+        for (let i = 0; i < 512; i++) {
+          if (!isChannelIgnored(i)) {
+            const currentValue = dmxChannels[i] ?? 0;
+            dmxUpdates[i] = Math.round(currentValue * scaleFactor);
           }
-        });
+        }
       }
     }
 
+    // Update store
     if (Object.keys(dmxUpdates).length > 0) {
-      setMultipleDmxChannels(dmxUpdates);
+      setMultipleDmxChannels(dmxUpdates, true);
     }
 
+    // Send OSC update if configured
     if (socket && oscAddress) {
-      socket.emit('osc-send', {
-        address: oscAddress,
-        args: [{ type: 'f', value: newValue / 255 }]
-      });
+      try {
+        (socket as any).emit('sendOsc', {
+          address: oscAddress,
+          args: [{ type: 'f', value: newValue / 255.0 }]
+        });
+      } catch (error) {
+        console.error('[MasterFader] Failed to send OSC:', error);
+      }
     }
-  }, [value, dmxChannels, setMultipleDmxChannels, onValueChange, previousChannelValues, setPreviousChannelValues, setValue, socket, oscAddress, baselineChannelValues, isMasterFaderActive, restoreBaselineState, isChannelIgnored]);
+  }, [value, onValueChange, baselineChannelValues, masterFaderValueWhenActivated, restoreBaselineState, socket, oscAddress, isChannelIgnored, dmxChannels, setMultipleDmxChannels]);
+  
+  // Listen for MIDI messages when mapped
+  useEffect(() => {
+    if (!midiMessages || midiMessages.length === 0 || !midiCC) return;
+    
+    const latestMessage = midiMessages[midiMessages.length - 1];
+    
+    // Check if this message matches our MIDI mapping
+    if (latestMessage._type === 'cc' && 
+        latestMessage.controller === midiCC && 
+        latestMessage.channel === (midiChannel - 1)) { // Convert 1-16 to 0-15
+      // Scale MIDI CC value (0-127) to master fader range (0-255)
+      const newValue = Math.round((latestMessage.value / 127) * 255);
+      handleValueChange(newValue);
+    }
+  }, [midiMessages, midiCC, midiChannel, handleValueChange]);
+  
+  // Listen for OSC messages
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleOscMessage = (message: any) => {
+      if (message.address === oscAddress && message.args && message.args.length > 0) {
+        // OSC value is typically 0.0-1.0, scale to 0-255
+        const oscValue = message.args[0].value || message.args[0];
+        const newValue = Math.round(Math.max(0, Math.min(255, oscValue * 255)));
+        handleValueChange(newValue);
+      }
+    };
+    
+    socket.on('oscMessage', handleOscMessage);
+    
+    return () => {
+      socket.off('oscMessage', handleOscMessage);
+    };
+  }, [socket, oscAddress, handleValueChange]);
+  
+  // Listen for MIDI learn completion
+  useEffect(() => {
+    if (midiLearnTarget === null || (midiLearnTarget.type !== 'dmxChannel' || midiLearnTarget.channelIndex !== 0)) return; // Master fader uses channel 0
+    
+    const handleMidiMappingCreated = (event: CustomEvent) => {
+      const { channel, mapping } = event.detail;
+      if (channel === 0) { // Master fader channel
+        if (mapping.controller !== undefined) {
+          setMidiCC(mapping.controller);
+          setMidiChannel(mapping.channel + 1); // Convert 0-15 to 1-16
+          setIsLearning(false);
+          console.log('[MasterFader] MIDI learned:', mapping);
+        } else if (mapping.note !== undefined) {
+          // For note mappings, we could use note on/off to toggle or set value
+          setMidiCC(null); // Notes not supported for continuous control
+          setIsLearning(false);
+        }
+      }
+    };
+
+    window.addEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
+    };
+  }, [midiLearnTarget]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value);
@@ -365,28 +322,63 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     // Set all channels to 0 without remembering previous values
     // This is different from blackout which saves values for restoration
     // NOTE: We do NOT change the master fader value - it stays where it is
-    const dmxUpdates: Record<number, number> = {};
     
-    // Set all channels to 0, respecting ignored channels
+    // OPTIMIZATION: Only include channels that are NOT already 0 to avoid flooding the system
+    const dmxUpdates: Record<number, number> = {};
+    let updateCount = 0;
+    
+    // Set all channels to 0, respecting ignored channels, but ONLY if they're not already 0
     for (let i = 0; i < 512; i++) {
       if (isChannelIgnored(i)) {
-        dmxUpdates[i] = dmxChannels[i]; // Keep current value for ignored channels
+        // Keep ignored channels as-is (don't include in update if unchanged)
+        if (dmxChannels[i] !== undefined) {
+          // Only include if we need to preserve the value (shouldn't happen, but safety check)
+        }
       } else {
-        dmxUpdates[i] = 0; // Set to 0 for all non-ignored channels
+        // Only add to updates if channel is NOT already 0
+        const currentValue = dmxChannels[i] || 0;
+        if (currentValue !== 0) {
+          dmxUpdates[i] = 0;
+          updateCount++;
+        }
       }
     }
     
-    // Update store immediately - this will update all UI components including DMX Panel sliders
-    if (Object.keys(dmxUpdates).length > 0) {
+    // Only send updates if there are actual changes
+    if (updateCount > 0) {
+      console.log(`[MasterFader] Setting ${updateCount} channels to 0 (skipped ${512 - updateCount} already at 0)`);
+      // Update store - this will batch send to backend
       setMultipleDmxChannels(dmxUpdates, true);
+    } else {
+      console.log('[MasterFader] All channels already at 0, skipping update');
     }
     
-    // Send OSC messages with value 0 to all OSC assignments
+    // OPTIMIZATION: Batch OSC messages instead of sending individually
+    // Collect unique OSC addresses and send them in batches
     if (socket && oscAssignments) {
+      const oscAddressesToUpdate = new Set<string>();
+      
+      // Collect unique OSC addresses that need to be set to 0
       oscAssignments.forEach((oscAddress, channelIndex) => {
-        if (oscAddress && oscAddress.trim() !== '') {
-          // Only send if this channel is being set to 0 (not ignored)
-          if (!isChannelIgnored(channelIndex)) {
+        if (oscAddress && oscAddress.trim() !== '' && !isChannelIgnored(channelIndex)) {
+          const currentValue = dmxChannels[channelIndex] || 0;
+          // Only send OSC if channel was not already 0
+          if (currentValue !== 0) {
+            oscAddressesToUpdate.add(oscAddress);
+          }
+        }
+      });
+      
+      // Send OSC messages in batches to avoid flooding
+      const oscAddressArray = Array.from(oscAddressesToUpdate);
+      const batchSize = 10; // Send 10 OSC messages at a time
+      
+      if (oscAddressArray.length > 0) {
+        console.log(`[MasterFader] Sending ${oscAddressArray.length} OSC zero messages in batches of ${batchSize}`);
+        
+        // Send in batches with small delays to avoid overwhelming the system
+        oscAddressArray.forEach((oscAddress, index) => {
+          setTimeout(() => {
             try {
               socket.emit('sendOsc', {
                 address: oscAddress,
@@ -395,9 +387,9 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
             } catch (error) {
               console.error(`[MasterFader] Failed to send OSC 0 to ${oscAddress}:`, error);
             }
-          }
-        }
-      });
+          }, (index % batchSize) * 5); // 5ms delay between each message in a batch
+        });
+      }
     }
     
     // DO NOT change master fader value - keep it where it is
@@ -711,3 +703,4 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     </div>
   );
 };
+

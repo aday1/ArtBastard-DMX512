@@ -644,6 +644,91 @@ const findProtrusions = (contour: Array<{ x: number; y: number }>, width: number
   return result;
 };
 
+// Helper function to detect facial expressions (smile, sad, etc.)
+// Analyzes mouth curve and shape to determine emotional expression
+const detectFacialExpression = (mouthImageData: ImageData, mouthOpenness: number): string => {
+  const data = mouthImageData.data;
+  const width = mouthImageData.width;
+  const height = mouthImageData.height;
+  
+  if (width < 5 || height < 5) return '';
+  
+  // Analyze mouth curve by examining vertical intensity distribution
+  // Smile: corners of mouth are higher (upward curve)
+  // Sad: corners of mouth are lower (downward curve)
+  // Neutral: relatively flat
+  
+  const centerY = Math.floor(height / 2);
+  const leftQuarter = Math.floor(width * 0.25);
+  const rightQuarter = Math.floor(width * 0.75);
+  const centerQuarter = Math.floor(width * 0.5);
+  
+  // Calculate average brightness/intensity at different horizontal positions
+  let leftIntensity = 0;
+  let centerIntensity = 0;
+  let rightIntensity = 0;
+  let leftCount = 0;
+  let centerCount = 0;
+  let rightCount = 0;
+  
+  // Sample vertical lines at left, center, and right positions
+  for (let y = 0; y < height; y++) {
+    // Left quarter (left corner of mouth)
+    for (let x = 0; x < leftQuarter; x++) {
+      const idx = (y * width + x) * 4;
+      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      leftIntensity += gray;
+      leftCount++;
+    }
+    
+    // Center
+    for (let x = leftQuarter; x < rightQuarter; x++) {
+      const idx = (y * width + x) * 4;
+      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      centerIntensity += gray;
+      centerCount++;
+    }
+    
+    // Right quarter (right corner of mouth)
+    for (let x = rightQuarter; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      rightIntensity += gray;
+      rightCount++;
+    }
+  }
+  
+  const leftAvg = leftCount > 0 ? leftIntensity / leftCount : 0;
+  const centerAvg = centerCount > 0 ? centerIntensity / centerCount : 0;
+  const rightAvg = rightCount > 0 ? rightIntensity / rightCount : 0;
+  
+  // Calculate mouth curve: positive = smile (corners higher), negative = sad (corners lower)
+  const cornerAvg = (leftAvg + rightAvg) / 2;
+  const curveValue = (cornerAvg - centerAvg) / Math.max(centerAvg, 1); // Normalize
+  
+  // Detect smile: upward curve (corners higher than center) + mouth slightly open
+  if (curveValue > 0.05 && mouthOpenness > 0.2 && mouthOpenness < 0.6) {
+    return 'SMILING';
+  }
+  
+  // Detect sad: downward curve (corners lower than center) + mouth closed or slightly open
+  if (curveValue < -0.05 && mouthOpenness < 0.4) {
+    return 'SAD';
+  }
+  
+  // Detect surprise: mouth very open
+  if (mouthOpenness > 0.7) {
+    return 'SURPRISED';
+  }
+  
+  // Detect neutral: relatively flat curve and moderate openness
+  if (Math.abs(curveValue) < 0.03 && mouthOpenness > 0.1 && mouthOpenness < 0.4) {
+    return 'NEUTRAL';
+  }
+  
+  return '';
+};
+
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
   const { socket, connected: socketConnected } = useSocket();
@@ -1833,8 +1918,8 @@ export const FaceTracker: React.FC = () => {
               history.panHistory.push(pan);
               history.tiltHistory.push(tilt);
               
-              // Keep only last 10 samples (for gesture detection)
-              if (history.panHistory.length > 10) {
+              // Keep only last 15 samples (for better gesture detection)
+              if (history.panHistory.length > 15) {
                 history.panHistory.shift();
                 history.tiltHistory.shift();
               }
@@ -1848,40 +1933,80 @@ export const FaceTracker: React.FC = () => {
               const targetPan = panAbs > settings.cutoff ? pan : 0;
               const targetTilt = tiltAbs > settings.cutoff ? tilt : 0;
               
-              // Detect gestures
+              // Detect head movement gestures (nodding, shaking)
               const currentTime = Date.now();
-              if (history.panHistory.length >= 5 && currentTime - history.lastGestureTime > 500) {
+              let detectedHeadGesture = '';
+              
+              if (history.panHistory.length >= 8 && currentTime - history.lastGestureTime > 300) {
                 // Detect shaking head (rapid horizontal movement)
                 const panVariance = calculateVariance(history.panHistory);
                 const panRange = Math.max(...history.panHistory) - Math.min(...history.panHistory);
                 
-                // Detect nodding (rapid vertical movement)
+                // Detect nodding (rapid vertical movement) - IMPROVED SENSITIVITY
                 const tiltVariance = calculateVariance(history.tiltHistory);
                 const tiltRange = Math.max(...history.tiltHistory) - Math.min(...history.tiltHistory);
                 
-                if (panVariance > 0.01 && panRange > 0.15 && tiltVariance < 0.005) {
-                  const gesture = 'SHAKING HEAD';
-                  if (gesture !== history.lastGesture) {
-                    console.log(`[Gesture] ${gesture} detected! Pan variance: ${panVariance.toFixed(4)}, Range: ${panRange.toFixed(3)}`);
-                    history.lastGesture = gesture;
-                    history.lastGestureTime = currentTime;
-                  }
-                } else if (tiltVariance > 0.01 && tiltRange > 0.15 && panVariance < 0.005) {
-                  const gesture = 'NODDING';
-                  if (gesture !== history.lastGesture) {
-                    console.log(`[Gesture] ${gesture} detected! Tilt variance: ${tiltVariance.toFixed(4)}, Range: ${tiltRange.toFixed(3)}`);
-                    history.lastGesture = gesture;
-                    history.lastGestureTime = currentTime;
-                  }
-                } else if (panVariance < 0.002 && tiltVariance < 0.002) {
-                  const gesture = 'STILL';
-                  if (gesture !== history.lastGesture && history.lastGesture !== '') {
-                    console.log(`[Gesture] ${gesture} - Face is relatively stationary`);
-                    history.lastGesture = gesture;
-                    history.lastGestureTime = currentTime;
-                  }
+                // Improved thresholds for better detection
+                const shakingThreshold = 0.008 * settings.gestureSensitivity; // Lower = more sensitive
+                const noddingThreshold = 0.008 * settings.gestureSensitivity; // Lower = more sensitive
+                const rangeThreshold = 0.12 * settings.gestureSensitivity; // Lower = more sensitive
+                
+                if (panVariance > shakingThreshold && panRange > rangeThreshold && tiltVariance < 0.004) {
+                  detectedHeadGesture = 'SHAKING HEAD';
+                } else if (tiltVariance > noddingThreshold && tiltRange > rangeThreshold && panVariance < 0.004) {
+                  detectedHeadGesture = 'NODDING';
+                } else if (panVariance < 0.001 && tiltVariance < 0.001) {
+                  detectedHeadGesture = 'STILL';
+                }
+                
+                if (detectedHeadGesture && detectedHeadGesture !== history.lastGesture) {
+                  console.log(`[Gesture] ${detectedHeadGesture} detected! Pan var: ${panVariance.toFixed(4)}, Tilt var: ${tiltVariance.toFixed(4)}, Pan range: ${panRange.toFixed(3)}, Tilt range: ${tiltRange.toFixed(3)}`);
+                  history.lastGesture = detectedHeadGesture;
+                  history.lastGestureTime = currentTime;
                 }
               }
+              
+              // Detect facial expressions (smile, sad, etc.) based on mouth shape
+              let detectedFacialExpression = '';
+              if (settings.enableGestures && lastFacePositionRef.current && lastFacePositionRef.current.mouth) {
+                try {
+                  const mouth = lastFacePositionRef.current.mouth;
+                  const mouthOpenness = lastFacePositionRef.current.mouthOpenness || 0;
+                  
+                  // Extract mouth region for expression analysis
+                  const mouthX = Math.round(mouth.x);
+                  const mouthY = Math.round(mouth.y);
+                  const mouthW = Math.round(mouth.width);
+                  const mouthH = Math.round(mouth.height);
+                  
+                  if (mouthW > 10 && mouthH > 10) {
+                    // Extract mouth region from detection canvas
+                    const mouthROI = detCtx.getImageData(
+                      Math.max(0, Math.min(mouthX, detWidth - 1)),
+                      Math.max(0, Math.min(mouthY, detHeight - 1)),
+                      Math.max(1, Math.min(mouthW, detWidth - mouthX)),
+                      Math.max(1, Math.min(mouthH, detHeight - mouthY))
+                    );
+                    
+                    // Analyze mouth curve to detect expressions
+                    const expression = detectFacialExpression(mouthROI, mouthOpenness);
+                    if (expression && expression !== detectedHeadGesture) {
+                      detectedFacialExpression = expression;
+                      // Update gesture if facial expression is detected
+                      if (currentTime - history.lastGestureTime > 500) {
+                        console.log(`[Facial Expression] ${expression} detected! Mouth openness: ${mouthOpenness.toFixed(3)}`);
+                        history.lastGesture = expression;
+                        history.lastGestureTime = currentTime;
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn('[FaceTracker] Error in facial expression detection:', err);
+                }
+              }
+              
+              // Combine head gestures and facial expressions (facial expressions take priority)
+              const finalGesture = detectedFacialExpression || detectedHeadGesture || history.lastGesture;
 
               // Apply smoothing with exponential moving average
               const smoothingRate = 1 - settings.smoothingFactor;
@@ -2036,7 +2161,7 @@ export const FaceTracker: React.FC = () => {
                 currentZoom: finalZoomValue,
                 isBlinking: isBlinking,
                 isTongueOut: isTongueOut,
-                currentGesture: detectedHandGesture || prev.currentGesture
+                currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
               }));
 
               // Verbose logging for pan/tilt calculation (every 5 detections or when movement is significant)
