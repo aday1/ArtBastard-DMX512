@@ -6,6 +6,9 @@
   border-radius: 8px;
   overflow: hidden;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   canvas {
     display: block;

@@ -1360,6 +1360,7 @@ export const FaceTracker: React.FC = () => {
     }
 
     try {
+      // Wrap entire render in try-catch to prevent page crashes
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
@@ -1421,6 +1422,10 @@ export const FaceTracker: React.FC = () => {
 
       // Fast direct draw (no pixel manipulation for preview)
       try {
+        // Clear canvas first to ensure fresh drawing each frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw video frame to canvas
         ctx.drawImage(video, 0, 0);
       } catch (error) {
         console.warn('[FaceTracker] Error drawing video frame:', error);
@@ -1439,12 +1444,18 @@ export const FaceTracker: React.FC = () => {
       const shouldDrawOverlays = lastFacePositionRef.current && 
           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
       
-      // Debug: Log overlay drawing status occasionally
-      if (Math.random() < 0.01) {
+      // Debug: Log overlay drawing status more frequently to diagnose static box issue
+      if (Math.random() < 0.05) {
         console.log('[FaceTracker] Overlay status:', {
           hasFacePosition: !!lastFacePositionRef.current,
           timeSinceDetection: lastFacePositionRef.current ? (now - lastFacePositionRef.current.timestamp) : null,
-          shouldDraw: shouldDrawOverlays
+          shouldDraw: shouldDrawOverlays,
+          facePosition: lastFacePositionRef.current ? {
+            x: lastFacePositionRef.current.x,
+            y: lastFacePositionRef.current.y,
+            width: lastFacePositionRef.current.width,
+            height: lastFacePositionRef.current.height
+          } : null
         });
       }
       
@@ -1725,10 +1736,37 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     } catch (error: any) {
-      console.error('[FaceTracker] Error in renderPreview:', error);
-      // Continue loop if still running, but log error
+      // Catch any unhandled errors and log them - prevent page crash
+      console.error('[FaceTracker] Preview render error:', error);
+      console.error('[FaceTracker] Render error details:', {
+        errorType: error?.constructor?.name,
+        errorMessage: error?.message,
+        videoReady: videoRef.current?.readyState,
+        canvasReady: !!canvasRef.current
+      });
+      
+      // Set error state but don't crash the page
+      try {
+        setState(prev => ({ 
+          ...prev, 
+          error: `Render error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        }));
+      } catch (stateError) {
+        // Even state updates can fail, so catch that too
+        console.error('[FaceTracker] Failed to update error state:', stateError);
+      }
+      
+      // Continue loop even if render fails - add delay to prevent rapid error loops
       if (state.isRunning) {
-        previewFrameRef.current = requestAnimationFrame(renderPreview);
+        setTimeout(() => {
+          if (state.isRunning && previewFrameRef.current === undefined) {
+            try {
+              previewFrameRef.current = requestAnimationFrame(renderPreview);
+            } catch (rafError) {
+              console.error('[FaceTracker] Failed to restart render loop:', rafError);
+            }
+          }
+        }, 1000); // Wait 1 second before retrying
       } else {
         previewFrameRef.current = undefined;
       }
@@ -1901,7 +1939,14 @@ export const FaceTracker: React.FC = () => {
             // Log detection attempt for debugging
             const detectedFaces = faces.size();
             if (detectedFaces > 0) {
-              console.log('[FaceTracker] ✅ Detection successful! Faces found:', detectedFaces);
+              const face = faces.get(0);
+              console.log('[FaceTracker] ✅ Detection successful! Faces found:', detectedFaces, {
+                x: face.x,
+                y: face.y,
+                width: face.width,
+                height: face.height,
+                timestamp: Date.now()
+              });
             } else if (Math.random() < 0.1) {
               console.log('[FaceTracker] 🔍 Detection attempt completed, no faces found');
             }
@@ -1966,6 +2011,8 @@ export const FaceTracker: React.FC = () => {
               const faceW = face.width * scaleX;
               const faceH = face.height * scaleY;
               
+              // Always update face position - don't check for changes, just update
+              // This ensures the box moves with the face
               lastFacePositionRef.current = {
                 x: faceX,
                 y: faceY,
@@ -1975,6 +2022,18 @@ export const FaceTracker: React.FC = () => {
                 centerY: faceCenterY,
                 timestamp: Date.now()
               };
+              
+              // Log position update for debugging static box issue
+              if (Math.random() < 0.2) {
+                console.log('[FaceTracker] 📍 Face position updated:', {
+                  x: faceX.toFixed(1),
+                  y: faceY.toFixed(1),
+                  width: faceW.toFixed(1),
+                  height: faceH.toFixed(1),
+                  centerX: faceCenterX.toFixed(1),
+                  centerY: faceCenterY.toFixed(1)
+                });
+              }
 
               // Calculate X/Y position values (0-255) for fixture following
               const xPositionValue = Math.round(
@@ -2828,17 +2887,36 @@ export const FaceTracker: React.FC = () => {
           detectionFrameRef.current = undefined;
         }
         } catch (error) {
-          // Catch any unhandled errors and log them
+          // Catch any unhandled errors and log them - prevent page crash
           console.error('[FaceTracker] Frame processing error:', error);
           console.error('[FaceTracker] Error details:', {
             errorType: error?.constructor?.name,
             errorMessage: error?.message,
             stack: error?.stack
           });
-          // Only continue loop if still running
+          
+          // Set error state but don't crash the page
+          try {
+            setState(prev => ({ 
+              ...prev, 
+              error: `Detection error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+            }));
+          } catch (stateError) {
+            // Even state updates can fail, so catch that too
+            console.error('[FaceTracker] Failed to update error state:', stateError);
+          }
+          
+          // Only continue loop if still running - add delay to prevent rapid error loops
           if (state.isRunning) {
-            // Continue immediately - requestAnimationFrame will throttle naturally
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
+            setTimeout(() => {
+              if (state.isRunning && detectionFrameRef.current === undefined) {
+                try {
+                  detectionFrameRef.current = requestAnimationFrame(processDetection);
+                } catch (rafError) {
+                  console.error('[FaceTracker] Failed to restart detection loop:', rafError);
+                }
+              }
+            }, 1000); // Wait 1 second before retrying
           } else {
             detectionFrameRef.current = undefined;
           }
@@ -3343,7 +3421,15 @@ export const FaceTracker: React.FC = () => {
       </div>
 
       {state.error && (
-        <div className={styles.error}>{state.error}</div>
+        <div className={styles.error}>
+          {state.error}
+          <button 
+            onClick={() => setState(prev => ({ ...prev, error: null }))}
+            style={{ marginLeft: '1rem', padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+          >
+            Dismiss
+          </button>
+        </div>
       )}
 
       <div className={styles.mainContainer}>
@@ -3652,17 +3738,27 @@ export const FaceTracker: React.FC = () => {
                   const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
                   
                   return (
-                    <Fixture3DModel
-                      panValue={state.currentPan}
-                      tiltValue={state.currentTilt}
-                      zoomValue={state.currentZoom}
-                      irisValue={state.currentIris}
-                      shutterValue={shutterValue}
-                      goboValue={goboValue}
-                      rgbColor={rgbColor}
-                      width={400}
-                      height={400}
-                    />
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      width: '100%', 
+                      height: '100%', 
+                      minHeight: '300px',
+                      flex: 1
+                    }}>
+                      <Fixture3DModel
+                        panValue={state.currentPan}
+                        tiltValue={state.currentTilt}
+                        zoomValue={state.currentZoom}
+                        irisValue={state.currentIris}
+                        shutterValue={shutterValue}
+                        goboValue={goboValue}
+                        rgbColor={rgbColor}
+                        width={400}
+                        height={400}
+                      />
+                    </div>
                   );
                 })() : (
                   <div className={styles.placeholderContent}>
@@ -3730,17 +3826,26 @@ export const FaceTracker: React.FC = () => {
                   const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
                   
                   return (
-                    <Fixture3DModel
-                      panValue={state.currentPan}
-                      tiltValue={state.currentTilt}
-                      zoomValue={state.currentZoom}
-                      irisValue={state.currentIris}
-                      shutterValue={shutterValue}
-                      goboValue={goboValue}
-                      rgbColor={rgbColor}
-                      width={500}
-                      height={500}
-                    />
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      width: '100%', 
+                      height: '100%', 
+                      minHeight: '400px'
+                    }}>
+                      <Fixture3DModel
+                        panValue={state.currentPan}
+                        tiltValue={state.currentTilt}
+                        zoomValue={state.currentZoom}
+                        irisValue={state.currentIris}
+                        shutterValue={shutterValue}
+                        goboValue={goboValue}
+                        rgbColor={rgbColor}
+                        width={500}
+                        height={500}
+                      />
+                    </div>
                   );
                 })()}
                   </div>
