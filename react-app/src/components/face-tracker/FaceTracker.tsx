@@ -1442,24 +1442,28 @@ export const FaceTracker: React.FC = () => {
       const faceTimeout = 2000; // Keep showing face for 2 seconds after last detection (increased for better visibility)
       
       // Always draw overlays when face is detected (toggles removed - always enabled)
+      // CRITICAL: Always check and draw if face position exists and is recent
       const shouldDrawOverlays = lastFacePositionRef.current && 
           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
       
-      // Debug: Log overlay drawing status more frequently to diagnose static box issue
-      if (Math.random() < 0.05) {
+      // Debug: Log overlay drawing status to diagnose static box issue
+      if (Math.random() < 0.1) {
         console.log('[FaceTracker] Overlay status:', {
           hasFacePosition: !!lastFacePositionRef.current,
           timeSinceDetection: lastFacePositionRef.current ? (now - lastFacePositionRef.current.timestamp) : null,
           shouldDraw: shouldDrawOverlays,
+          isRunning: state.isRunning,
           facePosition: lastFacePositionRef.current ? {
             x: lastFacePositionRef.current.x,
             y: lastFacePositionRef.current.y,
             width: lastFacePositionRef.current.width,
-            height: lastFacePositionRef.current.height
+            height: lastFacePositionRef.current.height,
+            timestamp: lastFacePositionRef.current.timestamp
           } : null
         });
       }
       
+      // CRITICAL: Always try to draw overlays if we have face data - don't skip frames
       if (shouldDrawOverlays) {
         try {
           const face = lastFacePositionRef.current;
@@ -1772,8 +1776,19 @@ export const FaceTracker: React.FC = () => {
       }
 
       // Continue preview loop only if still running
+      // CRITICAL: Always schedule next frame to ensure overlay updates continuously
       if (state.isRunning) {
-        previewFrameRef.current = requestAnimationFrame(renderPreview);
+        try {
+          previewFrameRef.current = requestAnimationFrame(renderPreview);
+        } catch (error) {
+          console.error('[FaceTracker] Error scheduling preview frame:', error);
+          // Fallback: use setTimeout if requestAnimationFrame fails
+          setTimeout(() => {
+            if (state.isRunning) {
+              previewFrameRef.current = requestAnimationFrame(renderPreview);
+            }
+          }, 16); // ~60fps fallback
+        }
       } else {
         previewFrameRef.current = undefined;
       }
@@ -2019,9 +2034,10 @@ export const FaceTracker: React.FC = () => {
         // Log detection results for debugging - always log when face detected
         const facesCount = faces.size();
         if (facesCount > 0) {
-          console.log('[FaceTracker] ✅ Face detected! Count:', facesCount, 'at', new Date().toLocaleTimeString());
-        } else if (Math.random() < 0.1) {
-          console.log('[FaceTracker] ⚠️ No faces detected in frame');
+          // Log every detection to ensure loop is running
+          console.log('[FaceTracker] ✅ Face detected! Count:', facesCount, 'at', new Date().toLocaleTimeString(), 'Loop running:', !!detectionFrameRef.current);
+        } else if (Math.random() < 0.05) {
+          console.log('[FaceTracker] ⚠️ No faces detected in frame, loop running:', !!detectionFrameRef.current);
         }
 
         let faceDetected = false;
@@ -2068,15 +2084,16 @@ export const FaceTracker: React.FC = () => {
                 pitch: undefined
               };
               
-              // Log position update for debugging static box issue
-              if (Math.random() < 0.2) {
+              // Log position update for debugging static box issue - log more frequently
+              if (Math.random() < 0.3) {
                 console.log('[FaceTracker] 📍 Face position updated:', {
                   x: faceX.toFixed(1),
                   y: faceY.toFixed(1),
                   width: faceW.toFixed(1),
                   height: faceH.toFixed(1),
                   centerX: faceCenterX.toFixed(1),
-                  centerY: faceCenterY.toFixed(1)
+                  centerY: faceCenterY.toFixed(1),
+                  timestamp: Date.now()
                 });
               }
 
@@ -2947,8 +2964,20 @@ export const FaceTracker: React.FC = () => {
 
         // Continue detection loop only if still running
         // CRITICAL: Always schedule next frame immediately to prevent loop from stopping
+        // Use a small delay to prevent browser blocking, but ensure loop continues
         if (state.isRunning) {
-          detectionFrameRef.current = requestAnimationFrame(processDetection);
+          // Schedule immediately - don't use setTimeout as it can cause delays
+          try {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } catch (error) {
+            console.error('[FaceTracker] Error scheduling detection frame:', error);
+            // Fallback: use setTimeout if requestAnimationFrame fails
+            setTimeout(() => {
+              if (state.isRunning) {
+                detectionFrameRef.current = requestAnimationFrame(processDetection);
+              }
+            }, 16); // ~60fps fallback
+          }
         } else {
           detectionFrameRef.current = undefined;
         }
