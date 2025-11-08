@@ -748,6 +748,7 @@ export const FaceTracker: React.FC = () => {
   const detectionFrameRef = useRef<number | undefined>(undefined);
   const detectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previewFrameRef = useRef<number | undefined>(undefined);
+  const trackingStartedRef = useRef<boolean>(false);
   
   const [state, setState] = useState<FaceTrackerState>({
     isRunning: false,
@@ -1768,11 +1769,11 @@ export const FaceTracker: React.FC = () => {
           // Verify cascade is still valid before detection
           if (!cascadeRef.current) {
             // Cascade not available, cleanup and continue
-            if (src && !src.isDeleted()) src.delete();
-            if (gray && !gray.isDeleted()) gray.delete();
-            if (faces && !faces.isDeleted()) faces.delete();
-            if (msize && !msize.isDeleted()) msize.delete();
-            if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+            try { if (src) src.delete(); } catch (e) { /* Already deleted */ }
+            try { if (gray) gray.delete(); } catch (e) { /* Already deleted */ }
+            try { if (faces) faces.delete(); } catch (e) { /* Already deleted */ }
+            try { if (msize) msize.delete(); } catch (e) { /* Already deleted */ }
+            try { if (maxSizeObj) maxSizeObj.delete(); } catch (e) { /* Already deleted */ }
             if (state.isRunning) {
               detectionFrameRef.current = requestAnimationFrame(processDetection);
             }
@@ -1785,11 +1786,11 @@ export const FaceTracker: React.FC = () => {
           // Silent error handling to prevent Firefox crashes
           // Cleanup and continue
           try {
-            if (src && !src.isDeleted()) src.delete();
-            if (gray && !gray.isDeleted()) gray.delete();
-            if (faces && !faces.isDeleted()) faces.delete();
-            if (msize && !msize.isDeleted()) msize.delete();
-            if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+            try { if (src) src.delete(); } catch (e) { /* Already deleted */ }
+            try { if (gray) gray.delete(); } catch (e) { /* Already deleted */ }
+            try { if (faces) faces.delete(); } catch (e) { /* Already deleted */ }
+            try { if (msize) msize.delete(); } catch (e) { /* Already deleted */ }
+            try { if (maxSizeObj) maxSizeObj.delete(); } catch (e) { /* Already deleted */ }
           } catch (cleanupError) {
             // Silent cleanup error
           }
@@ -2666,14 +2667,25 @@ export const FaceTracker: React.FC = () => {
         // Text overlays are now drawn in the preview loop for better performance
 
         // Cleanup OpenCV objects - CRITICAL to prevent memory leaks
+        // Don't check isDeleted() - just try to delete and catch errors
         try {
-          if (src && !src.isDeleted()) src.delete();
-          if (gray && !gray.isDeleted()) gray.delete();
-          if (faces && !faces.isDeleted()) faces.delete();
-          if (msize && !msize.isDeleted()) msize.delete();
-          if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+          if (src) {
+            try { src.delete(); } catch (e) { /* Already deleted */ }
+          }
+          if (gray) {
+            try { gray.delete(); } catch (e) { /* Already deleted */ }
+          }
+          if (faces) {
+            try { faces.delete(); } catch (e) { /* Already deleted */ }
+          }
+          if (msize) {
+            try { msize.delete(); } catch (e) { /* Already deleted */ }
+          }
+          if (maxSizeObj) {
+            try { maxSizeObj.delete(); } catch (e) { /* Already deleted */ }
+          }
         } catch (cleanupError) {
-          console.error('[FaceTracker] Error during cleanup:', cleanupError);
+          // Silently ignore cleanup errors to prevent console spam
         }
 
         // Continue detection loop only if still running
@@ -2772,11 +2784,13 @@ export const FaceTracker: React.FC = () => {
       canvasReady: !!canvasRef.current
     });
     
-    if (state.isRunning && state.isInitialized) {
+    if (state.isRunning && state.isInitialized && !trackingStartedRef.current) {
       console.log('[FaceTracker] Starting tracking...');
+      trackingStartedRef.current = true;
       startTracking();
-    } else {
+    } else if (!state.isRunning) {
       console.log('[FaceTracker] Stopping tracking', { isRunning: state.isRunning, isInitialized: state.isInitialized });
+      trackingStartedRef.current = false;
       // Stop all loops when not running
       if (previewFrameRef.current) {
         cancelAnimationFrame(previewFrameRef.current);
