@@ -407,6 +407,54 @@
   gap: 1rem;
   min-height: 0;
   position: relative;
+  
+  // Hide preview when detached
+  &.detached {
+    .canvas {
+      display: none;
+    }
+  }
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px 4px 0 0;
+  border-bottom: none;
+}
+
+.previewTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.detachButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+  }
+  
+  i {
+    font-size: 0.8rem;
+  }
 }
 
 .video {
@@ -432,6 +480,96 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-secondary);
+}
+
+// Detached Preview Window
+.detachedPreview {
+  position: fixed;
+  z-index: 10000;
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  min-width: 400px;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: move;
+  
+  &:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
+  }
+}
+
+.detachedPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  cursor: move;
+  user-select: none;
+  
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.detachedPreviewTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &::before {
+    content: '📹';
+    font-size: 1rem;
+  }
+}
+
+.closeDetachedButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--error-color, #ff4444);
+    border-color: var(--error-color, #ff4444);
+    color: white;
+    transform: scale(1.1);
+  }
+}
+
+.detachedPreviewContent {
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.detachedCanvas {
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  background: #000;
+  display: block;
 }
 
 .previewControls {

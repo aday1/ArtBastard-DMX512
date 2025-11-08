@@ -261,7 +261,11 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   const toggleFullscreen = () => {
     const newFullscreenState = !isFullscreen;
     setIsFullscreen(newFullscreenState);
-    setShowDetails(true);
+    
+    // Automatically show details when entering fullscreen
+    if (newFullscreenState && !showDetails) {
+      setShowDetails(true);
+    }
     
     // Handle document body classes for fullscreen mode
     if (newFullscreenState) {
@@ -334,8 +338,11 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
           </button>
         </div>
-      </div>      {isFullscreen ? (
-        <>          <div className={styles.fullscreenHeader}>
+      </div>
+      
+      {isFullscreen ? (
+        <>
+          <div className={styles.fullscreenHeader}>
             <h2>DMX Channel {dmxAddress}</h2>
             <p>{displayName}</p>
             {fixtureInfo.fixtureName && (
@@ -367,6 +374,21 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
               data-slider-index={index}
             />
           </div>
+          
+          {/* Exit Fullscreen button - always visible in fullscreen */}
+          {allowFullscreen && (
+            <button 
+              className={styles.fullscreenButton} 
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              title="Exit Fullscreen (ESC)"
+            >
+              <i className="fas fa-compress"></i>
+              <span>Exit Fullscreen</span>
+            </button>
+          )}
         </>
       ) : (
         <>
@@ -595,35 +617,38 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
             <div className={styles.valuePercent}>
               {Math.round((value / 255) * 100)}%
             </div>
-          </div>            <div className={styles.detailButtons}>
+          </div>
+          
+          <div className={styles.detailButtons}>
             {!isFullscreen && (
-              <button 
-                className={styles.expandButton} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleExpanded();
-                }}
-                title={isExpanded ? "Minimize Channel" : "Maximize Channel"}
-              >
-                <i className={`fas fa-${isExpanded ? 'compress-arrows-alt' : 'expand-arrows-alt'}`}></i>
-                <span>{isExpanded ? "Minimize" : "Maximize"}</span>
-              </button>
+              <>
+                <button 
+                  className={styles.expandButton} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpanded();
+                  }}
+                  title={isExpanded ? "Minimize Channel" : "Maximize Channel"}
+                >
+                  <i className={`fas fa-${isExpanded ? 'compress-arrows-alt' : 'expand-arrows-alt'}`}></i>
+                  <span>{isExpanded ? "Minimize" : "Maximize"}</span>
+                </button>
+                
+                {allowFullscreen && (
+                  <button 
+                    className={styles.fullscreenButton} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
+                    title="Fullscreen Mode"
+                  >
+                    <i className="fas fa-expand"></i>
+                    <span>Fullscreen</span>
+                  </button>
+                )}
+              </>
             )}
-            
-            {allowFullscreen && (
-              <button 
-                className={styles.fullscreenButton} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFullscreen();
-                }}
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
-              >
-                <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-                <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
-              </button>
-            )}
-            
           </div>
         </div>
       )}

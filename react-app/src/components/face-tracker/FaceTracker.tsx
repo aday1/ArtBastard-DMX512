@@ -60,19 +60,20 @@ interface FaceTrackerSettings {
   oscPanAddress: string;
   oscTiltAddress: string;
   useOSC: boolean;
+  useArtBastardOSC: boolean; // Use ArtBastard's OSC server vs custom
   oscHost: string;
   oscPort: number;
 }
 
 const DEFAULT_SETTINGS: FaceTrackerSettings = {
   cameraIndex: 0,
-  updateRate: 30,
+  updateRate: 30, // Good default: smooth updates without excessive CPU
   panSensitivity: 1.0,
   tiltSensitivity: 1.0,
-  panOffset: 128,
-  tiltOffset: 128,
+  panOffset: 128, // Center position (good default)
+  tiltOffset: 128, // Center position (good default)
   smoothingFactor: 0.85,
-  maxVelocity: 5.0,
+  maxVelocity: 3.0, // Good default: prevents overshooting while allowing responsive movement
   brightness: 1.0,
   contrast: 1.0,
   cameraExposure: -1,
@@ -108,8 +109,9 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   oscPanAddress: '/face-tracker/pan',
   oscTiltAddress: '/face-tracker/tilt',
   useOSC: false,
+  useArtBastardOSC: true, // Default to using ArtBastard's OSC server
   oscHost: '127.0.0.1',
-  oscPort: 9000,
+  oscPort: 8000, // Default to ArtBastard's OSC incoming port
 };
 
 // Helper function to apply camera constraints with multiple fallback strategies
@@ -248,6 +250,8 @@ export const FaceTracker: React.FC = () => {
   const [showPreview, setShowPreview] = useState(true);
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isDetached, setIsDetached] = useState(false);
+  const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
 
   // OpenCV.js state
   const opencvRef = useRef<any>(null);
@@ -926,23 +930,43 @@ export const FaceTracker: React.FC = () => {
                   if (socket && socket.connected) {
                     (socket as any).emit('dmx:batch', dmxUpdates);
                     
-                    // Send OSC if enabled and addresses are configured
-                    if (settings.useOSC && oscAssignments) {
-                      // Use ArtBastard's OSC assignments for pan and tilt channels
-                      const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
-                      const tiltOscAddress = oscAssignments[settings.tiltChannel - 1] || settings.oscTiltAddress;
-                      
-                      if (panOscAddress) {
-                        (socket as any).emit('sendOsc', {
-                          address: panOscAddress,
-                          args: [{ type: 'f', value: panValue / 255.0 }]
-                        });
-                      }
-                      if (tiltOscAddress) {
-                        (socket as any).emit('sendOsc', {
-                          address: tiltOscAddress,
-                          args: [{ type: 'f', value: tiltValue / 255.0 }]
-                        });
+                    // Send OSC if enabled
+                    if (settings.useOSC) {
+                      if (settings.useArtBastardOSC && oscAssignments) {
+                        // Use ArtBastard's OSC server with configured assignments
+                        const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
+                        const tiltOscAddress = oscAssignments[settings.tiltChannel - 1] || settings.oscTiltAddress;
+                        
+                        if (panOscAddress) {
+                          (socket as any).emit('sendOsc', {
+                            address: panOscAddress,
+                            args: [{ type: 'f', value: panValue / 255.0 }]
+                          });
+                        }
+                        if (tiltOscAddress) {
+                          (socket as any).emit('sendOsc', {
+                            address: tiltOscAddress,
+                            args: [{ type: 'f', value: tiltValue / 255.0 }]
+                          });
+                        }
+                      } else {
+                        // Use custom OSC sending (via server with custom host/port)
+                        if (settings.oscPanAddress) {
+                          (socket as any).emit('sendOsc', {
+                            address: settings.oscPanAddress,
+                            args: [{ type: 'f', value: panValue / 255.0 }],
+                            host: settings.oscHost,
+                            port: settings.oscPort
+                          });
+                        }
+                        if (settings.oscTiltAddress) {
+                          (socket as any).emit('sendOsc', {
+                            address: settings.oscTiltAddress,
+                            args: [{ type: 'f', value: tiltValue / 255.0 }],
+                            host: settings.oscHost,
+                            port: settings.oscPort
+                          });
+                        }
                       }
                     }
                   } else {
@@ -1915,61 +1939,116 @@ export const FaceTracker: React.FC = () => {
                 <label className={styles.controlLabel} title="Update rate in Hz (1-60, higher = smoother but more CPU)">
                   Update Rate (Hz)
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="60"
-                  step="1"
-                  value={settings.updateRate}
-                  onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
-                  className={styles.numberInput}
-                  title="Update rate in Hz (1-60, higher = smoother but more CPU)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <input
+                    type="range"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={settings.updateRate}
+                    onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
+                    className={styles.slider}
+                    title="Update rate in Hz (1-60, higher = smoother but more CPU)"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={settings.updateRate}
+                    onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
+                    className={styles.numberInput}
+                    title="Update rate in Hz (1-60, higher = smoother but more CPU)"
+                  />
+                  <span className={styles.rangeLabel}>1-60</span>
+                </div>
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Center position offset for pan (0-255, 128 = center)">
                   Pan Offset
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.panOffset}
-                  onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
-                  className={styles.numberInput}
-                  title="Center position offset for pan (0-255, 128 = center)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panOffset}
+                    onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
+                    className={styles.slider}
+                    title="Center position offset for pan (0-255, 128 = center)"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panOffset}
+                    onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
+                    className={styles.numberInput}
+                    title="Center position offset for pan (0-255, 128 = center)"
+                  />
+                  <span className={styles.rangeLabel}>0-255</span>
+                </div>
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Center position offset for tilt (0-255, 128 = center)">
                   Tilt Offset
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.tiltOffset}
-                  onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
-                  className={styles.numberInput}
-                  title="Center position offset for tilt (0-255, 128 = center)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltOffset}
+                    onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
+                    className={styles.slider}
+                    title="Center position offset for tilt (0-255, 128 = center)"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltOffset}
+                    onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
+                    className={styles.numberInput}
+                    title="Center position offset for tilt (0-255, 128 = center)"
+                  />
+                  <span className={styles.rangeLabel}>0-255</span>
+                </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Maximum velocity change per update (prevents overshooting)">
+                <label className={styles.controlLabel} title="Maximum velocity change per update (0.1-10, prevents overshooting)">
                   Max Velocity
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.maxVelocity}
-                  onChange={(e) => updateSetting('maxVelocity', parseFloat(e.target.value) || 5)}
-                  className={styles.numberInput}
-                  title="Maximum velocity change per update (prevents overshooting)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.maxVelocity}
+                    onChange={(e) => updateSetting('maxVelocity', parseFloat(e.target.value) || 3.0)}
+                    className={styles.slider}
+                    title="Maximum velocity change per update (0.1-10, prevents overshooting)"
+                  />
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.maxVelocity.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('maxVelocity', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Maximum velocity change per update (0.1-10, prevents overshooting)"
+                  />
+                  <span className={styles.rangeLabel}>0.1-10</span>
+                </div>
               </div>
             </div>
 
@@ -1982,15 +2061,101 @@ export const FaceTracker: React.FC = () => {
                     type="checkbox"
                     checked={settings.useOSC}
                     onChange={(e) => updateSetting('useOSC', e.target.checked)}
-                    title="Enable OSC output. Messages will be sent via ArtBastard's OSC configuration and visible in the OSC Monitor."
+                    title="Enable OSC output. Messages will be sent via ArtBastard's OSC configuration or custom OSC settings."
                   />
                   Enable OSC Output
                 </label>
-                <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
-                  When enabled, OSC messages will be sent using ArtBastard's OSC send configuration. 
-                  Configure OSC send host/port in the main ArtBastard settings (MIDI/OSC Setup).
-                </p>
               </div>
+              {settings.useOSC && (
+                <>
+                  <div className={styles.controlGroup}>
+                    <label className={styles.controlLabel}>
+                      <input
+                        type="checkbox"
+                        checked={settings.useArtBastardOSC}
+                        onChange={(e) => updateSetting('useArtBastardOSC', e.target.checked)}
+                        title="Use ArtBastard's OSC server configuration (default) or custom OSC settings"
+                      />
+                      Use ArtBastard OSC Server (default)
+                    </label>
+                    <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+                      When enabled, OSC messages will be sent using ArtBastard's OSC send configuration and visible in the OSC Monitor.
+                      Configure OSC send host/port in the main ArtBastard settings (MIDI/OSC Setup).
+                    </p>
+                  </div>
+                  {!settings.useArtBastardOSC && (
+                    <>
+                      <div className={styles.controlGroup}>
+                        <label className={styles.controlLabel} title="Custom OSC server host (defaults to ArtBastard's incoming port: 8000)">
+                          OSC Host
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.oscHost}
+                          onChange={(e) => updateSetting('oscHost', e.target.value)}
+                          className={styles.textInput}
+                          placeholder="127.0.0.1"
+                          title="Custom OSC server host (defaults to ArtBastard's incoming port: 8000)"
+                        />
+                      </div>
+                      <div className={styles.controlGroup}>
+                        <label className={styles.controlLabel} title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)">
+                          OSC Port
+                        </label>
+                        <div className={styles.sliderWrapper}>
+                          <input
+                            type="range"
+                            min="1024"
+                            max="65535"
+                            step="1"
+                            value={settings.oscPort}
+                            onChange={(e) => updateSetting('oscPort', parseInt(e.target.value) || 8000)}
+                            className={styles.slider}
+                            title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)"
+                          />
+                          <input
+                            type="number"
+                            min="1024"
+                            max="65535"
+                            step="1"
+                            value={settings.oscPort}
+                            onChange={(e) => updateSetting('oscPort', parseInt(e.target.value) || 8000)}
+                            className={styles.numberInput}
+                            title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)"
+                          />
+                          <span className={styles.rangeLabel}>1024-65535</span>
+                        </div>
+                      </div>
+                      <div className={styles.controlGroup}>
+                        <label className={styles.controlLabel} title="OSC address path for pan values">
+                          OSC Pan Address
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.oscPanAddress}
+                          onChange={(e) => updateSetting('oscPanAddress', e.target.value)}
+                          className={styles.textInput}
+                          placeholder="/face-tracker/pan"
+                          title="OSC address path for pan values"
+                        />
+                      </div>
+                      <div className={styles.controlGroup}>
+                        <label className={styles.controlLabel} title="OSC address path for tilt values">
+                          OSC Tilt Address
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.oscTiltAddress}
+                          onChange={(e) => updateSetting('oscTiltAddress', e.target.value)}
+                          className={styles.textInput}
+                          placeholder="/face-tracker/tilt"
+                          title="OSC address path for tilt values"
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
 
             {/* OSC Endpoints */}
