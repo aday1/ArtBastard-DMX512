@@ -862,13 +862,13 @@ if ($needsRootInstall -or $needsFrontendInstall -or $Clear) {
     try {
         # Always prefer offline mode for faster startup
         Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
-        npm install --prefer-offline --no-optional --no-audit --no-fund
+        npm install --prefer-offline --no-optional --no-audit --no-fund --legacy-peer-deps
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
+            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache --legacy-peer-deps
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
-                npm install --no-cache --prefer-offline=false
+                npm install --no-cache --prefer-offline=false --legacy-peer-deps
                 if ($LASTEXITCODE -ne 0) {
                     throw "All npm install attempts failed with exit code $LASTEXITCODE"
                 }
@@ -896,13 +896,13 @@ if ($needsFrontendInstall -or $Clear) {
         Push-Location react-app
         # Always prefer offline mode for faster startup
         Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
-        npm install --prefer-offline --no-optional --no-audit --no-fund
+        npm install --prefer-offline --no-optional --no-audit --no-fund --legacy-peer-deps
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
+            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache --legacy-peer-deps
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
-                npm install --no-cache --prefer-offline=false
+                npm install --no-cache --prefer-offline=false --legacy-peer-deps
                 if ($LASTEXITCODE -ne 0) {
                     throw "All npm install attempts failed with exit code $LASTEXITCODE"
                 }
