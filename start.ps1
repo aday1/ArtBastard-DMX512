@@ -1,6 +1,7 @@
 param(
     [switch]$Clear,
     [switch]$Quick,
+    [switch]$ClearForce,
     [switch]$Help
 )
 
@@ -12,6 +13,7 @@ if ($Help) {
     Write-Host "  .\start.ps1           # EXQUISITE rapid deployment (recommended)" -ForegroundColor Green
     Write-Host "  .\start.ps1 -Quick    # Quick start (clears cache, reinstalls, builds, starts)" -ForegroundColor Cyan
     Write-Host "  .\start.ps1 -Clear   # Immaculate reconstruction (purges all artifacts)" -ForegroundColor Red
+    Write-Host "  .\start.ps1 -ClearForce # FORCE full rebuild and cache clear (nuclear option)" -ForegroundColor Magenta
     Write-Host "  .\start.ps1 -Help    # Display this refined documentation" -ForegroundColor White
     Write-Host ""
     Write-Host "Operational Modes:" -ForegroundColor Yellow
@@ -34,7 +36,10 @@ if ($Help) {
 
 Write-Host "ArtBastard DMX512 - Sophisticated Launch Orchestrator" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
-if ($Clear) {
+if ($ClearForce) {
+    Write-Host "FORCE REBUILD MODE: Nuclear option - complete cache clear and rebuild" -ForegroundColor Magenta
+    Write-Host "Eliminating ALL cached artifacts, node_modules, and forcing full rebuild" -ForegroundColor Magenta
+} elseif ($Clear) {
     Write-Host "IMMACULATE RECONSTRUCTION MODE: Architectural purity restoration" -ForegroundColor Red
     Write-Host "Eliminating all cached artifacts and dependencies for pristine foundation" -ForegroundColor Red
 } elseif ($Quick) {
@@ -323,6 +328,129 @@ if ($Quick) {
     
     Write-Host ""
     Write-Host "ArtBastard DMX512 quick start session concluded." -ForegroundColor Cyan
+    exit 0
+}
+
+# FORCE REBUILD PATH: Nuclear option - complete cache clear and rebuild
+if ($ClearForce) {
+    Write-Host "💥 FORCE REBUILD MODE: Complete cache clear and rebuild" -ForegroundColor Magenta
+    Write-Host "Eliminating ALL cached artifacts, node_modules, and forcing full rebuild..." -ForegroundColor Magenta
+    Write-Host ""
+    
+    # Kill all processes
+    try {
+        Write-Host "Terminating all Node.js processes..." -ForegroundColor Cyan
+        $nodeProcs = Get-Process -Name "node" -ErrorAction SilentlyContinue
+        if ($nodeProcs) {
+            $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+        $artProcs = Get-Process -Name "ArtBastard*" -ErrorAction SilentlyContinue
+        if ($artProcs) {
+            $artProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        # Continue anyway
+    }
+    
+    Write-Host ""
+    Write-Host "🧹 FORCE CLEARING ALL CACHES..." -ForegroundColor Magenta
+    
+    # Clear Vite cache
+    Write-Host "  Clearing Vite cache..." -ForegroundColor Cyan
+    if (Test-Path "react-app/.vite") {
+        Remove-Item -Recurse -Force "react-app/.vite" -ErrorAction SilentlyContinue
+    }
+    
+    # Clear npm cache
+    Write-Host "  Clearing npm cache..." -ForegroundColor Cyan
+    npm cache clean --force 2>$null
+    npm cache verify 2>$null
+    
+    # Remove node_modules
+    Write-Host "  Removing node_modules..." -ForegroundColor Cyan
+    if (Test-Path "node_modules") {
+        Remove-Item -Recurse -Force "node_modules" -ErrorAction SilentlyContinue
+    }
+    if (Test-Path "react-app/node_modules") {
+        Remove-Item -Recurse -Force "react-app/node_modules" -ErrorAction SilentlyContinue
+    }
+    
+    # Remove build artifacts
+    Write-Host "  Removing build artifacts..." -ForegroundColor Cyan
+    if (Test-Path "dist") {
+        Remove-Item -Recurse -Force "dist" -ErrorAction SilentlyContinue
+    }
+    if (Test-Path "react-app/dist") {
+        Remove-Item -Recurse -Force "react-app/dist" -ErrorAction SilentlyContinue
+    }
+    
+    Write-Host "Cache and artifacts cleared!" -ForegroundColor Green
+    Write-Host ""
+    
+    # Reinstall dependencies
+    Write-Host "📦 Reinstalling all dependencies..." -ForegroundColor Cyan
+    Write-Host "  Installing root dependencies..." -ForegroundColor Cyan
+    npm install --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Root dependency installation failed!" -ForegroundColor Red
+        exit 1
+    }
+    
+    Write-Host "  Installing frontend dependencies..." -ForegroundColor Cyan
+    Push-Location react-app
+    npm install --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Frontend dependency installation failed!" -ForegroundColor Red
+        Pop-Location
+        exit 1
+    }
+    Pop-Location
+    
+    Write-Host "Dependencies installed!" -ForegroundColor Green
+    Write-Host ""
+    
+    # Force rebuild
+    Write-Host "🔨 FORCE REBUILDING..." -ForegroundColor Cyan
+    Write-Host "  Building backend..." -ForegroundColor Cyan
+    npm run build-backend
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Backend build failed!" -ForegroundColor Red
+        exit 1
+    }
+    
+    Write-Host "  Building frontend..." -ForegroundColor Cyan
+    Push-Location react-app
+    npm run build:vite
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Frontend build failed!" -ForegroundColor Red
+        Pop-Location
+        exit 1
+    }
+    Pop-Location
+    
+    Write-Host "Build completed!" -ForegroundColor Green
+    Write-Host ""
+    
+    # Launch browser when server is ready
+    Write-Host "🌐 Browser will launch automatically when server is ready..." -ForegroundColor Cyan
+    $browserJob = Start-BrowserWhenReady
+    
+    # Start server
+    try {
+        npm start
+    } catch {
+        Write-Host "Server deployment encountered complications!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    } finally {
+        Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue
+    }
+    
+    # Update ETA metrics
+    $totalTime = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
+    Update-ETAMetrics $totalTime
+    
+    Write-Host ""
+    Write-Host "ArtBastard DMX512 force rebuild session concluded." -ForegroundColor Cyan
     exit 0
 }
 

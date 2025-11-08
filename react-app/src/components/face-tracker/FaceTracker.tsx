@@ -45,6 +45,8 @@ interface FaceTrackerSettings {
   irisChannel: number;
   zoomChannel: number;
   focusChannel: number;
+  shutterChannel: number; // DMX channel for shutter control (0 = disabled)
+  goboChannel: number; // DMX channel for gobo selection (0 = disabled)
   panMin: number;
   panMax: number;
   tiltMin: number;
@@ -126,6 +128,8 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   irisChannel: 0,
   zoomChannel: 0,
   focusChannel: 0,
+  shutterChannel: 0, // Disabled by default
+  goboChannel: 0, // Disabled by default
   panMin: 0,
   panMax: 255,
   tiltMin: 0,
@@ -760,6 +764,18 @@ export const FaceTracker: React.FC = () => {
     error: null,
   });
 
+  // Diagnostic state
+  const [diagnostics, setDiagnostics] = useState({
+    opencvStatus: 'loading' as 'loading' | 'ready' | 'error',
+    opencvError: null as string | null,
+    cameraStatus: 'stopped' as 'stopped' | 'starting' | 'running' | 'error',
+    cameraError: null as string | null,
+    cascadeStatus: 'loading' as 'loading' | 'ready' | 'error',
+    videoReady: false,
+    canvasReady: false,
+    lastDetectionTime: null as number | null,
+  });
+
   // Load settings from localStorage on mount
   const loadSettings = (): FaceTrackerSettings => {
     try {
@@ -1020,14 +1036,28 @@ export const FaceTracker: React.FC = () => {
       
       console.log('[FaceTracker] OpenCV initialized successfully, cascade classifier loaded');
       setState(prev => ({ ...prev, isInitialized: true, error: null }));
+      setDiagnostics(prev => ({ 
+        ...prev, 
+        opencvStatus: 'ready', 
+        cascadeStatus: 'ready',
+        opencvError: null 
+      }));
     } catch (error: any) {
       console.error('[FaceTracker] OpenCV initialization error:', error);
-      setState(prev => ({ ...prev, error: `Failed to initialize OpenCV: ${error?.message || error}` }));
+      const errorMsg = `Failed to initialize OpenCV: ${error?.message || error}`;
+      setState(prev => ({ ...prev, error: errorMsg }));
+      setDiagnostics(prev => ({ 
+        ...prev, 
+        opencvStatus: 'error', 
+        cascadeStatus: 'error',
+        opencvError: errorMsg 
+      }));
     }
   };
 
   // Start/stop camera
   const startCamera = useCallback(async () => {
+    setDiagnostics(prev => ({ ...prev, cameraStatus: 'starting', cameraError: null }));
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -1122,48 +1152,76 @@ export const FaceTracker: React.FC = () => {
       fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
       
       setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0 }));
+      setDiagnostics(prev => ({ 
+        ...prev, 
+        cameraStatus: 'running', 
+        cameraError: null,
+        videoReady: !!videoRef.current && videoRef.current.readyState >= 2
+      }));
       startTracking();
-    } catch (error) {
-      setState(prev => ({ ...prev, error: `Failed to start camera: ${error}`, isRunning: false }));
+    } catch (error: any) {
+      const errorMsg = `Failed to start camera: ${error?.message || error}`;
+      setState(prev => ({ ...prev, error: errorMsg, isRunning: false }));
+      setDiagnostics(prev => ({ ...prev, cameraStatus: 'error', cameraError: errorMsg }));
     }
   }, [settings.cameraIndex, settings.autoExposure, settings.cameraExposure, settings.cameraBrightness]);
 
   const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-      videoRef.current.pause();
-    }
-    if (canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch (e) {
+            console.warn('[FaceTracker] Error stopping track:', e);
+          }
+        });
+        streamRef.current = null;
       }
-      // Reset canvas dimensions
-      canvasDimensionsRef.current = { width: 0, height: 0 };
+      if (videoRef.current) {
+        try {
+          videoRef.current.srcObject = null;
+          videoRef.current.pause();
+        } catch (e) {
+          console.warn('[FaceTracker] Error stopping video:', e);
+        }
+      }
+      if (canvasRef.current) {
+        try {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+          // Reset canvas dimensions
+          canvasDimensionsRef.current = { width: 0, height: 0 };
+        } catch (e) {
+          console.warn('[FaceTracker] Error clearing canvas:', e);
+        }
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
+      }
+      // Clear detection frame
+      if (detectionFrameRef.current) {
+        cancelAnimationFrame(detectionFrameRef.current);
+        detectionFrameRef.current = undefined;
+      }
+      // Clear detection timeout
+      if (detectionTimeoutRef.current) {
+        clearTimeout(detectionTimeoutRef.current);
+        detectionTimeoutRef.current = undefined;
+      }
+      if (previewFrameRef.current) {
+        cancelAnimationFrame(previewFrameRef.current);
+        previewFrameRef.current = undefined;
+      }
+      setState(prev => ({ ...prev, isRunning: false, faceDetected: false, fps: 0 }));
+      setDiagnostics(prev => ({ ...prev, cameraStatus: 'stopped', videoReady: false }));
+    } catch (error: any) {
+      console.error('[FaceTracker] Error in stopCamera:', error);
+      setDiagnostics(prev => ({ ...prev, cameraStatus: 'error', cameraError: error?.message || 'Unknown error' }));
     }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = undefined;
-    }
-    // Clear detection frame
-    if (detectionFrameRef.current) {
-      cancelAnimationFrame(detectionFrameRef.current);
-      detectionFrameRef.current = undefined;
-    }
-    // Clear detection timeout
-    if (detectionTimeoutRef.current) {
-      clearTimeout(detectionTimeoutRef.current);
-      detectionTimeoutRef.current = undefined;
-    }
-    if (previewFrameRef.current) {
-      cancelAnimationFrame(previewFrameRef.current);
-      previewFrameRef.current = undefined;
-    }
-    setState(prev => ({ ...prev, isRunning: false, faceDetected: false, fps: 0 }));
   }, []);
 
   // Fast preview rendering (separate from face detection)
@@ -1174,8 +1232,14 @@ export const FaceTracker: React.FC = () => {
       return;
     }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      // Update diagnostic: video ready state
+      if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+        setDiagnostics(prev => ({ ...prev, videoReady: true }));
+      }
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
     
     if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
@@ -1492,29 +1556,23 @@ export const FaceTracker: React.FC = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
-        if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          // Exit if not running
-          if (!state.isRunning) {
+        if (!ctx) {
+          console.warn('[FaceTracker] Canvas context not available, retrying...');
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } else {
             detectionFrameRef.current = undefined;
-            if (detectionTimeoutRef.current) {
-              clearTimeout(detectionTimeoutRef.current);
-              detectionTimeoutRef.current = undefined;
-            }
-            return;
           }
-          // Clear any existing timeout
-          if (detectionTimeoutRef.current) {
-            clearTimeout(detectionTimeoutRef.current);
+          return;
+        }
+        
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+          // Video not ready yet, continue loop to check again
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } else {
+            detectionFrameRef.current = undefined;
           }
-          // Use a delay before retrying to prevent tight loop
-          detectionTimeoutRef.current = setTimeout(() => {
-            detectionTimeoutRef.current = undefined;
-            if (state.isRunning && video.readyState === video.HAVE_ENOUGH_DATA) {
-              detectionFrameRef.current = requestAnimationFrame(processDetection);
-            } else {
-              detectionFrameRef.current = undefined;
-            }
-          }, 200); // Wait 200ms before checking again
           return;
         }
 
@@ -1522,13 +1580,9 @@ export const FaceTracker: React.FC = () => {
         const now = Date.now();
         const detectionInterval = 1000 / 15; // 15 FPS for detection
         if (now - lastDetectionTimeRef.current < detectionInterval) {
-          // Only continue loop if still running - use setTimeout to prevent blocking
+          // Continue loop immediately - requestAnimationFrame will naturally throttle
           if (state.isRunning) {
-            setTimeout(() => {
-              if (state.isRunning && detectionFrameRef.current === undefined) {
-                detectionFrameRef.current = requestAnimationFrame(processDetection);
-              }
-            }, detectionInterval - (now - lastDetectionTimeRef.current));
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
           } else {
             detectionFrameRef.current = undefined;
           }
@@ -2520,12 +2574,8 @@ export const FaceTracker: React.FC = () => {
           });
           // Only continue loop if still running
           if (state.isRunning) {
-            // Add a small delay before retrying to prevent tight error loop
-            setTimeout(() => {
-              if (state.isRunning && detectionFrameRef.current === undefined) {
-                detectionFrameRef.current = requestAnimationFrame(processDetection);
-              }
-            }, 100);
+            // Continue immediately - requestAnimationFrame will throttle naturally
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
           } else {
             detectionFrameRef.current = undefined;
           }
@@ -2534,8 +2584,23 @@ export const FaceTracker: React.FC = () => {
 
     // Start the detection loop
     console.log('[FaceTracker] Starting processDetection loop');
-    processDetection();
-  }, [state.isRunning, settings, showPreview, socket, state.currentPan, state.currentTilt]);
+    // Only start if running and initialized - don't recreate if already running
+    if (state.isRunning && opencvRef.current && cascadeRef.current && !detectionFrameRef.current) {
+      processDetection();
+    }
+    
+    // Cleanup function to stop loop when dependencies change
+    return () => {
+      if (detectionFrameRef.current) {
+        cancelAnimationFrame(detectionFrameRef.current);
+        detectionFrameRef.current = undefined;
+      }
+      if (detectionTimeoutRef.current) {
+        clearTimeout(detectionTimeoutRef.current);
+        detectionTimeoutRef.current = undefined;
+      }
+    };
+  }, [state.isRunning, settings, showPreview, socket]);
 
   // Start both preview and detection loops
   const startTracking = useCallback(() => {
@@ -3120,10 +3185,19 @@ export const FaceTracker: React.FC = () => {
               }
             }
             
+            // Get shutter and gobo values from DMX channels
+            const dmxChannels = useStore.getState().dmxChannels;
+            const shutterValue = settings.shutterChannel > 0 ? (dmxChannels[settings.shutterChannel - 1] || 255) : 255;
+            const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
+            
             return (
               <Fixture3DModel
                 panValue={state.currentPan}
                 tiltValue={state.currentTilt}
+                zoomValue={state.currentZoom}
+                irisValue={state.currentIris}
+                shutterValue={shutterValue}
+                goboValue={goboValue}
                 rgbColor={rgbColor}
                 width={400}
                 height={400}
@@ -3183,10 +3257,19 @@ export const FaceTracker: React.FC = () => {
                     }
                   }
                   
+                  // Get shutter and gobo values from DMX channels
+                  const dmxChannels = useStore.getState().dmxChannels;
+                  const shutterValue = settings.shutterChannel > 0 ? (dmxChannels[settings.shutterChannel - 1] || 255) : 255;
+                  const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
+                  
                   return (
                     <Fixture3DModel
                       panValue={state.currentPan}
                       tiltValue={state.currentTilt}
+                      zoomValue={state.currentZoom}
+                      irisValue={state.currentIris}
+                      shutterValue={shutterValue}
+                      goboValue={goboValue}
                       rgbColor={rgbColor}
                       width={500}
                       height={500}
@@ -4654,17 +4737,17 @@ export const FaceTracker: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Pan/Tilt Control Indicators */}
+        {/* Live Control Output - Show all tracked values */}
         <div className={styles.liveControlSection}>
           <h4 className={styles.controlsTitle}>Live Control Output</h4>
           <p className={styles.helpText} style={{ marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
             Real-time preview of all tracked values being sent to DMX channels
           </p>
           
-          {/* Pan Control */}
+          {/* Pan Control - Always visible */}
           <div className={styles.controlGroup}>
             <label className={styles.controlLabel} title="Current pan value being sent to DMX (0-255)">
-              Pan: {state.currentPan}
+              Pan: {state.currentPan} {settings.panChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.panChannel})</span>}
             </label>
             <div className={styles.sliderWrapper}>
               <span className={styles.rangeLabel}>0</span>
@@ -4694,10 +4777,10 @@ export const FaceTracker: React.FC = () => {
             </div>
           </div>
           
-          {/* Tilt Control */}
+          {/* Tilt Control - Always visible */}
           <div className={styles.controlGroup}>
             <label className={styles.controlLabel} title="Current tilt value being sent to DMX (0-255)">
-              Tilt: {state.currentTilt}
+              Tilt: {state.currentTilt} {settings.tiltChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.tiltChannel})</span>}
             </label>
             <div className={styles.sliderWrapper}>
               <span className={styles.rangeLabel}>0</span>
@@ -4727,215 +4810,203 @@ export const FaceTracker: React.FC = () => {
             </div>
           </div>
           
-          {/* X Position Control */}
-          {settings.xPositionChannel > 0 && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current X position value being sent to DMX (0-255)">
-                X Position: {state.currentX}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>{settings.xPositionMin}</span>
-                <input
-                  type="range"
-                  min={settings.xPositionMin}
-                  max={settings.xPositionMax}
-                  step="1"
-                  value={state.currentX}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current X position value being sent to DMX"
-                />
-                <span className={styles.rangeLabel}>{settings.xPositionMax}</span>
-                <input
-                  type="number"
-                  min={settings.xPositionMin}
-                  max={settings.xPositionMax}
-                  step="1"
-                  value={state.currentX}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current X position value being sent to DMX"
-                />
-              </div>
+          {/* X Position Control - Always visible if tracking */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current X position value being sent to DMX (0-255)">
+              X Position: {state.currentX} {settings.xPositionChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.xPositionChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>{settings.xPositionMin}</span>
+              <input
+                type="range"
+                min={settings.xPositionMin}
+                max={settings.xPositionMax}
+                step="1"
+                value={state.currentX}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current X position value being sent to DMX"
+              />
+              <span className={styles.rangeLabel}>{settings.xPositionMax}</span>
+              <input
+                type="number"
+                min={settings.xPositionMin}
+                max={settings.xPositionMax}
+                step="1"
+                value={state.currentX}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current X position value being sent to DMX"
+              />
             </div>
-          )}
+          </div>
           
-          {/* Y Position Control */}
-          {settings.yPositionChannel > 0 && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current Y position value being sent to DMX (0-255)">
-                Y Position: {state.currentY}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>{settings.yPositionMin}</span>
-                <input
-                  type="range"
-                  min={settings.yPositionMin}
-                  max={settings.yPositionMax}
-                  step="1"
-                  value={state.currentY}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current Y position value being sent to DMX"
-                />
-                <span className={styles.rangeLabel}>{settings.yPositionMax}</span>
-                <input
-                  type="number"
-                  min={settings.yPositionMin}
-                  max={settings.yPositionMax}
-                  step="1"
-                  value={state.currentY}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current Y position value being sent to DMX"
-                />
-              </div>
+          {/* Y Position Control - Always visible if tracking */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current Y position value being sent to DMX (0-255)">
+              Y Position: {state.currentY} {settings.yPositionChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.yPositionChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>{settings.yPositionMin}</span>
+              <input
+                type="range"
+                min={settings.yPositionMin}
+                max={settings.yPositionMax}
+                step="1"
+                value={state.currentY}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current Y position value being sent to DMX"
+              />
+              <span className={styles.rangeLabel}>{settings.yPositionMax}</span>
+              <input
+                type="number"
+                min={settings.yPositionMin}
+                max={settings.yPositionMax}
+                step="1"
+                value={state.currentY}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current Y position value being sent to DMX"
+              />
             </div>
-          )}
+          </div>
           
-          {/* Iris Control (Blink Detection) */}
-          {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current iris value being sent to DMX (0-255)">
-                Iris: {state.currentIris} {state.isBlinking && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👁️ BLINKING</span>}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>{settings.irisMin}</span>
-                <input
-                  type="range"
-                  min={settings.irisMin}
-                  max={settings.irisMax}
-                  step="1"
-                  value={state.currentIris}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current iris value being sent to DMX (controlled by blink detection)"
-                />
-                <span className={styles.rangeLabel}>{settings.irisMax}</span>
-                <input
-                  type="number"
-                  min={settings.irisMin}
-                  max={settings.irisMax}
-                  step="1"
-                  value={state.currentIris}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current iris value being sent to DMX (controlled by blink detection)"
-                />
-              </div>
+          {/* Zoom Control - Always visible */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current zoom value being sent to DMX (0-255)">
+              Zoom: {state.currentZoom} {settings.zoomChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.zoomChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>{settings.zoomMin}</span>
+              <input
+                type="range"
+                min={settings.zoomMin}
+                max={settings.zoomMax}
+                step="1"
+                value={state.currentZoom}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current zoom value being sent to DMX"
+              />
+              <span className={styles.rangeLabel}>{settings.zoomMax}</span>
+              <input
+                type="number"
+                min={settings.zoomMin}
+                max={settings.zoomMax}
+                step="1"
+                value={state.currentZoom}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current zoom value being sent to DMX"
+              />
             </div>
-          )}
+          </div>
           
-          {/* Mouth Control */}
-          {settings.mouthChannel > 0 && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current mouth openness value being sent to DMX (0-255)">
-                Mouth: {state.currentMouth}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>{settings.mouthMin}</span>
-                <input
-                  type="range"
-                  min={settings.mouthMin}
-                  max={settings.mouthMax}
-                  step="1"
-                  value={state.currentMouth}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current mouth openness value being sent to DMX"
-                />
-                <span className={styles.rangeLabel}>{settings.mouthMax}</span>
-                <input
-                  type="number"
-                  min={settings.mouthMin}
-                  max={settings.mouthMax}
-                  step="1"
-                  value={state.currentMouth}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current mouth openness value being sent to DMX"
-                />
-              </div>
+          {/* Iris Control - Always visible */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current iris value being sent to DMX (0-255)">
+              Iris: {state.currentIris} {state.isBlinking && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👁️ BLINKING</span>} {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.irisChannel || settings.blinkIrisChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>{settings.irisMin}</span>
+              <input
+                type="range"
+                min={settings.irisMin}
+                max={settings.irisMax}
+                step="1"
+                value={state.currentIris}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current iris value being sent to DMX (controlled by blink detection)"
+              />
+              <span className={styles.rangeLabel}>{settings.irisMax}</span>
+              <input
+                type="number"
+                min={settings.irisMin}
+                max={settings.irisMax}
+                step="1"
+                value={state.currentIris}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current iris value being sent to DMX (controlled by blink detection)"
+              />
             </div>
-          )}
+          </div>
           
-          {/* Zoom Control */}
-          {settings.zoomChannel > 0 && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current zoom value being sent to DMX (0-255)">
-                Zoom: {state.currentZoom}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>{settings.zoomMin}</span>
-                <input
-                  type="range"
-                  min={settings.zoomMin}
-                  max={settings.zoomMax}
-                  step="1"
-                  value={state.currentZoom}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current zoom value being sent to DMX (based on face distance)"
-                />
-                <span className={styles.rangeLabel}>{settings.zoomMax}</span>
-                <input
-                  type="number"
-                  min={settings.zoomMin}
-                  max={settings.zoomMax}
-                  step="1"
-                  value={state.currentZoom}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current zoom value being sent to DMX"
-                />
-              </div>
+          {/* Mouth Control - Always visible */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current mouth openness value being sent to DMX (0-255)">
+              Mouth: {state.currentMouth} {settings.mouthChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.mouthChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>{settings.mouthMin}</span>
+              <input
+                type="range"
+                min={settings.mouthMin}
+                max={settings.mouthMax}
+                step="1"
+                value={state.currentMouth}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current mouth openness value being sent to DMX"
+              />
+              <span className={styles.rangeLabel}>{settings.mouthMax}</span>
+              <input
+                type="number"
+                min={settings.mouthMin}
+                max={settings.mouthMax}
+                step="1"
+                value={state.currentMouth}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current mouth openness value being sent to DMX"
+              />
             </div>
-          )}
+          </div>
           
-          {/* Tongue Control */}
-          {settings.tongueChannel > 0 && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current tongue detection value being sent to DMX (0-255)">
-                Tongue: {state.currentTongue} {state.isTongueOut ? '👅 OUT' : ''}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <span className={styles.rangeLabel}>0</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={state.currentTongue}
-                  readOnly
-                  disabled
-                  className={`${styles.slider} ${styles.liveSlider}`}
-                  title="Current tongue detection value (255 = tongue out, 0 = tongue in)"
-                />
-                <span className={styles.rangeLabel}>255</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={state.currentTongue}
-                  readOnly
-                  disabled
-                  className={styles.numberInput}
-                  title="Current tongue detection value"
-                />
-              </div>
+          {/* Tongue Control - Always visible */}
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current tongue detection value being sent to DMX (0-255)">
+              Tongue: {state.currentTongue} {state.isTongueOut && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👅 OUT</span>} {settings.tongueChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.tongueChannel})</span>}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>0</span>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentTongue}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current tongue detection value being sent to DMX"
+              />
+              <span className={styles.rangeLabel}>255</span>
+              <input
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentTongue}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current tongue detection value being sent to DMX"
+              />
             </div>
-          )}
+          </div>
           
           {/* Gesture Display */}
           {settings.enableGestures && state.currentGesture && (

@@ -10,6 +10,8 @@ interface Fixture3DModelProps {
   zoomValue?: number; // 0-255 DMX value (optional)
   irisValue?: number; // 0-255 DMX value (optional)
   focusValue?: number; // 0-255 DMX value (optional)
+  shutterValue?: number; // 0-255 DMX value (0 = closed/off, 255 = fully open)
+  goboValue?: number; // 0-255 DMX value (gobo selection/rotation)
   rgbColor?: { r: number; g: number; b: number }; // RGB color from fixture (0-255)
   width?: number;
   height?: number;
@@ -23,6 +25,8 @@ function MovingHeadFixture({
   zoomValue = 128, 
   irisValue = 255,
   focusValue = 128,
+  shutterValue = 255, // Default: fully open
+  goboValue = 0, // Default: no gobo
   rgbColor = { r: 255, g: 200, b: 100 } // Default warm white
 }: { 
   panValue: number; 
@@ -30,6 +34,8 @@ function MovingHeadFixture({
   zoomValue?: number; 
   irisValue?: number;
   focusValue?: number;
+  shutterValue?: number;
+  goboValue?: number;
   rgbColor?: { r: number; g: number; b: number };
 }) {
   const baseRef = useRef<THREE.Group>(null);
@@ -38,6 +44,8 @@ function MovingHeadFixture({
   const zoomLensRef = useRef<THREE.Group>(null);
   const irisBladesRef = useRef<THREE.Group>(null);
   const beamRef = useRef<THREE.Mesh>(null);
+  const beamCoreRef = useRef<THREE.Mesh>(null);
+  const goboPatternRef = useRef<THREE.Mesh>(null);
 
   // Convert DMX values to real-world parameters
   // Pan: 0-255 maps to 0-360° (continuous rotation)
@@ -71,6 +79,110 @@ function MovingHeadFixture({
     return focusValue / 255;
   }, [focusValue]);
 
+  // Shutter: 0-255 maps to beam visibility/intensity (0 = closed/off, 255 = fully open)
+  const shutterOpening = useMemo(() => {
+    return shutterValue / 255; // 0.0 to 1.0
+  }, [shutterValue]);
+
+  // Gobo: 0-255 maps to gobo pattern selection/rotation
+  const goboPattern = useMemo(() => {
+    return Math.floor((goboValue / 255) * 8); // 0-7 patterns
+  }, [goboValue]);
+  
+  const goboRotation = useMemo(() => {
+    return (goboValue / 255) * Math.PI * 4; // 0 to 4π (2 full rotations)
+  }, [goboValue]);
+
+  // Create gobo pattern texture
+  const goboTexture = useMemo(() => {
+    if (goboValue === 0) return null;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Clear canvas
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Draw pattern based on goboPattern (0-7)
+    ctx.fillStyle = '#ffffff';
+    const centerX = 128;
+    const centerY = 128;
+    
+    switch (goboPattern) {
+      case 0: // Circle
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 1: // Star
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * 80;
+          const y = centerY + Math.sin(angle) * 80;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 2: // Hexagon
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI * 2) / 6;
+          const x = centerX + Math.cos(angle) * 80;
+          const y = centerY + Math.sin(angle) * 80;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 3: // Square
+        ctx.fillRect(centerX - 60, centerY - 60, 120, 120);
+        break;
+      case 4: // Cross
+        ctx.fillRect(centerX - 10, centerY - 80, 20, 160);
+        ctx.fillRect(centerX - 80, centerY - 10, 160, 20);
+        break;
+      case 5: // Lines
+        for (let i = 0; i < 8; i++) {
+          ctx.fillRect(centerX - 2, centerY - 80 + (i * 20), 4, 15);
+        }
+        break;
+      case 6: // Dots
+        for (let i = 0; i < 5; i++) {
+          for (let j = 0; j < 5; j++) {
+            ctx.beginPath();
+            ctx.arc(centerX - 80 + (i * 40), centerY - 80 + (j * 40), 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      case 7: // Spiral
+        ctx.beginPath();
+        for (let i = 0; i < 100; i++) {
+          const angle = i * 0.2;
+          const radius = i * 0.8;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        break;
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, [goboPattern, goboValue]);
+
   // Animate all mechanisms smoothly
   useFrame(() => {
     // Pan rotation (base rotates around Y axis)
@@ -83,30 +195,70 @@ function MovingHeadFixture({
       tiltHeadRef.current.rotation.x = -tiltAngle; // Negative for correct direction
     }
 
-    // Zoom - lens moves forward/back
+    // Zoom - lens moves forward/back along Z axis
     if (zoomLensRef.current) {
       zoomLensRef.current.position.z = zoomPosition;
+    }
+
+    // Update beam position to track lens front - beam base should be at lens front face
+    // Lens assembly is at [0.21, 0, 0] within tilt head, moves to [0.21, 0, zoomPosition] with zoom
+    // Lens glass is at [0, 0, 0.01] within lens assembly (cylinder with height 0.02, so front face is at z=0.02)
+    // Lens front face is at [0.21, 0, zoomPosition + 0.02] from tilt head origin
+    // ConeGeometry has base at origin, tip extends along +Y (before rotation)
+    // After rotation [0, 0, -Math.PI/2], base is at origin, tip extends along +X
+    // So we position the base (mesh origin) at the lens front
+    const lensFrontX = 0.21; // Lens assembly X position
+    const lensFrontZ = zoomPosition + 0.02; // Lens front Z position (moves with zoom)
+    if (beamRef.current) {
+      // Position beam base at lens front - cone base is at mesh origin
+      beamRef.current.position.set(lensFrontX, 0, lensFrontZ);
+    }
+    if (beamCoreRef.current) {
+      // Position beam core base at lens front
+      beamCoreRef.current.position.set(lensFrontX, 0, lensFrontZ);
     }
 
     // Update beam based on zoom (beam angle changes)
     if (beamRef.current) {
       // Beam cone angle changes with zoom
-      const baseRadius = 0.12;
-      const beamLength = 1.5;
+      const baseRadius = 0.12; // Match the cone base radius
+      const beamLength = 0.6; // Match the shortened beam length
       const currentAngle = beamAngle;
       const beamRadius = Math.tan(currentAngle / 2) * beamLength;
       
       beamRef.current.scale.set(
         beamRadius / baseRadius,
         beamRadius / baseRadius,
-        beamLength / 1.5
+        1.0 // Keep length constant, only scale width based on zoom
       );
       
-      // Beam intensity based on iris opening
+      // Beam intensity based on iris opening AND shutter opening
       if (beamRef.current.material instanceof THREE.MeshStandardMaterial) {
-        beamRef.current.material.emissiveIntensity = 0.8 + (irisOpening * 0.4);
-        beamRef.current.material.opacity = 0.3 + (irisOpening * 0.15);
+        const baseIntensity = 0.8 + (irisOpening * 0.4);
+        const baseOpacity = 0.3 + (irisOpening * 0.15);
+        beamRef.current.material.emissiveIntensity = baseIntensity * shutterOpening;
+        beamRef.current.material.opacity = baseOpacity * shutterOpening;
+        // Hide beam completely when shutter is closed
+        beamRef.current.visible = shutterOpening > 0.01;
       }
+    }
+    
+    // Update inner beam core intensity
+    if (beamCoreRef.current && beamCoreRef.current.material instanceof THREE.MeshStandardMaterial) {
+      const baseIntensity = 1.0 + (irisOpening * 0.4);
+      const baseOpacity = 0.4 + (irisOpening * 0.2);
+      beamCoreRef.current.material.emissiveIntensity = baseIntensity * shutterOpening;
+      beamCoreRef.current.material.opacity = baseOpacity * shutterOpening;
+      // Hide beam core when shutter is closed
+      beamCoreRef.current.visible = shutterOpening > 0.01;
+    }
+
+    // Update gobo pattern rotation
+    if (goboPatternRef.current && shutterOpening > 0.01) {
+      goboPatternRef.current.rotation.z = goboRotation;
+      goboPatternRef.current.visible = goboValue > 0;
+    } else if (goboPatternRef.current) {
+      goboPatternRef.current.visible = false;
     }
   });
 
@@ -337,13 +489,17 @@ function MovingHeadFixture({
             </mesh>
           </group>
 
-          {/* Light beam - realistic stage light beam (shortened, more focused) */}
+          {/* Light beam - realistic stage light beam (originates from lens) */}
+          {/* Beam tip positioned at lens front face, pointing along +X axis */}
+          {/* Position will be updated in useFrame to track lens movement with zoom */}
           <mesh 
             ref={beamRef} 
-            position={[0.45, 0, 0]} 
+            position={[0.21, 0, 0.02]} 
             rotation={[0, 0, -Math.PI / 2]}
           >
-            <coneGeometry args={[0.08, 0.4, 16, 1, true]} />
+            {/* Cone geometry: args=[radiusTop, radiusBottom, height, radialSegments, openEnded] */}
+            {/* Tip is at origin, base extends along +Y (before rotation) */}
+            <coneGeometry args={[0.12, 0.6, 16, 1, true]} />
             <meshStandardMaterial
               color={beamColorHex}
               transparent
@@ -354,12 +510,13 @@ function MovingHeadFixture({
             />
           </mesh>
           
-          {/* Inner beam core - brighter center */}
+          {/* Inner beam core - brighter center, also originates from lens */}
           <mesh 
-            position={[0.45, 0, 0]} 
+            ref={beamCoreRef}
+            position={[0.21, 0, 0.02]} 
             rotation={[0, 0, -Math.PI / 2]}
           >
-            <coneGeometry args={[0.04, 0.4, 8, 1, true]} />
+            <coneGeometry args={[0.06, 0.6, 8, 1, true]} />
             <meshStandardMaterial
               color={beamColorHex}
               transparent
@@ -369,6 +526,26 @@ function MovingHeadFixture({
               side={THREE.DoubleSide}
             />
           </mesh>
+          
+          {/* Gobo pattern - projected pattern on beam, positioned slightly forward from lens */}
+          {goboTexture && (
+            <mesh 
+              ref={goboPatternRef}
+              position={[0.21, 0, 0.15]} 
+              rotation={[0, 0, -Math.PI / 2]}
+            >
+              <planeGeometry args={[0.12, 0.12, 16, 16]} />
+              <meshStandardMaterial
+                map={goboTexture}
+                color={beamColorHex}
+                transparent
+                opacity={0.6}
+                emissive={beamColorHex}
+                emissiveIntensity={0.8}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          )}
         </group>
       </group>
 
@@ -387,6 +564,8 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
   zoomValue = 128,
   irisValue = 255,
   focusValue = 128,
+  shutterValue = 255,
+  goboValue = 0,
   rgbColor = { r: 255, g: 200, b: 100 },
   width = 400,
   height = 400,
@@ -423,6 +602,8 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
           zoomValue={zoomValue}
           irisValue={irisValue}
           focusValue={focusValue}
+          shutterValue={shutterValue}
+          goboValue={goboValue}
           rgbColor={rgbColor}
         />
 
