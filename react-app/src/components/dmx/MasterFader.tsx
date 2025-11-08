@@ -45,6 +45,12 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const isDraggingRef = useRef<boolean>(false);
   const OSC_MIN_INTERVAL_MS = 50; // Minimum 50ms between OSC sends during drag
   const OSC_MIN_INTERVAL_DRAG_MS = 200; // Minimum 200ms between OSC sends during active drag
+  
+  // Throttle DMX updates during drag to prevent spam
+  const dmxUpdateThrottleRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingDmxUpdatesRef = useRef<Record<number, number> | null>(null);
+  const lastDmxUpdateTimeRef = useRef<number>(0);
+  const DMX_UPDATE_INTERVAL_MS = 100; // Update DMX at most every 100ms during drag
 
   const { dmxChannels, setMultipleDmxChannels, groups, fixtures, oscAssignments, midiMessages } = useStore(state => ({
     dmxChannels: state.dmxChannels,
@@ -202,17 +208,46 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       }
     }
 
-    // Update store
+    // Throttle DMX updates during drag to prevent spam
+    const now = Date.now();
+    const isDragging = isDraggingRef.current;
+    const timeSinceLastDmxUpdate = now - lastDmxUpdateTimeRef.current;
+    
     if (Object.keys(dmxUpdates).length > 0) {
-      setMultipleDmxChannels(dmxUpdates, true);
+      if (isDragging && timeSinceLastDmxUpdate < DMX_UPDATE_INTERVAL_MS) {
+        // During drag, throttle DMX updates - store pending updates
+        pendingDmxUpdatesRef.current = { ...pendingDmxUpdatesRef.current, ...dmxUpdates };
+        
+        // Clear existing throttle and set new one
+        if (dmxUpdateThrottleRef.current) {
+          clearTimeout(dmxUpdateThrottleRef.current);
+        }
+        
+        dmxUpdateThrottleRef.current = setTimeout(() => {
+          if (pendingDmxUpdatesRef.current) {
+            setMultipleDmxChannels(pendingDmxUpdatesRef.current, true);
+            pendingDmxUpdatesRef.current = null;
+            lastDmxUpdateTimeRef.current = Date.now();
+          }
+          dmxUpdateThrottleRef.current = null;
+        }, DMX_UPDATE_INTERVAL_MS - timeSinceLastDmxUpdate);
+      } else {
+        // Not dragging or enough time passed - send immediately
+        setMultipleDmxChannels(dmxUpdates, true);
+        lastDmxUpdateTimeRef.current = now;
+        // Clear any pending updates
+        pendingDmxUpdatesRef.current = null;
+        if (dmxUpdateThrottleRef.current) {
+          clearTimeout(dmxUpdateThrottleRef.current);
+          dmxUpdateThrottleRef.current = null;
+        }
+      }
     }
 
     // Send OSC update if configured (with aggressive throttling to prevent spam)
     if (socket && oscAddress) {
       const normalizedValue = newValue / 255.0;
-      const now = Date.now();
       const timeSinceLastSend = now - lastOscSendTimeRef.current;
-      const isDragging = isDraggingRef.current;
       
       // Determine minimum interval based on whether user is actively dragging
       const minInterval = isDragging ? OSC_MIN_INTERVAL_DRAG_MS : OSC_MIN_INTERVAL_MS;
@@ -220,66 +255,61 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       // Check if enough time has passed since last send
       const canSendNow = timeSinceLastSend >= minInterval;
       
-      // Check for significant change (10% threshold, higher than before)
+      // Check for significant change (10% threshold) AND that value actually changed
       const lastValue = lastOscValueRef.current;
+      const valueChanged = lastValue === null || Math.abs(normalizedValue - lastValue) > 0.001; // 0.1% minimum change
       const significantChange = lastValue === null || Math.abs(normalizedValue - lastValue) > 0.10;
       
-      // Clear any existing throttle timer
-      if (oscThrottleRef.current) {
-        clearTimeout(oscThrottleRef.current);
-        oscThrottleRef.current = null;
-      }
-      
-      // Store pending value
-      pendingOscValueRef.current = normalizedValue;
-      
-      // Send immediately only if:
-      // 1. Significant change AND enough time has passed, OR
-      // 2. Not dragging AND significant change (for discrete movements)
-      if (canSendNow && significantChange) {
-        try {
-          (socket as any).emit('sendOsc', {
-            address: oscAddress,
-            args: [{ type: 'f', value: normalizedValue }]
-          });
-          lastOscValueRef.current = normalizedValue;
-          lastOscSendTimeRef.current = now;
-          pendingOscValueRef.current = null;
-        } catch (error) {
-          console.error('[MasterFader] Failed to send OSC:', error);
-        }
-      } else if (!canSendNow) {
-        // Throttle: schedule send after minimum interval
-        const delay = minInterval - timeSinceLastSend;
-        oscThrottleRef.current = setTimeout(() => {
-          if (pendingOscValueRef.current !== null) {
-            try {
-              (socket as any).emit('sendOsc', {
-                address: oscAddress,
-                args: [{ type: 'f', value: pendingOscValueRef.current }]
-              });
-              lastOscValueRef.current = pendingOscValueRef.current;
-              lastOscSendTimeRef.current = Date.now();
-              pendingOscValueRef.current = null;
-            } catch (error) {
-              console.error('[MasterFader] Failed to send OSC:', error);
-            }
-          }
+      // Only process OSC if value actually changed
+      if (valueChanged) {
+        // Clear any existing throttle timer
+        if (oscThrottleRef.current) {
+          clearTimeout(oscThrottleRef.current);
           oscThrottleRef.current = null;
-        }, delay);
-      } else {
-        // Small change but can send - send it
-        try {
-          (socket as any).emit('sendOsc', {
-            address: oscAddress,
-            args: [{ type: 'f', value: normalizedValue }]
-          });
-          lastOscValueRef.current = normalizedValue;
-          lastOscSendTimeRef.current = now;
-          pendingOscValueRef.current = null;
-        } catch (error) {
-          console.error('[MasterFader] Failed to send OSC:', error);
         }
+        
+        // Store pending value
+        pendingOscValueRef.current = normalizedValue;
+        
+        // Send immediately only if significant change AND enough time has passed
+        if (canSendNow && significantChange) {
+          try {
+            (socket as any).emit('sendOsc', {
+              address: oscAddress,
+              args: [{ type: 'f', value: normalizedValue }]
+            });
+            lastOscValueRef.current = normalizedValue;
+            lastOscSendTimeRef.current = now;
+            pendingOscValueRef.current = null;
+          } catch (error) {
+            console.error('[MasterFader] Failed to send OSC:', error);
+          }
+        } else if (!canSendNow) {
+          // Throttle: schedule send after minimum interval
+          const delay = minInterval - timeSinceLastSend;
+          oscThrottleRef.current = setTimeout(() => {
+            if (pendingOscValueRef.current !== null) {
+              // Check if value still changed before sending
+              const stillChanged = lastOscValueRef.current === null || 
+                Math.abs(pendingOscValueRef.current - lastOscValueRef.current) > 0.001;
+              if (stillChanged) {
+                try {
+                  (socket as any).emit('sendOsc', {
+                    address: oscAddress,
+                    args: [{ type: 'f', value: pendingOscValueRef.current }]
+                  });
+                  lastOscValueRef.current = pendingOscValueRef.current;
+                  lastOscSendTimeRef.current = Date.now();
+                } catch (error) {
+                  console.error('[MasterFader] Failed to send OSC:', error);
+                }
+              }
+              pendingOscValueRef.current = null;
+            }
+            oscThrottleRef.current = null;
+          }, delay);
+        }
+        // Removed the else block that was sending immediately for small changes
       }
     }
   }, [value, onValueChange, baselineChannelValues, masterFaderValueWhenActivated, restoreBaselineState, socket, oscAddress, isChannelIgnored, dmxChannels, setMultipleDmxChannels]);
@@ -320,12 +350,16 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     };
   }, [socket, oscAddress, handleValueChange]);
 
-  // Cleanup throttle timer on unmount
+  // Cleanup throttle timers on unmount
   useEffect(() => {
     return () => {
       if (oscThrottleRef.current) {
         clearTimeout(oscThrottleRef.current);
         oscThrottleRef.current = null;
+      }
+      if (dmxUpdateThrottleRef.current) {
+        clearTimeout(dmxUpdateThrottleRef.current);
+        dmxUpdateThrottleRef.current = null;
       }
     };
   }, []);
@@ -335,19 +369,33 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     const handleGlobalMouseUp = () => {
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
+        
+        // Send any pending DMX updates immediately
+        if (pendingDmxUpdatesRef.current) {
+          setMultipleDmxChannels(pendingDmxUpdatesRef.current, true);
+          pendingDmxUpdatesRef.current = null;
+          if (dmxUpdateThrottleRef.current) {
+            clearTimeout(dmxUpdateThrottleRef.current);
+            dmxUpdateThrottleRef.current = null;
+          }
+        }
+        
         // Send final OSC value if we have a pending one
         if (socket && oscAddress && pendingOscValueRef.current !== null) {
-          try {
-            (socket as any).emit('sendOsc', {
-              address: oscAddress,
-              args: [{ type: 'f', value: pendingOscValueRef.current }]
-            });
-            lastOscValueRef.current = pendingOscValueRef.current;
-            lastOscSendTimeRef.current = Date.now();
-            pendingOscValueRef.current = null;
-          } catch (error) {
-            console.error('[MasterFader] Failed to send final OSC on mouse up:', error);
+          // Only send if value actually changed
+          if (lastOscValueRef.current === null || Math.abs(pendingOscValueRef.current - lastOscValueRef.current) > 0.001) {
+            try {
+              (socket as any).emit('sendOsc', {
+                address: oscAddress,
+                args: [{ type: 'f', value: pendingOscValueRef.current }]
+              });
+              lastOscValueRef.current = pendingOscValueRef.current;
+              lastOscSendTimeRef.current = Date.now();
+            } catch (error) {
+              console.error('[MasterFader] Failed to send final OSC on mouse up:', error);
+            }
           }
+          pendingOscValueRef.current = null;
         }
         // Clear any pending throttle
         if (oscThrottleRef.current) {
@@ -364,7 +412,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       window.removeEventListener('mouseup', handleGlobalMouseUp);
       window.removeEventListener('touchend', handleGlobalMouseUp);
     };
-  }, [socket, oscAddress]);
+  }, [socket, oscAddress, setMultipleDmxChannels]);
   
   // Listen for MIDI learn completion
   useEffect(() => {
@@ -410,25 +458,39 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const handleSliderMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
     // Mark that dragging has ended
     isDraggingRef.current = false;
+    
+    // Send any pending DMX updates immediately
+    if (pendingDmxUpdatesRef.current) {
+      setMultipleDmxChannels(pendingDmxUpdatesRef.current, true);
+      pendingDmxUpdatesRef.current = null;
+      if (dmxUpdateThrottleRef.current) {
+        clearTimeout(dmxUpdateThrottleRef.current);
+        dmxUpdateThrottleRef.current = null;
+      }
+    }
+    
     // Send final OSC value immediately when drag ends
     const currentValue = parseInt((e.target as HTMLInputElement).value);
     if (socket && oscAddress) {
       const normalizedValue = currentValue / 255.0;
-      try {
-        (socket as any).emit('sendOsc', {
-          address: oscAddress,
-          args: [{ type: 'f', value: normalizedValue }]
-        });
-        lastOscValueRef.current = normalizedValue;
-        lastOscSendTimeRef.current = Date.now();
-        pendingOscValueRef.current = null;
-        // Clear any pending throttle
-        if (oscThrottleRef.current) {
-          clearTimeout(oscThrottleRef.current);
-          oscThrottleRef.current = null;
+      // Only send if value actually changed
+      if (lastOscValueRef.current === null || Math.abs(normalizedValue - lastOscValueRef.current) > 0.001) {
+        try {
+          (socket as any).emit('sendOsc', {
+            address: oscAddress,
+            args: [{ type: 'f', value: normalizedValue }]
+          });
+          lastOscValueRef.current = normalizedValue;
+          lastOscSendTimeRef.current = Date.now();
+          pendingOscValueRef.current = null;
+        } catch (error) {
+          console.error('[MasterFader] Failed to send final OSC:', error);
         }
-      } catch (error) {
-        console.error('[MasterFader] Failed to send final OSC:', error);
+      }
+      // Clear any pending throttle
+      if (oscThrottleRef.current) {
+        clearTimeout(oscThrottleRef.current);
+        oscThrottleRef.current = null;
       }
     }
     // Check if we should restore baseline (when returning to 255)
@@ -447,25 +509,39 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const handleSliderTouchEnd = (e: React.TouchEvent<HTMLInputElement>) => {
     // Mark that dragging has ended
     isDraggingRef.current = false;
+    
+    // Send any pending DMX updates immediately
+    if (pendingDmxUpdatesRef.current) {
+      setMultipleDmxChannels(pendingDmxUpdatesRef.current, true);
+      pendingDmxUpdatesRef.current = null;
+      if (dmxUpdateThrottleRef.current) {
+        clearTimeout(dmxUpdateThrottleRef.current);
+        dmxUpdateThrottleRef.current = null;
+      }
+    }
+    
     // Send final OSC value immediately when drag ends
     const currentValue = parseInt((e.target as HTMLInputElement).value);
     if (socket && oscAddress) {
       const normalizedValue = currentValue / 255.0;
-      try {
-        (socket as any).emit('sendOsc', {
-          address: oscAddress,
-          args: [{ type: 'f', value: normalizedValue }]
-        });
-        lastOscValueRef.current = normalizedValue;
-        lastOscSendTimeRef.current = Date.now();
-        pendingOscValueRef.current = null;
-        // Clear any pending throttle
-        if (oscThrottleRef.current) {
-          clearTimeout(oscThrottleRef.current);
-          oscThrottleRef.current = null;
+      // Only send if value actually changed
+      if (lastOscValueRef.current === null || Math.abs(normalizedValue - lastOscValueRef.current) > 0.001) {
+        try {
+          (socket as any).emit('sendOsc', {
+            address: oscAddress,
+            args: [{ type: 'f', value: normalizedValue }]
+          });
+          lastOscValueRef.current = normalizedValue;
+          lastOscSendTimeRef.current = Date.now();
+          pendingOscValueRef.current = null;
+        } catch (error) {
+          console.error('[MasterFader] Failed to send final OSC:', error);
         }
-      } catch (error) {
-        console.error('[MasterFader] Failed to send final OSC:', error);
+      }
+      // Clear any pending throttle
+      if (oscThrottleRef.current) {
+        clearTimeout(oscThrottleRef.current);
+        oscThrottleRef.current = null;
       }
     }
     // Check if we should restore baseline (when returning to 255)
