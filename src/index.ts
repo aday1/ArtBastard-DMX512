@@ -74,7 +74,7 @@ interface OscConfig {
 
 // Variable declarations
 let dmxChannels: number[] = new Array(512).fill(0);
-let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`); // Updated default pattern
+let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/dmx${i + 1}`); // Factory default pattern
 let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
@@ -142,7 +142,7 @@ function loadConfig() {
         const parsedConfig = JSON.parse(data);
         artNetConfig = { ...artNetConfig, ...parsedConfig.artNetConfig };
         midiMappings = parsedConfig.midiMappings || {};
-        oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`); // Load OSC assignments or use default
+        oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/1/dmx${i + 1}`); // Load OSC assignments or use default
         oscConfig = { ...oscConfig, ...parsedConfig.oscConfig }; // Load OSC config or use default
         log('Config loaded', 'INFO', { artNetConfig });
         log('MIDI mappings loaded', 'MIDI', { midiMappings });

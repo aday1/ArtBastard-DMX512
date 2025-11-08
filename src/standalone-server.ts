@@ -78,7 +78,7 @@ interface OscConfig {
 
 // --- Global state ---
 let dmxChannels: number[] = new Array(512).fill(0);
-let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`);
+let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/dmx${i + 1}`); // Factory default pattern
 let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
