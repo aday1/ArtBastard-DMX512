@@ -1244,6 +1244,10 @@ export const FaceTracker: React.FC = () => {
     }
   }, []);
 
+  // Throttle diagnostic updates to prevent excessive state updates
+  const lastDiagnosticUpdateRef = useRef<number>(0);
+  const DIAGNOSTIC_UPDATE_INTERVAL = 500; // Update diagnostics max once per 500ms
+
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
     // Stop the loop if not running or preview disabled
@@ -1256,9 +1260,12 @@ export const FaceTracker: React.FC = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Update diagnostic: video ready state
-      if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+      // Throttle diagnostic updates (only update max once per 500ms to prevent Firefox freezes)
+      const now = performance.now();
+      if (video.readyState >= video.HAVE_ENOUGH_DATA && 
+          (now - lastDiagnosticUpdateRef.current) >= DIAGNOSTIC_UPDATE_INTERVAL) {
         setDiagnostics(prev => ({ ...prev, videoReady: true }));
+        lastDiagnosticUpdateRef.current = now;
       }
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
     
@@ -1289,6 +1296,9 @@ export const FaceTracker: React.FC = () => {
     // Draw persistent overlays from last detection (makes them less blinky)
     const now = performance.now();
     const faceTimeout = 500; // Keep showing face for 500ms after last detection
+    
+    // Batch canvas operations for better performance
+    ctx.save();
     
     if (lastFacePositionRef.current && 
         (now - lastFacePositionRef.current.timestamp) < faceTimeout) {
@@ -1388,16 +1398,18 @@ export const FaceTracker: React.FC = () => {
       ctx.arc(clampedTargetX, clampedTargetY, 20, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Draw text label showing gaze direction
-      ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
-      ctx.font = 'bold 14px Arial';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 2;
-      const yawDeg = (headYaw * 90).toFixed(1);
-      const pitchDeg = (headPitch * 90).toFixed(1);
-      const gazeText = `Gaze: Yaw ${yawDeg}° Pitch ${pitchDeg}°`;
-      ctx.strokeText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
-      ctx.fillText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
+      // Draw text label showing gaze direction (only if significant movement to reduce text rendering)
+      if (Math.abs(headYaw) > 0.1 || Math.abs(headPitch) > 0.1) {
+        ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
+        ctx.font = 'bold 14px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        const yawDeg = (headYaw * 90).toFixed(1);
+        const pitchDeg = (headPitch * 90).toFixed(1);
+        const gazeText = `Gaze: Yaw ${yawDeg}° Pitch ${pitchDeg}°`;
+        ctx.strokeText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
+        ctx.fillText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
+      }
       
       // Draw crosshair at image center (blue, for reference)
       ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
@@ -1409,128 +1421,68 @@ export const FaceTracker: React.FC = () => {
       ctx.lineTo(imageCenterX, imageCenterY + 20);
       ctx.stroke();
       
-      // Draw eye detection boxes
+      // Draw eye detection boxes (simplified to reduce rendering cost)
       if (face.leftEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
-        // Label
-        ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
-        ctx.font = 'bold 12px Arial';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.strokeText('L Eye', face.leftEye.x, face.leftEye.y - 5);
-        ctx.fillText('L Eye', face.leftEye.x, face.leftEye.y - 5);
+        // Removed text labels to reduce rendering cost
       }
       
       if (face.rightEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
-        // Label
-        ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
-        ctx.font = 'bold 12px Arial';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.strokeText('R Eye', face.rightEye.x, face.rightEye.y - 5);
-        ctx.fillText('R Eye', face.rightEye.x, face.rightEye.y - 5);
+        // Removed text labels to reduce rendering cost
       }
       
-      // Draw mouth detection box
+      // Draw mouth detection box (simplified)
       if (face.mouth) {
         const mouthOpenness = face.mouthOpenness || 0;
         const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
         ctx.strokeStyle = mouthColor;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
-        // Label with openness percentage
-        ctx.fillStyle = mouthColor;
-        ctx.font = 'bold 12px Arial';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        const opennessPercent = Math.round(mouthOpenness * 100);
-        const mouthLabel = `Mouth ${opennessPercent}%`;
-        ctx.strokeText(mouthLabel, face.mouth.x, face.mouth.y - 5);
-        ctx.fillText(mouthLabel, face.mouth.x, face.mouth.y - 5);
+        // Removed text labels to reduce rendering cost
       }
       
-      // Draw blink indicator
+      // Draw blink indicator (simplified - just a red circle to reduce text rendering)
       if (face.isBlinking) {
         ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-        ctx.font = 'bold 24px Arial';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 3;
-        const blinkText = '👁️ BLINKING';
-        const textX = face.centerX - 60;
-        const textY = face.y - 20;
-        ctx.strokeText(blinkText, textX, textY);
-        ctx.fillText(blinkText, textX, textY);
+        ctx.beginPath();
+        ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
+    
+    // Restore canvas state after batch operations
+    ctx.restore();
 
-    // Draw text overlay
-    ctx.fillStyle = 'yellow';
-    ctx.font = 'bold 20px Arial';
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
-    
-    const panText = `Pan: ${state.currentPan}`;
-    const tiltText = `Tilt: ${state.currentTilt}`;
-    const faceDetected = lastFacePositionRef.current && 
-                         (now - lastFacePositionRef.current.timestamp) < faceTimeout;
-    const statusText = faceDetected ? '✓ Face Detected' : 'No Face';
-    
-    // Draw with outline for better visibility
-    ctx.strokeText(panText, 10, 30);
-    ctx.fillText(panText, 10, 30);
-    
-    ctx.strokeText(tiltText, 10, 55);
-    ctx.fillText(tiltText, 10, 55);
-    
-    ctx.fillStyle = faceDetected ? 'lime' : 'red';
-    ctx.strokeText(statusText, 10, 80);
-    ctx.fillText(statusText, 10, 80);
-    
-    // Draw additional detection info
-    if (faceDetected && lastFacePositionRef.current) {
-      const face = lastFacePositionRef.current;
-      let yOffset = 105;
+    // Draw minimal text overlay (reduced to prevent Firefox freezes)
+    // Only update text every few frames to reduce rendering cost
+    const frameSkip = 2; // Only draw text every 2nd frame
+    if (Math.floor(now / 16) % frameSkip === 0) {
+      ctx.fillStyle = 'yellow';
+      ctx.font = 'bold 16px Arial'; // Smaller font for better performance
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 1; // Thinner outline
       
-      // Blink status
-      if (face.isBlinking !== undefined) {
-        ctx.fillStyle = face.isBlinking ? 'red' : 'lime';
-        const blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
-        ctx.strokeText(blinkText, 10, yOffset);
-        ctx.fillText(blinkText, 10, yOffset);
-        yOffset += 25;
-      }
+      const panText = `Pan: ${state.currentPan}`;
+      const tiltText = `Tilt: ${state.currentTilt}`;
+      const faceDetected = lastFacePositionRef.current && 
+                           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
+      const statusText = faceDetected ? '✓ Face' : 'No Face';
       
-      // Iris value
-      if (state.currentIris > 0) {
-        ctx.fillStyle = 'cyan';
-        const irisText = `Iris: ${state.currentIris}`;
-        ctx.strokeText(irisText, 10, yOffset);
-        ctx.fillText(irisText, 10, yOffset);
-        yOffset += 25;
-      }
+      // Draw with outline for better visibility (simplified)
+      ctx.strokeText(panText, 10, 25);
+      ctx.fillText(panText, 10, 25);
       
-      // Mouth status
-      if (face.mouth && face.mouthOpenness !== undefined) {
-        ctx.fillStyle = 'magenta';
-        const mouthPercent = Math.round(face.mouthOpenness * 100);
-        const mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
-        ctx.strokeText(mouthText, 10, yOffset);
-        ctx.fillText(mouthText, 10, yOffset);
-        yOffset += 25;
-      }
+      ctx.strokeText(tiltText, 10, 45);
+      ctx.fillText(tiltText, 10, 45);
       
-      // X/Y Position
-      if (state.currentX > 0 || state.currentY > 0) {
-        ctx.fillStyle = 'orange';
-        const posText = `X: ${state.currentX} Y: ${state.currentY}`;
-        ctx.strokeText(posText, 10, yOffset);
-        ctx.fillText(posText, 10, yOffset);
-      }
+      ctx.fillStyle = faceDetected ? 'lime' : 'red';
+      ctx.strokeText(statusText, 10, 65);
+      ctx.fillText(statusText, 10, 65);
     }
 
     // Update FPS counter (preview rendering FPS)
