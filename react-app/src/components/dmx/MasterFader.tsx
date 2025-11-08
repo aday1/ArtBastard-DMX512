@@ -41,6 +41,10 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const oscThrottleRef = useRef<NodeJS.Timeout | null>(null);
   const lastOscValueRef = useRef<number | null>(null);
   const pendingOscValueRef = useRef<number | null>(null);
+  const lastOscSendTimeRef = useRef<number>(0);
+  const isDraggingRef = useRef<boolean>(false);
+  const OSC_MIN_INTERVAL_MS = 50; // Minimum 50ms between OSC sends during drag
+  const OSC_MIN_INTERVAL_DRAG_MS = 200; // Minimum 200ms between OSC sends during active drag
 
   const { dmxChannels, setMultipleDmxChannels, groups, fixtures, oscAssignments, midiMessages } = useStore(state => ({
     dmxChannels: state.dmxChannels,
@@ -203,34 +207,50 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       setMultipleDmxChannels(dmxUpdates, true);
     }
 
-    // Send OSC update if configured (with throttling to prevent spam)
+    // Send OSC update if configured (with aggressive throttling to prevent spam)
     if (socket && oscAddress) {
       const normalizedValue = newValue / 255.0;
-      pendingOscValueRef.current = normalizedValue;
+      const now = Date.now();
+      const timeSinceLastSend = now - lastOscSendTimeRef.current;
+      const isDragging = isDraggingRef.current;
+      
+      // Determine minimum interval based on whether user is actively dragging
+      const minInterval = isDragging ? OSC_MIN_INTERVAL_DRAG_MS : OSC_MIN_INTERVAL_MS;
+      
+      // Check if enough time has passed since last send
+      const canSendNow = timeSinceLastSend >= minInterval;
+      
+      // Check for significant change (10% threshold, higher than before)
+      const lastValue = lastOscValueRef.current;
+      const significantChange = lastValue === null || Math.abs(normalizedValue - lastValue) > 0.10;
       
       // Clear any existing throttle timer
       if (oscThrottleRef.current) {
         clearTimeout(oscThrottleRef.current);
+        oscThrottleRef.current = null;
       }
       
-      // Send immediately if value changed significantly (>5%) or if it's been more than 100ms since last send
-      const lastValue = lastOscValueRef.current;
-      const significantChange = lastValue === null || Math.abs(normalizedValue - lastValue) > 0.05;
+      // Store pending value
+      pendingOscValueRef.current = normalizedValue;
       
-      if (significantChange) {
-        // Send immediately for significant changes
+      // Send immediately only if:
+      // 1. Significant change AND enough time has passed, OR
+      // 2. Not dragging AND significant change (for discrete movements)
+      if (canSendNow && significantChange) {
         try {
           (socket as any).emit('sendOsc', {
             address: oscAddress,
             args: [{ type: 'f', value: normalizedValue }]
           });
           lastOscValueRef.current = normalizedValue;
+          lastOscSendTimeRef.current = now;
           pendingOscValueRef.current = null;
         } catch (error) {
           console.error('[MasterFader] Failed to send OSC:', error);
         }
-      } else {
-        // Throttle small changes - send at most every 100ms
+      } else if (!canSendNow) {
+        // Throttle: schedule send after minimum interval
+        const delay = minInterval - timeSinceLastSend;
         oscThrottleRef.current = setTimeout(() => {
           if (pendingOscValueRef.current !== null) {
             try {
@@ -239,13 +259,27 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
                 args: [{ type: 'f', value: pendingOscValueRef.current }]
               });
               lastOscValueRef.current = pendingOscValueRef.current;
+              lastOscSendTimeRef.current = Date.now();
               pendingOscValueRef.current = null;
             } catch (error) {
               console.error('[MasterFader] Failed to send OSC:', error);
             }
           }
           oscThrottleRef.current = null;
-        }, 100);
+        }, delay);
+      } else {
+        // Small change but can send - send it
+        try {
+          (socket as any).emit('sendOsc', {
+            address: oscAddress,
+            args: [{ type: 'f', value: normalizedValue }]
+          });
+          lastOscValueRef.current = normalizedValue;
+          lastOscSendTimeRef.current = now;
+          pendingOscValueRef.current = null;
+        } catch (error) {
+          console.error('[MasterFader] Failed to send OSC:', error);
+        }
       }
     }
   }, [value, onValueChange, baselineChannelValues, masterFaderValueWhenActivated, restoreBaselineState, socket, oscAddress, isChannelIgnored, dmxChannels, setMultipleDmxChannels]);
@@ -295,6 +329,42 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       }
     };
   }, []);
+
+  // Handle global mouse/touch up to catch releases outside slider
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        // Send final OSC value if we have a pending one
+        if (socket && oscAddress && pendingOscValueRef.current !== null) {
+          try {
+            (socket as any).emit('sendOsc', {
+              address: oscAddress,
+              args: [{ type: 'f', value: pendingOscValueRef.current }]
+            });
+            lastOscValueRef.current = pendingOscValueRef.current;
+            lastOscSendTimeRef.current = Date.now();
+            pendingOscValueRef.current = null;
+          } catch (error) {
+            console.error('[MasterFader] Failed to send final OSC on mouse up:', error);
+          }
+        }
+        // Clear any pending throttle
+        if (oscThrottleRef.current) {
+          clearTimeout(oscThrottleRef.current);
+          oscThrottleRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('touchend', handleGlobalMouseUp);
+
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('touchend', handleGlobalMouseUp);
+    };
+  }, [socket, oscAddress]);
   
   // Listen for MIDI learn completion
   useEffect(() => {
@@ -331,22 +401,78 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   };
 
   const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+    // Mark that user is actively dragging
+    isDraggingRef.current = true;
     // Save baseline when user starts interacting with slider
     saveBaselineState();
   };
 
   const handleSliderMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
-    // Check if we should restore baseline (when returning to 255)
+    // Mark that dragging has ended
+    isDraggingRef.current = false;
+    // Send final OSC value immediately when drag ends
     const currentValue = parseInt((e.target as HTMLInputElement).value);
+    if (socket && oscAddress) {
+      const normalizedValue = currentValue / 255.0;
+      try {
+        (socket as any).emit('sendOsc', {
+          address: oscAddress,
+          args: [{ type: 'f', value: normalizedValue }]
+        });
+        lastOscValueRef.current = normalizedValue;
+        lastOscSendTimeRef.current = Date.now();
+        pendingOscValueRef.current = null;
+        // Clear any pending throttle
+        if (oscThrottleRef.current) {
+          clearTimeout(oscThrottleRef.current);
+          oscThrottleRef.current = null;
+        }
+      } catch (error) {
+        console.error('[MasterFader] Failed to send final OSC:', error);
+      }
+    }
+    // Check if we should restore baseline (when returning to 255)
     if (currentValue === 255 && baselineChannelValues) {
       restoreBaselineState();
     }
   };
 
-  // Removed handleSliderMouseDown as it's not needed and might have interfered.
-  // const handleSliderMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
-  //   e.stopPropagation();
-  // };
+  const handleSliderTouchStart = (e: React.TouchEvent<HTMLInputElement>) => {
+    // Mark that user is actively dragging
+    isDraggingRef.current = true;
+    // Save baseline when user starts interacting with slider
+    saveBaselineState();
+  };
+
+  const handleSliderTouchEnd = (e: React.TouchEvent<HTMLInputElement>) => {
+    // Mark that dragging has ended
+    isDraggingRef.current = false;
+    // Send final OSC value immediately when drag ends
+    const currentValue = parseInt((e.target as HTMLInputElement).value);
+    if (socket && oscAddress) {
+      const normalizedValue = currentValue / 255.0;
+      try {
+        (socket as any).emit('sendOsc', {
+          address: oscAddress,
+          args: [{ type: 'f', value: normalizedValue }]
+        });
+        lastOscValueRef.current = normalizedValue;
+        lastOscSendTimeRef.current = Date.now();
+        pendingOscValueRef.current = null;
+        // Clear any pending throttle
+        if (oscThrottleRef.current) {
+          clearTimeout(oscThrottleRef.current);
+          oscThrottleRef.current = null;
+        }
+      } catch (error) {
+        console.error('[MasterFader] Failed to send final OSC:', error);
+      }
+    }
+    // Check if we should restore baseline (when returning to 255)
+    if (currentValue === 255 && baselineChannelValues) {
+      restoreBaselineState();
+    }
+  };
 
   const handleSliderInput = (e: React.FormEvent<HTMLInputElement>) => {
     // Handle real-time input changes for better responsiveness
@@ -651,6 +777,10 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
               value={value}
               onChange={handleSliderChange}
               onInput={handleSliderInput}
+              onMouseDown={handleSliderMouseDown}
+              onMouseUp={handleSliderMouseUp}
+              onTouchStart={handleSliderTouchStart}
+              onTouchEnd={handleSliderTouchEnd}
               className={styles.verticalSlider}
             />
             <div className={styles.valueDisplay}>

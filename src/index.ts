@@ -919,51 +919,50 @@ function setDmxChannels(channels: number[]) {
     // Send OSC updates for assigned channels with optimized batching for zero operations
     if (oscConfig.sendEnabled && oscSendPort && oscMessages.length > 0) {
         // Send OSC messages with throttling to complete within 5 seconds
-            if (isAllZero && oscMessages.length > 50) {
-                // For large zero operations, batch with throttling
-                const batchSize = Math.max(10, Math.floor(oscMessages.length / 100)); // Adaptive batch size
-                const delayPerBatch = Math.max(1, Math.floor(MAX_TIME_MS / (oscMessages.length / batchSize))); // Calculate delay to fit in 5 seconds
+        if (isAllZero && oscMessages.length > 50) {
+            // For large zero operations, batch with throttling
+            const batchSize = Math.max(10, Math.floor(oscMessages.length / 100)); // Adaptive batch size
+            const delayPerBatch = Math.max(1, Math.floor(MAX_TIME_MS / (oscMessages.length / batchSize))); // Calculate delay to fit in 5 seconds
+            
+            log(`Sending ${oscMessages.length} OSC zero messages in batches of ${batchSize} with ${delayPerBatch}ms delay`, 'OSC');
+            
+            let batchIndex = 0;
+            const sendBatch = () => {
+                const batch = oscMessages.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
+                const currentTime = Date.now();
                 
-                log(`Sending ${oscMessages.length} OSC zero messages in batches of ${batchSize} with ${delayPerBatch}ms delay`, 'OSC');
-                
-                let batchIndex = 0;
-                const sendBatch = () => {
-                    const batch = oscMessages.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
-                    const currentTime = Date.now();
-                    
-                    // Check if we're running out of time
-                    if (currentTime - startTime >= MAX_TIME_MS - 100) {
-                        // Less than 100ms left, send remaining messages immediately
-                        for (const msg of oscMessages.slice(batchIndex * batchSize)) {
-                            sendOscMessage(msg.address, [{ type: 'f', value: msg.value }]);
-                        }
-                        log(`OSC zero operation completed (time limit approaching, sent remaining ${oscMessages.length - batchIndex * batchSize} messages immediately)`, 'OSC');
-                        return;
-                    }
-                    
-                    // Send current batch
-                    for (const msg of batch) {
+                // Check if we're running out of time
+                if (currentTime - startTime >= MAX_TIME_MS - 100) {
+                    // Less than 100ms left, send remaining messages immediately
+                    for (const msg of oscMessages.slice(batchIndex * batchSize)) {
                         sendOscMessage(msg.address, [{ type: 'f', value: msg.value }]);
                     }
-                    
-                    batchIndex++;
-                    
-                    // Schedule next batch if there are more messages
-                    if (batchIndex * batchSize < oscMessages.length) {
-                        setTimeout(sendBatch, delayPerBatch);
-                    } else {
-                        const elapsed = Date.now() - startTime;
-                        log(`OSC zero operation completed in ${elapsed}ms`, 'OSC');
-                    }
-                };
+                    log(`OSC zero operation completed (time limit approaching, sent remaining ${oscMessages.length - batchIndex * batchSize} messages immediately)`, 'OSC');
+                    return;
+                }
                 
-                // Start sending batches
-                sendBatch();
-            } else {
-                // For small operations or non-zero operations, send immediately
-                for (const msg of oscMessages) {
+                // Send current batch
+                for (const msg of batch) {
                     sendOscMessage(msg.address, [{ type: 'f', value: msg.value }]);
                 }
+                
+                batchIndex++;
+                
+                // Schedule next batch if there are more messages
+                if (batchIndex * batchSize < oscMessages.length) {
+                    setTimeout(sendBatch, delayPerBatch);
+                } else {
+                    const elapsed = Date.now() - startTime;
+                    log(`OSC zero operation completed in ${elapsed}ms`, 'OSC');
+                }
+            };
+            
+            // Start sending batches
+            sendBatch();
+        } else {
+            // For small operations or non-zero operations, send immediately
+            for (const msg of oscMessages) {
+                sendOscMessage(msg.address, [{ type: 'f', value: msg.value }]);
             }
         }
     }
