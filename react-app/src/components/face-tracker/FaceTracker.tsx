@@ -110,6 +110,8 @@ interface FaceTrackerSettings {
   // Gesture detection
   enableGestures: boolean; // Enable gesture detection
   gestureSensitivity: number; // How sensitive gesture detection is (0-1)
+  // OpenCV detection settings
+  opencvFps: number; // OpenCV detection rate in FPS (1-60, default 15)
   // Zoom settings
   zoomSensitivity: number; // How sensitive zoom is to face size changes (0-2)
   zoomScale: number; // Scale factor for zoom (0.5-2.0)
@@ -195,6 +197,8 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   // Gesture detection defaults
   enableGestures: true, // Enable by default
   gestureSensitivity: 0.7, // Default: moderate sensitivity
+  // OpenCV detection defaults
+  opencvFps: 15, // Default: 15 FPS for detection
   // Zoom settings defaults
   zoomSensitivity: 1.0, // Default: normal sensitivity
   zoomScale: 1.0, // Default: no scaling
@@ -1513,9 +1517,13 @@ export const FaceTracker: React.FC = () => {
             if (face.yaw !== undefined && face.pitch !== undefined) {
               const headYaw = face.yaw;
               const headPitch = face.pitch;
-              const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.6;
-              const panOffset = headYaw * projectionDistance;
-              const tiltOffset = headPitch * projectionDistance;
+              const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.8; // Increased distance for better visibility
+              // Yaw: negative = looking left, positive = looking right
+              // Pitch: negative = looking up, positive = looking down
+              // For gaze projection: when looking left (negative yaw), X should move left (negative offset)
+              // When looking up (negative pitch), Y should move up (negative offset)
+              const panOffset = headYaw * projectionDistance; // Left/right movement
+              const tiltOffset = -headPitch * projectionDistance; // Invert pitch: negative pitch (looking up) = move up (negative Y)
               const targetX = face.centerX + panOffset;
               const targetY = face.centerY + tiltOffset;
               const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
@@ -1936,9 +1944,9 @@ export const FaceTracker: React.FC = () => {
           return;
         }
 
-        // Run face detection at lower rate (every 3-5 frames = ~10-15 FPS detection)
+        // Run face detection at adjustable rate
         const now = Date.now();
-        const detectionInterval = 1000 / 15; // 15 FPS for detection
+        const detectionInterval = 1000 / Math.max(1, Math.min(60, settings.opencvFps || 15)); // Use setting, clamp 1-60 FPS
         
         // Update OpenCV FPS counter - count every loop iteration, not just detection runs
         // This gives us the actual loop FPS, which is more useful
@@ -3988,6 +3996,41 @@ export const FaceTracker: React.FC = () => {
                     }}
                     className={styles.numberInput}
                     title="Controls how much vertical (up/down) head movement translates to tilt DMX values. Higher values = more movement per head nod. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter."
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="OpenCV detection rate in frames per second. Lower values (5-10 FPS) reduce CPU usage but may miss fast movements. Higher values (20-30 FPS) provide smoother tracking but use more CPU. Default: 15 FPS">
+                  OpenCV Detection FPS
+                </label>
+                <p className={styles.helpText}>
+                  Controls how often OpenCV runs face detection. Lower = less CPU, higher = smoother tracking. Default: 15 FPS
+                </p>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={settings.opencvFps || 15}
+                    onChange={(e) => updateSetting('opencvFps', parseInt(e.target.value, 10))}
+                    className={styles.slider}
+                    title="OpenCV detection rate in frames per second (1-60 FPS)"
+                  />
+                  <span className={styles.rangeLabel}>60</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={settings.opencvFps || 15}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (!isNaN(value) && value >= 1 && value <= 60) updateSetting('opencvFps', value);
+                    }}
+                    className={styles.numberInput}
+                    title="OpenCV detection rate in frames per second (1-60 FPS)"
                   />
                 </div>
               </div>
