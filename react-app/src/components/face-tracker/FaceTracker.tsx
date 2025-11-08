@@ -738,6 +738,7 @@ export const FaceTracker: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const detectionFrameRef = useRef<number | undefined>(undefined);
+  const detectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previewFrameRef = useRef<number | undefined>(undefined);
   
   const [state, setState] = useState<FaceTrackerState>({
@@ -1113,9 +1114,15 @@ export const FaceTracker: React.FC = () => {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = undefined;
     }
+    // Clear detection frame
     if (detectionFrameRef.current) {
       cancelAnimationFrame(detectionFrameRef.current);
       detectionFrameRef.current = undefined;
+    }
+    // Clear detection timeout
+    if (detectionTimeoutRef.current) {
+      clearTimeout(detectionTimeoutRef.current);
+      detectionTimeoutRef.current = undefined;
     }
     if (previewFrameRef.current) {
       cancelAnimationFrame(previewFrameRef.current);
@@ -1392,13 +1399,42 @@ export const FaceTracker: React.FC = () => {
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
+      console.warn('[FaceTracker] Cannot start detection: OpenCV or video not ready');
       return;
     }
 
     const processDetection = () => {
       try {
-        if (!state.isRunning || !videoRef.current || !canvasRef.current) {
-          detectionFrameRef.current = requestAnimationFrame(processDetection);
+        // Check if we should stop - exit early if not running
+        if (!state.isRunning) {
+          detectionFrameRef.current = undefined;
+          return;
+        }
+
+        // Check if required refs are still available
+        if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
+          // Exit if not running
+          if (!state.isRunning) {
+            detectionFrameRef.current = undefined;
+            if (detectionTimeoutRef.current) {
+              clearTimeout(detectionTimeoutRef.current);
+              detectionTimeoutRef.current = undefined;
+            }
+            return;
+          }
+          // Clear any existing timeout
+          if (detectionTimeoutRef.current) {
+            clearTimeout(detectionTimeoutRef.current);
+          }
+          // Use a delay before retrying to prevent browser freeze
+          detectionTimeoutRef.current = setTimeout(() => {
+            detectionTimeoutRef.current = undefined;
+            if (state.isRunning && opencvRef.current && cascadeRef.current && videoRef.current && canvasRef.current) {
+              detectionFrameRef.current = requestAnimationFrame(processDetection);
+            } else {
+              detectionFrameRef.current = undefined;
+            }
+          }, 200); // Wait 200ms before retrying
           return;
         }
 
@@ -1407,12 +1443,28 @@ export const FaceTracker: React.FC = () => {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          // Only continue loop if still running
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          } else {
+          // Exit if not running
+          if (!state.isRunning) {
             detectionFrameRef.current = undefined;
+            if (detectionTimeoutRef.current) {
+              clearTimeout(detectionTimeoutRef.current);
+              detectionTimeoutRef.current = undefined;
+            }
+            return;
           }
+          // Clear any existing timeout
+          if (detectionTimeoutRef.current) {
+            clearTimeout(detectionTimeoutRef.current);
+          }
+          // Use a delay before retrying to prevent tight loop
+          detectionTimeoutRef.current = setTimeout(() => {
+            detectionTimeoutRef.current = undefined;
+            if (state.isRunning && video.readyState === video.HAVE_ENOUGH_DATA) {
+              detectionFrameRef.current = requestAnimationFrame(processDetection);
+            } else {
+              detectionFrameRef.current = undefined;
+            }
+          }, 200); // Wait 200ms before checking again
           return;
         }
 
