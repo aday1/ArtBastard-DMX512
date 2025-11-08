@@ -246,6 +246,41 @@
     width: 100%;
   }
 
+  select,
+  .selectInput {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 100%;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover:not(:disabled) {
+      border-color: var(--accent-color);
+      background: var(--bg-secondary);
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    option {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 0.5rem;
+    }
+  }
+
   input[type="checkbox"] {
     width: auto;
     cursor: pointer;

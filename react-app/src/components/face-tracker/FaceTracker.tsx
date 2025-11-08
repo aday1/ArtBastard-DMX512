@@ -826,7 +826,7 @@ export const FaceTracker: React.FC = () => {
   const [is3DFixtureDetached, setIs3DFixtureDetached] = useState(false);
   const [fixture3DPosition, setFixture3DPosition] = useState({ x: 100, y: 100 });
   const [canvasSize, setCanvasSize] = useState({ width: 640, height: 480 });
-  const [showOverlays, setShowOverlays] = useState(false); // Overlay drawing disabled by default to prevent freezes
+  const [showOverlays, setShowOverlays] = useState(true); // Overlay drawing enabled by default
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // OpenCV.js state
@@ -3737,28 +3737,23 @@ export const FaceTracker: React.FC = () => {
                 <label className={styles.controlLabel} title="Select which camera to use for face tracking">
                   Camera Selection
                 </label>
-                <div className={styles.cameraButtons}>
-                  {availableCameras.length === 0 ? (
-                    <div className={styles.noCameras}>No cameras detected. Click "Start" to enable camera access.</div>
-                  ) : (
-                    availableCameras.map((camera, index) => (
-                      <button
-                        key={camera.deviceId || index}
-                        type="button"
-                        onClick={() => updateSetting('cameraIndex', index)}
-                        disabled={state.isRunning}
-                        className={`${styles.cameraButton} ${settings.cameraIndex === index ? styles.cameraButtonActive : ''}`}
-                        title={camera.label || `Camera ${index + 1}`}
-                      >
-                        <LucideIcon name="Video" />
-                        <span>{camera.label || `Camera ${index + 1}`}</span>
-                        {settings.cameraIndex === index && (
-                          <LucideIcon name="Check" className={styles.cameraButtonCheck} />
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
+                {availableCameras.length === 0 ? (
+                  <div className={styles.noCameras}>No cameras detected. Click "Start" to enable camera access.</div>
+                ) : (
+                  <select
+                    value={settings.cameraIndex}
+                    onChange={(e) => updateSetting('cameraIndex', parseInt(e.target.value, 10))}
+                    disabled={state.isRunning}
+                    className={styles.selectInput}
+                    title="Select camera for face tracking"
+                  >
+                    {availableCameras.map((camera, index) => (
+                      <option key={camera.deviceId || index} value={index}>
+                        {camera.label || `Camera ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
