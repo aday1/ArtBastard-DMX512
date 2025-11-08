@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
+import Draggable from 'react-draggable';
+import { Resizable } from 'react-resizable';
+import 'react-resizable/css/styles.css';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
 import { useStore } from '../../store';
@@ -817,16 +819,9 @@ export const FaceTracker: React.FC = () => {
       }
     }, 500); // Debounce: save 500ms after last change
   }, []);
-  // Camera preview toggle - can be disabled to prevent crashes
-  const [showPreview, setShowPreview] = useState(true); // Default to enabled
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [isDetached, setIsDetached] = useState(false);
-  const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
-  const [is3DFixtureDetached, setIs3DFixtureDetached] = useState(false);
-  const [fixture3DPosition, setFixture3DPosition] = useState({ x: 100, y: 100 });
   const [canvasSize, setCanvasSize] = useState({ width: 640, height: 480 });
-  const [showOverlays, setShowOverlays] = useState(true); // Overlay drawing enabled by default
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // OpenCV.js state
@@ -2881,7 +2876,15 @@ export const FaceTracker: React.FC = () => {
         }
 
         // Continue detection loop only if still running
+        // CRITICAL: Always schedule next frame to prevent loop from stopping
         if (state.isRunning) {
+          // Use setTimeout with 0 delay to ensure loop continues even if there are errors
+          setTimeout(() => {
+            if (state.isRunning && detectionFrameRef.current === undefined) {
+              detectionFrameRef.current = requestAnimationFrame(processDetection);
+            }
+          }, 0);
+          // Also set immediately as fallback
           detectionFrameRef.current = requestAnimationFrame(processDetection);
         } else {
           detectionFrameRef.current = undefined;
@@ -3607,102 +3610,38 @@ export const FaceTracker: React.FC = () => {
           {/* Camera Preview and 3D Fixture - 2 columns, sticky */}
           <div className={styles.previewSection}>
             {/* Camera Preview - Always shown (placeholder when off) */}
-            <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''} ${!state.isRunning ? styles.placeholder : ''}`} ref={previewContainerRef}>
+            <div className={`${styles.previewContainer} ${!state.isRunning ? styles.placeholder : ''}`} ref={previewContainerRef}>
               <div className={styles.previewHeader}>
                 <span className={styles.previewTitle}>Camera Preview</span>
-                {state.isRunning && (
-                  <button
-                    className={styles.detachButton}
-                    onClick={() => setIsDetached(!isDetached)}
-                    title={isDetached ? "Reattach Preview" : "Detach Preview"}
-                  >
-                    <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
-                    <span>{isDetached ? 'Reattach' : 'Detach'}</span>
-                  </button>
-                )}
               </div>
-              {!isDetached && (
+              {state.isRunning ? (
                 <>
-                  {state.isRunning ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        className={styles.video}
-                        autoPlay
-                        playsInline
-                        muted
-                      />
-                      <canvas
-                        ref={canvasRef}
-                        className={styles.canvas}
-                      />
-                    </>
-                  ) : (
-                    <div className={styles.placeholderContent}>
-                      <i className="fas fa-video" style={{ fontSize: '3rem', opacity: 0.3, marginBottom: '1rem' }}></i>
-                      <span style={{ opacity: 0.5 }}>Camera preview will appear when Face Tracker is enabled</span>
-                    </div>
-                  )}
+                  <video
+                    ref={videoRef}
+                    className={styles.video}
+                    autoPlay
+                    playsInline
+                    muted
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className={styles.canvas}
+                  />
                 </>
+              ) : (
+                <div className={styles.placeholderContent}>
+                  <i className="fas fa-video" style={{ fontSize: '3rem', opacity: 0.3, marginBottom: '1rem' }}></i>
+                  <span style={{ opacity: 0.5 }}>Camera preview will appear when Face Tracker is enabled</span>
+                </div>
               )}
             </div>
 
-            {/* Detached Camera Preview Window */}
-            {isDetached && state.isRunning && (
-              <Draggable
-                position={detachedPosition}
-                onDrag={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
-                onStop={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
-                handle=".detachedPreviewHeader"
-              >
-                <div className={styles.detachedPreview}>
-                  <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
-                    <span className={styles.detachedPreviewTitle}>Camera Preview</span>
-                    <button
-                      className={styles.closeDetachedButton}
-                      onClick={() => setIsDetached(false)}
-                      title="Reattach Preview"
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  </div>
-                  <div className={styles.detachedPreviewContent}>
-                    <video
-                      ref={videoRef}
-                      className={styles.video}
-                      autoPlay
-                      playsInline
-                      muted
-                      style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '70vh', objectFit: 'contain' }}
-                    />
-                    <canvas
-                      ref={canvasRef}
-                      className={styles.detachedCanvas}
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
-                    />
-                  </div>
-                </div>
-              </Draggable>
-            )}
-
             {/* 3D Fixture Model - Always shown (placeholder when off) */}
-            <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''} ${!state.isRunning ? styles.placeholder : ''}`}>
+            <div className={`${styles.fixture3DContainer} ${!state.isRunning ? styles.placeholder : ''}`}>
               <div className={styles.previewHeader}>
                 <span className={styles.previewTitle}>3D Fixture Model</span>
-                {state.isRunning && (
-                  <button
-                    className={styles.detachButton}
-                    onClick={() => setIs3DFixtureDetached(!is3DFixtureDetached)}
-                    title={is3DFixtureDetached ? "Reattach 3D Model" : "Detach 3D Model"}
-                  >
-                    <i className={`fas fa-${is3DFixtureDetached ? 'compress' : 'expand'}`}></i>
-                    <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
-                  </button>
-                )}
               </div>
-              {!is3DFixtureDetached && (
-                state.isRunning ? (() => {
+              {state.isRunning ? (() => {
                   // Get RGB color from first selected fixture
                   let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
                   if (selectedFixtureIds.length > 0) {
@@ -3826,32 +3765,25 @@ export const FaceTracker: React.FC = () => {
                   const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
                   
                   return (
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      width: '100%', 
-                      height: '100%', 
-                      minHeight: '400px'
-                    }}>
-                      <Fixture3DModel
-                        panValue={state.currentPan}
-                        tiltValue={state.currentTilt}
-                        zoomValue={state.currentZoom}
-                        irisValue={state.currentIris}
-                        shutterValue={shutterValue}
-                        goboValue={goboValue}
-                        rgbColor={rgbColor}
-                        width={500}
-                        height={500}
-                      />
-                    </div>
+                    <Fixture3DModel
+                      panValue={state.currentPan}
+                      tiltValue={state.currentTilt}
+                      zoomValue={state.currentZoom}
+                      irisValue={state.currentIris}
+                      shutterValue={shutterValue}
+                      goboValue={goboValue}
+                      rgbColor={rgbColor}
+                      width={400}
+                      height={400}
+                    />
                   );
-                })()}
+                })() : (
+                  <div className={styles.placeholderContent}>
+                    <i className="fas fa-cube" style={{ fontSize: '3rem', opacity: 0.3, marginBottom: '1rem' }}></i>
+                    <span style={{ opacity: 0.5 }}>3D fixture model will appear when Face Tracker is enabled</span>
                   </div>
-                </div>
-              </Draggable>
-            )}
+                )}
+            </div>
 
             <div className={styles.previewControls}>
               <div className={styles.allControls}>
@@ -5123,278 +5055,6 @@ export const FaceTracker: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Control Output - Show all tracked values */}
-        <div className={styles.liveControlSection}>
-          <h4 className={styles.controlsTitle}>Live Control Output</h4>
-          <p className={styles.helpText} style={{ marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
-            Real-time preview of all tracked values being sent to DMX channels
-          </p>
-          
-          {/* Pan Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current pan value being sent to DMX (0-255)">
-              Pan: {state.currentPan} {settings.panChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.panChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>0</span>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentPan}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current pan value being sent to DMX (0-255)"
-              />
-              <span className={styles.rangeLabel}>255</span>
-              <input
-                type="number"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentPan}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current pan value being sent to DMX (0-255)"
-              />
-            </div>
-          </div>
-          
-          {/* Tilt Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current tilt value being sent to DMX (0-255)">
-              Tilt: {state.currentTilt} {settings.tiltChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.tiltChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>0</span>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentTilt}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current tilt value being sent to DMX (0-255)"
-              />
-              <span className={styles.rangeLabel}>255</span>
-              <input
-                type="number"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentTilt}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current tilt value being sent to DMX (0-255)"
-              />
-            </div>
-          </div>
-          
-          {/* X Position Control - Always visible if tracking */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current X position value being sent to DMX (0-255)">
-              X Position: {state.currentX} {settings.xPositionChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.xPositionChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>{settings.xPositionMin}</span>
-              <input
-                type="range"
-                min={settings.xPositionMin}
-                max={settings.xPositionMax}
-                step="1"
-                value={state.currentX}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current X position value being sent to DMX"
-              />
-              <span className={styles.rangeLabel}>{settings.xPositionMax}</span>
-              <input
-                type="number"
-                min={settings.xPositionMin}
-                max={settings.xPositionMax}
-                step="1"
-                value={state.currentX}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current X position value being sent to DMX"
-              />
-            </div>
-          </div>
-          
-          {/* Y Position Control - Always visible if tracking */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current Y position value being sent to DMX (0-255)">
-              Y Position: {state.currentY} {settings.yPositionChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.yPositionChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>{settings.yPositionMin}</span>
-              <input
-                type="range"
-                min={settings.yPositionMin}
-                max={settings.yPositionMax}
-                step="1"
-                value={state.currentY}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current Y position value being sent to DMX"
-              />
-              <span className={styles.rangeLabel}>{settings.yPositionMax}</span>
-              <input
-                type="number"
-                min={settings.yPositionMin}
-                max={settings.yPositionMax}
-                step="1"
-                value={state.currentY}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current Y position value being sent to DMX"
-              />
-            </div>
-          </div>
-          
-          {/* Zoom Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current zoom value being sent to DMX (0-255)">
-              Zoom: {state.currentZoom} {settings.zoomChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.zoomChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>{settings.zoomMin}</span>
-              <input
-                type="range"
-                min={settings.zoomMin}
-                max={settings.zoomMax}
-                step="1"
-                value={state.currentZoom}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current zoom value being sent to DMX"
-              />
-              <span className={styles.rangeLabel}>{settings.zoomMax}</span>
-              <input
-                type="number"
-                min={settings.zoomMin}
-                max={settings.zoomMax}
-                step="1"
-                value={state.currentZoom}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current zoom value being sent to DMX"
-              />
-            </div>
-          </div>
-          
-          {/* Iris Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current iris value being sent to DMX (0-255)">
-              Iris: {state.currentIris} {state.isBlinking && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👁️ BLINKING</span>} {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.irisChannel || settings.blinkIrisChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>{settings.irisMin}</span>
-              <input
-                type="range"
-                min={settings.irisMin}
-                max={settings.irisMax}
-                step="1"
-                value={state.currentIris}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current iris value being sent to DMX (controlled by blink detection)"
-              />
-              <span className={styles.rangeLabel}>{settings.irisMax}</span>
-              <input
-                type="number"
-                min={settings.irisMin}
-                max={settings.irisMax}
-                step="1"
-                value={state.currentIris}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current iris value being sent to DMX (controlled by blink detection)"
-              />
-            </div>
-          </div>
-          
-          {/* Mouth Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current mouth openness value being sent to DMX (0-255)">
-              Mouth: {state.currentMouth} {settings.mouthChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.mouthChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>{settings.mouthMin}</span>
-              <input
-                type="range"
-                min={settings.mouthMin}
-                max={settings.mouthMax}
-                step="1"
-                value={state.currentMouth}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current mouth openness value being sent to DMX"
-              />
-              <span className={styles.rangeLabel}>{settings.mouthMax}</span>
-              <input
-                type="number"
-                min={settings.mouthMin}
-                max={settings.mouthMax}
-                step="1"
-                value={state.currentMouth}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current mouth openness value being sent to DMX"
-              />
-            </div>
-          </div>
-          
-          {/* Tongue Control - Always visible */}
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel} title="Current tongue detection value being sent to DMX (0-255)">
-              Tongue: {state.currentTongue} {state.isTongueOut && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👅 OUT</span>} {settings.tongueChannel > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>(Ch {settings.tongueChannel})</span>}
-            </label>
-            <div className={styles.sliderWrapper}>
-              <span className={styles.rangeLabel}>0</span>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentTongue}
-                readOnly
-                disabled
-                className={`${styles.slider} ${styles.liveSlider}`}
-                title="Current tongue detection value being sent to DMX"
-              />
-              <span className={styles.rangeLabel}>255</span>
-              <input
-                type="number"
-                min="0"
-                max="255"
-                step="1"
-                value={state.currentTongue}
-                readOnly
-                disabled
-                className={styles.numberInput}
-                title="Current tongue detection value being sent to DMX"
-              />
-            </div>
-          </div>
-          
-        </div>
         </div>
       </div>
     </div>

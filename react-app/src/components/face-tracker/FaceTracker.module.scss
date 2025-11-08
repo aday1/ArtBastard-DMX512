@@ -590,6 +590,11 @@
   border-bottom: 2px solid var(--border-color);
   margin-bottom: 1rem;
   width: 100%;
+  resize: both;
+  overflow: auto;
+  min-width: 300px;
+  min-height: 150px;
+  cursor: move;
 }
 
 .previewSection {
@@ -601,6 +606,11 @@
   top: 200px; /* Adjust based on liveControlRow height */
   z-index: 99;
   background: var(--bg-primary);
+  resize: both;
+  overflow: auto;
+  min-width: 400px;
+  min-height: 300px;
+  cursor: move;
   padding: 1rem 0;
   border-bottom: 2px solid var(--border-color);
   
@@ -787,23 +797,28 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   
-  &.detached {
-    min-height: auto;
-    height: auto;
-  }
-  
   // Placeholder state when tracker is off
   &.placeholder {
     opacity: 0.7;
   }
   
-  // Center the 3D model content
+  // Make 3D model fill entire panel
   > div {
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
+    align-items: stretch;
+    justify-content: stretch;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    
+    // Target the Fixture3DModel container
+    > div {
+      width: 100% !important;
+      height: 100% !important;
+      flex: 1;
+      min-height: 0;
+    }
   }
   
   canvas {
@@ -1039,13 +1054,19 @@
 
 .allControls {
   display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto auto;
+  grid-template-columns: 1fr 1fr; // 2 columns side by side
+  grid-template-rows: auto;
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
+  
+  // On smaller screens, stack vertically
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
   
   @media (max-width: 1200px) {
     gap: 1rem;
@@ -1082,6 +1103,11 @@
   min-width: 0; // Prevent overflow
   width: 100%;
   max-width: 100%;
+  resize: both;
+  overflow: auto;
+  min-width: 250px;
+  min-height: 200px;
+  cursor: move;
 }
 
 .cameraControls {
