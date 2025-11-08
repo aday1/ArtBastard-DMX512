@@ -1,7 +1,5 @@
 param(
     [switch]$Clear,
-    [switch]$Quick,
-    [switch]$ClearForce,
     [switch]$Help
 )
 
@@ -10,44 +8,23 @@ if ($Help) {
     Write-Host "=====================================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor Yellow
-    Write-Host "  .\start.ps1           # EXQUISITE rapid deployment (recommended)" -ForegroundColor Green
-    Write-Host "  .\start.ps1 -Quick    # Quick start (clears cache, reinstalls, builds, starts)" -ForegroundColor Cyan
-    Write-Host "  .\start.ps1 -Clear   # Immaculate reconstruction (purges all artifacts)" -ForegroundColor Red
-    Write-Host "  .\start.ps1 -ClearForce # FORCE full rebuild and cache clear (nuclear option)" -ForegroundColor Magenta
-    Write-Host "  .\start.ps1 -Help    # Display this refined documentation" -ForegroundColor White
+    Write-Host "  .\start.ps1           # Fast start (recommended)" -ForegroundColor Green
+    Write-Host "  .\start.ps1 -Clear    # Full clean rebuild (removes everything, reinstalls, rebuilds)" -ForegroundColor Red
+    Write-Host "  .\start.ps1 -Help     # Display this help" -ForegroundColor White
     Write-Host ""
-    Write-Host "Operational Modes:" -ForegroundColor Yellow
-    Write-Host "  Standard (default): Elegantly rapid initialization, preserves curated artifacts" -ForegroundColor Green
-    Write-Host "  -Quick:           Quick start mode (clears cache, reinstalls dependencies, builds)" -ForegroundColor Cyan
-    Write-Host "  -Clear:           Complete architectural reconstruction (more deliberate)" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Performance Characteristics:" -ForegroundColor Yellow
-    Write-Host "  Standard deployment:    ~5-10 seconds" -ForegroundColor Green
-    Write-Host "  Quick start:           ~15-30 seconds" -ForegroundColor Cyan
-    Write-Host "  Immaculate reconstruction: ~30-60 seconds" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Exemplary Invocations:" -ForegroundColor Yellow
-    Write-Host "  .\start.ps1          # Sophisticated rapid deployment (daily preference)" -ForegroundColor Green
-    Write-Host "  .\start.ps1 -Quick   # Quick start with cache clear and reinstall" -ForegroundColor Cyan
-    Write-Host "  .\start.ps1 -Clear   # When architectural purity is paramount" -ForegroundColor Red
+    Write-Host "Modes:" -ForegroundColor Yellow
+    Write-Host "  Default: Fast start - preserves cache and dependencies, only rebuilds if needed" -ForegroundColor Green
+    Write-Host "  -Clear:  Full clean - removes node_modules, cache, and build artifacts, then rebuilds" -ForegroundColor Red
     Write-Host ""
     exit 0
 }
 
-Write-Host "ArtBastard DMX512 - Sophisticated Launch Orchestrator" -ForegroundColor Cyan
+Write-Host "ArtBastard DMX512 - Launch Script" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
-if ($ClearForce) {
-    Write-Host "FORCE REBUILD MODE: Nuclear option - complete cache clear and rebuild" -ForegroundColor Magenta
-    Write-Host "Eliminating ALL cached artifacts, node_modules, and forcing full rebuild" -ForegroundColor Magenta
-} elseif ($Clear) {
-    Write-Host "IMMACULATE RECONSTRUCTION MODE: Architectural purity restoration" -ForegroundColor Red
-    Write-Host "Eliminating all cached artifacts and dependencies for pristine foundation" -ForegroundColor Red
-} elseif ($Quick) {
-    Write-Host "QUICK START MODE: Clearing cache and reinstalling dependencies" -ForegroundColor Cyan
-    Write-Host "Skipping full setup - just clearing cache and starting quickly" -ForegroundColor Cyan
+if ($Clear) {
+    Write-Host "FULL CLEAN REBUILD MODE: Removing all artifacts and rebuilding from scratch" -ForegroundColor Red
 } else {
-    Write-Host "EXQUISITE RAPID DEPLOYMENT MODE: Elegantly accelerated initialization" -ForegroundColor Green
-    Write-Host "Preserving curated artifacts and dependencies for optimal efficiency" -ForegroundColor Green
+    Write-Host "FAST START MODE: Smart rebuild (only rebuilds if needed)" -ForegroundColor Green
 }
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -283,58 +260,9 @@ function Start-BrowserWhenReady {
     return $browserJob
 }
 
-# QUICK START PATH: Clear cache, reinstall, build, and start
-if ($Quick) {
-    Write-Host "🎭 ArtBastard Quick Start" -ForegroundColor Magenta
-    Write-Host "Skipping full setup - just clearing cache and starting..." -ForegroundColor Yellow
-    Write-Host ""
-    
-    # Clear npm cache
-    Write-Host "🧹 Clearing npm cache..." -ForegroundColor Cyan
-    npm cache clean --force
-    
-    # Quick install (uses existing package-lock.json if available)
-    Write-Host "📦 Quick npm install..." -ForegroundColor Cyan
-    npm install --prefer-offline --no-audit --legacy-peer-deps
-    
-    # Quick install for react-app
-    Write-Host "📦 Quick react-app install..." -ForegroundColor Cyan
-    Set-Location react-app
-    npm install --prefer-offline --no-audit --legacy-peer-deps
-    Set-Location ..
-    
-    # Build and start
-    Write-Host "🔨 Building and starting..." -ForegroundColor Green
-    npm run build
-    
-    # Launch browser when server is ready
-    Write-Host "🌐 Browser will launch automatically when server is ready..." -ForegroundColor Cyan
-    $browserJob = Start-BrowserWhenReady
-    
-    # Start server
-    try {
-        npm start
-    } catch {
-        Write-Host "Server deployment encountered complications!" -ForegroundColor Red
-        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-    } finally {
-        # Cleanup browser job
-        Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue
-    }
-    
-    # Update ETA metrics for future sophistication
-    $totalTime = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
-    Update-ETAMetrics $totalTime
-    
-    Write-Host ""
-    Write-Host "ArtBastard DMX512 quick start session concluded." -ForegroundColor Cyan
-    exit 0
-}
-
-# FORCE REBUILD PATH: Nuclear option - complete cache clear and rebuild
-if ($ClearForce) {
-    Write-Host "💥 FORCE REBUILD MODE: Complete cache clear and rebuild" -ForegroundColor Magenta
-    Write-Host "Eliminating ALL cached artifacts, node_modules, and forcing full rebuild..." -ForegroundColor Magenta
+# FULL CLEAN REBUILD PATH: Complete cache clear and rebuild
+if ($Clear) {
+    Write-Host "🧹 FULL CLEAN REBUILD: Removing all artifacts and rebuilding from scratch" -ForegroundColor Red
     Write-Host ""
     
     # Kill all processes
@@ -450,7 +378,7 @@ if ($ClearForce) {
     Update-ETAMetrics $totalTime
     
     Write-Host ""
-    Write-Host "ArtBastard DMX512 force rebuild session concluded." -ForegroundColor Cyan
+    Write-Host "ArtBastard DMX512 clean rebuild completed." -ForegroundColor Cyan
     exit 0
 }
 

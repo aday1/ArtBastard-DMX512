@@ -1493,6 +1493,15 @@ export const FaceTracker: React.FC = () => {
     } else {
       previewFrameRef.current = undefined;
     }
+    } catch (error: any) {
+      console.error('[FaceTracker] Error in renderPreview:', error);
+      // Continue loop if still running, but log error
+      if (state.isRunning) {
+        previewFrameRef.current = requestAnimationFrame(renderPreview);
+      } else {
+        previewFrameRef.current = undefined;
+      }
+    }
   }, [showPreview, state.currentPan, state.currentTilt, state.isRunning]);
 
   // Face detection (runs at lower rate for performance)
