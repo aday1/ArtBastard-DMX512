@@ -67,17 +67,24 @@
       margin: 0;
       font-size: 2rem;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+      color: var(--text-primary);
+      // Fallback color in case gradient doesn't work
+      background: linear-gradient(135deg, var(--accent-color, #00d4ff), var(--accent-secondary, #ff6bb4));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       letter-spacing: -0.02em;
+      // Ensure text is visible even if gradient fails
+      @supports not (-webkit-background-clip: text) {
+        color: var(--text-primary) !important;
+        -webkit-text-fill-color: var(--text-primary) !important;
+      }
     }
 
     .subtitle {
       margin: 0.5rem 0 0 0;
       font-size: 0.95rem;
-      color: var(--text-primary);
+      color: var(--text-primary) !important;
       font-style: italic;
       opacity: 0.95;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
