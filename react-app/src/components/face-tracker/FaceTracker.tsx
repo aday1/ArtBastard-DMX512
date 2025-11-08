@@ -13,6 +13,11 @@ interface FaceTrackerState {
   faceDetected: boolean;
   currentPan: number;
   currentTilt: number;
+  currentX: number; // X position (0-255)
+  currentY: number; // Y position (0-255)
+  currentIris: number; // Iris value (0-255)
+  currentMouth: number; // Mouth openness (0-255)
+  isBlinking: boolean; // Current blink state
   fps: number;
   error: string | null;
 }
@@ -65,6 +70,25 @@ interface FaceTrackerSettings {
   oscHost: string;
   oscPort: number;
   oscSmoothing: number; // Throttle/debounce OSC messages (0-1000ms)
+  flipPan: boolean; // Invert pan direction
+  flipTilt: boolean; // Invert tilt direction
+  delay: number; // Delay in milliseconds (0-2000ms) for telegram effect
+  // X/Y Position tracking (for fixture following)
+  xPositionChannel: number; // DMX channel for X position (0 = disabled)
+  yPositionChannel: number; // DMX channel for Y position (0 = disabled)
+  xPositionMin: number;
+  xPositionMax: number;
+  yPositionMin: number;
+  yPositionMax: number;
+  // Blink detection
+  blinkIrisChannel: number; // DMX channel for blink-controlled iris (0 = disabled, use irisChannel if > 0)
+  blinkThreshold: number; // Eye aspect ratio threshold for blink detection (0.15-0.35)
+  blinkSensitivity: number; // How much blink affects iris (0-1)
+  // Mouth detection
+  mouthChannel: number; // DMX channel for mouth openness (0 = disabled)
+  mouthMin: number;
+  mouthMax: number;
+  mouthSensitivity: number; // How sensitive mouth detection is (0-1)
 }
 
 const DEFAULT_SETTINGS: FaceTrackerSettings = {
@@ -115,6 +139,25 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   oscHost: '127.0.0.1',
   oscPort: 8000, // Default to ArtBastard's OSC incoming port
   oscSmoothing: 50, // Default: throttle OSC messages to max 20 per second (50ms interval)
+  flipPan: false, // Don't flip pan by default
+  flipTilt: false, // Don't flip tilt by default
+  delay: 0, // No delay by default (0-2000ms)
+  // X/Y Position tracking defaults
+  xPositionChannel: 0, // Disabled by default
+  yPositionChannel: 0, // Disabled by default
+  xPositionMin: 0,
+  xPositionMax: 255,
+  yPositionMin: 0,
+  yPositionMax: 255,
+  // Blink detection defaults
+  blinkIrisChannel: 0, // Disabled by default (use irisChannel if > 0)
+  blinkThreshold: 0.25, // Default eye aspect ratio threshold
+  blinkSensitivity: 0.5, // Default blink sensitivity
+  // Mouth detection defaults
+  mouthChannel: 0, // Disabled by default
+  mouthMin: 0,
+  mouthMax: 255,
+  mouthSensitivity: 1.0, // Default mouth sensitivity
 };
 
 // Helper function to apply camera constraints with multiple fallback strategies
@@ -228,6 +271,79 @@ const calculateVariance = (values: number[]): number => {
   return variance;
 };
 
+// Helper function to calculate region brightness (average grayscale value)
+const calculateRegionBrightness = (imageData: ImageData): number => {
+  const data = imageData.data;
+  let sum = 0;
+  let count = 0;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    // Convert RGB to grayscale
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    sum += gray;
+    count++;
+  }
+  
+  return count > 0 ? sum / count : 0;
+};
+
+// Helper function to calculate region variance (for blink detection)
+const calculateRegionVariance = (imageData: ImageData): number => {
+  const data = imageData.data;
+  const values: number[] = [];
+  
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    values.push(gray);
+  }
+  
+  if (values.length === 0) return 0;
+  
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  
+  return variance;
+};
+
+// Helper function to calculate mouth openness (using vertical edge detection)
+const calculateMouthOpenness = (imageData: ImageData): number => {
+  const data = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  
+  if (width < 2 || height < 2) return 0;
+  
+  let verticalEdges = 0;
+  let totalPixels = 0;
+  
+  // Detect vertical edges (mouth opening creates vertical lines)
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      const idxTop = ((y - 1) * width + x) * 4;
+      const idxBottom = ((y + 1) * width + x) * 4;
+      
+      // Calculate grayscale values
+      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      const grayTop = 0.299 * data[idxTop] + 0.587 * data[idxTop + 1] + 0.114 * data[idxTop + 2];
+      const grayBottom = 0.299 * data[idxBottom] + 0.587 * data[idxBottom + 1] + 0.114 * data[idxBottom + 2];
+      
+      // Vertical gradient (edge detection)
+      const verticalGradient = Math.abs(grayTop - grayBottom);
+      
+      if (verticalGradient > 20) { // Threshold for edge detection
+        verticalEdges++;
+      }
+      totalPixels++;
+    }
+  }
+  
+  // Normalize to 0-1 (more edges = more open mouth)
+  const openness = Math.min(1, verticalEdges / (totalPixels * 0.1)); // Scale factor
+  
+  return openness;
+};
+
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
   const { socket, connected: socketConnected } = useSocket();
@@ -245,6 +361,11 @@ export const FaceTracker: React.FC = () => {
     faceDetected: false,
     currentPan: 128,
     currentTilt: 128,
+    currentX: 128,
+    currentY: 128,
+    currentIris: 128,
+    currentMouth: 0,
+    isBlinking: false,
     fps: 0,
     error: null,
   });
@@ -313,11 +434,21 @@ export const FaceTracker: React.FC = () => {
     x: number; 
     y: number; 
     width: number; 
-    height: number; 
-    centerX: number; 
+    height: number;
+    centerX: number;
     centerY: number;
     timestamp: number;
   } | null>(null);
+  const faceHistoryRef = useRef<Array<{ width: number; height: number; centerX: number; centerY: number; timestamp: number }>>([]);
+  const baselineFaceSizeRef = useRef<{ width: number; height: number; aspectRatio: number } | null>(null);
+  // Delay buffer: store pan/tilt values with timestamps for delayed application
+  const delayBufferRef = useRef<Array<{ pan: number; tilt: number; x: number; y: number; iris: number; mouth: number; timestamp: number }>>([]);
+  // Eye tracking for blink detection
+  const eyeHistoryRef = useRef<Array<{ leftEyeEAR: number; rightEyeEAR: number; timestamp: number }>>([]);
+  const lastBlinkTimeRef = useRef<number>(0);
+  const blinkStateRef = useRef<boolean>(false);
+  // Mouth tracking
+  const mouthHistoryRef = useRef<Array<{ openness: number; timestamp: number }>>([]);
   const gestureHistoryRef = useRef<{
     panHistory: number[];
     tiltHistory: number[];
@@ -867,9 +998,211 @@ export const FaceTracker: React.FC = () => {
                 timestamp: Date.now()
               };
 
-              // Calculate pan/tilt offsets (normalized -1 to 1)
-              const pan = (faceCenterX - imageCenterX) / imageCenterX;
-              const tilt = (faceCenterY - imageCenterY) / imageCenterY;
+              // Calculate X/Y position values (0-255) for fixture following
+              const xPositionValue = Math.round(
+                Math.max(settings.xPositionMin, Math.min(settings.xPositionMax,
+                  (faceCenterX / video.videoWidth) * 255
+                ))
+              );
+              const yPositionValue = Math.round(
+                Math.max(settings.yPositionMin, Math.min(settings.yPositionMax,
+                  (faceCenterY / video.videoHeight) * 255
+                ))
+              );
+
+              // Blink detection: Analyze eye region brightness/contrast
+              // Eye regions are approximately: left eye (20-40% from left, 25-40% from top), right eye (60-80% from left, 25-40% from top)
+              let isBlinking = false;
+              let irisValue = settings.irisChannel > 0 ? state.currentIris : 128;
+              
+              if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
+                try {
+                  // Extract eye regions from the face rectangle
+                  const faceX = face.x;
+                  const faceY = face.y;
+                  const faceW = face.width;
+                  const faceH = face.height;
+                  
+                  // Left eye region (20-40% from left, 25-40% from top of face)
+                  const leftEyeX = Math.round(faceX + faceW * 0.2);
+                  const leftEyeY = Math.round(faceY + faceH * 0.25);
+                  const leftEyeW = Math.round(faceW * 0.2);
+                  const leftEyeH = Math.round(faceH * 0.15);
+                  
+                  // Right eye region (60-80% from left, 25-40% from top of face)
+                  const rightEyeX = Math.round(faceX + faceW * 0.6);
+                  const rightEyeY = Math.round(faceY + faceH * 0.25);
+                  const rightEyeW = Math.round(faceW * 0.2);
+                  const rightEyeH = Math.round(faceH * 0.15);
+                  
+                  // Extract eye regions from detection canvas
+                  const leftEyeROI = detCtx.getImageData(
+                    Math.max(0, Math.min(leftEyeX, detWidth - 1)),
+                    Math.max(0, Math.min(leftEyeY, detHeight - 1)),
+                    Math.max(1, Math.min(leftEyeW, detWidth - leftEyeX)),
+                    Math.max(1, Math.min(leftEyeH, detHeight - leftEyeY))
+                  );
+                  const rightEyeROI = detCtx.getImageData(
+                    Math.max(0, Math.min(rightEyeX, detWidth - 1)),
+                    Math.max(0, Math.min(rightEyeY, detHeight - 1)),
+                    Math.max(1, Math.min(rightEyeW, detWidth - rightEyeX)),
+                    Math.max(1, Math.min(rightEyeH, detHeight - rightEyeY))
+                  );
+                  
+                  // Calculate average brightness for each eye
+                  const leftEyeBrightness = calculateRegionBrightness(leftEyeROI);
+                  const rightEyeBrightness = calculateRegionBrightness(rightEyeROI);
+                  const avgEyeBrightness = (leftEyeBrightness + rightEyeBrightness) / 2;
+                  
+                  // Calculate Eye Aspect Ratio (EAR) approximation using brightness variance
+                  // When eyes are closed, brightness is more uniform (lower variance)
+                  const leftEyeVariance = calculateRegionVariance(leftEyeROI);
+                  const rightEyeVariance = calculateRegionVariance(rightEyeROI);
+                  const avgVariance = (leftEyeVariance + rightEyeVariance) / 2;
+                  
+                  // EAR approximation: higher variance = eyes open, lower variance = eyes closed
+                  const earApprox = avgVariance / 1000; // Normalize
+                  
+                  // Detect blink: EAR drops below threshold
+                  isBlinking = earApprox < settings.blinkThreshold;
+                  
+                  // Update blink state
+                  const currentTime = Date.now();
+                  if (isBlinking && !blinkStateRef.current && (currentTime - lastBlinkTimeRef.current) > 200) {
+                    // Blink detected
+                    blinkStateRef.current = true;
+                    lastBlinkTimeRef.current = currentTime;
+                    console.log('[Blink] Detected! EAR:', earApprox.toFixed(4), 'Threshold:', settings.blinkThreshold);
+                  } else if (!isBlinking && blinkStateRef.current) {
+                    // Blink ended
+                    blinkStateRef.current = false;
+                    console.log('[Blink] Ended');
+                  }
+                  
+                  // Control iris based on blink
+                  if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
+                    const targetIrisChannel = settings.blinkIrisChannel > 0 ? settings.blinkIrisChannel : settings.irisChannel;
+                    if (isBlinking) {
+                      // Close iris when blinking
+                      irisValue = Math.round(
+                        Math.max(settings.irisMin, Math.min(settings.irisMax,
+                          settings.irisMin + (settings.irisMax - settings.irisMin) * (1 - settings.blinkSensitivity)
+                        ))
+                      );
+                    } else {
+                      // Open iris when not blinking
+                      irisValue = Math.round(
+                        Math.max(settings.irisMin, Math.min(settings.irisMax,
+                          settings.irisMin + (settings.irisMax - settings.irisMin) * settings.blinkSensitivity
+                        ))
+                      );
+                    }
+                  }
+                  
+                  // Store eye history
+                  eyeHistoryRef.current.push({
+                    leftEyeEAR: earApprox,
+                    rightEyeEAR: earApprox,
+                    timestamp: currentTime
+                  });
+                  
+                  // Keep only last 30 samples (~2 seconds at 15 FPS)
+                  if (eyeHistoryRef.current.length > 30) {
+                    eyeHistoryRef.current.shift();
+                  }
+                } catch (err) {
+                  console.warn('[FaceTracker] Error in blink detection:', err);
+                }
+              }
+              
+              // Mouth detection: Analyze mouth region for openness
+              let mouthValue = 0;
+              
+              if (settings.mouthChannel > 0) {
+                try {
+                  // Mouth region is approximately: 30-70% from left, 50-75% from top of face
+                  const faceX = face.x;
+                  const faceY = face.y;
+                  const faceW = face.width;
+                  const faceH = face.height;
+                  
+                  const mouthX = Math.round(faceX + faceW * 0.3);
+                  const mouthY = Math.round(faceY + faceH * 0.5);
+                  const mouthW = Math.round(faceW * 0.4);
+                  const mouthH = Math.round(faceH * 0.25);
+                  
+                  // Extract mouth region from detection canvas
+                  const mouthROI = detCtx.getImageData(
+                    Math.max(0, Math.min(mouthX, detWidth - 1)),
+                    Math.max(0, Math.min(mouthY, detHeight - 1)),
+                    Math.max(1, Math.min(mouthW, detWidth - mouthX)),
+                    Math.max(1, Math.min(mouthH, detHeight - mouthY))
+                  );
+                  
+                  // Calculate mouth openness using vertical edge detection
+                  // More vertical edges = mouth more open
+                  const mouthOpenness = calculateMouthOpenness(mouthROI);
+                  
+                  // Map to DMX value (0-255)
+                  mouthValue = Math.round(
+                    Math.max(settings.mouthMin, Math.min(settings.mouthMax,
+                      settings.mouthMin + (settings.mouthMax - settings.mouthMin) * mouthOpenness * settings.mouthSensitivity
+                    ))
+                  );
+                  
+                  // Store mouth history
+                  mouthHistoryRef.current.push({
+                    openness: mouthOpenness,
+                    timestamp: Date.now()
+                  });
+                  
+                  // Keep only last 30 samples
+                  if (mouthHistoryRef.current.length > 30) {
+                    mouthHistoryRef.current.shift();
+                  }
+                } catch (err) {
+                  console.warn('[FaceTracker] Error in mouth detection:', err);
+                }
+              }
+
+              // HEAD POSE ESTIMATION (pitch/yaw) instead of X/Y position
+              // Calculate head orientation from face bounding box and position
+              
+              // YAW (pan) - head turning left/right
+              // When head turns, the face width appears narrower and position shifts
+              // Use face aspect ratio and position to estimate yaw
+              const faceAspectRatio = face.width / face.height;
+              const normalizedFaceWidth = face.width / video.videoWidth;
+              
+              // Base pan from face center position
+              const panFromPosition = (faceCenterX - imageCenterX) / imageCenterX;
+              
+              // Yaw estimation: when turning head, face appears narrower
+              // Normal face aspect ratio is ~0.75-0.85, narrower = more turned
+              const normalAspectRatio = 0.8; // Typical face aspect ratio
+              const aspectRatioChange = (normalAspectRatio - faceAspectRatio) / normalAspectRatio;
+              
+              // Combine position and aspect ratio for yaw
+              // When turning left, face moves left AND appears narrower
+              // When turning right, face moves right AND appears narrower
+              const yaw = panFromPosition * 0.7 + Math.sign(panFromPosition) * aspectRatioChange * 0.3;
+              
+              // PITCH (tilt) - head nodding up/down
+              // When nodding, face height changes and position shifts vertically
+              const tiltFromPosition = (faceCenterY - imageCenterY) / imageCenterY;
+              
+              // Pitch estimation: when nodding down, face appears taller (more vertical)
+              // When looking up, face appears shorter
+              const normalHeightRatio = 1.0; // Baseline
+              const heightRatio = face.height / (video.videoHeight * 0.2); // Normalized to expected face size
+              const pitchFromHeight = (heightRatio - normalHeightRatio) * 0.5; // Scale factor
+              
+              // Combine position and height for pitch
+              const pitch = tiltFromPosition * 0.6 + pitchFromHeight * 0.4;
+              
+              // Use yaw for pan and pitch for tilt
+              const pan = yaw;
+              const tilt = pitch;
 
               // Log position offsets every 5 detections
               if (Math.random() < 0.2) {
@@ -959,23 +1292,94 @@ export const FaceTracker: React.FC = () => {
               }
 
               // Map to DMX values (pan/tilt are -1 to 1, map to 0-255)
+              // Apply flip if enabled (invert direction)
+              const panDirection = settings.flipPan ? -1 : 1;
+              const tiltDirection = settings.flipTilt ? -1 : 1;
               // Apply sensitivity and scale, then add offset
-              const panScaled = smoothedPanRef.current * settings.panSensitivity * 127; // -127 to 127
-              const tiltScaled = smoothedTiltRef.current * settings.tiltSensitivity * 127; // -127 to 127
+              const panScaled = smoothedPanRef.current * panDirection * settings.panSensitivity * 127; // -127 to 127
+              const tiltScaled = smoothedTiltRef.current * tiltDirection * settings.tiltSensitivity * 127; // -127 to 127
               
-              const panValue = Math.round(
+              // Calculate target values
+              const targetPanValue = Math.round(
                 Math.max(settings.panMin, Math.min(settings.panMax,
                   panScaled + settings.panOffset // Offset is center (128), so result is 1-255
                 ))
               );
-              const tiltValue = Math.round(
+              const targetTiltValue = Math.round(
                 Math.max(settings.tiltMin, Math.min(settings.tiltMax,
                   tiltScaled + settings.tiltOffset // Offset is center (128), so result is 1-255
                 ))
               );
 
+              // Apply delay if enabled (telegram effect)
+              const delayNow = Date.now();
+              let panValue = targetPanValue;
+              let tiltValue = targetTiltValue;
+              // X/Y, iris, and mouth values (may be modified by delay)
+              let finalXValue = xPositionValue;
+              let finalYValue = yPositionValue;
+              let finalIrisValue = irisValue;
+              let finalMouthValue = mouthValue;
+              
+              if (settings.delay > 0) {
+                // Add current values to delay buffer
+                delayBufferRef.current.push({
+                  pan: targetPanValue,
+                  tilt: targetTiltValue,
+                  x: xPositionValue,
+                  y: yPositionValue,
+                  iris: irisValue,
+                  mouth: mouthValue,
+                  timestamp: delayNow
+                });
+                
+                // Remove old entries (older than delay + some buffer)
+                const maxAge = settings.delay + 500; // Keep entries for delay + 500ms buffer
+                delayBufferRef.current = delayBufferRef.current.filter(
+                  entry => (delayNow - entry.timestamp) <= maxAge
+                );
+                
+                // Find the value from delay time ago
+                const targetTime = delayNow - settings.delay;
+                let closestEntry = delayBufferRef.current[0];
+                let closestDiff = Infinity;
+                
+                // Find closest entry to target time
+                for (const entry of delayBufferRef.current) {
+                  const diff = Math.abs(entry.timestamp - targetTime);
+                  if (diff < closestDiff) {
+                    closestDiff = diff;
+                    closestEntry = entry;
+                  }
+                }
+                
+                // Use delayed values if we have a close enough match
+                if (closestEntry && closestDiff < settings.delay) {
+                  panValue = closestEntry.pan;
+                  tiltValue = closestEntry.tilt;
+                  // Also delay X/Y, iris, and mouth if delay is enabled
+                  finalXValue = closestEntry.x;
+                  finalYValue = closestEntry.y;
+                  finalIrisValue = closestEntry.iris;
+                  finalMouthValue = closestEntry.mouth;
+                } else {
+                  // If no delayed value available yet, use current (will build up over time)
+                  panValue = targetPanValue;
+                  tiltValue = targetTiltValue;
+                }
+              }
+
               // Always update state for UI display (not just when sending DMX)
-              setState(prev => ({ ...prev, currentPan: panValue, currentTilt: tiltValue }));
+              setState(prev => ({ 
+                ...prev, 
+                currentPan: panValue, 
+                currentTilt: tiltValue,
+                currentX: finalXValue,
+                currentY: finalYValue,
+                currentIris: finalIrisValue,
+                currentMouth: finalMouthValue,
+                isBlinking: isBlinking
+              }));
 
               // Verbose logging for pan/tilt calculation (every 5 detections or when movement is significant)
               if (Math.random() < 0.2 || Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1) {
@@ -988,10 +1392,10 @@ export const FaceTracker: React.FC = () => {
 
               // Overlays are now drawn in the preview loop for persistence
 
-              // Send DMX update
-              const now = Date.now();
+              // Send DMX update (using delayed values if delay is enabled)
+              const updateNow = Date.now();
               const updateInterval = 1000 / settings.updateRate;
-              if (now - lastUpdateRef.current >= updateInterval) {
+              if (updateNow - lastUpdateRef.current >= updateInterval) {
                 try {
                   // Apply to selected fixtures or direct channels
                   const dmxUpdates: Record<number, number> = {};
@@ -1226,47 +1630,136 @@ export const FaceTracker: React.FC = () => {
     }
   };
 
+  const [presetName, setPresetName] = useState<string>('');
+  const [presets, setPresets] = useState<Record<string, FaceTrackerSettings>>({});
+  const [showPresets, setShowPresets] = useState<boolean>(false);
+
+  // Load presets from localStorage
+  useEffect(() => {
+    try {
+      const savedPresets = JSON.parse(localStorage.getItem('faceTrackerPresets') || '{}');
+      setPresets(savedPresets);
+    } catch (error) {
+      console.error('[FaceTracker] Error loading presets:', error);
+    }
+  }, []);
+
+  // Close preset dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showPresets && !target.closest('[data-preset-container]')) {
+        setShowPresets(false);
+      }
+    };
+
+    if (showPresets) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showPresets]);
+
   // Save preset
   const savePreset = () => {
-    const presetName = window.prompt('Enter a name for this preset:');
-    if (presetName && presetName.trim()) {
-      try {
-        const presets = JSON.parse(localStorage.getItem('faceTrackerPresets') || '{}');
-        presets[presetName.trim()] = settings;
-        localStorage.setItem('faceTrackerPresets', JSON.stringify(presets));
-        console.log('[FaceTracker] Preset saved:', presetName.trim());
-        alert(`Preset "${presetName.trim()}" saved successfully!`);
-      } catch (error) {
-        console.error('[FaceTracker] Error saving preset:', error);
-        alert('Failed to save preset. Please try again.');
-      }
+    if (!presetName || !presetName.trim()) {
+      alert('Please enter a preset name');
+      return;
+    }
+    
+    try {
+      const newPresets = { ...presets, [presetName.trim()]: settings };
+      localStorage.setItem('faceTrackerPresets', JSON.stringify(newPresets));
+      setPresets(newPresets);
+      setPresetName('');
+      console.log('[FaceTracker] Preset saved:', presetName.trim());
+    } catch (error) {
+      console.error('[FaceTracker] Error saving preset:', error);
+      alert('Error saving preset. Please try again.');
     }
   };
 
   // Load preset
-  const loadPreset = () => {
+  const loadPreset = (presetNameToLoad: string) => {
     try {
-      const presets = JSON.parse(localStorage.getItem('faceTrackerPresets') || '{}');
-      const presetNames = Object.keys(presets);
-      
-      if (presetNames.length === 0) {
-        alert('No presets saved yet. Save a preset first!');
+      if (!presets[presetNameToLoad]) {
+        alert(`Preset "${presetNameToLoad}" not found.`);
         return;
       }
       
-      const selectedPreset = window.prompt(`Available presets:\n${presetNames.join('\n')}\n\nEnter preset name to load:`);
-      if (selectedPreset && presets[selectedPreset]) {
-        setSettings(presets[selectedPreset]);
-        saveSettings(presets[selectedPreset]);
-        console.log('[FaceTracker] Preset loaded:', selectedPreset);
-        alert(`Preset "${selectedPreset}" loaded successfully!`);
-      } else if (selectedPreset) {
-        alert(`Preset "${selectedPreset}" not found.`);
-      }
+      const preset = presets[presetNameToLoad];
+      setSettings(preset);
+      saveSettings(preset); // Save to localStorage
+      setShowPresets(false);
+      console.log('[FaceTracker] Preset loaded:', presetNameToLoad);
     } catch (error) {
       console.error('[FaceTracker] Error loading preset:', error);
-      alert('Failed to load presets. Please try again.');
+      alert('Error loading preset. Please try again.');
     }
+  };
+
+  // Delete preset
+  const deletePreset = (presetNameToDelete: string) => {
+    if (!window.confirm(`Are you sure you want to delete preset "${presetNameToDelete}"?`)) {
+      return;
+    }
+    
+    try {
+      const newPresets = { ...presets };
+      delete newPresets[presetNameToDelete];
+      localStorage.setItem('faceTrackerPresets', JSON.stringify(newPresets));
+      setPresets(newPresets);
+      console.log('[FaceTracker] Preset deleted:', presetNameToDelete);
+    } catch (error) {
+      console.error('[FaceTracker] Error deleting preset:', error);
+      alert('Error deleting preset. Please try again.');
+    }
+  };
+
+  // Set current face position as center
+  const setToCenter = () => {
+    if (!state.isRunning || !state.faceDetected) {
+      alert('Face Tracker must be running and detecting your face to set center position. Please start tracking and ensure your face is visible.');
+      return;
+    }
+
+    // Get current smoothed pan/tilt values
+    const currentPan = smoothedPanRef.current;
+    const currentTilt = smoothedTiltRef.current;
+
+    // Calculate center values based on range limits
+    const panCenter = (settings.panMin + settings.panMax) / 2;
+    const tiltCenter = (settings.tiltMin + settings.tiltMax) / 2;
+
+    // Apply flip direction and sensitivity to get the scaled value
+    const panDirection = settings.flipPan ? -1 : 1;
+    const tiltDirection = settings.flipTilt ? -1 : 1;
+    const panScaled = currentPan * panDirection * settings.panSensitivity * 127;
+    const tiltScaled = currentTilt * tiltDirection * settings.tiltSensitivity * 127;
+
+    // Calculate new offsets so current position maps to center
+    const newPanOffset = Math.round(panCenter - panScaled);
+    const newTiltOffset = Math.round(tiltCenter - tiltScaled);
+
+    // Clamp offsets to reasonable range (0-255)
+    const clampedPanOffset = Math.max(0, Math.min(255, newPanOffset));
+    const clampedTiltOffset = Math.max(0, Math.min(255, newTiltOffset));
+
+    // Update settings
+    updateSetting('panOffset', clampedPanOffset);
+    updateSetting('tiltOffset', clampedTiltOffset);
+
+    console.log('[FaceTracker] Set to center:', {
+      currentPan,
+      currentTilt,
+      panCenter,
+      tiltCenter,
+      newPanOffset: clampedPanOffset,
+      newTiltOffset: clampedTiltOffset
+    });
+
+    alert(`Center position set!\nPan Offset: ${clampedPanOffset}\nTilt Offset: ${clampedTiltOffset}\n\nYour current face position is now the center. Looking left will decrease values, looking right will increase values.`);
   };
 
   return (
@@ -1281,20 +1774,135 @@ export const FaceTracker: React.FC = () => {
           >
             Load Defaults
           </button>
-          <button
-            onClick={savePreset}
-            className={styles.secondaryButton}
-            title="Save current settings as a preset"
-          >
-            Save Preset
-          </button>
-          <button
-            onClick={loadPreset}
-            className={styles.secondaryButton}
-            title="Load a saved preset"
-          >
-            Load Preset
-          </button>
+          <div data-preset-container style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && presetName.trim()) {
+                    savePreset();
+                  }
+                }}
+                placeholder="Preset name..."
+                className={styles.textInput}
+                style={{ minWidth: '150px', flex: 1 }}
+                title="Enter a name for the preset"
+              />
+              <button
+                onClick={savePreset}
+                className={styles.secondaryButton}
+                title="Save current settings as a preset"
+                disabled={!presetName.trim()}
+              >
+                <i className="fas fa-save"></i> Save
+              </button>
+              <button
+                onClick={() => setShowPresets(!showPresets)}
+                className={styles.secondaryButton}
+                title="Show saved presets"
+              >
+                <i className="fas fa-folder-open"></i> Load
+                {Object.keys(presets).length > 0 && (
+                  <span style={{ marginLeft: '0.25rem', fontSize: '0.75rem', opacity: 0.8 }}>
+                    ({Object.keys(presets).length})
+                  </span>
+                )}
+              </button>
+            </div>
+            {showPresets && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: '0.25rem',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '4px',
+                padding: '0.5rem',
+                zIndex: 1000,
+                maxHeight: '300px',
+                overflowY: 'auto',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}>
+                {Object.keys(presets).length === 0 ? (
+                  <div style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    No presets saved yet
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    {Object.keys(presets).map((name) => (
+                      <div
+                        key={name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-hover)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-primary)';
+                        }}
+                      >
+                        <button
+                          onClick={() => loadPreset(name)}
+                          style={{
+                            flex: 1,
+                            textAlign: 'left',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            fontSize: '0.9rem'
+                          }}
+                          title={`Load preset: ${name}`}
+                        >
+                          <i className="fas fa-play" style={{ marginRight: '0.5rem', fontSize: '0.75rem' }}></i>
+                          {name}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePreset(name);
+                          }}
+                          style={{
+                            background: 'var(--error-color, #ff4444)',
+                            border: 'none',
+                            color: 'white',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.5rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            transition: 'opacity 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '0.8';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                          }}
+                          title={`Delete preset: ${name}`}
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button
             onClick={state.isRunning ? stopCamera : startCamera}
             className={`${styles.startButton} ${state.isRunning ? styles.stopButton : ''}`}
@@ -1818,10 +2426,16 @@ export const FaceTracker: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Smoothing factor for movement (0-1, higher = smoother but less responsive)">
-                  Smoothing
+              <div className={styles.controlGroup} style={{ border: '2px solid var(--accent-color)', borderRadius: '8px', padding: '1rem', background: 'rgba(0, 212, 255, 0.1)', marginTop: '1rem' }}>
+                <label className={styles.controlLabel} style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-color)' }} title="Smoothing factor for movement (0-1, higher = smoother but less responsive)">
+                  🌊 SMOOTHING - Movement Smoothness
                 </label>
+                <p className={styles.helpText} style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.75rem' }}>
+                  <strong>This controls how smooth vs responsive the fixture movement is!</strong><br/>
+                  Higher (0.8-0.95) = Very smooth, less jittery, but slower to respond to quick movements.<br/>
+                  Lower (0.5-0.7) = More responsive, faster reaction, but may be jittery.<br/>
+                  <strong>Default: 0.85</strong> - Good balance between smoothness and responsiveness.
+                </p>
                 <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>0</span>
                   <input
@@ -1896,6 +2510,50 @@ export const FaceTracker: React.FC = () => {
                 DMX channels are automatically detected from your OSC assignments. If you use ArtBastard OSC, 
                 the channel numbers match the OSC assignment indices. You can manually override if needed.
               </p>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Flip/invert pan direction - if fixture moves opposite to your face, enable this">
+                  <input
+                    type="checkbox"
+                    checked={settings.flipPan}
+                    onChange={(e) => updateSetting('flipPan', e.target.checked)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Flip Pan Direction (Invert Left/Right)
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  Enable if turning your face left makes the fixture go right (or vice versa)
+                </p>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Flip/invert tilt direction - if fixture moves opposite to your face, enable this">
+                  <input
+                    type="checkbox"
+                    checked={settings.flipTilt}
+                    onChange={(e) => updateSetting('flipTilt', e.target.checked)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Flip Tilt Direction (Invert Up/Down)
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  Enable if nodding your head up makes the fixture tilt down (or vice versa)
+                </p>
+              </div>
+              <div className={styles.controlGroup}>
+                <button
+                  onClick={setToCenter}
+                  className={styles.secondaryButton}
+                  style={{ marginBottom: '1rem', width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 'bold' }}
+                  title="Set your current face position as the center. Look straight ahead, then click this button."
+                  disabled={!state.isRunning || !state.faceDetected}
+                >
+                  🎯 SET TO CENTER
+                </button>
+                <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem', marginBottom: '1rem' }}>
+                  Position your face where you want it to be centered, then click this button. 
+                  After calibration, looking left will decrease values (towards {settings.panMin}), 
+                  looking right will increase values (towards {settings.panMax}).
+                </p>
+              </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="DMX channel number for pan control (auto-detected from OSC assignments)">
                   Pan Channel
@@ -2018,6 +2676,212 @@ export const FaceTracker: React.FC = () => {
                   className={styles.numberInput}
                   title="DMX channel number for focus control (0 = disabled, 0-512)"
                 />
+              </div>
+              
+              {/* X/Y Position Tracking (for fixture following) */}
+              <div className={styles.controlGroup} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <label className={styles.controlLabel} style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                  📍 Position Tracking (Fixture Following)
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Track where your face is on screen (X/Y position) to make the fixture follow your position.
+                </p>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="DMX channel for X position (horizontal, 0 = disabled)">
+                    X Position Channel
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="512"
+                    step="1"
+                    value={settings.xPositionChannel}
+                    onChange={(e) => updateSetting('xPositionChannel', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="DMX channel for X position (horizontal, 0 = disabled)"
+                  />
+                  {settings.xPositionChannel > 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Current X: {state.currentX} (Range: {settings.xPositionMin}-{settings.xPositionMax})
+                    </div>
+                  )}
+                </div>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="DMX channel for Y position (vertical, 0 = disabled)">
+                    Y Position Channel
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="512"
+                    step="1"
+                    value={settings.yPositionChannel}
+                    onChange={(e) => updateSetting('yPositionChannel', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="DMX channel for Y position (vertical, 0 = disabled)"
+                  />
+                  {settings.yPositionChannel > 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Current Y: {state.currentY} (Range: {settings.yPositionMin}-{settings.yPositionMax})
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Blink Detection & Iris Control */}
+              <div className={styles.controlGroup} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <label className={styles.controlLabel} style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                  👁️ Blink Detection & Iris Control
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Automatically control iris based on eye blinks. When you blink, the iris closes.
+                </p>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="DMX channel for blink-controlled iris (0 = disabled, uses Iris Channel if > 0)">
+                    Blink Iris Channel
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="512"
+                    step="1"
+                    value={settings.blinkIrisChannel}
+                    onChange={(e) => updateSetting('blinkIrisChannel', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="DMX channel for blink-controlled iris (0 = disabled, uses Iris Channel if > 0)"
+                  />
+                  {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Current Iris: {state.currentIris} | Blinking: {state.isBlinking ? 'Yes' : 'No'}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)">
+                    Blink Threshold
+                  </label>
+                  <div className={styles.sliderWrapper}>
+                    <span className={styles.rangeLabel}>0.15</span>
+                    <input
+                      type="range"
+                      min="0.15"
+                      max="0.35"
+                      step="0.01"
+                      value={settings.blinkThreshold}
+                      onChange={(e) => updateSetting('blinkThreshold', parseFloat(e.target.value))}
+                      className={styles.slider}
+                      title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)"
+                    />
+                    <span className={styles.rangeLabel}>0.35</span>
+                    <input
+                      type="number"
+                      min="0.15"
+                      max="0.35"
+                      step="0.01"
+                      value={settings.blinkThreshold.toFixed(2)}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) updateSetting('blinkThreshold', value);
+                      }}
+                      className={styles.numberInput}
+                      title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)"
+                    />
+                  </div>
+                </div>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="How much blink affects iris (0-1, higher = more effect)">
+                    Blink Sensitivity
+                  </label>
+                  <div className={styles.sliderWrapper}>
+                    <span className={styles.rangeLabel}>0</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.blinkSensitivity}
+                      onChange={(e) => updateSetting('blinkSensitivity', parseFloat(e.target.value))}
+                      className={styles.slider}
+                      title="How much blink affects iris (0-1, higher = more effect)"
+                    />
+                    <span className={styles.rangeLabel}>1</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.blinkSensitivity.toFixed(2)}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) updateSetting('blinkSensitivity', value);
+                      }}
+                      className={styles.numberInput}
+                      title="How much blink affects iris (0-1, higher = more effect)"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Mouth Detection */}
+              <div className={styles.controlGroup} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <label className={styles.controlLabel} style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                  👄 Mouth Detection
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Track mouth openness to control a DMX channel (e.g., for gobo rotation, color change, etc.).
+                </p>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="DMX channel for mouth openness (0 = disabled)">
+                    Mouth Channel
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="512"
+                    step="1"
+                    value={settings.mouthChannel}
+                    onChange={(e) => updateSetting('mouthChannel', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="DMX channel for mouth openness (0 = disabled)"
+                  />
+                  {settings.mouthChannel > 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Current Mouth: {state.currentMouth} (Range: {settings.mouthMin}-{settings.mouthMax})
+                    </div>
+                  )}
+                </div>
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="How sensitive mouth detection is (0-1, higher = more sensitive)">
+                    Mouth Sensitivity
+                  </label>
+                  <div className={styles.sliderWrapper}>
+                    <span className={styles.rangeLabel}>0</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.mouthSensitivity}
+                      onChange={(e) => updateSetting('mouthSensitivity', parseFloat(e.target.value))}
+                      className={styles.slider}
+                      title="How sensitive mouth detection is (0-1, higher = more sensitive)"
+                    />
+                    <span className={styles.rangeLabel}>1</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={settings.mouthSensitivity.toFixed(2)}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) updateSetting('mouthSensitivity', value);
+                      }}
+                      className={styles.numberInput}
+                      title="How sensitive mouth detection is (0-1, higher = more sensitive)"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2405,15 +3269,16 @@ export const FaceTracker: React.FC = () => {
 
             {/* Advanced Settings Section */}
             <div className={styles.controlSection}>
-              <h4 className={styles.controlsTitle}>Advanced Settings</h4>
-              <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Controls how often DMX and OSC values are sent (1-60 Hz). Higher = smoother updates but more CPU/network traffic. Lower = less frequent updates, less CPU. Default: 30 Hz (30 updates per second).">
-                  Update Rate (Hz) - DMX & OSC
+              <h4 className={styles.controlsTitle}>Response & Update Settings</h4>
+              <div className={styles.controlGroup} style={{ border: '2px solid var(--accent-color)', borderRadius: '8px', padding: '1rem', background: 'rgba(0, 212, 255, 0.1)' }}>
+                <label className={styles.controlLabel} style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-color)' }} title="Controls how often DMX and OSC values are sent (1-60 Hz). Higher = smoother updates but more CPU/network traffic. Lower = less frequent updates, less CPU. Default: 30 Hz (30 updates per second).">
+                  ⚡ UPDATE RATE (Hz) - Fixture Response Speed
                 </label>
-                <p className={styles.helpText}>
-                  Controls how often DMX and OSC values are sent. Higher (30-60 Hz) = smoother updates but more CPU/network. 
-                  Lower (10-20 Hz) = less frequent updates, less CPU. Default: 30 Hz (30 updates per second). 
-                  This affects both DMX channel updates and OSC message sending frequency.
+                <p className={styles.helpText} style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.75rem' }}>
+                  <strong>This controls how fast your fixture responds to face movement!</strong><br/>
+                  Higher (30-60 Hz) = Smoother, more responsive updates but uses more CPU/network.<br/>
+                  Lower (10-20 Hz) = Less frequent updates, less CPU, but may feel laggy.<br/>
+                  <strong>Default: 30 Hz (30 updates per second)</strong> - Good balance for most fixtures.
                 </p>
                 <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>1</span>
