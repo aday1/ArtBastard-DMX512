@@ -3769,9 +3769,11 @@ export const FaceTracker: React.FC = () => {
                   </div>
                 )}
             </div>
+          </div>
 
-            <div className={styles.previewControls}>
-              <div className={styles.allControls}>
+          {/* Settings Sections - Below preview section */}
+          <div className={styles.previewControls}>
+            <div className={styles.allControls}>
             {/* Camera Selection - Moved to Basic Settings */}
             <div className={styles.controlSection}>
               <h4 className={styles.controlsTitle}>Basic Settings</h4>

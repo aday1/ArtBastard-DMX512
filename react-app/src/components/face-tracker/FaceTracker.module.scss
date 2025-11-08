@@ -599,20 +599,24 @@
 
 .previewSection {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  grid-template-columns: 1fr 1fr; // 2 columns for camera and 3D model
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
   position: sticky;
   top: 200px; /* Adjust based on liveControlRow height */
   z-index: 99;
   background: var(--bg-primary);
-  resize: both;
-  overflow: auto;
-  min-width: 400px;
-  min-height: 300px;
-  cursor: move;
-  padding: 1rem 0;
+  padding: 1rem;
   border-bottom: 2px solid var(--border-color);
+  width: 100%;
+  box-sizing: border-box;
+  
+  // Ensure preview containers fill their grid cells
+  > .previewContainer,
+  > .fixture3DContainer {
+    width: 100%;
+    min-width: 0;
+  }
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
@@ -1054,25 +1058,27 @@
 
 .allControls {
   display: grid;
-  grid-template-columns: 1fr 1fr; // 2 columns side by side - USE FULL WIDTH
-  grid-template-rows: auto;
+  grid-template-columns: repeat(2, 1fr); // Force 2 columns - USE FULL WIDTH
+  grid-auto-rows: minmax(auto, 1fr); // Allow rows to grow to fill space
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  align-items: stretch; // Stretch items to fill row height
   
   // Ensure control sections fill their grid cells
   > .controlSection {
     width: 100%;
     min-width: 0;
+    align-self: stretch; // Stretch to fill grid cell
   }
   
   // On smaller screens, stack vertically
   @media (max-width: 1400px) {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-auto-rows: auto;
   }
   
   @media (max-width: 1200px) {
@@ -1116,8 +1122,11 @@
   min-height: 200px;
   cursor: move;
   
-  // Ensure sections fill grid columns properly
+  // Ensure sections fill grid columns properly - each section takes 1 column
   grid-column: span 1;
+  
+  // Make sections fill available height to prevent empty space
+  align-self: stretch;
 }
 
 .cameraControls {
