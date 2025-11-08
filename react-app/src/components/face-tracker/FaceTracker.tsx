@@ -78,6 +78,8 @@ interface FaceTrackerSettings {
   oscSmoothing: number; // Throttle/debounce OSC messages (0-1000ms)
   flipPan: boolean; // Invert pan direction
   flipTilt: boolean; // Invert tilt direction
+  flipMouth: boolean; // Invert mouth direction (closed=open, open=closed)
+  flipEyes: boolean; // Invert eyes/iris direction (open=closed, closed=open)
   delay: number; // Delay in milliseconds (0-2000ms) for telegram effect
   // X/Y Position tracking (for fixture following)
   xPositionChannel: number; // DMX channel for X position (0 = disabled)
@@ -161,6 +163,8 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   oscSmoothing: 50, // Default: throttle OSC messages to max 20 per second (50ms interval)
   flipPan: false, // Don't flip pan by default
   flipTilt: false, // Don't flip tilt by default
+  flipMouth: false, // Don't flip mouth by default
+  flipEyes: false, // Don't flip eyes/iris by default
   delay: 0, // No delay by default (0-2000ms)
   // X/Y Position tracking defaults
   xPositionChannel: 0, // Disabled by default
@@ -852,6 +856,11 @@ export const FaceTracker: React.FC = () => {
     // Detection states
     isBlinking?: boolean;
     mouthOpenness?: number;
+    // Head pose for accurate gaze projection
+    yaw?: number; // Head rotation left/right (-1 to 1)
+    pitch?: number; // Head rotation up/down (-1 to 1)
+    pan?: number; // Calculated pan value (-1 to 1)
+    tilt?: number; // Calculated tilt value (-1 to 1)
   } | null>(null);
   const faceHistoryRef = useRef<Array<{ width: number; height: number; centerX: number; centerY: number; timestamp: number }>>([]);
   const baselineFaceSizeRef = useRef<{ width: number; height: number; aspectRatio: number } | null>(null);
@@ -1310,37 +1319,85 @@ export const FaceTracker: React.FC = () => {
       ctx.arc(face.centerX, face.centerY, 3, 0, Math.PI * 2);
       ctx.fill();
       
-      // Draw X marker at where head is looking (based on pan/tilt orientation)
-      // Calculate target position based on smoothed pan/tilt values
-      // Pan: -1 to 1 maps to left to right, Tilt: -1 to 1 maps to up to down
-      const panOffset = smoothedPanRef.current * (video.videoWidth * 0.4); // Scale pan to screen
-      const tiltOffset = smoothedTiltRef.current * (video.videoHeight * 0.4); // Scale tilt to screen
-      const targetX = imageCenterX + panOffset;
-      const targetY = imageCenterY + tiltOffset;
+      // Draw accurate gaze projection based on actual head pose (yaw/pitch)
+      // Use stored head pose values if available, otherwise fall back to smoothed values
+      const headYaw = face.yaw !== undefined ? face.yaw : smoothedPanRef.current;
+      const headPitch = face.pitch !== undefined ? face.pitch : smoothedTiltRef.current;
+      
+      // Calculate gaze direction more accurately
+      // Yaw: -1 (left) to +1 (right) - maps to screen X
+      // Pitch: -1 (up) to +1 (down) - maps to screen Y
+      // Use a longer projection distance to show where you're actually looking
+      const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.6; // 60% of screen size
+      
+      // Calculate target position based on head pose
+      // Yaw: negative = looking left, positive = looking right
+      // Pitch: negative = looking up, positive = looking down
+      const panOffset = headYaw * projectionDistance;
+      const tiltOffset = headPitch * projectionDistance;
+      
+      // Target is relative to face center (where you're actually looking)
+      const targetX = face.centerX + panOffset;
+      const targetY = face.centerY + tiltOffset;
+      
+      // Clamp to screen bounds
+      const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
+      const clampedTargetY = Math.max(0, Math.min(video.videoHeight, targetY));
+      
+      // Draw arrow pointing in gaze direction (more visible indicator)
+      ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+      ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha * 0.5})`;
+      ctx.lineWidth = 3;
+      
+      // Draw line from face center to target (gaze direction)
+      ctx.beginPath();
+      ctx.moveTo(face.centerX, face.centerY);
+      ctx.lineTo(clampedTargetX, clampedTargetY);
+      ctx.stroke();
+      
+      // Draw arrowhead at target position
+      const arrowLength = 25;
+      const arrowAngle = Math.atan2(clampedTargetY - face.centerY, clampedTargetX - face.centerX);
+      ctx.beginPath();
+      ctx.moveTo(clampedTargetX, clampedTargetY);
+      ctx.lineTo(
+        clampedTargetX - arrowLength * Math.cos(arrowAngle - Math.PI / 6),
+        clampedTargetY - arrowLength * Math.sin(arrowAngle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        clampedTargetX - arrowLength * Math.cos(arrowAngle + Math.PI / 6),
+        clampedTargetY - arrowLength * Math.sin(arrowAngle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
       
       // Draw X marker at target position (where head is looking)
       ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
       // Draw X shape
-      ctx.moveTo(targetX - 20, targetY - 20);
-      ctx.lineTo(targetX + 20, targetY + 20);
-      ctx.moveTo(targetX + 20, targetY - 20);
-      ctx.lineTo(targetX - 20, targetY + 20);
+      ctx.moveTo(clampedTargetX - 15, clampedTargetY - 15);
+      ctx.lineTo(clampedTargetX + 15, clampedTargetY + 15);
+      ctx.moveTo(clampedTargetX + 15, clampedTargetY - 15);
+      ctx.lineTo(clampedTargetX - 15, clampedTargetY + 15);
       ctx.stroke();
       
       // Draw circle around X marker
       ctx.beginPath();
-      ctx.arc(targetX, targetY, 15, 0, Math.PI * 2);
+      ctx.arc(clampedTargetX, clampedTargetY, 20, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Draw line from face center to target (showing where head is looking)
-      ctx.strokeStyle = `rgba(0, 255, 0, ${fadeAlpha})`;
+      // Draw text label showing gaze direction
+      ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
+      ctx.font = 'bold 14px Arial';
+      ctx.strokeStyle = 'black';
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(face.centerX, face.centerY);
-      ctx.lineTo(targetX, targetY);
-      ctx.stroke();
+      const yawDeg = (headYaw * 90).toFixed(1);
+      const pitchDeg = (headPitch * 90).toFixed(1);
+      const gazeText = `Gaze: Yaw ${yawDeg}° Pitch ${pitchDeg}°`;
+      ctx.strokeText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
+      ctx.fillText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
       
       // Draw crosshair at image center (blue, for reference)
       ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
@@ -1533,10 +1590,7 @@ export const FaceTracker: React.FC = () => {
     let detectionCallCount = 0;
     const processDetection = () => {
       detectionCallCount++;
-      // Log first few calls to verify it's running
-      if (detectionCallCount <= 3 || detectionCallCount % 30 === 0) {
-        console.log(`[FaceTracker] processDetection running (call #${detectionCallCount})`);
-      }
+      // Removed excessive logging to prevent Firefox crashes
       
       try {
         // Check if we should stop - exit early if not running
@@ -1577,7 +1631,7 @@ export const FaceTracker: React.FC = () => {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         if (!ctx) {
-          console.warn('[FaceTracker] Canvas context not available, retrying...');
+          // Canvas context not available, retry silently
           if (state.isRunning) {
             detectionFrameRef.current = requestAnimationFrame(processDetection);
           } else {
@@ -1639,7 +1693,6 @@ export const FaceTracker: React.FC = () => {
 
         // Convert detection canvas to OpenCV Mat (smaller = faster)
         if (!opencvRef.current || !cascadeRef.current) {
-          console.error('[FaceTracker] OpenCV or cascade not available during detection');
           if (state.isRunning) {
             detectionFrameRef.current = requestAnimationFrame(processDetection);
           }
@@ -1665,7 +1718,7 @@ export const FaceTracker: React.FC = () => {
         try {
           // Verify cascade is still valid before detection
           if (!cascadeRef.current) {
-            console.error('[FaceTracker] Cascade classifier is null or undefined');
+            // Cascade not available, cleanup and continue
             if (src && !src.isDeleted()) src.delete();
             if (gray && !gray.isDeleted()) gray.delete();
             if (faces && !faces.isDeleted()) faces.delete();
@@ -1680,14 +1733,7 @@ export const FaceTracker: React.FC = () => {
           // Perform face detection
           cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
         } catch (detectionError) {
-          console.error('[FaceTracker] Error during face detection:', detectionError);
-          console.error('[FaceTracker] Detection error details:', {
-            errorType: detectionError?.constructor?.name,
-            errorMessage: detectionError?.message,
-            cascadeExists: !!cascadeRef.current,
-            grayExists: !!gray,
-            facesExists: !!faces
-          });
+          // Silent error handling to prevent Firefox crashes
           // Cleanup and continue
           try {
             if (src && !src.isDeleted()) src.delete();
@@ -1696,7 +1742,7 @@ export const FaceTracker: React.FC = () => {
             if (msize && !msize.isDeleted()) msize.delete();
             if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
           } catch (cleanupError) {
-            console.error('[FaceTracker] Error during cleanup:', cleanupError);
+            // Silent cleanup error
           }
           if (state.isRunning) {
             detectionFrameRef.current = requestAnimationFrame(processDetection);
@@ -1706,12 +1752,7 @@ export const FaceTracker: React.FC = () => {
         
         const detectionTime = performance.now() - detectionStartTime;
         
-        // Log detection info less frequently to prevent Firefox crashes
-        const facesFound = faces.size();
-        // Log every 30th frame for debugging (reduced frequency)
-        if (detectionCallCount % 30 === 0) {
-          console.log(`[OpenCV] Detection cycle #${detectionCallCount} - Faces found: ${facesFound}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}, Video ready: ${video.readyState === video.HAVE_ENOUGH_DATA}`);
-        }
+        // Removed logging to prevent Firefox crashes
 
         let faceDetected = false;
         if (faces.size() > 0) {
@@ -1724,7 +1765,6 @@ export const FaceTracker: React.FC = () => {
                 face.x < 0 || face.y < 0 || 
                 face.x + face.width > detWidth || 
                 face.y + face.height > detHeight) {
-              console.warn('[FaceTracker] Invalid face dimensions, skipping:', face);
               faceDetected = false;
             } else {
               // Calculate face center (scale from detection canvas to full canvas)
@@ -1735,10 +1775,7 @@ export const FaceTracker: React.FC = () => {
               const imageCenterX = video.videoWidth / 2;
               const imageCenterY = video.videoHeight / 2;
               
-              // Log face position less frequently to prevent Firefox crashes
-              if (Math.random() < 0.02) {
-                console.log(`[OpenCV] Face detected - Position: (${face.x}, ${face.y}), Size: ${face.width}x${face.height}, Center: (${faceCenterX.toFixed(1)}, ${faceCenterY.toFixed(1)})`);
-              }
+              // Removed logging to prevent Firefox crashes
 
               // Store face position temporarily (will update with eye/mouth data later)
               const faceX = face.x * scaleX;
@@ -1834,10 +1871,7 @@ export const FaceTracker: React.FC = () => {
                   // Typical open eye EAR: 0.2-0.4, closed eye EAR: <0.15
                   isBlinking = smoothedEAR < settings.blinkThreshold;
                   
-                  // Log for debugging (reduced frequency to prevent Firefox crashes)
-                  if (Math.random() < 0.02) {
-                    console.log(`[Blink] Left EAR: ${leftEAR.toFixed(3)}, Right EAR: ${rightEAR.toFixed(3)}, Smoothed: ${smoothedEAR.toFixed(3)}, Threshold: ${settings.blinkThreshold}, Blinking: ${isBlinking}`);
-                  }
+                  // Removed logging to prevent Firefox crashes
                   
                   // Update blink state
                   const currentTime = Date.now();
@@ -1845,33 +1879,39 @@ export const FaceTracker: React.FC = () => {
                     // Blink detected
                     blinkStateRef.current = true;
                     lastBlinkTimeRef.current = currentTime;
-                    console.log('[Blink] Detected! Smoothed EAR:', smoothedEAR.toFixed(4), 'Threshold:', settings.blinkThreshold);
                   } else if (!isBlinking && blinkStateRef.current) {
                     // Blink ended
                     blinkStateRef.current = false;
-                    console.log('[Blink] Ended');
                   }
                   
                   // Control iris based on blink (always calculate, even if channels aren't configured)
+                  let baseIrisValue: number;
                   if (isBlinking) {
                     // Close iris when blinking
-                    irisValue = Math.round(
+                    baseIrisValue = Math.round(
                       Math.max(settings.irisMin, Math.min(settings.irisMax,
                         settings.irisMin + (settings.irisMax - settings.irisMin) * (1 - settings.blinkSensitivity)
                       ))
                     );
                   } else {
                     // Open iris when not blinking
-                    irisValue = Math.round(
+                    baseIrisValue = Math.round(
                       Math.max(settings.irisMin, Math.min(settings.irisMax,
                         settings.irisMin + (settings.irisMax - settings.irisMin) * settings.blinkSensitivity
                       ))
                     );
                   }
                   
+                  // Apply flip if enabled (invert: closed becomes open, open becomes closed)
+                  if (settings.flipEyes) {
+                    irisValue = settings.irisMax - (baseIrisValue - settings.irisMin);
+                  } else {
+                    irisValue = baseIrisValue;
+                  }
+                  
                   // Eye history is already stored above in the EAR calculation section
                 } catch (err) {
-                  console.warn('[FaceTracker] Error in blink detection:', err);
+                  // Silent error handling
                 }
               }
               
@@ -1905,11 +1945,18 @@ export const FaceTracker: React.FC = () => {
                   const mouthOpenness = calculateMouthOpenness(mouthROI);
                   
                   // Map to DMX value (0-255)
-                  mouthValue = Math.round(
+                  const baseMouthValue = Math.round(
                     Math.max(settings.mouthMin, Math.min(settings.mouthMax,
                       settings.mouthMin + (settings.mouthMax - settings.mouthMin) * mouthOpenness * settings.mouthSensitivity
                     ))
                   );
+                  
+                  // Apply flip if enabled (invert: closed becomes open, open becomes closed)
+                  if (settings.flipMouth) {
+                    mouthValue = settings.mouthMax - (baseMouthValue - settings.mouthMin);
+                  } else {
+                    mouthValue = baseMouthValue;
+                  }
                   
                   // Store mouth history
                   mouthHistoryRef.current.push({
@@ -1922,7 +1969,7 @@ export const FaceTracker: React.FC = () => {
                     mouthHistoryRef.current.shift();
                   }
                 } catch (err) {
-                  console.warn('[FaceTracker] Error in mouth detection:', err);
+                  // Silent error handling
                 }
               }
               
@@ -1969,12 +2016,9 @@ export const FaceTracker: React.FC = () => {
                     );
                   }
                   
-                  // Log for debugging (reduced frequency to prevent Firefox crashes)
-                  if (Math.random() < 0.02) {
-                    console.log(`[Tongue] Detection: ${tongueDetection.toFixed(3)}, Threshold: ${settings.tongueThreshold}, Out: ${isTongueOut}, Value: ${tongueValue}`);
-                  }
+                  // Removed logging to prevent Firefox crashes
                 } catch (err) {
-                  console.warn('[FaceTracker] Error in tongue detection:', err);
+                  // Silent error handling
                 }
               }
               
@@ -2004,13 +2048,10 @@ export const FaceTracker: React.FC = () => {
                     detectedHandGesture = gestureResult.gesture;
                     handGestureValue = gestureResult.confidence;
                     
-                    // Update gesture state
-                    if (detectedHandGesture && detectedHandGesture !== state.currentGesture) {
-                      console.log(`[Hand Gesture] Detected: ${detectedHandGesture} (confidence: ${handGestureValue.toFixed(2)})`);
-                    }
+                    // Update gesture state (silent)
                   }
                 } catch (err) {
-                  console.warn('[FaceTracker] Error in hand gesture detection:', err);
+                  // Silent error handling
                 }
               }
 
@@ -2125,10 +2166,15 @@ export const FaceTracker: React.FC = () => {
               const pan = Math.max(-1, Math.min(1, yaw)); // Clamp to -1 to 1
               const tilt = Math.max(-1, Math.min(1, pitch)); // Clamp to -1 to 1
               
-              // Log head pose for debugging (less frequently to prevent Firefox crashes)
-              if (Math.random() < 0.02) {
-                console.log(`[Head Pose] Yaw: ${yaw.toFixed(3)} (Pan: ${pan.toFixed(3)}), Pitch: ${pitch.toFixed(3)} (Tilt: ${tilt.toFixed(3)}) | Eye Angle: ${(eyeLineAngle * 180 / Math.PI).toFixed(1)}°, Aspect: ${faceAspectRatio.toFixed(2)}`);
+              // Store head pose in face position for accurate gaze projection
+              if (lastFacePositionRef.current) {
+                lastFacePositionRef.current.yaw = yaw;
+                lastFacePositionRef.current.pitch = pitch;
+                lastFacePositionRef.current.pan = pan;
+                lastFacePositionRef.current.tilt = tilt;
               }
+              
+              // Removed logging to prevent Firefox crashes
 
               // Track gesture history for pattern detection
               const history = gestureHistoryRef.current;
@@ -2177,7 +2223,6 @@ export const FaceTracker: React.FC = () => {
                 }
                 
                 if (detectedHeadGesture && detectedHeadGesture !== history.lastGesture) {
-                  console.log(`[Gesture] ${detectedHeadGesture} detected! Pan var: ${panVariance.toFixed(4)}, Tilt var: ${tiltVariance.toFixed(4)}, Pan range: ${panRange.toFixed(3)}, Tilt range: ${tiltRange.toFixed(3)}`);
                   history.lastGesture = detectedHeadGesture;
                   history.lastGestureTime = currentTime;
                 }
@@ -2211,14 +2256,13 @@ export const FaceTracker: React.FC = () => {
                       detectedFacialExpression = expression;
                       // Update gesture if facial expression is detected
                       if (currentTime - history.lastGestureTime > 500) {
-                        console.log(`[Facial Expression] ${expression} detected! Mouth openness: ${mouthOpenness.toFixed(3)}`);
                         history.lastGesture = expression;
                         history.lastGestureTime = currentTime;
                       }
                     }
                   }
                 } catch (err) {
-                  console.warn('[FaceTracker] Error in facial expression detection:', err);
+                  // Silent error handling
                 }
               }
               
@@ -2245,12 +2289,7 @@ export const FaceTracker: React.FC = () => {
               smoothedPanRef.current = newPan;
               smoothedTiltRef.current = newTilt;
               
-              // Debug logging (reduced frequency to prevent Firefox crashes)
-              if (Math.random() < 0.05 && (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1)) {
-                console.log('[FaceTracker] Pan:', pan.toFixed(3), 'Tilt:', tilt.toFixed(3), 
-                  'Smoothed Pan:', smoothedPanRef.current.toFixed(3), 
-                  'Smoothed Tilt:', smoothedTiltRef.current.toFixed(3));
-              }
+              // Removed logging to prevent Firefox crashes
 
               // Map to DMX values (pan/tilt are -1 to 1, map to 0-255)
               // Apply flip if enabled (invert direction)
@@ -2381,14 +2420,7 @@ export const FaceTracker: React.FC = () => {
                 currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
               }));
 
-              // Verbose logging for pan/tilt calculation (reduced frequency to prevent Firefox crashes)
-              if (Math.random() < 0.05 && (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1)) {
-                console.log(`[Pan/Tilt] Raw: Pan=${pan.toFixed(4)}, Tilt=${tilt.toFixed(4)} | ` +
-                  `Target: Pan=${targetPan.toFixed(4)}, Tilt=${targetTilt.toFixed(4)} | ` +
-                  `Smoothed: Pan=${smoothedPanRef.current.toFixed(4)}, Tilt=${smoothedTiltRef.current.toFixed(4)} | ` +
-                  `DMX: Pan=${panValue}, Tilt=${tiltValue} | ` +
-                  `Sensitivity: Pan=${settings.panSensitivity}, Tilt=${settings.tiltSensitivity}`);
-              }
+              // Removed logging to prevent Firefox crashes
 
               // Overlays are now drawn in the preview loop for persistence
 
@@ -2461,7 +2493,7 @@ export const FaceTracker: React.FC = () => {
                     if (socket && socketConnected) {
                       try {
                         (socket as any).emit('dmx:batch', dmxUpdates);
-                        console.log('[FaceTracker] DMX batch sent:', dmxUpdates, 'Pan:', panValue, 'Tilt:', tiltValue);
+                        // Removed logging to prevent Firefox crashes
                         
                         // Send OSC if enabled and throttled
                         const nowForOsc = Date.now();
@@ -3730,6 +3762,34 @@ export const FaceTracker: React.FC = () => {
                 </label>
                 <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
                   Enable if nodding your head up makes the fixture tilt down (or vice versa)
+                </p>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Flip/invert mouth direction - if mouth open/closed is reversed, enable this">
+                  <input
+                    type="checkbox"
+                    checked={settings.flipMouth}
+                    onChange={(e) => updateSetting('flipMouth', e.target.checked)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Flip Mouth Direction (Invert Open/Closed)
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  Enable if mouth open sends closed value (or vice versa)
+                </p>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Flip/invert eyes/iris direction - if iris open/closed is reversed, enable this">
+                  <input
+                    type="checkbox"
+                    checked={settings.flipEyes}
+                    onChange={(e) => updateSetting('flipEyes', e.target.checked)}
+                    style={{ marginRight: '0.5rem' }}
+                  />
+                  Flip Eyes/Iris Direction (Invert Open/Closed)
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  Enable if eyes open sends closed value (or vice versa)
                 </p>
               </div>
               <div className={styles.controlGroup}>
