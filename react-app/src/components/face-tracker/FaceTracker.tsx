@@ -825,6 +825,7 @@ export const FaceTracker: React.FC = () => {
   const [is3DFixtureDetached, setIs3DFixtureDetached] = useState(false);
   const [fixture3DPosition, setFixture3DPosition] = useState({ x: 100, y: 100 });
   const [canvasSize, setCanvasSize] = useState({ width: 640, height: 480 });
+  const [showOverlays, setShowOverlays] = useState(false); // Overlay drawing disabled by default to prevent freezes
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // OpenCV.js state
@@ -1284,8 +1285,8 @@ export const FaceTracker: React.FC = () => {
   
   // Frame skipping for preview to prevent crashes - very aggressive throttling
   const lastPreviewFrameRef = useRef<number>(0);
-  const PREVIEW_FPS_TARGET = 20; // Target 20 FPS instead of 60 FPS (much lower to prevent crashes)
-  const PREVIEW_FRAME_INTERVAL = 1000 / PREVIEW_FPS_TARGET; // ~50ms per frame
+  const PREVIEW_FPS_TARGET = 15; // Target 15 FPS (very low to prevent Firefox freezes)
+  const PREVIEW_FRAME_INTERVAL = 1000 / PREVIEW_FPS_TARGET; // ~66ms per frame
   
   // Text rendering cache to prevent flickering
   const lastTextRenderTimeRef = useRef<number>(0);
@@ -1334,7 +1335,7 @@ export const FaceTracker: React.FC = () => {
       const canvas = canvasRef.current;
       const now = performance.now();
       
-      // Skip frames to reduce rendering load (target 30 FPS instead of 60 FPS)
+      // Skip frames to reduce rendering load (target 15 FPS to prevent Firefox freezes)
       if (now - lastPreviewFrameRef.current < PREVIEW_FRAME_INTERVAL) {
         // Skip this frame, continue loop
         if (state.isRunning) {
@@ -1344,373 +1345,246 @@ export const FaceTracker: React.FC = () => {
       }
       lastPreviewFrameRef.current = now;
       
-      // Throttle diagnostic updates (only update max once per 500ms to prevent Firefox freezes)
+      // Throttle diagnostic updates (only update max once per 1000ms to prevent Firefox freezes)
       if (video.readyState >= video.HAVE_ENOUGH_DATA && 
-          (now - lastDiagnosticUpdateRef.current) >= DIAGNOSTIC_UPDATE_INTERVAL) {
-        setDiagnostics(prev => ({ ...prev, videoReady: true }));
+          (now - lastDiagnosticUpdateRef.current) >= 1000) {
+        // Use setTimeout to defer state update and prevent blocking
+        setTimeout(() => {
+          setDiagnostics(prev => ({ ...prev, videoReady: true }));
+        }, 0);
         lastDiagnosticUpdateRef.current = now;
       }
-    const ctx = canvas.getContext('2d', { willReadFrequently: false });
-    
-    if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      // Only continue loop if still running
+      
+      const ctx = canvas.getContext('2d', { willReadFrequently: false });
+      
+      if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        // Only continue loop if still running
+        if (state.isRunning) {
+          previewFrameRef.current = requestAnimationFrame(renderPreview);
+        } else {
+          previewFrameRef.current = undefined;
+        }
+        return;
+      }
+
+      // Only resize canvas when dimensions change (expensive operation)
+      if (canvasDimensionsRef.current.width !== video.videoWidth || 
+          canvasDimensionsRef.current.height !== video.videoHeight) {
+        const videoWidth = video.videoWidth || 640;
+        const videoHeight = video.videoHeight || 480;
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        canvasDimensionsRef.current.width = videoWidth;
+        canvasDimensionsRef.current.height = videoHeight;
+      }
+
+      // Fast direct draw (no pixel manipulation for preview)
+      try {
+        ctx.drawImage(video, 0, 0);
+      } catch (error) {
+        console.warn('[FaceTracker] Error drawing video frame:', error);
+        // Continue loop even if draw fails
+        if (state.isRunning) {
+          previewFrameRef.current = requestAnimationFrame(renderPreview);
+        }
+        return;
+      }
+
+      // Draw persistent overlays from last detection (makes them less blinky)
+      // Reuse 'now' variable from above to avoid redeclaration
+      const faceTimeout = 500; // Keep showing face for 500ms after last detection
+      
+      // Draw overlays only if enabled by user toggle
+      // Skip overlay drawing most frames - only draw every 5th frame to prevent freezes
+      const shouldDrawOverlays = showOverlays &&
+          lastFacePositionRef.current && 
+          (now - lastFacePositionRef.current.timestamp) < faceTimeout &&
+          (Math.floor(now / 300) % 5 === 0); // Only draw every 5th frame (every ~1.5 seconds)
+      
+      if (shouldDrawOverlays) {
+        try {
+          const face = lastFacePositionRef.current;
+          // Validate face data to prevent crashes
+          if (face && typeof face.x === 'number' && typeof face.y === 'number' && 
+              typeof face.width === 'number' && typeof face.height === 'number') {
+            // Only draw simple face rectangle - skip all other overlays to prevent freezes
+            ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(face.x, face.y, face.width, face.height);
+          }
+        } catch (error) {
+          // Silently ignore overlay errors to prevent freezes
+        }
+      }
+
+      // Draw text overlay (always draw to prevent flickering, but update values only every 200ms)
+      // Update cached text values only every 200ms to reduce computation
+      const shouldUpdateText = (now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL;
+      
+      if (shouldUpdateText) {
+        // Update cached text values - use current state values (not stale)
+        // Force read from state to ensure we get latest values
+        const currentPan = state.currentPan;
+        const currentTilt = state.currentTilt;
+        textCacheRef.current.panText = `Pan: ${currentPan}`;
+        textCacheRef.current.tiltText = `Tilt: ${currentTilt}`;
+        const faceDetected = lastFacePositionRef.current && 
+                             (now - lastFacePositionRef.current.timestamp) < faceTimeout;
+        textCacheRef.current.faceDetected = faceDetected;
+        textCacheRef.current.statusText = faceDetected ? '✓ Face Detected' : 'No Face';
+        textCacheRef.current.statusColor = faceDetected ? 'lime' : 'red';
+        
+        // Update additional detection info
+        if (faceDetected && lastFacePositionRef.current) {
+          const face = lastFacePositionRef.current;
+          
+          // Blink status
+          if (face.isBlinking !== undefined) {
+            textCacheRef.current.blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
+            textCacheRef.current.blinkColor = face.isBlinking ? 'red' : 'lime';
+          } else {
+            textCacheRef.current.blinkText = null;
+            textCacheRef.current.blinkColor = null;
+          }
+          
+          // Iris value
+          if (state.currentIris > 0) {
+            textCacheRef.current.irisText = `Iris: ${state.currentIris}`;
+          } else {
+            textCacheRef.current.irisText = null;
+          }
+          
+          // Mouth status
+          if (face.mouth && face.mouthOpenness !== undefined) {
+            const mouthPercent = Math.round(face.mouthOpenness * 100);
+            textCacheRef.current.mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
+          } else {
+            textCacheRef.current.mouthText = null;
+          }
+          
+          // X/Y Position
+          if (state.currentX > 0 || state.currentY > 0) {
+            textCacheRef.current.posText = `X: ${state.currentX} Y: ${state.currentY}`;
+          } else {
+            textCacheRef.current.posText = null;
+          }
+        } else {
+          textCacheRef.current.blinkText = null;
+          textCacheRef.current.blinkColor = null;
+          textCacheRef.current.irisText = null;
+          textCacheRef.current.mouthText = null;
+          textCacheRef.current.posText = null;
+        }
+        
+        lastTextRenderTimeRef.current = now;
+      }
+      
+      // Draw text overlay only if enabled (disabled after crashes to prevent Firefox freezes)
+      // DISABLED BY DEFAULT to prevent freezes - can be re-enabled if needed
+      // Text overlay is the main cause of Firefox freezes, so we disable it completely
+      // Values are still available in the Live Control Output section below
+      if (false && textOverlayEnabledRef.current) {
+        try {
+          // Clear previous text area with semi-transparent background
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.fillRect(5, 5, 200, 250);
+          
+          ctx.font = 'bold 18px Arial';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 2;
+          
+          // Draw pan/tilt/status (always visible)
+          ctx.fillStyle = 'yellow';
+          if (textCacheRef.current.panText) {
+            ctx.strokeText(textCacheRef.current.panText, 10, 30);
+            ctx.fillText(textCacheRef.current.panText, 10, 30);
+          }
+          
+          if (textCacheRef.current.tiltText) {
+            ctx.strokeText(textCacheRef.current.tiltText, 10, 55);
+            ctx.fillText(textCacheRef.current.tiltText, 10, 55);
+          }
+          
+          if (textCacheRef.current.statusText) {
+            ctx.fillStyle = textCacheRef.current.statusColor || 'red';
+            ctx.strokeText(textCacheRef.current.statusText, 10, 80);
+            ctx.fillText(textCacheRef.current.statusText, 10, 80);
+          }
+          
+          // Draw additional detection info if available
+          let yOffset = 105;
+          if (textCacheRef.current.blinkText) {
+            ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
+            ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
+            ctx.fillText(textCacheRef.current.blinkText, 10, yOffset);
+            yOffset += 25;
+          }
+          
+          if (textCacheRef.current.irisText) {
+            ctx.fillStyle = 'cyan';
+            ctx.strokeText(textCacheRef.current.irisText, 10, yOffset);
+            ctx.fillText(textCacheRef.current.irisText, 10, yOffset);
+            yOffset += 25;
+          }
+          
+          if (textCacheRef.current.mouthText) {
+            ctx.fillStyle = 'magenta';
+            ctx.strokeText(textCacheRef.current.mouthText, 10, yOffset);
+            ctx.fillText(textCacheRef.current.mouthText, 10, yOffset);
+            yOffset += 25;
+          }
+          
+          if (textCacheRef.current.posText) {
+            ctx.fillStyle = 'orange';
+            ctx.strokeText(textCacheRef.current.posText, 10, yOffset);
+            ctx.fillText(textCacheRef.current.posText, 10, yOffset);
+          }
+          
+          // Reset error count on successful render
+          textOverlayErrorCountRef.current = 0;
+        } catch (error) {
+          textOverlayErrorCountRef.current++;
+          console.warn(`[FaceTracker] Error drawing text overlay (${textOverlayErrorCountRef.current}/${MAX_TEXT_ERRORS}):`, error);
+          
+          // Disable text overlay after too many errors to prevent Firefox crashes
+          if (textOverlayErrorCountRef.current >= MAX_TEXT_ERRORS) {
+            textOverlayEnabledRef.current = false;
+            console.warn('[FaceTracker] Text overlay disabled due to repeated errors to prevent Firefox crashes');
+        }
+      }
+      }
+
+      // Update FPS counter (preview rendering FPS) - heavily throttled
+      fpsCounterRef.current.frames++;
+      const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
+      
+      // Update FPS every 10 seconds (10000ms) to reduce state updates and prevent Firefox crashes
+      if (timeSinceLastFpsUpdate >= 10000) {
+        // Calculate FPS: frames counted / time elapsed in seconds
+        const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
+        
+        // Cap FPS at reasonable maximum (e.g., 120 FPS) to prevent display issues
+        const cappedFps = Math.min(calculatedFps, 120);
+        
+        // Only update if calculation is valid (time > 0 and frames > 0)
+        // Use setTimeout to defer state update and prevent blocking
+        if (timeSinceLastFpsUpdate > 0 && fpsCounterRef.current.frames > 0) {
+          setTimeout(() => {
+            setState(prev => ({ ...prev, fps: cappedFps }));
+          }, 0);
+        }
+        
+        // Reset counter
+        fpsCounterRef.current.frames = 0;
+        fpsCounterRef.current.lastTime = now;
+      }
+
+      // Continue preview loop only if still running
       if (state.isRunning) {
         previewFrameRef.current = requestAnimationFrame(renderPreview);
       } else {
         previewFrameRef.current = undefined;
       }
-      return;
-    }
-
-    // Only resize canvas when dimensions change (expensive operation)
-    if (canvasDimensionsRef.current.width !== video.videoWidth || 
-        canvasDimensionsRef.current.height !== video.videoHeight) {
-      const videoWidth = video.videoWidth || 640;
-      const videoHeight = video.videoHeight || 480;
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-      canvasDimensionsRef.current.width = videoWidth;
-      canvasDimensionsRef.current.height = videoHeight;
-    }
-
-    // Fast direct draw (no pixel manipulation for preview)
-    try {
-      ctx.drawImage(video, 0, 0);
-    } catch (error) {
-      console.warn('[FaceTracker] Error drawing video frame:', error);
-      // Continue loop even if draw fails
-      if (state.isRunning) {
-        previewFrameRef.current = requestAnimationFrame(renderPreview);
-      }
-      return;
-    }
-
-    // Draw persistent overlays from last detection (makes them less blinky)
-    // Reuse 'now' variable from above to avoid redeclaration
-    const faceTimeout = 500; // Keep showing face for 500ms after last detection
-    
-    // Only draw overlays if face was detected recently (skip drawing when no face)
-    if (lastFacePositionRef.current && 
-        (now - lastFacePositionRef.current.timestamp) < faceTimeout) {
-      try {
-        // Batch canvas operations for better performance
-        ctx.save();
-        
-        const face = lastFacePositionRef.current;
-        // Validate face data to prevent crashes
-        if (!face || typeof face.x !== 'number' || typeof face.y !== 'number' || 
-            typeof face.width !== 'number' || typeof face.height !== 'number' ||
-            typeof face.centerX !== 'number' || typeof face.centerY !== 'number') {
-          ctx.restore();
-          // Continue to text rendering
-        } else {
-          const imageCenterX = video.videoWidth / 2;
-          const imageCenterY = video.videoHeight / 2;
-          
-          // Calculate fade based on time since last detection
-          const timeSinceDetection = now - lastFacePositionRef.current.timestamp;
-          const fadeAlpha = Math.max(0.3, 1 - (timeSinceDetection / faceTimeout));
-          
-          // Draw face rectangle (simplified - single stroke to reduce operations)
-          ctx.strokeStyle = `rgba(255, 165, 0, ${fadeAlpha})`;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(face.x, face.y, face.width, face.height);
-
-          // Draw center point (yellow circle - simplified)
-          ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
-          ctx.beginPath();
-          ctx.arc(face.centerX, face.centerY, 5, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Draw accurate gaze projection based on actual head pose (yaw/pitch)
-          // Use stored head pose values if available, otherwise fall back to smoothed values
-          const headYaw = face.yaw !== undefined ? face.yaw : smoothedPanRef.current;
-          const headPitch = face.pitch !== undefined ? face.pitch : smoothedTiltRef.current;
-          
-          // Calculate gaze direction more accurately
-          // Yaw: -1 (left) to +1 (right) - maps to screen X
-          // Pitch: -1 (up) to +1 (down) - maps to screen Y
-          // Use a longer projection distance to show where you're actually looking
-          const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.6; // 60% of screen size
-          
-          // Calculate target position based on head pose
-          // Yaw: negative = looking left, positive = looking right
-          // Pitch: negative = looking up, positive = looking down
-          const panOffset = headYaw * projectionDistance;
-          const tiltOffset = headPitch * projectionDistance;
-          
-          // Target is relative to face center (where you're actually looking)
-          const targetX = face.centerX + panOffset;
-          const targetY = face.centerY + tiltOffset;
-          
-          // Clamp to screen bounds
-          const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
-          const clampedTargetY = Math.max(0, Math.min(video.videoHeight, targetY));
-          
-          // Draw simplified gaze indicator (reduced operations)
-          ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-          ctx.lineWidth = 2;
-          
-          // Draw line from face center to target (gaze direction)
-          ctx.beginPath();
-          ctx.moveTo(face.centerX, face.centerY);
-          ctx.lineTo(clampedTargetX, clampedTargetY);
-          ctx.stroke();
-          
-          // Draw simple X marker at target (simplified)
-          ctx.beginPath();
-          ctx.moveTo(clampedTargetX - 12, clampedTargetY - 12);
-          ctx.lineTo(clampedTargetX + 12, clampedTargetY + 12);
-          ctx.moveTo(clampedTargetX + 12, clampedTargetY - 12);
-          ctx.lineTo(clampedTargetX - 12, clampedTargetY + 12);
-          ctx.stroke();
-          
-          // Draw circle around X marker
-          ctx.beginPath();
-          ctx.arc(clampedTargetX, clampedTargetY, 15, 0, Math.PI * 2);
-          ctx.stroke();
-          
-          // Draw text label showing gaze direction (always draw, but update values only every 200ms)
-          if (Math.abs(headYaw) > 0.05 || Math.abs(headPitch) > 0.05) {
-            // Update cached text value only every 200ms
-            if ((now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL) {
-              const yawDeg = (headYaw * 90).toFixed(1);
-              const pitchDeg = (headPitch * 90).toFixed(1);
-              textCacheRef.current.gazeText = `Gaze: Yaw ${yawDeg}° Pitch ${pitchDeg}°`;
-              lastTextRenderTimeRef.current = now;
-            }
-            
-            // Always draw the cached text to prevent flickering
-            if (textCacheRef.current.gazeText) {
-              ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
-              ctx.font = 'bold 14px Arial';
-              ctx.strokeStyle = 'black';
-              ctx.lineWidth = 2;
-              ctx.strokeText(textCacheRef.current.gazeText, clampedTargetX - 60, clampedTargetY - 30);
-              ctx.fillText(textCacheRef.current.gazeText, clampedTargetX - 60, clampedTargetY - 30);
-            }
-          } else {
-            textCacheRef.current.gazeText = null;
-          }
-          
-          // Draw crosshair at image center (blue, for reference) - only every 3rd frame to reduce operations
-          if (Math.floor(now / 50) % 3 === 0) {
-            ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(imageCenterX - 20, imageCenterY);
-            ctx.lineTo(imageCenterX + 20, imageCenterY);
-            ctx.moveTo(imageCenterX, imageCenterY - 20);
-            ctx.lineTo(imageCenterX, imageCenterY + 20);
-            ctx.stroke();
-          }
-          
-          // Draw eye detection boxes (simplified - no labels to reduce operations)
-          if (face.leftEye) {
-            ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
-          }
-          
-          if (face.rightEye) {
-            ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
-          }
-          
-          // Draw mouth detection box (simplified)
-          if (face.mouth) {
-            const mouthOpenness = face.mouthOpenness || 0;
-            const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
-            ctx.strokeStyle = mouthColor;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
-          }
-          
-          // Draw blink indicator (simplified - just circle, no text)
-          if (face.isBlinking) {
-            ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-            ctx.beginPath();
-            ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          
-          // Restore canvas state after batch operations
-          ctx.restore();
-        }
-      } catch (error) {
-        console.warn('[FaceTracker] Error drawing face overlays:', error);
-        // Try to restore context if save was called
-        try {
-          ctx.restore();
-        } catch (e) {
-          // Ignore restore errors
-        }
-      }
-    }
-
-    // Draw text overlay (always draw to prevent flickering, but update values only every 200ms)
-    // Update cached text values only every 200ms to reduce computation
-    const shouldUpdateText = (now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL;
-    
-    if (shouldUpdateText) {
-      // Update cached text values - use current state values (not stale)
-      // Force read from state to ensure we get latest values
-      const currentPan = state.currentPan;
-      const currentTilt = state.currentTilt;
-      textCacheRef.current.panText = `Pan: ${currentPan}`;
-      textCacheRef.current.tiltText = `Tilt: ${currentTilt}`;
-      const faceDetected = lastFacePositionRef.current && 
-                           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
-      textCacheRef.current.faceDetected = faceDetected;
-      textCacheRef.current.statusText = faceDetected ? '✓ Face Detected' : 'No Face';
-      textCacheRef.current.statusColor = faceDetected ? 'lime' : 'red';
-      
-      // Update additional detection info
-      if (faceDetected && lastFacePositionRef.current) {
-        const face = lastFacePositionRef.current;
-        
-        // Blink status
-        if (face.isBlinking !== undefined) {
-          textCacheRef.current.blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
-          textCacheRef.current.blinkColor = face.isBlinking ? 'red' : 'lime';
-        } else {
-          textCacheRef.current.blinkText = null;
-          textCacheRef.current.blinkColor = null;
-        }
-        
-        // Iris value
-        if (state.currentIris > 0) {
-          textCacheRef.current.irisText = `Iris: ${state.currentIris}`;
-        } else {
-          textCacheRef.current.irisText = null;
-        }
-        
-        // Mouth status
-        if (face.mouth && face.mouthOpenness !== undefined) {
-          const mouthPercent = Math.round(face.mouthOpenness * 100);
-          textCacheRef.current.mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
-        } else {
-          textCacheRef.current.mouthText = null;
-        }
-        
-        // X/Y Position
-        if (state.currentX > 0 || state.currentY > 0) {
-          textCacheRef.current.posText = `X: ${state.currentX} Y: ${state.currentY}`;
-        } else {
-          textCacheRef.current.posText = null;
-        }
-      } else {
-        textCacheRef.current.blinkText = null;
-        textCacheRef.current.blinkColor = null;
-        textCacheRef.current.irisText = null;
-        textCacheRef.current.mouthText = null;
-        textCacheRef.current.posText = null;
-      }
-      
-      lastTextRenderTimeRef.current = now;
-    }
-    
-    // Draw text overlay only if enabled (disabled after crashes to prevent Firefox freezes)
-    if (textOverlayEnabledRef.current) {
-      try {
-        // Clear previous text area with semi-transparent background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(5, 5, 200, 250);
-        
-        ctx.font = 'bold 18px Arial';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-        
-        // Draw pan/tilt/status (always visible)
-        ctx.fillStyle = 'yellow';
-        if (textCacheRef.current.panText) {
-          ctx.strokeText(textCacheRef.current.panText, 10, 30);
-          ctx.fillText(textCacheRef.current.panText, 10, 30);
-        }
-        
-        if (textCacheRef.current.tiltText) {
-          ctx.strokeText(textCacheRef.current.tiltText, 10, 55);
-          ctx.fillText(textCacheRef.current.tiltText, 10, 55);
-        }
-        
-        if (textCacheRef.current.statusText) {
-          ctx.fillStyle = textCacheRef.current.statusColor || 'red';
-          ctx.strokeText(textCacheRef.current.statusText, 10, 80);
-          ctx.fillText(textCacheRef.current.statusText, 10, 80);
-        }
-        
-        // Draw additional detection info if available
-        let yOffset = 105;
-        if (textCacheRef.current.blinkText) {
-          ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
-          ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
-          ctx.fillText(textCacheRef.current.blinkText, 10, yOffset);
-          yOffset += 25;
-        }
-        
-        if (textCacheRef.current.irisText) {
-          ctx.fillStyle = 'cyan';
-          ctx.strokeText(textCacheRef.current.irisText, 10, yOffset);
-          ctx.fillText(textCacheRef.current.irisText, 10, yOffset);
-          yOffset += 25;
-        }
-        
-        if (textCacheRef.current.mouthText) {
-          ctx.fillStyle = 'magenta';
-          ctx.strokeText(textCacheRef.current.mouthText, 10, yOffset);
-          ctx.fillText(textCacheRef.current.mouthText, 10, yOffset);
-          yOffset += 25;
-        }
-        
-        if (textCacheRef.current.posText) {
-          ctx.fillStyle = 'orange';
-          ctx.strokeText(textCacheRef.current.posText, 10, yOffset);
-          ctx.fillText(textCacheRef.current.posText, 10, yOffset);
-        }
-        
-        // Reset error count on successful render
-        textOverlayErrorCountRef.current = 0;
-      } catch (error) {
-        textOverlayErrorCountRef.current++;
-        console.warn(`[FaceTracker] Error drawing text overlay (${textOverlayErrorCountRef.current}/${MAX_TEXT_ERRORS}):`, error);
-        
-        // Disable text overlay after too many errors to prevent Firefox crashes
-        if (textOverlayErrorCountRef.current >= MAX_TEXT_ERRORS) {
-          textOverlayEnabledRef.current = false;
-          console.warn('[FaceTracker] Text overlay disabled due to repeated errors to prevent Firefox crashes');
-        }
-      }
-    }
-
-    // Update FPS counter (preview rendering FPS)
-    fpsCounterRef.current.frames++;
-    const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
-    
-    // Update FPS every 5 seconds (5000ms) to reduce state updates and prevent Firefox crashes
-    if (timeSinceLastFpsUpdate >= 5000) {
-      // Calculate FPS: frames counted / time elapsed in seconds
-      const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
-      
-      // Cap FPS at reasonable maximum (e.g., 120 FPS) to prevent display issues
-      const cappedFps = Math.min(calculatedFps, 120);
-      
-      // Only update if calculation is valid (time > 0 and frames > 0)
-      if (timeSinceLastFpsUpdate > 0 && fpsCounterRef.current.frames > 0) {
-        setState(prev => ({ ...prev, fps: cappedFps }));
-      }
-      
-      // Reset counter
-      fpsCounterRef.current.frames = 0;
-      fpsCounterRef.current.lastTime = now;
-    }
-
-    // Continue preview loop only if still running
-    if (state.isRunning) {
-      previewFrameRef.current = requestAnimationFrame(renderPreview);
-    } else {
-      previewFrameRef.current = undefined;
-    }
     } catch (error: any) {
       console.error('[FaceTracker] Error in renderPreview:', error);
       // Continue loop if still running, but log error
@@ -1720,7 +1594,7 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     }
-  }, [state.currentPan, state.currentTilt, state.isRunning]);
+  }, [state.currentPan, state.currentTilt, state.isRunning, showOverlays]);
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
@@ -3294,6 +3168,27 @@ export const FaceTracker: React.FC = () => {
           </div>
 
           <div className={styles.previewSection}>
+            {/* Overlay Toggle - Above camera preview */}
+            <div className={styles.controlSection} style={{ marginBottom: '0.5rem', padding: '0.5rem' }}>
+              <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
+                <label className={styles.controlLabel} style={{ fontSize: '0.9rem' }} title="Toggle face detection overlays on camera preview">
+                  <input
+                    type="checkbox"
+                    checked={showOverlays}
+                    onChange={(e) => setShowOverlays(e.target.checked)}
+                    disabled={!state.isRunning}
+                    style={{ marginRight: '0.5rem', transform: 'scale(1.1)' }}
+                  />
+                  Show Detection Overlays
+                </label>
+                <p className={styles.helpText} style={{ fontSize: '0.7rem', marginTop: '0.25rem', marginBottom: 0, opacity: 0.7 }}>
+                  {state.isRunning 
+                    ? 'Enable to see face detection rectangles and indicators on camera preview' 
+                    : 'Start Face Tracker first to enable overlays'}
+                </p>
+              </div>
+            </div>
+            
             {/* Camera Preview - Always shown when running */}
             <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
               <div className={styles.previewHeader}>
