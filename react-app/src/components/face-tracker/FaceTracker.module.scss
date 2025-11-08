@@ -851,12 +851,43 @@
   border: 1px solid var(--border-color);
   border-radius: 4px 4px 0 0;
   border-bottom: none;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .previewTitle {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.fpsCounters {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  
+  .fpsCounterItem {
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    
+    &:first-child {
+      color: var(--accent-color);
+    }
+    
+    &:nth-child(2) {
+      color: #4ade80; // Green for overlay
+    }
+    
+    &:nth-child(3) {
+      color: #fbbf24; // Yellow/amber for OpenCV
+    }
+  }
 }
 
 .detachButton {

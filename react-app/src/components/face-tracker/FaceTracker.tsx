@@ -24,7 +24,10 @@ interface FaceTrackerState {
   isBlinking: boolean; // Current blink state
   isTongueOut: boolean; // Current tongue state
   currentGesture: string; // Current detected gesture (e.g., "NODDING", "SHAKING", "SMILING", "SAD")
-  fps: number;
+  fps: number; // Overall FPS (legacy)
+  webcamFps: number; // Webcam capture FPS
+  overlayFps: number; // Overlay drawing FPS
+  opencvFps: number; // OpenCV processing FPS
   error: string | null;
 }
 
@@ -768,6 +771,9 @@ export const FaceTracker: React.FC = () => {
     isTongueOut: false,
     currentGesture: '',
     fps: 0,
+    webcamFps: 0,
+    overlayFps: 0,
+    opencvFps: 0,
     error: null,
   });
 
@@ -834,7 +840,10 @@ export const FaceTracker: React.FC = () => {
   const smoothedTiltRef = useRef<number>(0);
   const panVelocityRef = useRef<number>(0);
   const tiltVelocityRef = useRef<number>(0);
-  const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
+  // Separate FPS counters for different components
+  const webcamFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
+  const overlayFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
+  const opencvFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
   const lastDetectionTimeRef = useRef<number>(0);
   const canvasDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1210,10 +1219,12 @@ export const FaceTracker: React.FC = () => {
       tiltVelocityRef.current = 0;
       lastUpdateRef.current = 0;
       
-      // Reset FPS counter
-      fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
+      // Reset FPS counters
+      webcamFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
+      overlayFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
+      opencvFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
       
-      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0 }));
+      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0, webcamFps: 0, overlayFps: 0, opencvFps: 0 }));
       // Re-enable text overlay when starting (in case it was disabled due to crashes)
       textOverlayEnabledRef.current = true;
       textOverlayErrorCountRef.current = 0;
@@ -1428,6 +1439,9 @@ export const FaceTracker: React.FC = () => {
         
         // Draw video frame to canvas
         ctx.drawImage(video, 0, 0);
+        
+        // Update webcam FPS counter
+        webcamFpsCounterRef.current.frames++;
       } catch (error) {
         console.warn('[FaceTracker] Error drawing video frame:', error);
         // Continue loop even if draw fails
@@ -1464,12 +1478,15 @@ export const FaceTracker: React.FC = () => {
       }
       
       // CRITICAL: Always try to draw overlays if we have face data - don't skip frames
-      if (shouldDrawOverlays) {
+      // ALWAYS redraw overlays every frame to ensure they update with face movement
+      if (shouldDrawOverlays && lastFacePositionRef.current) {
         try {
           const face = lastFacePositionRef.current;
           // Validate face data to prevent crashes
           if (face && typeof face.x === 'number' && typeof face.y === 'number' && 
               typeof face.width === 'number' && typeof face.height === 'number') {
+            // Update overlay FPS counter
+            overlayFpsCounterRef.current.frames++;
             // Batch canvas operations for better performance
             ctx.save();
             
@@ -1750,29 +1767,35 @@ export const FaceTracker: React.FC = () => {
         }
       }
 
-      // Update FPS counter (preview rendering FPS) - heavily throttled
-      fpsCounterRef.current.frames++;
-      const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
+      // Update FPS counters - update every second for better responsiveness
+      const fpsUpdateInterval = 1000; // 1 second
       
-      // Update FPS every 10 seconds (10000ms) to reduce state updates and prevent Firefox crashes
-      if (timeSinceLastFpsUpdate >= 10000) {
-        // Calculate FPS: frames counted / time elapsed in seconds
-        const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
-        
-        // Cap FPS at reasonable maximum (e.g., 120 FPS) to prevent display issues
-        const cappedFps = Math.min(calculatedFps, 120);
-        
-        // Only update if calculation is valid (time > 0 and frames > 0)
-        // Use setTimeout to defer state update and prevent blocking
-        if (timeSinceLastFpsUpdate > 0 && fpsCounterRef.current.frames > 0) {
+      // Update webcam FPS
+      const webcamTimeSince = now - webcamFpsCounterRef.current.lastTime;
+      if (webcamTimeSince >= fpsUpdateInterval) {
+        const webcamFps = Math.round((webcamFpsCounterRef.current.frames * 1000) / webcamTimeSince);
+        const cappedWebcamFps = Math.min(webcamFps, 120);
+        if (webcamTimeSince > 0 && webcamFpsCounterRef.current.frames > 0) {
           setTimeout(() => {
-            setState(prev => ({ ...prev, fps: cappedFps }));
+            setState(prev => ({ ...prev, webcamFps: cappedWebcamFps }));
           }, 0);
         }
-        
-        // Reset counter
-        fpsCounterRef.current.frames = 0;
-        fpsCounterRef.current.lastTime = now;
+        webcamFpsCounterRef.current.frames = 0;
+        webcamFpsCounterRef.current.lastTime = now;
+      }
+      
+      // Update overlay FPS
+      const overlayTimeSince = now - overlayFpsCounterRef.current.lastTime;
+      if (overlayTimeSince >= fpsUpdateInterval) {
+        const overlayFps = Math.round((overlayFpsCounterRef.current.frames * 1000) / overlayTimeSince);
+        const cappedOverlayFps = Math.min(overlayFps, 120);
+        if (overlayTimeSince > 0 && overlayFpsCounterRef.current.frames > 0) {
+          setTimeout(() => {
+            setState(prev => ({ ...prev, overlayFps: cappedOverlayFps }));
+          }, 0);
+        }
+        overlayFpsCounterRef.current.frames = 0;
+        overlayFpsCounterRef.current.lastTime = now;
       }
 
       // Continue preview loop only if still running
@@ -1923,6 +1946,9 @@ export const FaceTracker: React.FC = () => {
           return;
         }
         lastDetectionTimeRef.current = now;
+        
+        // Update OpenCV FPS counter - increment for each detection attempt
+        opencvFpsCounterRef.current.frames++;
 
         // Create smaller canvas for detection (faster processing)
         if (!detectionCanvasRef.current) {
@@ -2940,6 +2966,21 @@ export const FaceTracker: React.FC = () => {
 
         // Text overlays are now drawn in the preview loop for better performance
 
+        // Update OpenCV FPS counter
+        const opencvNow = Date.now();
+        const opencvTimeSince = opencvNow - opencvFpsCounterRef.current.lastTime;
+        if (opencvTimeSince >= 1000) { // Update every second
+          const opencvFps = Math.round((opencvFpsCounterRef.current.frames * 1000) / opencvTimeSince);
+          const cappedOpencvFps = Math.min(opencvFps, 60);
+          if (opencvTimeSince > 0 && opencvFpsCounterRef.current.frames > 0) {
+            setTimeout(() => {
+              setState(prev => ({ ...prev, opencvFps: cappedOpencvFps }));
+            }, 0);
+          }
+          opencvFpsCounterRef.current.frames = 0;
+          opencvFpsCounterRef.current.lastTime = opencvNow;
+        }
+
         // Cleanup OpenCV objects - CRITICAL to prevent memory leaks
         // Don't check isDeleted() - just try to delete and catch errors
         try {
@@ -3705,6 +3746,13 @@ export const FaceTracker: React.FC = () => {
             <div className={`${styles.previewContainer} ${!state.isRunning ? styles.placeholder : ''}`} ref={previewContainerRef}>
               <div className={styles.previewHeader}>
                 <span className={styles.previewTitle}>Camera Preview</span>
+                {state.isRunning && (
+                  <div className={styles.fpsCounters}>
+                    <span className={styles.fpsCounterItem}>Webcam: {state.webcamFps} FPS</span>
+                    <span className={styles.fpsCounterItem}>Overlay: {state.overlayFps} FPS</span>
+                    <span className={styles.fpsCounterItem}>OpenCV: {state.opencvFps} FPS</span>
+                  </div>
+                )}
               </div>
               {state.isRunning ? (
                 <>
@@ -5063,10 +5111,6 @@ export const FaceTracker: React.FC = () => {
               <span className={state.faceDetected ? styles.detected : styles.notDetected}>
                 {state.faceDetected ? 'Detected' : 'Not Detected'}
               </span>
-            </div>
-            <div className={styles.statusItem}>
-              <span className={styles.statusLabel}>FPS:</span>
-              <span>{state.fps}</span>
             </div>
           </div>
         </div>
