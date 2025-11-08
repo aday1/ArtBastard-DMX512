@@ -100,6 +100,92 @@
   }
 }
 
+// Toggle Switch Styles
+.toggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 80px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.toggleInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  
+  &:disabled + .toggleSlider {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.toggleSlider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 34px;
+  border: 2px solid var(--border-color);
+  
+  &:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 2px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .toggleLabel {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: 0.3s;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+}
+
+.toggleInput:checked + .toggleSlider {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  
+  &:before {
+    transform: translateX(46px);
+  }
+  
+  .toggleLabel {
+    color: white;
+  }
+}
+
+.toggleInput:not(:checked) + .toggleSlider {
+  background-color: var(--error-color);
+  border-color: var(--error-color);
+  
+  .toggleLabel {
+    color: white;
+  }
+}
+
+.toggleInput:focus + .toggleSlider {
+  box-shadow: 0 0 1px var(--accent-color);
+}
+
 .error {
   padding: 1rem;
   background: var(--error-bg);

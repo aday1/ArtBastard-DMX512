@@ -38,15 +38,79 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const [isMasterFaderActive, setIsMasterFaderActive] = useState<boolean>(false);
   const [masterFaderValueWhenActivated, setMasterFaderValueWhenActivated] = useState<number>(255);
 
-  const { dmxChannels, setMultipleDmxChannels, groups, fixtures, oscAssignments } = useStore(state => ({
+  const { dmxChannels, setMultipleDmxChannels, groups, fixtures, oscAssignments, midiMessages } = useStore(state => ({
     dmxChannels: state.dmxChannels,
     setMultipleDmxChannels: state.setMultipleDmxChannels,
     groups: state.groups,
     fixtures: state.fixtures,
     oscAssignments: state.oscAssignments,
+    midiMessages: state.midiMessages,
   }));
   const { socket } = useSocket();
-  const { startLearn, cancelLearn } = useMidiLearn();
+  const { startLearn, cancelLearn, midiLearnTarget } = useMidiLearn();
+  
+  // Listen for MIDI messages when mapped
+  useEffect(() => {
+    if (!midiMessages || midiMessages.length === 0 || !midiCC) return;
+    
+    const latestMessage = midiMessages[midiMessages.length - 1];
+    
+    // Check if this message matches our MIDI mapping
+    if (latestMessage._type === 'cc' && 
+        latestMessage.controller === midiCC && 
+        latestMessage.channel === (midiChannel - 1)) { // Convert 1-16 to 0-15
+      // Scale MIDI CC value (0-127) to master fader range (0-255)
+      const newValue = Math.round((latestMessage.value / 127) * 255);
+      handleValueChange(newValue);
+    }
+  }, [midiMessages, midiCC, midiChannel, handleValueChange]);
+  
+  // Listen for OSC messages
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleOscMessage = (message: any) => {
+      if (message.address === oscAddress && message.args && message.args.length > 0) {
+        // OSC value is typically 0.0-1.0, scale to 0-255
+        const oscValue = message.args[0].value || message.args[0];
+        const newValue = Math.round(Math.max(0, Math.min(255, oscValue * 255)));
+        handleValueChange(newValue);
+      }
+    };
+    
+    socket.on('oscMessage', handleOscMessage);
+    
+    return () => {
+      socket.off('oscMessage', handleOscMessage);
+    };
+  }, [socket, oscAddress, handleValueChange]);
+  
+  // Listen for MIDI learn completion
+  useEffect(() => {
+    if (midiLearnTarget === null || midiLearnTarget !== 0) return; // Master fader uses channel 0
+    
+    const handleMidiMappingCreated = (event: CustomEvent) => {
+      const { channel, mapping } = event.detail;
+      if (channel === 0) { // Master fader channel
+        if (mapping.controller !== undefined) {
+          setMidiCC(mapping.controller);
+          setMidiChannel(mapping.channel + 1); // Convert 0-15 to 1-16
+          setIsLearning(false);
+          console.log('[MasterFader] MIDI learned:', mapping);
+        } else if (mapping.note !== undefined) {
+          // For note mappings, we could use note on/off to toggle or set value
+          setMidiCC(null); // Notes not supported for continuous control
+          setIsLearning(false);
+        }
+      }
+    };
+    
+    window.addEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
+    
+    return () => {
+      window.removeEventListener('midiMappingCreated', handleMidiMappingCreated as EventListener);
+    };
+  }, [midiLearnTarget]);
 
   const isChannelIgnored = useCallback((channelIndex: number): boolean => {
     if (!fixtures || !groups) return false;
@@ -71,7 +135,9 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   }, [fixtures, groups]);
   // Save baseline state when master fader is first activated
   const saveBaselineState = useCallback(() => {
-    if (!isMasterFaderActive && baselineChannelValues === null) {
+    // Only save baseline if we don't have one yet AND master fader is at full (255)
+    // This ensures we save the "original" state before any master fader manipulation
+    if (!isMasterFaderActive && baselineChannelValues === null && value === 255) {
       // Save the current state as baseline before master fader is used
       const baseline: { [key: number]: number } = {};
       for (let i = 0; i < 512; i++) {
@@ -80,15 +146,15 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
         }
       }
       setBaselineChannelValues(baseline);
-      setMasterFaderValueWhenActivated(value);
+      setMasterFaderValueWhenActivated(255);
       setIsMasterFaderActive(true);
-      console.log('[MasterFader] Baseline state saved:', baseline);
+      console.log('[MasterFader] Baseline state saved at 255:', baseline);
     }
   }, [isMasterFaderActive, baselineChannelValues, dmxChannels, isChannelIgnored, value]);
 
-  // Restore baseline state when master fader returns to full
+  // Restore baseline state when master fader returns to the value it was at when baseline was saved
   const restoreBaselineState = useCallback(() => {
-    if (baselineChannelValues && value === 255) {
+    if (baselineChannelValues && value === masterFaderValueWhenActivated && masterFaderValueWhenActivated === 255) {
       // Restore exact baseline values
       const restoreUpdates: Record<number, number> = {};
       
@@ -122,7 +188,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       setBaselineChannelValues(null);
       setIsMasterFaderActive(false);
     }
-  }, [baselineChannelValues, value, dmxChannels, isChannelIgnored, setMultipleDmxChannels]);
+  }, [baselineChannelValues, value, dmxChannels, isChannelIgnored, setMultipleDmxChannels, masterFaderValueWhenActivated]);
 
   const handleValueChange = useCallback((newValue: number) => {
     const previousValue = value;
@@ -132,7 +198,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     const dmxUpdates: Record<number, number> = {};
 
     // If master fader is at 255 and we have a baseline, restore it
-    if (newValue === 255 && baselineChannelValues) {
+    if (newValue === 255 && baselineChannelValues && masterFaderValueWhenActivated === 255) {
       restoreBaselineState();
       // Continue to send OSC update
       if (socket && oscAddress) {
@@ -145,6 +211,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     }
 
     // If we have a baseline, always scale from it (not from current values)
+    // This ensures consistent behavior when moving slider up and down
     if (baselineChannelValues && isMasterFaderActive) {
       const scaleFactor = newValue / 255; // Scale factor based on master fader position
       
@@ -297,6 +364,7 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const setAllToZero = () => {
     // Set all channels to 0 without remembering previous values
     // This is different from blackout which saves values for restoration
+    // NOTE: We do NOT change the master fader value - it stays where it is
     const dmxUpdates: Record<number, number> = {};
     
     // Set all channels to 0, respecting ignored channels
@@ -332,12 +400,15 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       });
     }
     
-    // Also set the master fader value to 0
-    setValue(0);
+    // DO NOT change master fader value - keep it where it is
+    // setValue(0); // REMOVED - user requested to keep master slider value
     
     // Clear any saved values since we're doing a hard reset
     setPreviousChannelValues({});
     setFullOnSavedValues({});
+    // Also clear baseline system since we're zeroing everything
+    setBaselineChannelValues(null);
+    setIsMasterFaderActive(false);
   };
 
   const toggleFullOn = () => {
@@ -586,9 +657,10 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
                     <button
                       className={styles.clearButton}
                       onClick={handleClearMidi}
-                      title="Clear MIDI mapping"
+                      title="Clear MIDI mapping (Forget)"
                     >
                       <i className="fas fa-times"></i>
+                      {!isMinimized && !compact && " Forget"}
                     </button>
                   )}
                 </div>

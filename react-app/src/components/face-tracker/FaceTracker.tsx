@@ -17,7 +17,11 @@ interface FaceTrackerState {
   currentY: number; // Y position (0-255)
   currentIris: number; // Iris value (0-255)
   currentMouth: number; // Mouth openness (0-255)
+  currentZoom: number; // Zoom value (0-255)
+  currentTongue: number; // Tongue detection value (0-255)
   isBlinking: boolean; // Current blink state
+  isTongueOut: boolean; // Current tongue state
+  currentGesture: string; // Current detected gesture (e.g., "NODDING", "SHAKING", "SMILING", "SAD")
   fps: number;
   error: string | null;
 }
@@ -89,6 +93,18 @@ interface FaceTrackerSettings {
   mouthMin: number;
   mouthMax: number;
   mouthSensitivity: number; // How sensitive mouth detection is (0-1)
+  // Tongue detection
+  tongueChannel: number; // DMX channel for tongue detection (0 = disabled, can be toggle or value)
+  tongueToggle: boolean; // If true, tongue acts as toggle (on/off), if false, sends value
+  tongueSensitivity: number; // How sensitive tongue detection is (0-1)
+  tongueThreshold: number; // Threshold for detecting tongue (0-1)
+  // Gesture detection
+  enableGestures: boolean; // Enable gesture detection
+  gestureSensitivity: number; // How sensitive gesture detection is (0-1)
+  // Zoom settings
+  zoomSensitivity: number; // How sensitive zoom is to face size changes (0-2)
+  zoomScale: number; // Scale factor for zoom (0.5-2.0)
+  zoomDeadZone: number; // Dead zone for zoom (0-50)
 }
 
 const DEFAULT_SETTINGS: FaceTrackerSettings = {
@@ -158,6 +174,18 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   mouthMin: 0,
   mouthMax: 255,
   mouthSensitivity: 1.0, // Default mouth sensitivity
+  // Tongue detection defaults
+  tongueChannel: 0, // Disabled by default
+  tongueToggle: true, // Default: toggle mode
+  tongueSensitivity: 0.7, // Default: moderate sensitivity
+  tongueThreshold: 0.3, // Default: 30% threshold for tongue detection
+  // Gesture detection defaults
+  enableGestures: true, // Enable by default
+  gestureSensitivity: 0.7, // Default: moderate sensitivity
+  // Zoom settings defaults
+  zoomSensitivity: 1.0, // Default: normal sensitivity
+  zoomScale: 1.0, // Default: no scaling
+  zoomDeadZone: 5, // Default: 5 pixel dead zone
 };
 
 // Helper function to apply camera constraints with multiple fallback strategies
@@ -287,22 +315,59 @@ const calculateRegionBrightness = (imageData: ImageData): number => {
   return count > 0 ? sum / count : 0;
 };
 
-// Helper function to calculate region variance (for blink detection)
-const calculateRegionVariance = (imageData: ImageData): number => {
+// Helper function to calculate Eye Aspect Ratio (EAR) - better blink detection
+// EAR = (vertical eye distance) / (horizontal eye distance)
+// When eyes are closed, vertical distance decreases, EAR drops
+const calculateEyeAspectRatio = (imageData: ImageData): number => {
   const data = imageData.data;
-  const values: number[] = [];
+  const width = imageData.width;
+  const height = imageData.height;
   
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    values.push(gray);
+  if (width < 3 || height < 3) return 0.3; // Default to "open" if too small
+  
+  // Find eye opening by detecting the darkest horizontal line (pupil/eyelid)
+  // and brightest areas (eyeball whites)
+  const centerY = Math.floor(height / 2);
+  const centerX = Math.floor(width / 2);
+  
+  // Scan vertically through center to find eye opening height
+  let minBrightness = 255;
+  let maxBrightness = 0;
+  let topEdge = 0;
+  let bottomEdge = height;
+  
+  // Find top and bottom edges of eye opening
+  for (let y = 0; y < height; y++) {
+    const idx = (y * width + centerX) * 4;
+    const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+    
+    if (gray < minBrightness) {
+      minBrightness = gray;
+      if (topEdge === 0) topEdge = y;
+    }
+    if (gray > maxBrightness) {
+      maxBrightness = gray;
+    }
   }
   
-  if (values.length === 0) return 0;
+  // Find bottom edge (where brightness increases again)
+  for (let y = centerY; y < height; y++) {
+    const idx = (y * width + centerX) * 4;
+    const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+    if (gray > minBrightness + 30) {
+      bottomEdge = y;
+      break;
+    }
+  }
   
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  const verticalDistance = bottomEdge - topEdge;
+  const horizontalDistance = width;
   
-  return variance;
+  // EAR = vertical / horizontal (normalized)
+  const ear = verticalDistance / horizontalDistance;
+  
+  // Normalize to 0-1 range (typical EAR is 0.15-0.35 for open eyes, <0.15 for closed)
+  return Math.max(0, Math.min(1, ear * 3)); // Scale so 0.33 = 1.0
 };
 
 // Helper function to calculate mouth openness (using vertical edge detection)
@@ -344,6 +409,241 @@ const calculateMouthOpenness = (imageData: ImageData): number => {
   return openness;
 };
 
+// Helper function to calculate tongue detection
+// Detects tongue by looking for pink/reddish colors extending below the mouth
+const calculateTongueDetection = (imageData: ImageData): number => {
+  const data = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  
+  if (width < 3 || height < 3) return 0;
+  
+  let pinkPixelCount = 0;
+  let totalPixels = 0;
+  
+  // Tongue is typically pink/reddish (high red, medium green, low blue)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      
+      totalPixels++;
+      
+      // Tongue color detection: high red, medium-high green, low blue
+      const isPinkish = r > 150 && g > 80 && b < 140 && r > g && r > b;
+      const isReddish = r > 180 && g > 100 && b < 120;
+      
+      if (isPinkish || isReddish) {
+        pinkPixelCount++;
+      }
+    }
+  }
+  
+  // Normalize to 0-1 (percentage of pink/red pixels)
+  const tongueRatio = totalPixels > 0 ? pinkPixelCount / totalPixels : 0;
+  
+  // Also check for vertical extension (tongue extends downward)
+  let lowerPinkCount = 0;
+  let lowerTotalPixels = 0;
+  const lowerHalfStart = Math.floor(height / 2);
+  
+  for (let y = lowerHalfStart; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      
+      lowerTotalPixels++;
+      
+      const isPinkish = r > 150 && g > 80 && b < 140 && r > g && r > b;
+      if (isPinkish) {
+        lowerPinkCount++;
+      }
+    }
+  }
+  
+  const lowerTongueRatio = lowerTotalPixels > 0 ? lowerPinkCount / lowerTotalPixels : 0;
+  
+  // Combine both ratios (tongue extends downward, so lower half is more important)
+  const combinedRatio = (tongueRatio * 0.4) + (lowerTongueRatio * 0.6);
+  
+  return Math.min(1, combinedRatio);
+};
+
+// Helper function to detect hand gestures (thumbs up, middle finger, etc.)
+const detectHandGesture = (imageData: ImageData, width: number, height: number): { gesture: string; confidence: number } => {
+  const data = imageData.data;
+  
+  if (width < 20 || height < 20) {
+    return { gesture: '', confidence: 0 };
+  }
+  
+  // Convert to grayscale and threshold to find hand silhouette
+  const threshold = 100;
+  let handPixels = 0;
+  let totalPixels = 0;
+  const handMask: boolean[][] = [];
+  
+  // Create binary mask of hand region
+  for (let y = 0; y < height; y++) {
+    handMask[y] = [];
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      totalPixels++;
+      
+      const isHand = gray < threshold;
+      handMask[y][x] = isHand;
+      if (isHand) handPixels++;
+    }
+  }
+  
+  if (handPixels < totalPixels * 0.1) {
+    return { gesture: '', confidence: 0 };
+  }
+  
+  // Find hand contour
+  const contour = findContour(handMask, width, height);
+  
+  if (contour.length < 10) {
+    return { gesture: '', confidence: 0 };
+  }
+  
+  // Analyze contour to detect gestures
+  const protrusions = findProtrusions(contour, width, height);
+  const topProtrusion = protrusions.find(p => p.direction === 'up' && p.length > height * 0.15);
+  
+  // Thumbs up detection
+  if (topProtrusion && protrusions.filter(p => p.direction === 'up').length === 1) {
+    const handAspectRatio = width / height;
+    if (handAspectRatio > 1.2 && topProtrusion.length > height * 0.2) {
+      return { gesture: 'THUMBS_UP', confidence: Math.min(1, topProtrusion.length / (height * 0.3)) };
+    }
+  }
+  
+  // Middle finger detection
+  if (topProtrusion && topProtrusion.length > height * 0.25 && protrusions.filter(p => p.direction === 'up').length === 1) {
+    return { gesture: 'MIDDLE_FINGER', confidence: Math.min(1, topProtrusion.length / (height * 0.4)) };
+  }
+  
+  // Fist detection
+  if (protrusions.length <= 2 && handPixels > totalPixels * 0.3) {
+    return { gesture: 'FIST', confidence: 0.7 };
+  }
+  
+  // Open hand detection
+  const upwardProtrusions = protrusions.filter(p => p.direction === 'up');
+  if (upwardProtrusions.length >= 3) {
+    return { gesture: 'OPEN_HAND', confidence: Math.min(1, upwardProtrusions.length / 5) };
+  }
+  
+  return { gesture: '', confidence: 0 };
+};
+
+// Helper to find contour (boundary) of hand
+const findContour = (mask: boolean[][], width: number, height: number): Array<{ x: number; y: number }> => {
+  const contour: Array<{ x: number; y: number }> = [];
+  const visited = new Set<string>();
+  
+  let startX = -1, startY = -1;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      if (mask[y][x] && !mask[y-1][x] && !mask[y][x-1]) {
+        startX = x;
+        startY = y;
+        break;
+      }
+    }
+    if (startX !== -1) break;
+  }
+  
+  if (startX === -1) return contour;
+  
+  let currentX = startX;
+  let currentY = startY;
+  const directions = [
+    { x: 0, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 },
+    { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }
+  ];
+  
+  do {
+    const key = `${currentX},${currentY}`;
+    if (!visited.has(key)) {
+      contour.push({ x: currentX, y: currentY });
+      visited.add(key);
+    }
+    
+    let found = false;
+    for (let i = 0; i < directions.length; i++) {
+      const dir = directions[i];
+      const nextX = currentX + dir.x;
+      const nextY = currentY + dir.y;
+      
+      if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height) {
+        if (mask[nextY][nextX]) {
+          currentX = nextX;
+          currentY = nextY;
+          found = true;
+          break;
+        }
+      }
+    }
+    
+    if (!found || contour.length > 1000) break;
+  } while (currentX !== startX || currentY !== startY || contour.length < 10);
+  
+  return contour;
+};
+
+// Helper to find protrusions (fingers) from contour
+const findProtrusions = (contour: Array<{ x: number; y: number }>, width: number, height: number): Array<{ direction: string; length: number; angle: number }> => {
+  if (contour.length < 10) return [];
+  
+  const centerX = contour.reduce((sum, p) => sum + p.x, 0) / contour.length;
+  const centerY = contour.reduce((sum, p) => sum + p.y, 0) / contour.length;
+  
+  const protrusions: Array<{ direction: string; length: number; angle: number }> = [];
+  const minProtrusionLength = Math.min(width, height) * 0.1;
+  
+  for (let i = 0; i < contour.length; i++) {
+    const point = contour[i];
+    const dx = point.x - centerX;
+    const dy = point.y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > minProtrusionLength) {
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      let direction = '';
+      
+      if (angle > -45 && angle < 45) direction = 'right';
+      else if (angle > 45 && angle < 135) direction = 'down';
+      else if (angle > 135 || angle < -135) direction = 'left';
+      else direction = 'up';
+      
+      protrusions.push({ direction, length: distance, angle });
+    }
+  }
+  
+  const grouped: { [key: string]: Array<{ direction: string; length: number; angle: number }> } = {};
+  for (const prot of protrusions) {
+    const key = prot.direction;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(prot);
+  }
+  
+  const result: Array<{ direction: string; length: number; angle: number }> = [];
+  for (const dir in grouped) {
+    const group = grouped[dir];
+    const longest = group.reduce((max, p) => p.length > max.length ? p : max, group[0]);
+    result.push(longest);
+  }
+  
+  return result;
+};
+
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
   const { socket, connected: socketConnected } = useSocket();
@@ -365,7 +665,11 @@ export const FaceTracker: React.FC = () => {
     currentY: 128,
     currentIris: 128,
     currentMouth: 0,
+    currentZoom: 128,
+    currentTongue: 0,
     isBlinking: false,
+    isTongueOut: false,
+    currentGesture: '',
     fps: 0,
     error: null,
   });
@@ -450,7 +754,7 @@ export const FaceTracker: React.FC = () => {
   const faceHistoryRef = useRef<Array<{ width: number; height: number; centerX: number; centerY: number; timestamp: number }>>([]);
   const baselineFaceSizeRef = useRef<{ width: number; height: number; aspectRatio: number } | null>(null);
   // Delay buffer: store pan/tilt values with timestamps for delayed application
-  const delayBufferRef = useRef<Array<{ pan: number; tilt: number; x: number; y: number; iris: number; mouth: number; timestamp: number }>>([]);
+  const delayBufferRef = useRef<Array<{ pan: number; tilt: number; x: number; y: number; iris: number; mouth: number; tongue: number; zoom: number; timestamp: number }>>([]);
   // Eye tracking for blink detection
   const eyeHistoryRef = useRef<Array<{ leftEyeEAR: number; rightEyeEAR: number; timestamp: number }>>([]);
   const lastBlinkTimeRef = useRef<number>(0);
@@ -804,22 +1108,46 @@ export const FaceTracker: React.FC = () => {
       ctx.arc(face.centerX, face.centerY, 3, 0, Math.PI * 2);
       ctx.fill();
       
-      // Draw crosshair at image center (red)
+      // Draw X marker at where head is looking (based on pan/tilt orientation)
+      // Calculate target position based on smoothed pan/tilt values
+      // Pan: -1 to 1 maps to left to right, Tilt: -1 to 1 maps to up to down
+      const panOffset = smoothedPanRef.current * (video.videoWidth * 0.4); // Scale pan to screen
+      const tiltOffset = smoothedTiltRef.current * (video.videoHeight * 0.4); // Scale tilt to screen
+      const targetX = imageCenterX + panOffset;
+      const targetY = imageCenterY + tiltOffset;
+      
+      // Draw X marker at target position (where head is looking)
       ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(imageCenterX - 30, imageCenterY);
-      ctx.lineTo(imageCenterX + 30, imageCenterY);
-      ctx.moveTo(imageCenterX, imageCenterY - 30);
-      ctx.lineTo(imageCenterX, imageCenterY + 30);
+      // Draw X shape
+      ctx.moveTo(targetX - 20, targetY - 20);
+      ctx.lineTo(targetX + 20, targetY + 20);
+      ctx.moveTo(targetX + 20, targetY - 20);
+      ctx.lineTo(targetX - 20, targetY + 20);
       ctx.stroke();
       
-      // Draw line from face center to image center
+      // Draw circle around X marker
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, 15, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Draw line from face center to target (showing where head is looking)
       ctx.strokeStyle = `rgba(0, 255, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(face.centerX, face.centerY);
-      ctx.lineTo(imageCenterX, imageCenterY);
+      ctx.lineTo(targetX, targetY);
+      ctx.stroke();
+      
+      // Draw crosshair at image center (blue, for reference)
+      ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(imageCenterX - 20, imageCenterY);
+      ctx.lineTo(imageCenterX + 20, imageCenterY);
+      ctx.moveTo(imageCenterX, imageCenterY - 20);
+      ctx.lineTo(imageCenterX, imageCenterY + 20);
       ctx.stroke();
       
       // Draw eye detection boxes
@@ -1162,22 +1490,36 @@ export const FaceTracker: React.FC = () => {
                     Math.max(1, Math.min(rightEyeH, detHeight - rightEyeY))
                   );
                   
-                  // Calculate average brightness for each eye
-                  const leftEyeBrightness = calculateRegionBrightness(leftEyeROI);
-                  const rightEyeBrightness = calculateRegionBrightness(rightEyeROI);
-                  const avgEyeBrightness = (leftEyeBrightness + rightEyeBrightness) / 2;
+                  // Calculate Eye Aspect Ratio (EAR) for each eye - improved blink detection
+                  const leftEAR = calculateEyeAspectRatio(leftEyeROI);
+                  const rightEAR = calculateEyeAspectRatio(rightEyeROI);
+                  const avgEAR = (leftEAR + rightEAR) / 2;
                   
-                  // Calculate Eye Aspect Ratio (EAR) approximation using brightness variance
-                  // When eyes are closed, brightness is more uniform (lower variance)
-                  const leftEyeVariance = calculateRegionVariance(leftEyeROI);
-                  const rightEyeVariance = calculateRegionVariance(rightEyeROI);
-                  const avgVariance = (leftEyeVariance + rightEyeVariance) / 2;
+                  // Store EAR history for smoothing
+                  eyeHistoryRef.current.push({
+                    leftEyeEAR: leftEAR,
+                    rightEyeEAR: rightEAR,
+                    timestamp: Date.now()
+                  });
                   
-                  // EAR approximation: higher variance = eyes open, lower variance = eyes closed
-                  const earApprox = avgVariance / 1000; // Normalize
+                  // Keep only last 10 samples for blink detection
+                  if (eyeHistoryRef.current.length > 10) {
+                    eyeHistoryRef.current.shift();
+                  }
+                  
+                  // Calculate smoothed EAR (average of last few frames) to reduce false positives
+                  const recentEARs = eyeHistoryRef.current.slice(-5).map(e => (e.leftEyeEAR + e.rightEyeEAR) / 2);
+                  const smoothedEAR = recentEARs.reduce((a, b) => a + b, 0) / recentEARs.length;
                   
                   // Detect blink: EAR drops below threshold
-                  isBlinking = earApprox < settings.blinkThreshold;
+                  // Lower threshold = more sensitive (detects smaller blinks)
+                  // Typical open eye EAR: 0.2-0.4, closed eye EAR: <0.15
+                  isBlinking = smoothedEAR < settings.blinkThreshold;
+                  
+                  // Log for debugging (every 10th detection)
+                  if (Math.random() < 0.1) {
+                    console.log(`[Blink] Left EAR: ${leftEAR.toFixed(3)}, Right EAR: ${rightEAR.toFixed(3)}, Smoothed: ${smoothedEAR.toFixed(3)}, Threshold: ${settings.blinkThreshold}, Blinking: ${isBlinking}`);
+                  }
                   
                   // Update blink state
                   const currentTime = Date.now();
@@ -1185,7 +1527,7 @@ export const FaceTracker: React.FC = () => {
                     // Blink detected
                     blinkStateRef.current = true;
                     lastBlinkTimeRef.current = currentTime;
-                    console.log('[Blink] Detected! EAR:', earApprox.toFixed(4), 'Threshold:', settings.blinkThreshold);
+                    console.log('[Blink] Detected! Smoothed EAR:', smoothedEAR.toFixed(4), 'Threshold:', settings.blinkThreshold);
                   } else if (!isBlinking && blinkStateRef.current) {
                     // Blink ended
                     blinkStateRef.current = false;
@@ -1212,17 +1554,7 @@ export const FaceTracker: React.FC = () => {
                     }
                   }
                   
-                  // Store eye history
-                  eyeHistoryRef.current.push({
-                    leftEyeEAR: earApprox,
-                    rightEyeEAR: earApprox,
-                    timestamp: currentTime
-                  });
-                  
-                  // Keep only last 30 samples (~2 seconds at 15 FPS)
-                  if (eyeHistoryRef.current.length > 30) {
-                    eyeHistoryRef.current.shift();
-                  }
+                  // Eye history is already stored above in the EAR calculation section
                 } catch (err) {
                   console.warn('[FaceTracker] Error in blink detection:', err);
                 }
@@ -1277,6 +1609,94 @@ export const FaceTracker: React.FC = () => {
                   console.warn('[FaceTracker] Error in mouth detection:', err);
                 }
               }
+              
+              // Tongue detection: Analyze lower mouth region for tongue extension
+              let tongueValue = 0;
+              let isTongueOut = false;
+              
+              if (settings.tongueChannel > 0) {
+                try {
+                  // Tongue region is below mouth: 30-70% from left, 70-90% from top of face
+                  const faceX = face.x;
+                  const faceY = face.y;
+                  const faceW = face.width;
+                  const faceH = face.height;
+                  
+                  const tongueX = Math.round(faceX + faceW * 0.3);
+                  const tongueY = Math.round(faceY + faceH * 0.7);
+                  const tongueW = Math.round(faceW * 0.4);
+                  const tongueH = Math.round(faceH * 0.2);
+                  
+                  // Extract tongue region from detection canvas
+                  const tongueROI = detCtx.getImageData(
+                    Math.max(0, Math.min(tongueX, detWidth - 1)),
+                    Math.max(0, Math.min(tongueY, detHeight - 1)),
+                    Math.max(1, Math.min(tongueW, detWidth - tongueX)),
+                    Math.max(1, Math.min(tongueH, detHeight - tongueY))
+                  );
+                  
+                  // Calculate tongue detection: look for pink/reddish color extending downward
+                  const tongueDetection = calculateTongueDetection(tongueROI);
+                  
+                  // Check if tongue is out based on threshold
+                  isTongueOut = tongueDetection > settings.tongueThreshold;
+                  
+                  if (settings.tongueToggle) {
+                    // Toggle mode: send 255 if tongue out, 0 if not
+                    tongueValue = isTongueOut ? 255 : 0;
+                  } else {
+                    // Value mode: send proportional value based on detection strength
+                    tongueValue = Math.round(
+                      Math.max(0, Math.min(255,
+                        tongueDetection * settings.tongueSensitivity * 255
+                      ))
+                    );
+                  }
+                  
+                  // Log for debugging (every 10th detection)
+                  if (Math.random() < 0.1) {
+                    console.log(`[Tongue] Detection: ${tongueDetection.toFixed(3)}, Threshold: ${settings.tongueThreshold}, Out: ${isTongueOut}, Value: ${tongueValue}`);
+                  }
+                } catch (err) {
+                  console.warn('[FaceTracker] Error in tongue detection:', err);
+                }
+              }
+              
+              // Hand gesture detection: Detect thumbs up, middle finger, etc.
+              let detectedHandGesture = '';
+              let handGestureValue = 0;
+              
+              if (settings.enableGestures) {
+                try {
+                  // Detect hands in the frame (below face region, wider search area)
+                  const handSearchX = Math.max(0, face.x - face.width);
+                  const handSearchY = Math.min(detHeight - 1, face.y + face.height);
+                  const handSearchW = Math.min(detWidth - handSearchX, face.width * 3);
+                  const handSearchH = Math.min(detHeight - handSearchY, face.height * 2);
+                  
+                  if (handSearchW > 20 && handSearchH > 20) {
+                    // Extract hand search region
+                    const handROI = detCtx.getImageData(
+                      handSearchX,
+                      handSearchY,
+                      handSearchW,
+                      handSearchH
+                    );
+                    
+                    // Detect hand gestures
+                    const gestureResult = detectHandGesture(handROI, handSearchW, handSearchH);
+                    detectedHandGesture = gestureResult.gesture;
+                    handGestureValue = gestureResult.confidence;
+                    
+                    // Update gesture state
+                    if (detectedHandGesture && detectedHandGesture !== state.currentGesture) {
+                      console.log(`[Hand Gesture] Detected: ${detectedHandGesture} (confidence: ${handGestureValue.toFixed(2)})`);
+                    }
+                  }
+                } catch (err) {
+                  console.warn('[FaceTracker] Error in hand gesture detection:', err);
+                }
+              }
 
               // Now update face position with eye and mouth detection data
               if (lastFacePositionRef.current) {
@@ -1314,48 +1734,98 @@ export const FaceTracker: React.FC = () => {
                 }
               }
 
-              // HEAD POSE ESTIMATION (pitch/yaw) instead of X/Y position
-              // Calculate head orientation from face bounding box and position
+              // IMPROVED HEAD POSE ESTIMATION - Track head orientation, not screen position
+              // Use face geometry and eye positions to estimate actual head rotation
+              
+              const faceAspectRatio = face.width / face.height;
+              
+              // Calculate eye positions relative to face center for head rotation detection
+              let leftEyeCenterX = 0, leftEyeCenterY = 0;
+              let rightEyeCenterX = 0, rightEyeCenterY = 0;
+              
+              if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
+                // Use actual eye regions we calculated for blink detection
+                leftEyeCenterX = face.x + face.width * 0.3; // Left eye center (30% from left)
+                leftEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
+                rightEyeCenterX = face.x + face.width * 0.7; // Right eye center (70% from left)
+                rightEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
+              } else {
+                // Estimate eye positions if not tracking eyes
+                leftEyeCenterX = face.x + face.width * 0.3;
+                leftEyeCenterY = face.y + face.height * 0.325;
+                rightEyeCenterX = face.x + face.width * 0.7;
+                rightEyeCenterY = face.y + face.height * 0.325;
+              }
+              
+              // Calculate eye line (line connecting left and right eye centers)
+              const eyeLineLength = Math.sqrt(
+                Math.pow(rightEyeCenterX - leftEyeCenterX, 2) + 
+                Math.pow(rightEyeCenterY - leftEyeCenterY, 2)
+              );
+              const eyeLineAngle = Math.atan2(
+                rightEyeCenterY - leftEyeCenterY,
+                rightEyeCenterX - leftEyeCenterX
+              );
               
               // YAW (pan) - head turning left/right
-              // When head turns, the face width appears narrower and position shifts
-              // Use face aspect ratio and position to estimate yaw
-              const faceAspectRatio = face.width / face.height;
-              const normalizedFaceWidth = face.width / video.videoWidth;
+              // When head turns:
+              // 1. Eye line angle changes (eyes become more vertical when turned)
+              // 2. Face appears narrower (aspect ratio decreases)
+              // 3. One eye becomes more visible than the other
               
-              // Base pan from face center position
-              const panFromPosition = (faceCenterX - imageCenterX) / imageCenterX;
+              // Normal eye line is horizontal (angle ≈ 0)
+              // When turning left: angle becomes negative, right eye moves forward
+              // When turning right: angle becomes positive, left eye moves forward
+              const eyeLineYaw = eyeLineAngle * 2; // Scale angle to -1 to 1 range
               
-              // Yaw estimation: when turning head, face appears narrower
-              // Normal face aspect ratio is ~0.75-0.85, narrower = more turned
-              const normalAspectRatio = 0.8; // Typical face aspect ratio
-              const aspectRatioChange = (normalAspectRatio - faceAspectRatio) / normalAspectRatio;
+              // Face width change indicates head rotation
+              // Normal face aspect ratio: ~0.75-0.85
+              // When turned: aspect ratio decreases (face appears narrower)
+              const normalAspectRatio = 0.8;
+              const aspectRatioYaw = (normalAspectRatio - faceAspectRatio) / normalAspectRatio;
               
-              // Combine position and aspect ratio for yaw
-              // When turning left, face moves left AND appears narrower
-              // When turning right, face moves right AND appears narrower
-              const yaw = panFromPosition * 0.7 + Math.sign(panFromPosition) * aspectRatioChange * 0.3;
+              // Eye visibility asymmetry (one eye more visible when turned)
+              const faceCenterXForPose = face.x + face.width / 2;
+              const leftEyeOffset = (leftEyeCenterX - faceCenterXForPose) / (face.width / 2);
+              const rightEyeOffset = (rightEyeCenterX - faceCenterXForPose) / (face.width / 2);
+              const eyeAsymmetry = (rightEyeOffset - leftEyeOffset) * 0.5; // -1 to 1
+              
+              // Combine all yaw indicators
+              const yaw = eyeLineYaw * 0.4 + aspectRatioYaw * 0.4 + eyeAsymmetry * 0.2;
               
               // PITCH (tilt) - head nodding up/down
-              // When nodding, face height changes and position shifts vertically
-              const tiltFromPosition = (faceCenterY - imageCenterY) / imageCenterY;
+              // When nodding:
+              // 1. Face center moves vertically
+              // 2. Face height changes (appears taller when looking down, shorter when looking up)
+              // 3. Eye line moves up/down relative to face center
               
-              // Pitch estimation: when nodding down, face appears taller (more vertical)
-              // When looking up, face appears shorter
-              const normalHeightRatio = 1.0; // Baseline
-              const heightRatio = face.height / (video.videoHeight * 0.2); // Normalized to expected face size
-              const pitchFromHeight = (heightRatio - normalHeightRatio) * 0.5; // Scale factor
+              const faceCenterYForPose = face.y + face.height / 2;
+              const eyeLineCenterY = (leftEyeCenterY + rightEyeCenterY) / 2;
               
-              // Combine position and height for pitch
-              const pitch = tiltFromPosition * 0.6 + pitchFromHeight * 0.4;
+              // Vertical position of eyes relative to face center
+              // When looking down: eyes move up relative to face center, face appears taller
+              // When looking up: eyes move down relative to face center, face appears shorter
+              const eyeVerticalOffset = (eyeLineCenterY - faceCenterYForPose) / (face.height / 2);
+              
+              // Face height change
+              // Normal face height ratio (relative to expected size)
+              const expectedFaceHeight = video.videoHeight * 0.15; // Expected ~15% of screen height
+              const heightRatio = face.height / expectedFaceHeight;
+              const heightPitch = (heightRatio - 1.0) * 0.5; // Normalize
+              
+              // Face center vertical position (less important, but contributes)
+              const centerVerticalOffset = (faceCenterY - imageCenterY) / imageCenterY;
+              
+              // Combine pitch indicators
+              const pitch = eyeVerticalOffset * 0.5 + heightPitch * 0.3 + centerVerticalOffset * 0.2;
               
               // Use yaw for pan and pitch for tilt
-              const pan = yaw;
-              const tilt = pitch;
-
-              // Log position offsets every 5 detections
-              if (Math.random() < 0.2) {
-                console.log(`[OpenCV] Face position - Pan offset: ${pan.toFixed(4)} (${((pan * 100).toFixed(1))}%), Tilt offset: ${tilt.toFixed(4)} (${((tilt * 100).toFixed(1))}%)`);
+              const pan = Math.max(-1, Math.min(1, yaw)); // Clamp to -1 to 1
+              const tilt = Math.max(-1, Math.min(1, pitch)); // Clamp to -1 to 1
+              
+              // Log head pose for debugging (every 10th detection)
+              if (Math.random() < 0.1) {
+                console.log(`[Head Pose] Yaw: ${yaw.toFixed(3)} (Pan: ${pan.toFixed(3)}), Pitch: ${pitch.toFixed(3)} (Tilt: ${tilt.toFixed(3)}) | Eye Angle: ${(eyeLineAngle * 180 / Math.PI).toFixed(1)}°, Aspect: ${faceAspectRatio.toFixed(2)}`);
               }
 
               // Track gesture history for pattern detection
@@ -1464,11 +1934,42 @@ export const FaceTracker: React.FC = () => {
               const delayNow = Date.now();
               let panValue = targetPanValue;
               let tiltValue = targetTiltValue;
-              // X/Y, iris, and mouth values (may be modified by delay)
+              // Calculate zoom value based on face size (distance from camera)
+              // Larger face = closer = zoom out, smaller face = farther = zoom in
+              let zoomValue = 128; // Default center
+              if (settings.zoomChannel > 0) {
+                // Use face area as proxy for distance
+                const faceArea = face.width * face.height;
+                const normalizedFaceArea = faceArea / (video.videoWidth * video.videoHeight);
+                
+                // Baseline face size (adjust based on typical distance)
+                const baselineArea = 0.1; // ~10% of screen = baseline distance
+                const distanceRatio = normalizedFaceArea / baselineArea;
+                
+                // Closer (larger face) = lower zoom, farther (smaller face) = higher zoom
+                // Invert: larger area = closer = zoom out (lower value), smaller area = farther = zoom in (higher value)
+                const zoomNormalized = 1 - Math.min(1, distanceRatio * settings.zoomSensitivity);
+                
+                // Apply dead zone
+                const zoomChange = Math.abs(zoomNormalized - 0.5);
+                if (zoomChange > settings.zoomDeadZone / 100) {
+                  zoomValue = Math.round(
+                    Math.max(settings.zoomMin, Math.min(settings.zoomMax,
+                      settings.zoomMin + (settings.zoomMax - settings.zoomMin) * zoomNormalized * settings.zoomScale
+                    ))
+                  );
+                } else {
+                  zoomValue = Math.round((settings.zoomMin + settings.zoomMax) / 2); // Center
+                }
+              }
+              
+              // X/Y, iris, mouth, tongue, and zoom values (may be modified by delay)
               let finalXValue = xPositionValue;
               let finalYValue = yPositionValue;
               let finalIrisValue = irisValue;
               let finalMouthValue = mouthValue;
+              let finalTongueValue = tongueValue;
+              let finalZoomValue = zoomValue;
               
               if (settings.delay > 0) {
                 // Add current values to delay buffer
@@ -1479,6 +1980,8 @@ export const FaceTracker: React.FC = () => {
                   y: yPositionValue,
                   iris: irisValue,
                   mouth: mouthValue,
+                  tongue: tongueValue,
+                  zoom: zoomValue,
                   timestamp: delayNow
                 });
                 
@@ -1506,11 +2009,13 @@ export const FaceTracker: React.FC = () => {
                 if (closestEntry && closestDiff < settings.delay) {
                   panValue = closestEntry.pan;
                   tiltValue = closestEntry.tilt;
-                  // Also delay X/Y, iris, and mouth if delay is enabled
+                  // Also delay X/Y, iris, mouth, tongue, and zoom if delay is enabled
                   finalXValue = closestEntry.x;
                   finalYValue = closestEntry.y;
                   finalIrisValue = closestEntry.iris;
                   finalMouthValue = closestEntry.mouth;
+                  finalTongueValue = closestEntry.tongue;
+                  finalZoomValue = closestEntry.zoom;
                 } else {
                   // If no delayed value available yet, use current (will build up over time)
                   panValue = targetPanValue;
@@ -1527,7 +2032,11 @@ export const FaceTracker: React.FC = () => {
                 currentY: finalYValue,
                 currentIris: finalIrisValue,
                 currentMouth: finalMouthValue,
-                isBlinking: isBlinking
+                currentTongue: finalTongueValue,
+                currentZoom: finalZoomValue,
+                isBlinking: isBlinking,
+                isTongueOut: isTongueOut,
+                currentGesture: detectedHandGesture || prev.currentGesture
               }));
 
               // Verbose logging for pan/tilt calculation (every 5 detections or when movement is significant)
@@ -1576,6 +2085,25 @@ export const FaceTracker: React.FC = () => {
                     }
                     if (settings.tiltChannel > 0) {
                       dmxUpdates[settings.tiltChannel - 1] = tiltValue;
+                    }
+                    // Add other channels
+                    if (settings.irisChannel > 0) {
+                      dmxUpdates[settings.irisChannel - 1] = finalIrisValue;
+                    }
+                    if (settings.zoomChannel > 0) {
+                      dmxUpdates[settings.zoomChannel - 1] = finalZoomValue;
+                    }
+                    if (settings.mouthChannel > 0) {
+                      dmxUpdates[settings.mouthChannel - 1] = finalMouthValue;
+                    }
+                    if (settings.tongueChannel > 0) {
+                      dmxUpdates[settings.tongueChannel - 1] = finalTongueValue;
+                    }
+                    // Gesture channels (can be mapped to different DMX channels per gesture)
+                    if (detectedHandGesture && settings.enableGestures) {
+                      // Map gestures to DMX channels (can be configured later)
+                      // For now, use a single gesture channel if configured
+                      // TODO: Add per-gesture channel mapping
                     }
                   }
 
@@ -2052,13 +2580,24 @@ export const FaceTracker: React.FC = () => {
               </div>
             )}
           </div>
-          <button
-            onClick={state.isRunning ? stopCamera : startCamera}
-            className={`${styles.startButton} ${state.isRunning ? styles.stopButton : ''}`}
-            disabled={!state.isInitialized}
-          >
-            {state.isRunning ? 'Stop' : 'Start'}
-          </button>
+          <label className={styles.toggleSwitch}>
+            <input
+              type="checkbox"
+              checked={state.isRunning}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  startCamera();
+                } else {
+                  stopCamera();
+                }
+              }}
+              disabled={!state.isInitialized}
+              className={styles.toggleInput}
+            />
+            <span className={`${styles.toggleSlider} ${state.isRunning ? styles.toggleActive : ''}`}>
+              <span className={styles.toggleLabel}>{state.isRunning ? 'ON' : 'OFF'}</span>
+            </span>
+          </label>
         </div>
       </div>
 
