@@ -1324,7 +1324,7 @@ export const FaceTracker: React.FC = () => {
     ctx.drawImage(video, 0, 0);
 
     // Draw persistent overlays from last detection (makes them less blinky)
-    const now = performance.now();
+    // Reuse 'now' variable from above to avoid redeclaration
     const faceTimeout = 500; // Keep showing face for 500ms after last detection
     
     // Batch canvas operations for better performance
