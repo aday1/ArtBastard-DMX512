@@ -53,7 +53,7 @@ function MovingHeadFixture({ panValue, tiltValue }: { panValue: number; tiltValu
       <group ref={baseRef} position={[0, -0.4, 0]}>
         <mesh castShadow receiveShadow>
           <cylinderGeometry args={[0.15, 0.15, 0.8, 16]} />
-          <meshStandardMaterial color="#50505a" metalness={0.7} roughness={0.3} />
+          <meshStandardMaterial color="#707080" metalness={0.7} roughness={0.3} />
         </mesh>
       </group>
 
@@ -62,13 +62,13 @@ function MovingHeadFixture({ panValue, tiltValue }: { panValue: number; tiltValu
         {/* Pan joint */}
         <mesh position={[0, 0, 0]} castShadow>
           <sphereGeometry args={[0.08, 16, 16]} />
-          <meshStandardMaterial color="#c8c8d2" metalness={0.8} roughness={0.2} />
+          <meshStandardMaterial color="#e0e0e8" metalness={0.8} roughness={0.2} />
         </mesh>
 
         {/* Horizontal arm */}
         <mesh position={[0.2, 0, 0]} castShadow>
           <boxGeometry args={[0.4, 0.06, 0.06]} />
-          <meshStandardMaterial color="#787882" metalness={0.6} roughness={0.4} />
+          <meshStandardMaterial color="#9090a0" metalness={0.6} roughness={0.4} />
         </mesh>
 
         {/* Fixture head (at end of arm, rotates around local X axis for tilt) */}
@@ -76,24 +76,24 @@ function MovingHeadFixture({ panValue, tiltValue }: { panValue: number; tiltValu
           {/* Fixture head body */}
           <mesh castShadow>
             <boxGeometry args={[0.35, 0.2, 0.25]} />
-            <meshStandardMaterial color="#9696b4" metalness={0.7} roughness={0.3} />
+            <meshStandardMaterial color="#b0b0d0" metalness={0.7} roughness={0.3} />
           </mesh>
 
           {/* Lens (front face) */}
           <mesh position={[0.175, 0, 0]} castShadow>
             <cylinderGeometry args={[0.12, 0.12, 0.02, 32]} />
-            <meshStandardMaterial color="#ffdc64" emissive="#ffdc64" emissiveIntensity={0.3} />
+            <meshStandardMaterial color="#ffeb3b" emissive="#ffeb3b" emissiveIntensity={0.8} />
           </mesh>
 
-          {/* Light beam (cone) */}
-          <mesh ref={beamRef} position={[0.3, 0, 0]} rotation={[0, 0, 0]}>
+          {/* Light beam (cone) - rotated to point forward from lens along +X axis */}
+          <mesh ref={beamRef} position={[0.4, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.15, 0.8, 16]} />
             <meshStandardMaterial
-              color="#ffc832"
+              color="#ffd700"
               transparent
-              opacity={0.4}
-              emissive="#ffc832"
-              emissiveIntensity={0.6}
+              opacity={0.5}
+              emissive="#ffd700"
+              emissiveIntensity={1.2}
             />
           </mesh>
         </group>
@@ -123,9 +123,9 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
         gl={{ antialias: true, alpha: true }}
       >
         {/* Lighting */}
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 5, 5]} intensity={0.8} castShadow />
-        <pointLight position={[-5, 5, -5]} intensity={0.3} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 5, 5]} intensity={1.2} castShadow />
+        <pointLight position={[-5, 5, -5]} intensity={0.5} />
 
         {/* Camera controls */}
         <OrbitControls

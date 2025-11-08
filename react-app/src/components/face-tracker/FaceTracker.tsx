@@ -534,21 +534,36 @@ export const FaceTracker: React.FC = () => {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
+    }
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+      // Reset canvas dimensions
+      canvasDimensionsRef.current = { width: 0, height: 0 };
+    }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
     }
     if (detectionFrameRef.current) {
       cancelAnimationFrame(detectionFrameRef.current);
+      detectionFrameRef.current = undefined;
     }
     if (previewFrameRef.current) {
       cancelAnimationFrame(previewFrameRef.current);
+      previewFrameRef.current = undefined;
     }
-    setState(prev => ({ ...prev, isRunning: false, faceDetected: false }));
+    setState(prev => ({ ...prev, isRunning: false, faceDetected: false, fps: 0 }));
   }, []);
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
-    if (!showPreview || !videoRef.current || !canvasRef.current) {
+    if (!showPreview || !videoRef.current || !canvasRef.current || !state.isRunning) {
       previewFrameRef.current = requestAnimationFrame(renderPreview);
       return;
     }
@@ -557,7 +572,7 @@ export const FaceTracker: React.FC = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
     
-    if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
       previewFrameRef.current = requestAnimationFrame(renderPreview);
       return;
     }
@@ -565,10 +580,12 @@ export const FaceTracker: React.FC = () => {
     // Only resize canvas when dimensions change (expensive operation)
     if (canvasDimensionsRef.current.width !== video.videoWidth || 
         canvasDimensionsRef.current.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvasDimensionsRef.current.width = video.videoWidth;
-      canvasDimensionsRef.current.height = video.videoHeight;
+      const videoWidth = video.videoWidth || 640;
+      const videoHeight = video.videoHeight || 480;
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+      canvasDimensionsRef.current.width = videoWidth;
+      canvasDimensionsRef.current.height = videoHeight;
     }
 
     // Fast direct draw (no pixel manipulation for preview)
@@ -1208,7 +1225,6 @@ export const FaceTracker: React.FC = () => {
                   <canvas
                     ref={canvasRef}
                     className={styles.canvas}
-                    style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
                   />
                 </>
               )}
@@ -1247,7 +1263,6 @@ export const FaceTracker: React.FC = () => {
                 <canvas
                   ref={canvasRef}
                   className={styles.detachedCanvas}
-                  style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
                 />
               </div>
             </div>
