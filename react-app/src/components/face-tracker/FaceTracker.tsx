@@ -816,7 +816,7 @@ export const FaceTracker: React.FC = () => {
       }
     }, 500); // Debounce: save 500ms after last change
   }, []);
-  const [showPreview, setShowPreview] = useState(false); // Default to OFF to prevent crashes
+  const [showPreview, setShowPreview] = useState(true); // Default to ON
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isDetached, setIsDetached] = useState(false);
@@ -3192,245 +3192,245 @@ export const FaceTracker: React.FC = () => {
       <div className={styles.mainContainer}>
         {/* Left Side - Face Tracker Preview and Controls */}
         <div className={styles.trackerSide}>
-      {/* Preview Toggle - Above camera and 3D fixture */}
-      <div className={styles.controlSection} style={{ marginBottom: '1rem', padding: '0.75rem' }}>
-        <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
-          <label className={styles.controlLabel} style={{ fontSize: '1rem', fontWeight: 'bold' }} title="Toggle camera preview and 3D fixture model display">
-            <input
-              type="checkbox"
-              checked={showPreview}
-              onChange={(e) => setShowPreview(e.target.checked)}
-              disabled={!state.isRunning}
-              style={{ marginRight: '0.5rem', transform: 'scale(1.2)' }}
-            />
-            Show Preview & 3D Model
-          </label>
-          <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem', marginBottom: 0 }}>
-            {state.isRunning 
-              ? 'Enable to see camera preview and 3D fixture visualization' 
-              : 'Start Face Tracker first to enable preview'}
-          </p>
-        </div>
-      </div>
-      
-      {/* Fixture Selection */}
-      <div className={styles.fixtureSelection}>
-        <h4>Target Fixtures</h4>
-        <div className={styles.fixtureList}>
-          {fixtures.length === 0 ? (
-            <div className={styles.noFixtures}>No fixtures available</div>
-          ) : (
-            fixtures.map(fixture => {
-              const isSelected = selectedFixtureIds.includes(fixture.id);
-              const panCh = fixture.channels.find(c => c.name.toLowerCase().includes('pan') || c.type === 'pan');
-              const tiltCh = fixture.channels.find(c => c.name.toLowerCase().includes('tilt') || c.type === 'tilt');
-              
-              // Calculate DMX addresses for display
-              const panDmxAddress = panCh 
-                ? (panCh.dmxAddress ?? (fixture.startAddress + fixture.channels.indexOf(panCh)))
-                : null;
-              const tiltDmxAddress = tiltCh
-                ? (tiltCh.dmxAddress ?? (fixture.startAddress + fixture.channels.indexOf(tiltCh)))
-                : null;
-              
-              return (
-                <div
-                  key={fixture.id}
-                  className={`${styles.fixtureItem} ${isSelected ? styles.selected : ''}`}
-                  onClick={() => {
-                    setSelectedFixtureIds(prev => 
-                      prev.includes(fixture.id)
-                        ? prev.filter(id => id !== fixture.id)
-                        : [...prev, fixture.id]
-                    );
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => {}}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <span className={styles.fixtureName}>{fixture.name}</span>
-                  {panDmxAddress && <span className={styles.channelInfo}>Pan: CH{panDmxAddress}</span>}
-                  {tiltDmxAddress && <span className={styles.channelInfo}>Tilt: CH{tiltDmxAddress}</span>}
-                  {!panDmxAddress && !tiltDmxAddress && <span className={styles.channelInfo}>No pan/tilt channels</span>}
-                </div>
-              );
-            })
-          )}
-        </div>
-        {selectedFixtureIds.length > 0 && (
-          <div className={styles.fixtureHint}>
-            Tracking will apply to {selectedFixtureIds.length} selected fixture(s)
-          </div>
-        )}
-      </div>
-
-      <div className={styles.previewSection}>
-        {/* Camera Preview */}
-        <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
-        {showPreview ? (
-            <>
-              <div className={styles.previewHeader}>
-                <span className={styles.previewTitle}>Camera Preview</span>
-                <button
-                  className={styles.detachButton}
-                  onClick={() => setIsDetached(!isDetached)}
-                  title={isDetached ? "Reattach Preview" : "Detach Preview"}
-                >
-                  <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
-                  <span>{isDetached ? 'Reattach' : 'Detach'}</span>
-                </button>
-              </div>
-              {!isDetached && (
-          <>
-            <video
-              ref={videoRef}
-              className={styles.video}
-              autoPlay
-              playsInline
-              muted
-            />
-            <canvas
-              ref={canvasRef}
-              className={styles.canvas}
-            />
-                </>
-              )}
-          </>
-        ) : (
-          <div className={styles.noPreview}>Preview disabled</div>
-        )}
-        </div>
-
-        {/* Detached Camera Preview Window */}
-        {isDetached && showPreview && (
-          <Draggable
-            position={detachedPosition}
-            onDrag={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
-            onStop={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
-            handle=".detachedPreviewHeader"
-          >
-            <div className={styles.detachedPreview}>
-              <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
-                <span className={styles.detachedPreviewTitle}>Camera Preview</span>
-                <button
-                  className={styles.closeDetachedButton}
-                  onClick={() => setIsDetached(false)}
-                  title="Reattach Preview"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-              <div className={styles.detachedPreviewContent}>
-                <video
-                  ref={videoRef}
-                  className={styles.video}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '70vh', objectFit: 'contain' }}
+          {/* Preview Toggle - Above camera and 3D fixture */}
+          <div className={styles.controlSection} style={{ marginBottom: '1rem', padding: '0.75rem' }}>
+            <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
+              <label className={styles.controlLabel} style={{ fontSize: '1rem', fontWeight: 'bold' }} title="Toggle camera preview and 3D fixture model display">
+                <input
+                  type="checkbox"
+                  checked={showPreview}
+                  onChange={(e) => setShowPreview(e.target.checked)}
+                  disabled={!state.isRunning}
+                  style={{ marginRight: '0.5rem', transform: 'scale(1.2)' }}
                 />
-                <canvas
-                  ref={canvasRef}
-                  className={styles.detachedCanvas}
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
-                />
-              </div>
+                Show Preview & 3D Model
+              </label>
+              <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem', marginBottom: 0 }}>
+                {state.isRunning 
+                  ? 'Enable to see camera preview and 3D fixture visualization' 
+                  : 'Start Face Tracker first to enable preview'}
+              </p>
             </div>
-          </Draggable>
-        )}
-
-        {/* 3D Fixture Model */}
-        {showPreview && (
-        <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
-          <div className={styles.previewHeader}>
-            <span className={styles.previewTitle}>3D Fixture Model</span>
-            <button
-              className={styles.detachButton}
-              onClick={() => setIs3DFixtureDetached(!is3DFixtureDetached)}
-              title={is3DFixtureDetached ? "Reattach 3D Model" : "Detach 3D Model"}
-            >
-              <i className={`fas fa-${is3DFixtureDetached ? 'compress' : 'expand'}`}></i>
-              <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
-            </button>
           </div>
-          {!is3DFixtureDetached && (() => {
-            // Get RGB color from first selected fixture
-            let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
-            if (selectedFixtureIds.length > 0) {
-              const firstFixture = fixtures.find(f => selectedFixtureIds.includes(f.id));
-              if (firstFixture) {
-                const redCh = firstFixture.channels.find(c => c.type === 'red');
-                const greenCh = firstFixture.channels.find(c => c.type === 'green');
-                const blueCh = firstFixture.channels.find(c => c.type === 'blue');
-                
-                if (redCh && greenCh && blueCh) {
-                  const redAddr = redCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(redCh));
-                  const greenAddr = greenCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(greenCh));
-                  const blueAddr = blueCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(blueCh));
+          
+          {/* Fixture Selection */}
+          <div className={styles.fixtureSelection}>
+            <h4>Target Fixtures</h4>
+            <div className={styles.fixtureList}>
+              {fixtures.length === 0 ? (
+                <div className={styles.noFixtures}>No fixtures available</div>
+              ) : (
+                fixtures.map(fixture => {
+                  const isSelected = selectedFixtureIds.includes(fixture.id);
+                  const panCh = fixture.channels.find(c => c.name.toLowerCase().includes('pan') || c.type === 'pan');
+                  const tiltCh = fixture.channels.find(c => c.name.toLowerCase().includes('tilt') || c.type === 'tilt');
                   
-                  const dmxChannels = useStore.getState().dmxChannels;
-                  rgbColor = {
-                    r: dmxChannels[redAddr - 1] || 0,
-                    g: dmxChannels[greenAddr - 1] || 0,
-                    b: dmxChannels[blueAddr - 1] || 0
-                  };
+                  // Calculate DMX addresses for display
+                  const panDmxAddress = panCh 
+                    ? (panCh.dmxAddress ?? (fixture.startAddress + fixture.channels.indexOf(panCh)))
+                    : null;
+                  const tiltDmxAddress = tiltCh
+                    ? (tiltCh.dmxAddress ?? (fixture.startAddress + fixture.channels.indexOf(tiltCh)))
+                    : null;
                   
-                  // If all are 0, use default
-                  if (rgbColor.r === 0 && rgbColor.g === 0 && rgbColor.b === 0) {
-                    rgbColor = { r: 255, g: 200, b: 100 };
-                  }
-                }
-              }
-            }
-            
-            // Get shutter and gobo values from DMX channels
-            const dmxChannels = useStore.getState().dmxChannels;
-            const shutterValue = settings.shutterChannel > 0 ? (dmxChannels[settings.shutterChannel - 1] || 255) : 255;
-            const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
-            
-            return (
-              <Fixture3DModel
-                panValue={state.currentPan}
-                tiltValue={state.currentTilt}
-                zoomValue={state.currentZoom}
-                irisValue={state.currentIris}
-                shutterValue={shutterValue}
-                goboValue={goboValue}
-                rgbColor={rgbColor}
-                width={400}
-                height={400}
-              />
-            );
-          })()}
-        </div>
-        )}
-
-        {/* Detached 3D Fixture Window */}
-        {showPreview && is3DFixtureDetached && (
-          <Draggable
-            position={fixture3DPosition}
-            onDrag={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
-            onStop={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
-            handle=".detachedPreviewHeader"
-          >
-            <div className={styles.detachedPreview}>
-              <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
-                <span className={styles.detachedPreviewTitle}>3D Fixture Model</span>
-                <button
-                  className={styles.closeDetachedButton}
-                  onClick={() => setIs3DFixtureDetached(false)}
-                  title="Reattach 3D Model"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <i className="fas fa-times"></i>
-                </button>
+                  return (
+                    <div
+                      key={fixture.id}
+                      className={`${styles.fixtureItem} ${isSelected ? styles.selected : ''}`}
+                      onClick={() => {
+                        setSelectedFixtureIds(prev => 
+                          prev.includes(fixture.id)
+                            ? prev.filter(id => id !== fixture.id)
+                            : [...prev, fixture.id]
+                        );
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className={styles.fixtureName}>{fixture.name}</span>
+                      {panDmxAddress && <span className={styles.channelInfo}>Pan: CH{panDmxAddress}</span>}
+                      {tiltDmxAddress && <span className={styles.channelInfo}>Tilt: CH{tiltDmxAddress}</span>}
+                      {!panDmxAddress && !tiltDmxAddress && <span className={styles.channelInfo}>No pan/tilt channels</span>}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            {selectedFixtureIds.length > 0 && (
+              <div className={styles.fixtureHint}>
+                Tracking will apply to {selectedFixtureIds.length} selected fixture(s)
               </div>
-              <div className={styles.detachedPreviewContent}>
-                {(() => {
+            )}
+          </div>
+
+          <div className={styles.previewSection}>
+            {/* Camera Preview */}
+            <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
+              {showPreview ? (
+                <>
+                  <div className={styles.previewHeader}>
+                    <span className={styles.previewTitle}>Camera Preview</span>
+                    <button
+                      className={styles.detachButton}
+                      onClick={() => setIsDetached(!isDetached)}
+                      title={isDetached ? "Reattach Preview" : "Detach Preview"}
+                    >
+                      <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
+                      <span>{isDetached ? 'Reattach' : 'Detach'}</span>
+                    </button>
+                  </div>
+                  {!isDetached && (
+                    <>
+                      <video
+                        ref={videoRef}
+                        className={styles.video}
+                        autoPlay
+                        playsInline
+                        muted
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        className={styles.canvas}
+                      />
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className={styles.noPreview}>Preview disabled</div>
+              )}
+            </div>
+
+            {/* Detached Camera Preview Window */}
+            {isDetached && showPreview && (
+              <Draggable
+                position={detachedPosition}
+                onDrag={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
+                onStop={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
+                handle=".detachedPreviewHeader"
+              >
+                <div className={styles.detachedPreview}>
+                  <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
+                    <span className={styles.detachedPreviewTitle}>Camera Preview</span>
+                    <button
+                      className={styles.closeDetachedButton}
+                      onClick={() => setIsDetached(false)}
+                      title="Reattach Preview"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className={styles.detachedPreviewContent}>
+                    <video
+                      ref={videoRef}
+                      className={styles.video}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '70vh', objectFit: 'contain' }}
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className={styles.detachedCanvas}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+                    />
+                  </div>
+                </div>
+              </Draggable>
+            )}
+
+            {/* 3D Fixture Model */}
+            {showPreview && (
+              <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
+                <div className={styles.previewHeader}>
+                  <span className={styles.previewTitle}>3D Fixture Model</span>
+                  <button
+                    className={styles.detachButton}
+                    onClick={() => setIs3DFixtureDetached(!is3DFixtureDetached)}
+                    title={is3DFixtureDetached ? "Reattach 3D Model" : "Detach 3D Model"}
+                  >
+                    <i className={`fas fa-${is3DFixtureDetached ? 'compress' : 'expand'}`}></i>
+                    <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
+                  </button>
+                </div>
+                {!is3DFixtureDetached && (() => {
+                  // Get RGB color from first selected fixture
+                  let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
+                  if (selectedFixtureIds.length > 0) {
+                    const firstFixture = fixtures.find(f => selectedFixtureIds.includes(f.id));
+                    if (firstFixture) {
+                      const redCh = firstFixture.channels.find(c => c.type === 'red');
+                      const greenCh = firstFixture.channels.find(c => c.type === 'green');
+                      const blueCh = firstFixture.channels.find(c => c.type === 'blue');
+                      
+                      if (redCh && greenCh && blueCh) {
+                        const redAddr = redCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(redCh));
+                        const greenAddr = greenCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(greenCh));
+                        const blueAddr = blueCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(blueCh));
+                        
+                        const dmxChannels = useStore.getState().dmxChannels;
+                        rgbColor = {
+                          r: dmxChannels[redAddr - 1] || 0,
+                          g: dmxChannels[greenAddr - 1] || 0,
+                          b: dmxChannels[blueAddr - 1] || 0
+                        };
+                        
+                        // If all are 0, use default
+                        if (rgbColor.r === 0 && rgbColor.g === 0 && rgbColor.b === 0) {
+                          rgbColor = { r: 255, g: 200, b: 100 };
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Get shutter and gobo values from DMX channels
+                  const dmxChannels = useStore.getState().dmxChannels;
+                  const shutterValue = settings.shutterChannel > 0 ? (dmxChannels[settings.shutterChannel - 1] || 255) : 255;
+                  const goboValue = settings.goboChannel > 0 ? (dmxChannels[settings.goboChannel - 1] || 0) : 0;
+                  
+                  return (
+                    <Fixture3DModel
+                      panValue={state.currentPan}
+                      tiltValue={state.currentTilt}
+                      zoomValue={state.currentZoom}
+                      irisValue={state.currentIris}
+                      shutterValue={shutterValue}
+                      goboValue={goboValue}
+                      rgbColor={rgbColor}
+                      width={400}
+                      height={400}
+                    />
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Detached 3D Fixture Window */}
+            {showPreview && is3DFixtureDetached && (
+              <Draggable
+                position={fixture3DPosition}
+                onDrag={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
+                onStop={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
+                handle=".detachedPreviewHeader"
+              >
+                <div className={styles.detachedPreview}>
+                  <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
+                    <span className={styles.detachedPreviewTitle}>3D Fixture Model</span>
+                    <button
+                      className={styles.closeDetachedButton}
+                      onClick={() => setIs3DFixtureDetached(false)}
+                      title="Reattach 3D Model"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className={styles.detachedPreviewContent}>
+                    {(() => {
                   // Get RGB color from first selected fixture
                   let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
                   if (selectedFixtureIds.length > 0) {
@@ -3479,13 +3479,13 @@ export const FaceTracker: React.FC = () => {
                     />
                   );
                 })()}
-              </div>
-            </div>
-          </Draggable>
-        )}
-        
-        <div className={styles.previewControls}>
-          <div className={styles.allControls}>
+                  </div>
+                </div>
+              </Draggable>
+            )}
+
+            <div className={styles.previewControls}>
+              <div className={styles.allControls}>
             {/* Camera Settings Section */}
             <div className={styles.controlSection}>
             <h4 className={styles.controlsTitle}>Camera Settings</h4>
