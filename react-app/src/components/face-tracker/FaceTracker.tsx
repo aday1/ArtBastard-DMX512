@@ -1069,8 +1069,11 @@ export const FaceTracker: React.FC = () => {
   // Start/stop camera
   const startCamera = useCallback(async () => {
     // Update state immediately for UI responsiveness (especially in Edge)
-    setState(prev => ({ ...prev, isRunning: true }));
-    setDiagnostics(prev => ({ ...prev, cameraStatus: 'starting', cameraError: null }));
+    // Use setTimeout to defer state updates and prevent blocking
+    setTimeout(() => {
+      setState(prev => ({ ...prev, isRunning: true }));
+      setDiagnostics(prev => ({ ...prev, cameraStatus: 'starting', cameraError: null }));
+    }, 0);
     
     try {
       // Edge needs more time and simpler approach - don't timeout enumerateDevices
@@ -1100,6 +1103,10 @@ export const FaceTracker: React.FC = () => {
         // Fallback to facingMode if no deviceId
         minimalConstraints.facingMode = { ideal: 'user' };
       }
+      
+      // Add a small delay before getUserMedia to prevent Firefox freezes
+      // This gives the browser time to process previous operations
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Add timeout for getUserMedia (Edge needs more time - 15 seconds)
       const cameraTimeout = new Promise<never>((_, reject) => {
@@ -1190,7 +1197,14 @@ export const FaceTracker: React.FC = () => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        // Use setTimeout to defer play() and prevent blocking
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.warn('[FaceTracker] Video play error (non-critical):', err);
+            });
+          }
+        }, 0);
       }
 
       // Reset smoothed values when starting
@@ -1207,17 +1221,28 @@ export const FaceTracker: React.FC = () => {
       // Re-enable text overlay when starting (in case it was disabled due to crashes)
       textOverlayEnabledRef.current = true;
       textOverlayErrorCountRef.current = 0;
-      setDiagnostics(prev => ({ 
-        ...prev, 
-        cameraStatus: 'running', 
-        cameraError: null,
-        videoReady: !!videoRef.current && videoRef.current.readyState >= 2
-      }));
-      startTracking();
+      
+      // Defer diagnostic updates to prevent blocking
+      setTimeout(() => {
+        setDiagnostics(prev => ({ 
+          ...prev, 
+          cameraStatus: 'running', 
+          cameraError: null,
+          videoReady: !!videoRef.current && videoRef.current.readyState >= 2
+        }));
+      }, 0);
+      
+      // Defer startTracking to prevent blocking during camera initialization
+      // This gives the browser time to process the camera stream
+      // Note: startTracking is called via useEffect when state.isRunning changes
+      // So we don't need to call it here directly
     } catch (error: any) {
       const errorMsg = `Failed to start camera: ${error?.message || error}`;
-      setState(prev => ({ ...prev, error: errorMsg, isRunning: false }));
-      setDiagnostics(prev => ({ ...prev, cameraStatus: 'error', cameraError: errorMsg }));
+      // Defer error state updates to prevent blocking
+      setTimeout(() => {
+        setState(prev => ({ ...prev, error: errorMsg, isRunning: false }));
+        setDiagnostics(prev => ({ ...prev, cameraStatus: 'error', cameraError: errorMsg }));
+      }, 0);
     }
   }, [settings.cameraIndex, settings.autoExposure, settings.cameraExposure, settings.cameraBrightness]);
 
@@ -2723,13 +2748,18 @@ export const FaceTracker: React.FC = () => {
     
     console.log('[FaceTracker] Starting preview and detection loops');
     
-    // Start fast preview rendering only if preview is enabled
-    if (showPreview) {
-      renderPreview();
-    }
-    
-    // Start face detection (runs at lower rate)
-    detectFaces();
+    // Defer starting loops to prevent blocking
+    setTimeout(() => {
+      // Start fast preview rendering only if preview is enabled
+      if (showPreview && state.isRunning) {
+        renderPreview();
+      }
+      
+      // Start face detection (runs at lower rate)
+      if (state.isRunning) {
+        detectFaces();
+      }
+    }, 200); // Delay to let camera fully initialize
   }, [renderPreview, detectFaces, state.isRunning, showPreview]);
 
   useEffect(() => {
