@@ -1421,11 +1421,10 @@ export const FaceTracker: React.FC = () => {
       const faceTimeout = 500; // Keep showing face for 500ms after last detection
       
       // Draw overlays only if enabled by user toggle
-      // Skip overlay drawing most frames - only draw every 5th frame to prevent freezes
+      // Draw more frequently now that cleanup is fixed
       const shouldDrawOverlays = showOverlays &&
           lastFacePositionRef.current && 
-          (now - lastFacePositionRef.current.timestamp) < faceTimeout &&
-          (Math.floor(now / 300) % 5 === 0); // Only draw every 5th frame (every ~1.5 seconds)
+          (now - lastFacePositionRef.current.timestamp) < faceTimeout;
       
       if (shouldDrawOverlays) {
         try {
@@ -1802,10 +1801,14 @@ export const FaceTracker: React.FC = () => {
         
         const detectionTime = performance.now() - detectionStartTime;
         
-        // Removed logging to prevent Firefox crashes
+        // Log detection results occasionally for debugging
+        const facesCount = faces.size();
+        if (facesCount > 0 && Math.random() < 0.1) {
+          console.log('[FaceTracker] Face detected! Count:', facesCount);
+        }
 
         let faceDetected = false;
-        if (faces.size() > 0) {
+        if (facesCount > 0) {
           try {
             faceDetected = true;
             const face = faces.get(0);
@@ -2715,8 +2718,11 @@ export const FaceTracker: React.FC = () => {
     // Start the detection loop
     console.log('[FaceTracker] Starting processDetection loop');
     // Only start if running and initialized - don't recreate if already running
-    if (state.isRunning && opencvRef.current && cascadeRef.current && !detectionFrameRef.current) {
-      processDetection();
+    if (state.isRunning && opencvRef.current && cascadeRef.current) {
+      // Always start if not already running (even if detectionFrameRef is set, restart it)
+      if (!detectionFrameRef.current) {
+        processDetection();
+      }
     }
     
     // Cleanup function to stop loop when dependencies change
