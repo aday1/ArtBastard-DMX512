@@ -438,6 +438,14 @@ export const FaceTracker: React.FC = () => {
     centerX: number;
     centerY: number;
     timestamp: number;
+    // Eye positions (scaled to full canvas)
+    leftEye?: { x: number; y: number; width: number; height: number };
+    rightEye?: { x: number; y: number; width: number; height: number };
+    // Mouth position (scaled to full canvas)
+    mouth?: { x: number; y: number; width: number; height: number };
+    // Detection states
+    isBlinking?: boolean;
+    mouthOpenness?: number;
   } | null>(null);
   const faceHistoryRef = useRef<Array<{ width: number; height: number; centerX: number; centerY: number; timestamp: number }>>([]);
   const baselineFaceSizeRef = useRef<{ width: number; height: number; aspectRatio: number } | null>(null);
@@ -813,6 +821,64 @@ export const FaceTracker: React.FC = () => {
       ctx.moveTo(face.centerX, face.centerY);
       ctx.lineTo(imageCenterX, imageCenterY);
       ctx.stroke();
+      
+      // Draw eye detection boxes
+      if (face.leftEye) {
+        ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
+        // Label
+        ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
+        ctx.font = 'bold 12px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeText('L Eye', face.leftEye.x, face.leftEye.y - 5);
+        ctx.fillText('L Eye', face.leftEye.x, face.leftEye.y - 5);
+      }
+      
+      if (face.rightEye) {
+        ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
+        // Label
+        ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
+        ctx.font = 'bold 12px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeText('R Eye', face.rightEye.x, face.rightEye.y - 5);
+        ctx.fillText('R Eye', face.rightEye.x, face.rightEye.y - 5);
+      }
+      
+      // Draw mouth detection box
+      if (face.mouth) {
+        const mouthOpenness = face.mouthOpenness || 0;
+        const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
+        ctx.strokeStyle = mouthColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
+        // Label with openness percentage
+        ctx.fillStyle = mouthColor;
+        ctx.font = 'bold 12px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        const opennessPercent = Math.round(mouthOpenness * 100);
+        const mouthLabel = `Mouth ${opennessPercent}%`;
+        ctx.strokeText(mouthLabel, face.mouth.x, face.mouth.y - 5);
+        ctx.fillText(mouthLabel, face.mouth.x, face.mouth.y - 5);
+      }
+      
+      // Draw blink indicator
+      if (face.isBlinking) {
+        ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+        ctx.font = 'bold 24px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        const blinkText = '👁️ BLINKING';
+        const textX = face.centerX - 60;
+        const textY = face.y - 20;
+        ctx.strokeText(blinkText, textX, textY);
+        ctx.fillText(blinkText, textX, textY);
+      }
     }
 
     // Draw text overlay
@@ -837,6 +903,48 @@ export const FaceTracker: React.FC = () => {
     ctx.fillStyle = faceDetected ? 'lime' : 'red';
     ctx.strokeText(statusText, 10, 80);
     ctx.fillText(statusText, 10, 80);
+    
+    // Draw additional detection info
+    if (faceDetected && lastFacePositionRef.current) {
+      const face = lastFacePositionRef.current;
+      let yOffset = 105;
+      
+      // Blink status
+      if (face.isBlinking !== undefined) {
+        ctx.fillStyle = face.isBlinking ? 'red' : 'lime';
+        const blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
+        ctx.strokeText(blinkText, 10, yOffset);
+        ctx.fillText(blinkText, 10, yOffset);
+        yOffset += 25;
+      }
+      
+      // Iris value
+      if (state.currentIris > 0) {
+        ctx.fillStyle = 'cyan';
+        const irisText = `Iris: ${state.currentIris}`;
+        ctx.strokeText(irisText, 10, yOffset);
+        ctx.fillText(irisText, 10, yOffset);
+        yOffset += 25;
+      }
+      
+      // Mouth status
+      if (face.mouth && face.mouthOpenness !== undefined) {
+        ctx.fillStyle = 'magenta';
+        const mouthPercent = Math.round(face.mouthOpenness * 100);
+        const mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
+        ctx.strokeText(mouthText, 10, yOffset);
+        ctx.fillText(mouthText, 10, yOffset);
+        yOffset += 25;
+      }
+      
+      // X/Y Position
+      if (state.currentX > 0 || state.currentY > 0) {
+        ctx.fillStyle = 'orange';
+        const posText = `X: ${state.currentX} Y: ${state.currentY}`;
+        ctx.strokeText(posText, 10, yOffset);
+        ctx.fillText(posText, 10, yOffset);
+      }
+    }
 
     // Update FPS counter (preview rendering FPS)
     fpsCounterRef.current.frames++;
@@ -987,12 +1095,17 @@ export const FaceTracker: React.FC = () => {
                 console.log(`[OpenCV] Face detected - Position: (${face.x}, ${face.y}), Size: ${face.width}x${face.height}, Center: (${faceCenterX.toFixed(1)}, ${faceCenterY.toFixed(1)})`);
               }
 
-              // Store face position for persistent overlay rendering
+              // Store face position temporarily (will update with eye/mouth data later)
+              const faceX = face.x * scaleX;
+              const faceY = face.y * scaleY;
+              const faceW = face.width * scaleX;
+              const faceH = face.height * scaleY;
+              
               lastFacePositionRef.current = {
-                x: face.x * scaleX,
-                y: face.y * scaleY,
-                width: face.width * scaleX,
-                height: face.height * scaleY,
+                x: faceX,
+                y: faceY,
+                width: faceW,
+                height: faceH,
                 centerX: faceCenterX,
                 centerY: faceCenterY,
                 timestamp: Date.now()
@@ -1162,6 +1275,42 @@ export const FaceTracker: React.FC = () => {
                   }
                 } catch (err) {
                   console.warn('[FaceTracker] Error in mouth detection:', err);
+                }
+              }
+
+              // Now update face position with eye and mouth detection data
+              if (lastFacePositionRef.current) {
+                const faceX = face.x * scaleX;
+                const faceY = face.y * scaleY;
+                const faceW = face.width * scaleX;
+                const faceH = face.height * scaleY;
+                
+                // Calculate eye positions if blink detection is enabled
+                if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
+                  lastFacePositionRef.current.leftEye = {
+                    x: faceX + faceW * 0.2,
+                    y: faceY + faceH * 0.25,
+                    width: faceW * 0.2,
+                    height: faceH * 0.15
+                  };
+                  lastFacePositionRef.current.rightEye = {
+                    x: faceX + faceW * 0.6,
+                    y: faceY + faceH * 0.25,
+                    width: faceW * 0.2,
+                    height: faceH * 0.15
+                  };
+                  lastFacePositionRef.current.isBlinking = isBlinking;
+                }
+                
+                // Calculate mouth position if mouth detection is enabled
+                if (settings.mouthChannel > 0) {
+                  lastFacePositionRef.current.mouth = {
+                    x: faceX + faceW * 0.3,
+                    y: faceY + faceH * 0.5,
+                    width: faceW * 0.4,
+                    height: faceH * 0.25
+                  };
+                  lastFacePositionRef.current.mouthOpenness = (mouthValue - settings.mouthMin) / (settings.mouthMax - settings.mouthMin);
                 }
               }
 
