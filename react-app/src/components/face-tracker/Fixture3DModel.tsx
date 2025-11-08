@@ -10,6 +10,7 @@ interface Fixture3DModelProps {
   zoomValue?: number; // 0-255 DMX value (optional)
   irisValue?: number; // 0-255 DMX value (optional)
   focusValue?: number; // 0-255 DMX value (optional)
+  rgbColor?: { r: number; g: number; b: number }; // RGB color from fixture (0-255)
   width?: number;
   height?: number;
   className?: string;
@@ -21,13 +22,15 @@ function MovingHeadFixture({
   tiltValue, 
   zoomValue = 128, 
   irisValue = 255,
-  focusValue = 128
+  focusValue = 128,
+  rgbColor = { r: 255, g: 200, b: 100 } // Default warm white
 }: { 
   panValue: number; 
   tiltValue: number; 
   zoomValue?: number; 
   irisValue?: number;
   focusValue?: number;
+  rgbColor?: { r: number; g: number; b: number };
 }) {
   const baseRef = useRef<THREE.Group>(null);
   const panYokeRef = useRef<THREE.Group>(null);
@@ -114,7 +117,22 @@ function MovingHeadFixture({
   const trimColor = "#9a9aaa";
   const lensColor = "#ffffff";
   const irisColor = "#2a2a2a";
-  const beamColor = "#ffdd44";
+  
+  // Beam color from fixture RGB values (normalize 0-255 to 0-1)
+  const beamColor = useMemo(() => {
+    const r = rgbColor.r / 255;
+    const g = rgbColor.g / 255;
+    const b = rgbColor.b / 255;
+    return new THREE.Color(r, g, b);
+  }, [rgbColor]);
+  
+  // Beam color as hex string for material
+  const beamColorHex = useMemo(() => {
+    const r = Math.round(rgbColor.r).toString(16).padStart(2, '0');
+    const g = Math.round(rgbColor.g).toString(16).padStart(2, '0');
+    const b = Math.round(rgbColor.b).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+  }, [rgbColor]);
 
   // Create iris blades (6 blades for realistic iris)
   const irisBlades = useMemo(() => {
@@ -160,6 +178,26 @@ function MovingHeadFixture({
         <mesh castShadow receiveShadow>
           <cylinderGeometry args={[0.20, 0.20, 0.08, 16]} />
           <meshStandardMaterial color={baseColor} metalness={0.9} roughness={0.1} />
+        </mesh>
+        
+        {/* DMX Input Port (5-pin XLR style) */}
+        <mesh position={[-0.12, -0.02, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.015, 0.015, 0.03, 16]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.9} roughness={0.1} />
+        </mesh>
+        <mesh position={[-0.12, -0.02, 0.015]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.022, 0.022, 0.01, 16]} />
+          <meshStandardMaterial color="#2a2a2a" metalness={0.8} roughness={0.2} />
+        </mesh>
+        
+        {/* DMX Output Port (5-pin XLR style) */}
+        <mesh position={[0.12, -0.02, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.015, 0.015, 0.03, 16]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.9} roughness={0.1} />
+        </mesh>
+        <mesh position={[0.12, -0.02, 0.015]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.022, 0.022, 0.01, 16]} />
+          <meshStandardMaterial color="#2a2a2a" metalness={0.8} roughness={0.2} />
         </mesh>
         
         {/* Base column */}
@@ -299,19 +337,35 @@ function MovingHeadFixture({
             </mesh>
           </group>
 
-          {/* Light beam - cone that changes angle with zoom */}
+          {/* Light beam - realistic stage light beam (shortened, more focused) */}
           <mesh 
             ref={beamRef} 
-            position={[0.5, 0, 0]} 
+            position={[0.45, 0, 0]} 
             rotation={[0, 0, -Math.PI / 2]}
           >
-            <coneGeometry args={[0.12, 1.5, 16, 1, true]} />
+            <coneGeometry args={[0.08, 0.4, 16, 1, true]} />
             <meshStandardMaterial
-              color={beamColor}
+              color={beamColorHex}
               transparent
-              opacity={0.35}
-              emissive={beamColor}
-              emissiveIntensity={1.0}
+              opacity={0.25}
+              emissive={beamColorHex}
+              emissiveIntensity={0.8}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          
+          {/* Inner beam core - brighter center */}
+          <mesh 
+            position={[0.45, 0, 0]} 
+            rotation={[0, 0, -Math.PI / 2]}
+          >
+            <coneGeometry args={[0.04, 0.4, 8, 1, true]} />
+            <meshStandardMaterial
+              color={beamColorHex}
+              transparent
+              opacity={0.4}
+              emissive={beamColorHex}
+              emissiveIntensity={1.2}
               side={THREE.DoubleSide}
             />
           </mesh>
@@ -333,6 +387,7 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
   zoomValue = 128,
   irisValue = 255,
   focusValue = 128,
+  rgbColor = { r: 255, g: 200, b: 100 },
   width = 400,
   height = 400,
   className
@@ -368,6 +423,7 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
           zoomValue={zoomValue}
           irisValue={irisValue}
           focusValue={focusValue}
+          rgbColor={rgbColor}
         />
 
         {/* Grid helper - positioned below fixture */}

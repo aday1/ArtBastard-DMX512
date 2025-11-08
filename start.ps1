@@ -135,9 +135,10 @@ function Get-SophisticatedETA {
     }
 }
 
-# Function to check if rebuild is needed
+# Function to check if rebuild is needed (including major code changes)
 function Test-NeedsRebuild {
     $rebuildNeeded = $false
+    $cacheClearNeeded = $false
     $reasons = @()
     
     # Check backend
@@ -152,6 +153,16 @@ function Test-NeedsRebuild {
         if ($newerSources) {
             $rebuildNeeded = $true
             $reasons += "Backend source files modified"
+        }
+        
+        # Check for major config changes (TypeScript, build configs)
+        $majorConfigFiles = @("tsconfig.json", "package.json", "webpack.config.js", "vite.config.ts", "vite.config.js")
+        foreach ($configFile in $majorConfigFiles) {
+            if ((Test-Path $configFile) -and ((Get-Item $configFile).LastWriteTime -gt $serverBuildTime)) {
+                $rebuildNeeded = $true
+                $cacheClearNeeded = $true
+                $reasons += "Major config file changed: $configFile"
+            }
         }
     }
     
@@ -168,10 +179,22 @@ function Test-NeedsRebuild {
             $rebuildNeeded = $true
             $reasons += "Frontend source files modified"
         }
+        
         # Check if package.json changed (dependencies might have changed)
         if ((Test-Path "react-app/package.json") -and ((Get-Item "react-app/package.json").LastWriteTime -gt $indexBuildTime)) {
             $rebuildNeeded = $true
-            $reasons += "Frontend dependencies changed"
+            $cacheClearNeeded = $true
+            $reasons += "Frontend dependencies changed (package.json)"
+        }
+        
+        # Check for major frontend config changes
+        $frontendConfigFiles = @("react-app/tsconfig.json", "react-app/vite.config.ts", "react-app/vite.config.js", "react-app/.env", "react-app/.env.local")
+        foreach ($configFile in $frontendConfigFiles) {
+            if ((Test-Path $configFile) -and ((Get-Item $configFile).LastWriteTime -gt $indexBuildTime)) {
+                $rebuildNeeded = $true
+                $cacheClearNeeded = $true
+                $reasons += "Major frontend config changed: $configFile"
+            }
         }
     }
     
@@ -183,6 +206,7 @@ function Test-NeedsRebuild {
     
     return @{
         NeedsRebuild = $rebuildNeeded
+        NeedsCacheClear = $cacheClearNeeded
         Reasons = $reasons
     }
 }
@@ -334,8 +358,16 @@ if (-not $Clear) {
     $rebuildCheck = Test-NeedsRebuild
     $cacheCheck = Test-NeedsCacheClear
     
-    if ($cacheCheck.NeedsCacheClear) {
-        Write-Host "Cache optimization recommended..." -ForegroundColor Yellow
+    # Check if cache clear is needed (from rebuild check or cache check)
+    $shouldClearCache = $rebuildCheck.NeedsCacheClear -or $cacheCheck.NeedsCacheClear
+    
+    if ($shouldClearCache) {
+        Write-Host "Cache optimization required (major code changes detected)..." -ForegroundColor Yellow
+        foreach ($reason in $rebuildCheck.Reasons) {
+            if ($reason -like "*config*" -or $reason -like "*package.json*" -or $reason -like "*dependencies*") {
+                Write-Host "  $reason" -ForegroundColor Yellow
+            }
+        }
         foreach ($reason in $cacheCheck.Reasons) {
             Write-Host "  $reason" -ForegroundColor Yellow
         }
@@ -343,8 +375,11 @@ if (-not $Clear) {
         if (Test-Path "react-app/.vite") {
             Remove-Item -Recurse -Force "react-app/.vite" -ErrorAction SilentlyContinue
         }
+        Write-Host "  Clearing npm cache..." -ForegroundColor Cyan
+        npm cache clean --force 2>$null
         Write-Host "  Verifying npm cache..." -ForegroundColor Cyan
         npm cache verify 2>$null
+        Write-Host "Cache cleared successfully!" -ForegroundColor Green
     }
     
     # Check and install dependencies if missing

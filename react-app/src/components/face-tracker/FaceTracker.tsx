@@ -1522,9 +1522,13 @@ export const FaceTracker: React.FC = () => {
         const now = Date.now();
         const detectionInterval = 1000 / 15; // 15 FPS for detection
         if (now - lastDetectionTimeRef.current < detectionInterval) {
-          // Only continue loop if still running
+          // Only continue loop if still running - use setTimeout to prevent blocking
           if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
+            setTimeout(() => {
+              if (state.isRunning && detectionFrameRef.current === undefined) {
+                detectionFrameRef.current = requestAnimationFrame(processDetection);
+              }
+            }, detectionInterval - (now - lastDetectionTimeRef.current));
           } else {
             detectionFrameRef.current = undefined;
           }
@@ -3086,14 +3090,46 @@ export const FaceTracker: React.FC = () => {
               <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
             </button>
           </div>
-          {!is3DFixtureDetached && (
-            <Fixture3DModel
-              panValue={state.currentPan}
-              tiltValue={state.currentTilt}
-              width={400}
-              height={400}
-            />
-          )}
+          {!is3DFixtureDetached && (() => {
+            // Get RGB color from first selected fixture
+            let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
+            if (selectedFixtureIds.length > 0) {
+              const firstFixture = fixtures.find(f => selectedFixtureIds.includes(f.id));
+              if (firstFixture) {
+                const redCh = firstFixture.channels.find(c => c.type === 'red');
+                const greenCh = firstFixture.channels.find(c => c.type === 'green');
+                const blueCh = firstFixture.channels.find(c => c.type === 'blue');
+                
+                if (redCh && greenCh && blueCh) {
+                  const redAddr = redCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(redCh));
+                  const greenAddr = greenCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(greenCh));
+                  const blueAddr = blueCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(blueCh));
+                  
+                  const dmxChannels = useStore.getState().dmxChannels;
+                  rgbColor = {
+                    r: dmxChannels[redAddr - 1] || 0,
+                    g: dmxChannels[greenAddr - 1] || 0,
+                    b: dmxChannels[blueAddr - 1] || 0
+                  };
+                  
+                  // If all are 0, use default
+                  if (rgbColor.r === 0 && rgbColor.g === 0 && rgbColor.b === 0) {
+                    rgbColor = { r: 255, g: 200, b: 100 };
+                  }
+                }
+              }
+            }
+            
+            return (
+              <Fixture3DModel
+                panValue={state.currentPan}
+                tiltValue={state.currentTilt}
+                rgbColor={rgbColor}
+                width={400}
+                height={400}
+              />
+            );
+          })()}
         </div>
 
         {/* Detached 3D Fixture Window */}
@@ -3117,12 +3153,46 @@ export const FaceTracker: React.FC = () => {
                 </button>
               </div>
               <div className={styles.detachedPreviewContent}>
-                <Fixture3DModel
-                  panValue={state.currentPan}
-                  tiltValue={state.currentTilt}
-                  width={500}
-                  height={500}
-                />
+                {(() => {
+                  // Get RGB color from first selected fixture
+                  let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
+                  if (selectedFixtureIds.length > 0) {
+                    const firstFixture = fixtures.find(f => selectedFixtureIds.includes(f.id));
+                    if (firstFixture) {
+                      const redCh = firstFixture.channels.find(c => c.type === 'red');
+                      const greenCh = firstFixture.channels.find(c => c.type === 'green');
+                      const blueCh = firstFixture.channels.find(c => c.type === 'blue');
+                      
+                      if (redCh && greenCh && blueCh) {
+                        const redAddr = redCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(redCh));
+                        const greenAddr = greenCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(greenCh));
+                        const blueAddr = blueCh.dmxAddress ?? (firstFixture.startAddress + firstFixture.channels.indexOf(blueCh));
+                        
+                        const dmxChannels = useStore.getState().dmxChannels;
+                        rgbColor = {
+                          r: dmxChannels[redAddr - 1] || 0,
+                          g: dmxChannels[greenAddr - 1] || 0,
+                          b: dmxChannels[blueAddr - 1] || 0
+                        };
+                        
+                        // If all are 0, use default
+                        if (rgbColor.r === 0 && rgbColor.g === 0 && rgbColor.b === 0) {
+                          rgbColor = { r: 255, g: 200, b: 100 };
+                        }
+                      }
+                    }
+                  }
+                  
+                  return (
+                    <Fixture3DModel
+                      panValue={state.currentPan}
+                      tiltValue={state.currentTilt}
+                      rgbColor={rgbColor}
+                      width={500}
+                      height={500}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </Draggable>
