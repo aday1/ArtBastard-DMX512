@@ -2987,24 +2987,31 @@ export const FaceTracker: React.FC = () => {
             <input
               type="checkbox"
               checked={state.isRunning}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  startCamera();
-                } else {
-                  stopCamera();
-                }
-              }}
-              onClick={(e) => {
-                // Edge compatibility: ensure click is handled
+              onChange={async (e) => {
                 e.stopPropagation();
-                const target = e.target as HTMLInputElement;
-                if (target.checked !== state.isRunning) {
-                  if (target.checked) {
-                    startCamera();
+                const shouldRun = e.target.checked;
+                // Update state immediately for UI responsiveness
+                setState(prev => ({ ...prev, isRunning: shouldRun }));
+                try {
+                  if (shouldRun) {
+                    await startCamera();
                   } else {
                     stopCamera();
                   }
+                } catch (error) {
+                  // If camera fails, revert state
+                  console.error('[FaceTracker] Toggle error:', error);
+                  setState(prev => ({ ...prev, isRunning: !shouldRun }));
+                  setDiagnostics(prev => ({ 
+                    ...prev, 
+                    cameraStatus: 'error', 
+                    cameraError: error instanceof Error ? error.message : 'Unknown error'
+                  }));
                 }
+              }}
+              onClick={(e) => {
+                // Edge compatibility: prevent double-firing
+                e.stopPropagation();
               }}
               disabled={!state.isInitialized}
               className={styles.toggleInput}
