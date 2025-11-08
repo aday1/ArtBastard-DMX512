@@ -304,19 +304,47 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  font-family: inherit;
+}
+
+.oscAddressRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
   
-  &:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+  .textInput {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.quickBindButton {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent-color);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--accent-color-hover, var(--accent-color));
+    opacity: 0.9;
+    transform: translateY(-1px);
   }
   
-  &:disabled {
-    opacity: 0.6;
+  &:active {
+    transform: translateY(0);
+  }
+  
+  i {
+    font-size: 0.8rem;
+  }
     cursor: not-allowed;
   }
 }

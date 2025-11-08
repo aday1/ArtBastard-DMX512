@@ -764,7 +764,8 @@ function setupSocketHandlers(io: Server) {
       try {
         // This function should be implemented in your index.ts file
         // It should send an OSC message with the given address and args
-        sendOscMessage(message.address, message.args);
+        // Support custom host/port for Face Tracker and other custom OSC sending
+        sendOscMessage(message.address, message.args, message.host, message.port);
         
         // Forward OSC message to all clients for display
         io.emit('oscMessage', {

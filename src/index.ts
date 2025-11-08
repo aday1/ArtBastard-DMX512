@@ -90,6 +90,8 @@ let midiLearnTimeout: NodeJS.Timeout | null = null;
 // OSC variables
 let oscReceivePort: any = null;
 let oscSendPort: any = null;
+// Map to cache custom OSC send ports for different host:port combinations
+const customOscSendPorts: Map<string, any> = new Map();
 
 // OSC Configuration
 let oscConfig: OscConfig = {
@@ -894,10 +896,51 @@ function setDmxChannels(channels: number[]) {
 }
 
 // OSC message sending function
-function sendOscMessage(address: string, args: any[]) {
-    if (!oscConfig.sendEnabled || !oscSendPort) {
-        log('OSC sending is disabled or send port not available', 'OSC');
-        return;
+function sendOscMessage(address: string, args: any[], customHost?: string, customPort?: number) {
+    let portToUse: any = null;
+    
+    // If custom host/port provided, use or create a custom port
+    if (customHost && customPort) {
+        const portKey = `${customHost}:${customPort}`;
+        
+        // Check if we already have a port for this destination
+        if (customOscSendPorts.has(portKey)) {
+            portToUse = customOscSendPorts.get(portKey);
+        } else {
+            // Create a new OSC send port for this custom destination
+            try {
+                const customPortInstance = new osc.UDPPort({
+                    localAddress: "0.0.0.0",
+                    localPort: 0, // Use any available port for sending
+                    remoteAddress: customHost,
+                    remotePort: customPort,
+                    metadata: false
+                });
+                
+                customPortInstance.on("ready", () => {
+                    log(`OSC Custom Send Port ready for ${portKey}`, 'OSC');
+                });
+                
+                customPortInstance.on("error", (error: Error) => {
+                    log(`OSC Custom Send error for ${portKey}`, 'ERROR', { message: error.message });
+                });
+                
+                customPortInstance.open();
+                customOscSendPorts.set(portKey, customPortInstance);
+                portToUse = customPortInstance;
+                log(`Created new OSC send port for ${portKey}`, 'OSC');
+            } catch (error) {
+                log(`Error creating custom OSC send port for ${portKey}`, 'ERROR', { error });
+                return;
+            }
+        }
+    } else {
+        // Use default OSC send port
+        if (!oscConfig.sendEnabled || !oscSendPort) {
+            log('OSC sending is disabled or send port not available', 'OSC');
+            return;
+        }
+        portToUse = oscSendPort;
     }
     
     try {
@@ -906,20 +949,22 @@ function sendOscMessage(address: string, args: any[]) {
             args: args
         };
         
-        oscSendPort.send(message);
+        portToUse.send(message);
         
-        log('OSC message sent', 'OSC', { address, args });
+        log('OSC message sent', 'OSC', { address, args, host: customHost || oscConfig.sendHost, port: customPort || oscConfig.sendPort });
         
         // Emit to clients for debugging/monitoring
         if (global.io) {
             global.io.emit('oscOutgoing', {
                 address: address,
                 args: args,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                host: customHost || oscConfig.sendHost,
+                port: customPort || oscConfig.sendPort
             });
         }
     } catch (error) {
-        log('Error sending OSC message', 'ERROR', { error, address, args });
+        log('Error sending OSC message', 'ERROR', { error, address, args, host: customHost, port: customPort });
     }
 }
 

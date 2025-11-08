@@ -989,16 +989,22 @@ export const FaceTracker: React.FC = () => {
                             if (panOscAddress) {
                               (socket as any).emit('sendOsc', {
                                 address: panOscAddress,
-                                args: [{ type: 'f', value: panValue / 255.0 }]
+                                args: [{ type: 'f', value: panValue / 255.0 }],
+                                // When using ArtBastard OSC, use the configured port from settings
+                                host: settings.oscHost,
+                                port: settings.oscPort
                               });
-                              console.log('[FaceTracker] OSC sent (Pan):', panOscAddress, panValue / 255.0);
+                              console.log('[FaceTracker] OSC sent (Pan):', panOscAddress, panValue / 255.0, 'to', settings.oscHost, ':', settings.oscPort);
                             }
                             if (tiltOscAddress) {
                               (socket as any).emit('sendOsc', {
                                 address: tiltOscAddress,
-                                args: [{ type: 'f', value: tiltValue / 255.0 }]
+                                args: [{ type: 'f', value: tiltValue / 255.0 }],
+                                // When using ArtBastard OSC, use the configured port from settings
+                                host: settings.oscHost,
+                                port: settings.oscPort
                               });
-                              console.log('[FaceTracker] OSC sent (Tilt):', tiltOscAddress, tiltValue / 255.0);
+                              console.log('[FaceTracker] OSC sent (Tilt):', tiltOscAddress, tiltValue / 255.0, 'to', settings.oscHost, ':', settings.oscPort);
                             }
                           } else {
                             // Use custom OSC sending (via server with custom host/port)
@@ -1312,6 +1318,7 @@ export const FaceTracker: React.FC = () => {
               </div>
               <div className={styles.detachedPreviewContent}>
                 <Fixture3DModel
+                  key={`fixture-detached-${state.currentPan}-${state.currentTilt}`}
                   panValue={state.currentPan}
                   tiltValue={state.currentTilt}
                   width={500}
@@ -2336,31 +2343,138 @@ export const FaceTracker: React.FC = () => {
             {/* OSC Endpoints */}
             <div className={styles.controlSection}>
               <h4 className={styles.controlsTitle}>OSC Endpoints</h4>
-              <div className={styles.controlGroup}>
-                <div className={styles.infoBox}>
-                  <p className={styles.infoText}>
-                    <strong>ArtBastard OSC Endpoints (from Configuration):</strong>
-                  </p>
-                  <p className={styles.infoText}>
-                    Pan Channel {settings.panChannel}: <code className={styles.endpointAddress}>
-                      {oscAssignments && oscAssignments[settings.panChannel - 1] 
+              {settings.useArtBastardOSC ? (
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="OSC address for pan channel (from ArtBastard configuration)">
+                    Pan Channel {settings.panChannel}:
+                  </label>
+                  <div className={styles.oscAddressRow}>
+                    <input
+                      type="text"
+                      value={oscAssignments && oscAssignments[settings.panChannel - 1] 
                         ? oscAssignments[settings.panChannel - 1] 
                         : `/1/fader${settings.panChannel}`}
-                    </code>
-                  </p>
-                  <p className={styles.infoText}>
-                    Tilt Channel {settings.tiltChannel}: <code className={styles.endpointAddress}>
-                      {oscAssignments && oscAssignments[settings.tiltChannel - 1] 
+                      onChange={(e) => {
+                        // Update the OSC assignment in the store
+                        const newAssignments = [...(oscAssignments || [])];
+                        while (newAssignments.length < settings.panChannel) {
+                          newAssignments.push('');
+                        }
+                        newAssignments[settings.panChannel - 1] = e.target.value;
+                        useStore.setState({ oscAssignments: newAssignments });
+                      }}
+                      className={styles.textInput}
+                      placeholder={`/1/fader${settings.panChannel}`}
+                      title="OSC address for pan channel"
+                    />
+                    <button
+                      className={styles.quickBindButton}
+                      onClick={() => {
+                        const newAssignments = [...(oscAssignments || [])];
+                        while (newAssignments.length < settings.panChannel) {
+                          newAssignments.push('');
+                        }
+                        newAssignments[settings.panChannel - 1] = `/1/fader${settings.panChannel}`;
+                        useStore.setState({ oscAssignments: newAssignments });
+                      }}
+                      title={`Quick bind to /1/fader${settings.panChannel}`}
+                    >
+                      <i className="fas fa-link"></i> Bind
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="OSC address for pan channel (custom)">
+                    Pan Channel {settings.panChannel}:
+                  </label>
+                  <div className={styles.oscAddressRow}>
+                    <input
+                      type="text"
+                      value={settings.oscPanAddress}
+                      onChange={(e) => updateSetting('oscPanAddress', e.target.value)}
+                      className={styles.textInput}
+                      placeholder="/face-tracker/pan"
+                      title="OSC address for pan channel"
+                    />
+                    <button
+                      className={styles.quickBindButton}
+                      onClick={() => updateSetting('oscPanAddress', `/1/fader${settings.panChannel}`)}
+                      title={`Quick bind to /1/fader${settings.panChannel}`}
+                    >
+                      <i className="fas fa-link"></i> Bind
+                    </button>
+                  </div>
+                </div>
+              )}
+              {settings.useArtBastardOSC ? (
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="OSC address for tilt channel (from ArtBastard configuration)">
+                    Tilt Channel {settings.tiltChannel}:
+                  </label>
+                  <div className={styles.oscAddressRow}>
+                    <input
+                      type="text"
+                      value={oscAssignments && oscAssignments[settings.tiltChannel - 1] 
                         ? oscAssignments[settings.tiltChannel - 1] 
                         : `/1/fader${settings.tiltChannel}`}
-                    </code>
-                  </p>
-                  <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
-                    When OSC is enabled, messages will be sent to these endpoints and visible in the OSC Monitor.
-                    Configure OSC assignments in the main ArtBastard settings.
-                  </p>
+                      onChange={(e) => {
+                        // Update the OSC assignment in the store
+                        const newAssignments = [...(oscAssignments || [])];
+                        while (newAssignments.length < settings.tiltChannel) {
+                          newAssignments.push('');
+                        }
+                        newAssignments[settings.tiltChannel - 1] = e.target.value;
+                        useStore.setState({ oscAssignments: newAssignments });
+                      }}
+                      className={styles.textInput}
+                      placeholder={`/1/fader${settings.tiltChannel}`}
+                      title="OSC address for tilt channel"
+                    />
+                    <button
+                      className={styles.quickBindButton}
+                      onClick={() => {
+                        const newAssignments = [...(oscAssignments || [])];
+                        while (newAssignments.length < settings.tiltChannel) {
+                          newAssignments.push('');
+                        }
+                        newAssignments[settings.tiltChannel - 1] = `/1/fader${settings.tiltChannel}`;
+                        useStore.setState({ oscAssignments: newAssignments });
+                      }}
+                      title={`Quick bind to /1/fader${settings.tiltChannel}`}
+                    >
+                      <i className="fas fa-link"></i> Bind
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className={styles.controlGroup}>
+                  <label className={styles.controlLabel} title="OSC address for tilt channel (custom)">
+                    Tilt Channel {settings.tiltChannel}:
+                  </label>
+                  <div className={styles.oscAddressRow}>
+                    <input
+                      type="text"
+                      value={settings.oscTiltAddress}
+                      onChange={(e) => updateSetting('oscTiltAddress', e.target.value)}
+                      className={styles.textInput}
+                      placeholder="/face-tracker/tilt"
+                      title="OSC address for tilt channel"
+                    />
+                    <button
+                      className={styles.quickBindButton}
+                      onClick={() => updateSetting('oscTiltAddress', `/1/fader${settings.tiltChannel}`)}
+                      title={`Quick bind to /1/fader${settings.tiltChannel}`}
+                    >
+                      <i className="fas fa-link"></i> Bind
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+                When OSC is enabled, messages will be sent to these endpoints and visible in the OSC Monitor.
+                {settings.useArtBastardOSC && ' These addresses are shared with the main ArtBastard OSC configuration.'}
+              </p>
             </div>
           </div>
         </div>

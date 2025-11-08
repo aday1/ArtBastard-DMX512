@@ -70,19 +70,37 @@ export const OscMonitor: React.FC = () => {
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const lastMessageCountRef = useRef<number>(0);
 
   useEffect(() => {
     if (oscMessagesFromStore.length > 0) {
       const recentMessages = oscMessagesFromStore.slice(-10);
-      setLastMessages(recentMessages);
+      const previousMessageCount = lastMessageCountRef.current;
+      const hasNewMessages = oscMessagesFromStore.length > previousMessageCount;
       
-      // Auto-scroll to bottom when new messages arrive
+      setLastMessages(recentMessages);
+      lastMessageCountRef.current = oscMessagesFromStore.length;
+      
+      // Auto-scroll to bottom when new messages arrive or when auto-scroll is enabled
       if (autoScroll && contentRef.current) {
-        setTimeout(() => {
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
-        }, 10);
+        // Use double requestAnimationFrame to ensure DOM has fully updated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (contentRef.current) {
+              // Force scroll to bottom
+              const element = contentRef.current;
+              element.scrollTop = element.scrollHeight;
+            }
+          });
+        });
+      } else if (!autoScroll && hasNewMessages && contentRef.current) {
+        // If auto-scroll is disabled but new messages arrived, check if user is near bottom
+        // If so, re-enable auto-scroll
+        const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+        const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+        if (isNearBottom) {
+          setAutoScroll(true);
+        }
       }
     }
   }, [oscMessagesFromStore, autoScroll]);
@@ -165,7 +183,8 @@ export const OscMonitor: React.FC = () => {
           // Disable auto-scroll if user manually scrolls up
           if (contentRef.current) {
             const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px threshold
+            // More accurate check: if within 5px of bottom, consider it at bottom
+            const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 5;
             setAutoScroll(isAtBottom);
           }
         }}
