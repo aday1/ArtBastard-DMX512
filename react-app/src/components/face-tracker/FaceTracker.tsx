@@ -1057,9 +1057,18 @@ export const FaceTracker: React.FC = () => {
 
   // Start/stop camera
   const startCamera = useCallback(async () => {
+    // Update state immediately for UI responsiveness (especially in Edge)
+    setState(prev => ({ ...prev, isRunning: true }));
     setDiagnostics(prev => ({ ...prev, cameraStatus: 'starting', cameraError: null }));
+    
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
+      // Add timeout for camera access (Edge sometimes hangs)
+      const cameraTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Camera access timeout (10s)')), 10000);
+      });
+      
+      const enumerateDevices = navigator.mediaDevices.enumerateDevices();
+      const devices = await Promise.race([enumerateDevices, cameraTimeout]);
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       
       if (videoDevices.length === 0) {
@@ -1088,20 +1097,22 @@ export const FaceTracker: React.FC = () => {
         videoConstraints.brightness = { ideal: settings.cameraBrightness };
       }
       
-      // Try to get stream with constraints
+      // Try to get stream with constraints (with timeout)
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const getUserMediaPromise = navigator.mediaDevices.getUserMedia({
           video: videoConstraints
         });
+        stream = await Promise.race([getUserMediaPromise, cameraTimeout]);
       } catch (error) {
-        // If that fails, try with minimal constraints
+        // If that fails, try with minimal constraints (with timeout)
         console.warn('[FaceTracker] Failed with advanced constraints, trying minimal:', error);
-        stream = await navigator.mediaDevices.getUserMedia({
+        const minimalPromise = navigator.mediaDevices.getUserMedia({
           video: {
             deviceId: deviceId ? { ideal: deviceId } : undefined
           }
         });
+        stream = await Promise.race([minimalPromise, cameraTimeout]);
       }
       
       // After getting the stream, try to apply exposure/brightness if supported
@@ -2418,6 +2429,12 @@ export const FaceTracker: React.FC = () => {
                       dmxUpdates[settings.tiltChannel - 1] = tiltValue;
                     }
                     // Add other channels
+                    if (settings.xPositionChannel > 0) {
+                      dmxUpdates[settings.xPositionChannel - 1] = finalXValue;
+                    }
+                    if (settings.yPositionChannel > 0) {
+                      dmxUpdates[settings.yPositionChannel - 1] = finalYValue;
+                    }
                     if (settings.irisChannel > 0) {
                       dmxUpdates[settings.irisChannel - 1] = finalIrisValue;
                     }
