@@ -1432,13 +1432,105 @@ export const FaceTracker: React.FC = () => {
           // Validate face data to prevent crashes
           if (face && typeof face.x === 'number' && typeof face.y === 'number' && 
               typeof face.width === 'number' && typeof face.height === 'number') {
-            // Only draw simple face rectangle - skip all other overlays to prevent freezes
-            ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+            // Batch canvas operations for better performance
+            ctx.save();
+            
+            const imageCenterX = video.videoWidth / 2;
+            const imageCenterY = video.videoHeight / 2;
+            
+            // Calculate fade based on time since last detection
+            const timeSinceDetection = now - face.timestamp;
+            const fadeAlpha = Math.max(0.5, 1 - (timeSinceDetection / faceTimeout));
+            
+            // Draw face rectangle
+            ctx.strokeStyle = `rgba(255, 165, 0, ${fadeAlpha})`;
             ctx.lineWidth = 2;
             ctx.strokeRect(face.x, face.y, face.width, face.height);
+
+            // Draw center point (yellow circle)
+            ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
+            ctx.beginPath();
+            ctx.arc(face.centerX, face.centerY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw gaze projection if head pose is available
+            if (face.yaw !== undefined && face.pitch !== undefined) {
+              const headYaw = face.yaw;
+              const headPitch = face.pitch;
+              const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.6;
+              const panOffset = headYaw * projectionDistance;
+              const tiltOffset = headPitch * projectionDistance;
+              const targetX = face.centerX + panOffset;
+              const targetY = face.centerY + tiltOffset;
+              const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
+              const clampedTargetY = Math.max(0, Math.min(video.videoHeight, targetY));
+              
+              // Draw gaze line
+              ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(face.centerX, face.centerY);
+              ctx.lineTo(clampedTargetX, clampedTargetY);
+              ctx.stroke();
+              
+              // Draw X marker at target
+              ctx.beginPath();
+              ctx.moveTo(clampedTargetX - 12, clampedTargetY - 12);
+              ctx.lineTo(clampedTargetX + 12, clampedTargetY + 12);
+              ctx.moveTo(clampedTargetX + 12, clampedTargetY - 12);
+              ctx.lineTo(clampedTargetX - 12, clampedTargetY + 12);
+              ctx.stroke();
+              
+              // Draw circle around X marker
+              ctx.beginPath();
+              ctx.arc(clampedTargetX, clampedTargetY, 15, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+            
+            // Draw crosshair at image center (blue, for reference)
+            ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(imageCenterX - 20, imageCenterY);
+            ctx.lineTo(imageCenterX + 20, imageCenterY);
+            ctx.moveTo(imageCenterX, imageCenterY - 20);
+            ctx.lineTo(imageCenterX, imageCenterY + 20);
+            ctx.stroke();
+            
+            // Draw eye detection boxes if available
+            if (face.leftEye) {
+              ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
+            }
+            
+            if (face.rightEye) {
+              ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
+            }
+            
+            // Draw mouth detection box if available
+            if (face.mouth) {
+              const mouthOpenness = face.mouthOpenness || 0;
+              const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
+              ctx.strokeStyle = mouthColor;
+              ctx.lineWidth = 2;
+              ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
+            }
+            
+            // Draw blink indicator
+            if (face.isBlinking) {
+              ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+              ctx.beginPath();
+              ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            
+            ctx.restore();
           }
         } catch (error) {
-          // Silently ignore overlay errors to prevent freezes
+          console.warn('[FaceTracker] Error drawing overlays:', error);
         }
       }
 
