@@ -42,6 +42,7 @@ export interface DMXState {
   toggleFixtureSelection: (fixtureId: string, additive?: boolean) => void; // Handles channel selection too
   loadInitialState: (initialState: Partial<Pick<DMXState, 'dmxValues' | 'channelNames' | 'fixtures'>>) => void;
   sendBatchDmxUpdates: (updates: Record<number, number>) => Promise<void>;
+  setAllToZero: () => Promise<void>;
 }
 
 const initialState = {
@@ -262,6 +263,30 @@ export const useDmxStore = create<DMXState>()(
           });
           state.selectedChannels = Array.from(newSelectedChannels).sort((a,b) => a - b);
         });
+      },
+
+      setAllToZero: async () => {
+        // Clear any pending debounced updates
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        
+        // Create updates object with all channels set to 0
+        const updates: Record<number, number> = {};
+        for (let i = 0; i < 512; i++) {
+          updates[i] = 0;
+          // Clear any pending updates for this channel
+          delete pendingUpdates[i];
+        }
+        
+        // Update store state
+        set((state) => {
+          state.dmxValues.fill(0);
+        });
+        
+        // Send all updates to server immediately (bypass debounce)
+        await sendUpdatesToServer(updates);
       }
     })),
     { name: 'DMXStore' }

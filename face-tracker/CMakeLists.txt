@@ -4,6 +4,11 @@ project(ArtBastardFaceTracker)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set vcpkg toolchain if available
+if(EXISTS "C:/vcpkg/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
+
 # Find required packages
 find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)

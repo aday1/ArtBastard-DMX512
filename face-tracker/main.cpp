@@ -1,3 +1,14 @@
+// Prevent Windows headers from defining min/max macros that break std::min/std::max
+// MUST be defined before any includes that might pull in Windows headers
+#ifdef _WIN32
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+#endif
+
 #include <opencv2/opencv.hpp>
 #ifdef HAVE_OPENCV_FACE
 #include <opencv2/face.hpp>
@@ -13,10 +24,20 @@
 #include <algorithm>
 #include <cmath>
 #include <curl/curl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+
+// Platform-specific includes
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #include <io.h>
+    #define sleep(x) Sleep((x)*1000)
+    #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+#endif
 #include <cstring>
 
 #include <nlohmann/json.hpp>
@@ -296,7 +317,11 @@ bool sendOSCMessage(const std::string& host, int port, const std::string& path, 
     
     if (inet_pton(AF_INET, host.c_str(), &serverAddr.sin_addr) <= 0) {
         std::cerr << "Invalid OSC host address: " << host << std::endl;
+#ifdef _WIN32
+        closesocket(sock);
+#else
         close(sock);
+#endif
         return false;
     }
     
@@ -330,10 +355,19 @@ bool sendOSCMessage(const std::string& host, int port, const std::string& path, 
     #endif
     
     // Send message
-    ssize_t sent = sendto(sock, message.data(), message.size(), 0,
+#ifdef _WIN32
+    int sent = sendto(sock, (const char*)message.data(), (int)message.size(), 0,
+                     (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+#else
+    ssize_t sent = sendto(sock, (const char*)message.data(), message.size(), 0,
                          (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+#endif
     
+#ifdef _WIN32
+    closesocket(sock);
+#else
     close(sock);
+#endif
     
     if (sent < 0) {
         std::cerr << "Failed to send OSC message to " << host << ":" << port << std::endl;
@@ -2453,6 +2487,16 @@ int main(int /*argc*/, char** /*argv*/) {
     std::cout << "OpenCV Face Tracking for Moving Head Control" << std::endl;
     std::cout << "====================================" << std::endl;
     
+#ifdef _WIN32
+    // Initialize Winsock
+    WSADATA wsaData;
+    int wsaResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (wsaResult != 0) {
+        std::cerr << "WSAStartup failed: " << wsaResult << std::endl;
+        return 1;
+    }
+#endif
+    
     // Initialize curl
     curl_global_init(CURL_GLOBAL_DEFAULT);
     
@@ -2666,6 +2710,11 @@ int main(int /*argc*/, char** /*argv*/) {
         destroyAllWindows();
     }
     curl_global_cleanup();
+    
+#ifdef _WIN32
+    // Cleanup Winsock
+    WSACleanup();
+#endif
     
     std::cout << "Face tracker stopped. Goodbye!" << std::endl;
     return 0;

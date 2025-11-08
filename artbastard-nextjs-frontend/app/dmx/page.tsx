@@ -2,15 +2,35 @@
 
 import React from 'react';
 import DMXChannelGrid from '../components/dmx/DMXChannelGrid';
+import { useDmxStore } from '../store/dmxStore';
 import styles from './DMXPage.module.scss'; // Create this file for page-specific styles
 
 const DMXPage: React.FC = () => {
+  const setAllToZero = useDmxStore(state => state.setAllToZero);
+
+  const handleBlackout = async () => {
+    await setAllToZero();
+  };
+
   return (
     <div className={styles.dmxPageContainer}>
       <header className={styles.pageHeader}>
-        <h1>DMX Control</h1>
-        <p>Direct control over all 512 DMX channels.</p>
-        {/* Add toolbar for selection, master fader, etc. later */}
+        <div className={styles.headerContent}>
+          <div className={styles.titleSection}>
+            <h1>DMX Control</h1>
+            <p>Direct control over all 512 DMX channels.</p>
+          </div>
+          <div className={styles.toolbar}>
+            <button 
+              className={styles.blackoutButton}
+              onClick={handleBlackout}
+              title="Set all DMX channels to 0 (Blackout)"
+            >
+              <span className={styles.blackoutIcon}>⚫</span>
+              <span>SET TO 0</span>
+            </button>
+          </div>
+        </div>
       </header>
 
       <DMXChannelGrid />
