@@ -816,7 +816,8 @@ export const FaceTracker: React.FC = () => {
       }
     }, 500); // Debounce: save 500ms after last change
   }, []);
-  const [showPreview, setShowPreview] = useState(true); // Default to ON
+  // Always show preview when running - no toggle needed
+  const showPreview = state.isRunning; // Always show when Face Tracker is running
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isDetached, setIsDetached] = useState(false);
@@ -1315,8 +1316,8 @@ export const FaceTracker: React.FC = () => {
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
-    // Stop the loop if not running or preview disabled
-    if (!showPreview || !videoRef.current || !canvasRef.current || !state.isRunning) {
+    // Stop the loop if not running (preview always shows when running)
+    if (!state.isRunning || !videoRef.current || !canvasRef.current) {
       previewFrameRef.current = undefined;
       return;
     }
@@ -1698,7 +1699,7 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     }
-  }, [showPreview, state.currentPan, state.currentTilt, state.isRunning]);
+  }, [state.currentPan, state.currentTilt, state.isRunning]);
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
@@ -2771,7 +2772,7 @@ export const FaceTracker: React.FC = () => {
         detectionTimeoutRef.current = undefined;
       }
     };
-  }, [state.isRunning, settings, showPreview, socket]);
+  }, [state.isRunning, settings, socket]);
 
   // Start both preview and detection loops
   const startTracking = useCallback(() => {
@@ -3155,7 +3156,6 @@ export const FaceTracker: React.FC = () => {
                 try {
                   if (shouldRun) {
                     // Turn preview OFF by default when starting face tracker to prevent crashes
-                    setShowPreview(false);
                     await startCamera();
                   } else {
                     stopCamera();
@@ -3192,27 +3192,6 @@ export const FaceTracker: React.FC = () => {
       <div className={styles.mainContainer}>
         {/* Left Side - Face Tracker Preview and Controls */}
         <div className={styles.trackerSide}>
-          {/* Preview Toggle - Above camera and 3D fixture */}
-          <div className={styles.controlSection} style={{ marginBottom: '1rem', padding: '0.75rem' }}>
-            <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
-              <label className={styles.controlLabel} style={{ fontSize: '1rem', fontWeight: 'bold' }} title="Toggle camera preview and 3D fixture model display">
-                <input
-                  type="checkbox"
-                  checked={showPreview}
-                  onChange={(e) => setShowPreview(e.target.checked)}
-                  disabled={!state.isRunning}
-                  style={{ marginRight: '0.5rem', transform: 'scale(1.2)' }}
-                />
-                Show Preview & 3D Model
-              </label>
-              <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem', marginBottom: 0 }}>
-                {state.isRunning 
-                  ? 'Enable to see camera preview and 3D fixture visualization' 
-                  : 'Start Face Tracker first to enable preview'}
-              </p>
-            </div>
-          </div>
-          
           {/* Fixture Selection */}
           <div className={styles.fixtureSelection}>
             <h4>Target Fixtures</h4>
@@ -3268,44 +3247,38 @@ export const FaceTracker: React.FC = () => {
           </div>
 
           <div className={styles.previewSection}>
-            {/* Camera Preview */}
+            {/* Camera Preview - Always shown when running */}
             <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
-              {showPreview ? (
+              <div className={styles.previewHeader}>
+                <span className={styles.previewTitle}>Camera Preview</span>
+                <button
+                  className={styles.detachButton}
+                  onClick={() => setIsDetached(!isDetached)}
+                  title={isDetached ? "Reattach Preview" : "Detach Preview"}
+                >
+                  <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
+                  <span>{isDetached ? 'Reattach' : 'Detach'}</span>
+                </button>
+              </div>
+              {!isDetached && (
                 <>
-                  <div className={styles.previewHeader}>
-                    <span className={styles.previewTitle}>Camera Preview</span>
-                    <button
-                      className={styles.detachButton}
-                      onClick={() => setIsDetached(!isDetached)}
-                      title={isDetached ? "Reattach Preview" : "Detach Preview"}
-                    >
-                      <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
-                      <span>{isDetached ? 'Reattach' : 'Detach'}</span>
-                    </button>
-                  </div>
-                  {!isDetached && (
-                    <>
-                      <video
-                        ref={videoRef}
-                        className={styles.video}
-                        autoPlay
-                        playsInline
-                        muted
-                      />
-                      <canvas
-                        ref={canvasRef}
-                        className={styles.canvas}
-                      />
-                    </>
-                  )}
+                  <video
+                    ref={videoRef}
+                    className={styles.video}
+                    autoPlay
+                    playsInline
+                    muted
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className={styles.canvas}
+                  />
                 </>
-              ) : (
-                <div className={styles.noPreview}>Preview disabled</div>
               )}
             </div>
 
             {/* Detached Camera Preview Window */}
-            {isDetached && showPreview && (
+            {isDetached && state.isRunning && (
               <Draggable
                 position={detachedPosition}
                 onDrag={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
@@ -3343,8 +3316,8 @@ export const FaceTracker: React.FC = () => {
               </Draggable>
             )}
 
-            {/* 3D Fixture Model */}
-            {showPreview && (
+            {/* 3D Fixture Model - Always shown when running */}
+            {state.isRunning && (
               <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
                 <div className={styles.previewHeader}>
                   <span className={styles.previewTitle}>3D Fixture Model</span>
@@ -3410,7 +3383,7 @@ export const FaceTracker: React.FC = () => {
             )}
 
             {/* Detached 3D Fixture Window */}
-            {showPreview && is3DFixtureDetached && (
+            {state.isRunning && is3DFixtureDetached && (
               <Draggable
                 position={fixture3DPosition}
                 onDrag={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
@@ -3717,15 +3690,6 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Show/hide the camera preview window">
-                  <input
-                    type="checkbox"
-                    checked={showPreview}
-                    onChange={(e) => setShowPreview(e.target.checked)}
-                    title="Show/hide the camera preview window"
-                  />
-                  Show Preview
-                </label>
               </div>
             </div>
 
