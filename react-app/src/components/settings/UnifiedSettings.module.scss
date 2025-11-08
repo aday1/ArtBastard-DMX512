@@ -142,7 +142,9 @@
       .settingsContent {
         flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 20px;
+        padding-bottom: 40px; // Extra padding at bottom to prevent cutoff
 
         .settingsSection {
           h3 {

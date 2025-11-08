@@ -4,9 +4,11 @@
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   max-width: 800px;
-  width: 90vw;
-  max-height: 90vh;
-  overflow-y: auto;
+  width: 100%;
+  max-height: none; // Remove max-height constraint when inside UnifiedSettings
+  height: auto;
+  min-height: fit-content;
+  overflow: visible; // Allow content to expand
   position: relative;
 
   .header {
@@ -103,6 +105,8 @@
 
   .content {
     padding: 32px;
+    padding-bottom: 60px; // Extra padding at bottom to prevent cutoff
+    min-height: fit-content; // Ensure content can expand
   }
 
   .stateManagement {
@@ -119,15 +123,19 @@
     .description {
       color: #8b949e;
       line-height: 1.5;
-      margin-bottom: 32px;
+      margin-bottom: 24px; // Reduced margin
     }
 
     .section {
-      margin-bottom: 32px;
-      padding: 24px;
+      margin-bottom: 20px; // Reduced margin to fit more content
+      padding: 20px; // Slightly reduced padding
       background: rgba(33, 38, 45, 0.3);
       border-radius: 12px;
       border: 1px solid #21262d;
+      
+      &:last-of-type {
+        margin-bottom: 20px; // Ensure last section has margin before stateInfo
+      }
 
       h4 {
         margin: 0 0 16px 0;
@@ -156,6 +164,7 @@
       border: 1px solid rgba(88, 166, 255, 0.2);
       border-radius: 12px;
       padding: 24px;
+      margin-bottom: 0; // Remove bottom margin to prevent cutoff
 
       h4 {
         margin: 0 0 16px 0;
@@ -167,11 +176,16 @@
       ul {
         margin: 0;
         padding-left: 20px;
+        padding-bottom: 0; // Ensure no extra padding
         color: #e6edf3;
 
         li {
           margin-bottom: 8px;
           line-height: 1.4;
+          
+          &:last-child {
+            margin-bottom: 0; // Remove margin from last item
+          }
         }
       }
     }
