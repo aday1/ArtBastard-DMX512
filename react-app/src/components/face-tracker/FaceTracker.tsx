@@ -983,8 +983,13 @@ export const FaceTracker: React.FC = () => {
       opencvRef.current.FS.writeFile('haarcascade_frontalface_alt.xml', text);
 
       cascadeRef.current = new opencvRef.current.CascadeClassifier();
-      cascadeRef.current.load('haarcascade_frontalface_alt.xml');
+      const loadResult = cascadeRef.current.load('haarcascade_frontalface_alt.xml');
       
+      if (!loadResult) {
+        throw new Error('Failed to load cascade classifier file');
+      }
+      
+      console.log('[FaceTracker] OpenCV initialized successfully, cascade classifier loaded');
       setState(prev => ({ ...prev, isInitialized: true, error: null }));
     } catch (error: any) {
       setState(prev => ({ ...prev, error: `Failed to initialize OpenCV: ${error?.message || error}` }));
@@ -1398,12 +1403,27 @@ export const FaceTracker: React.FC = () => {
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
+    console.log('[FaceTracker] detectFaces called', {
+      opencvReady: !!opencvRef.current,
+      cascadeReady: !!cascadeRef.current,
+      videoReady: !!videoRef.current,
+      canvasReady: !!canvasRef.current,
+      isRunning: state.isRunning
+    });
+    
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
       console.warn('[FaceTracker] Cannot start detection: OpenCV or video not ready');
       return;
     }
 
+    let detectionCallCount = 0;
     const processDetection = () => {
+      detectionCallCount++;
+      // Log first few calls to verify it's running
+      if (detectionCallCount <= 3 || detectionCallCount % 30 === 0) {
+        console.log(`[FaceTracker] processDetection running (call #${detectionCallCount})`);
+      }
+      
       try {
         // Check if we should stop - exit early if not running
         if (!state.isRunning) {
@@ -1510,6 +1530,14 @@ export const FaceTracker: React.FC = () => {
         detCtx.putImageData(imageData, 0, 0);
 
         // Convert detection canvas to OpenCV Mat (smaller = faster)
+        if (!opencvRef.current || !cascadeRef.current) {
+          console.error('[FaceTracker] OpenCV or cascade not available during detection');
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          }
+          return;
+        }
+
         const src = opencvRef.current.imread(detCanvas);
         const gray = new opencvRef.current.Mat();
         opencvRef.current.cvtColor(src, gray, opencvRef.current.COLOR_RGBA2GRAY);
@@ -1525,12 +1553,29 @@ export const FaceTracker: React.FC = () => {
         // scaleFactor: 1.05 (smaller = more scales checked, better detection but slower)
         // minNeighbors: 2 (lower = more detections, better for low light)
         const detectionStartTime = performance.now();
-        cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+        
+        try {
+          cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+        } catch (detectionError) {
+          console.error('[FaceTracker] Error during face detection:', detectionError);
+          // Cleanup and continue
+          if (src && !src.isDeleted()) src.delete();
+          if (gray && !gray.isDeleted()) gray.delete();
+          if (faces && !faces.isDeleted()) faces.delete();
+          if (msize && !msize.isDeleted()) msize.delete();
+          if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          }
+          return;
+        }
+        
         const detectionTime = performance.now() - detectionStartTime;
         
-        // Log detection info every 30 frames (~2 seconds at 15 FPS detection rate)
-        if (Math.random() < 0.033) { // ~3.3% chance = ~1 in 30
-          console.log(`[OpenCV] Detection cycle - Faces found: ${faces.size()}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}`);
+        // Log detection info more frequently for debugging
+        const facesFound = faces.size();
+        if (Math.random() < 0.1) { // 10% chance = more frequent logging
+          console.log(`[OpenCV] Detection cycle - Faces found: ${facesFound}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}, Video ready: ${video.readyState === video.HAVE_ENOUGH_DATA}`);
         }
 
         let faceDetected = false;
@@ -2421,14 +2466,31 @@ export const FaceTracker: React.FC = () => {
 
   // Start both preview and detection loops
   const startTracking = useCallback(() => {
-    if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
+    console.log('[FaceTracker] startTracking called', {
+      opencvReady: !!opencvRef.current,
+      cascadeReady: !!cascadeRef.current,
+      videoReady: !!videoRef.current,
+      canvasReady: !!canvasRef.current,
+      isRunning: state.isRunning
+    });
+    
+    if (!opencvRef.current || !cascadeRef.current) {
+      console.warn('[FaceTracker] Cannot start tracking: OpenCV or cascade not ready');
+      return;
+    }
+    
+    if (!videoRef.current || !canvasRef.current) {
+      console.warn('[FaceTracker] Cannot start tracking: Video or canvas not ready');
       return;
     }
     
     // Only start if actually running
     if (!state.isRunning) {
+      console.warn('[FaceTracker] Cannot start tracking: Not running');
       return;
     }
+    
+    console.log('[FaceTracker] Starting preview and detection loops');
     
     // Start fast preview rendering
     renderPreview();
