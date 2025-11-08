@@ -1054,13 +1054,20 @@
 
 .allControls {
   display: grid;
-  grid-template-columns: 1fr 1fr; // 2 columns side by side
+  grid-template-columns: 1fr 1fr; // 2 columns side by side - USE FULL WIDTH
   grid-template-rows: auto;
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
+  
+  // Ensure control sections fill their grid cells
+  > .controlSection {
+    width: 100%;
+    min-width: 0;
+  }
   
   // On smaller screens, stack vertically
   @media (max-width: 1400px) {
@@ -1105,9 +1112,12 @@
   max-width: 100%;
   resize: both;
   overflow: auto;
-  min-width: 250px;
+  min-width: 300px;
   min-height: 200px;
   cursor: move;
+  
+  // Ensure sections fill grid columns properly
+  grid-column: span 1;
 }
 
 .cameraControls {

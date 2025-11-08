@@ -1323,6 +1323,8 @@ export const FaceTracker: React.FC = () => {
   const textCacheRef = useRef<{
     panText: string;
     tiltText: string;
+    yawText: string | null;
+    pitchText: string | null;
     statusText: string;
     statusColor: string;
     blinkText: string | null;
@@ -1331,10 +1333,13 @@ export const FaceTracker: React.FC = () => {
     mouthText: string | null;
     posText: string | null;
     gazeText: string | null;
+    gestureText: string | null;
     faceDetected: boolean;
   }>({
     panText: 'Pan: 128',
     tiltText: 'Tilt: 128',
+    yawText: null,
+    pitchText: null,
     statusText: 'No Face',
     statusColor: 'red',
     blinkText: null,
@@ -1343,6 +1348,7 @@ export const FaceTracker: React.FC = () => {
     mouthText: null,
     posText: null,
     gazeText: null,
+    gestureText: null,
     faceDetected: false
   });
 
@@ -1583,6 +1589,26 @@ export const FaceTracker: React.FC = () => {
         if (faceDetected && lastFacePositionRef.current) {
           const face = lastFacePositionRef.current;
           
+          // Yaw/Pitch (head rotation)
+          if (face.yaw !== undefined) {
+            textCacheRef.current.yawText = `Yaw: ${face.yaw.toFixed(2)}`;
+          } else {
+            textCacheRef.current.yawText = null;
+          }
+          
+          if (face.pitch !== undefined) {
+            textCacheRef.current.pitchText = `Pitch: ${face.pitch.toFixed(2)}`;
+          } else {
+            textCacheRef.current.pitchText = null;
+          }
+          
+          // Gesture
+          if (state.currentGesture) {
+            textCacheRef.current.gestureText = `Gesture: ${state.currentGesture}`;
+          } else {
+            textCacheRef.current.gestureText = null;
+          }
+          
           // Blink status
           if (face.isBlinking !== undefined) {
             textCacheRef.current.blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
@@ -1614,6 +1640,9 @@ export const FaceTracker: React.FC = () => {
             textCacheRef.current.posText = null;
           }
         } else {
+          textCacheRef.current.yawText = null;
+          textCacheRef.current.pitchText = null;
+          textCacheRef.current.gestureText = null;
           textCacheRef.current.blinkText = null;
           textCacheRef.current.blinkColor = null;
           textCacheRef.current.irisText = null;
@@ -1624,15 +1653,13 @@ export const FaceTracker: React.FC = () => {
         lastTextRenderTimeRef.current = now;
       }
       
-      // Draw text overlay only if enabled (disabled after crashes to prevent Firefox freezes)
-      // DISABLED BY DEFAULT to prevent freezes - can be re-enabled if needed
-      // Text overlay is the main cause of Firefox freezes, so we disable it completely
-      // Values are still available in the Live Control Output section below
-      if (false && textOverlayEnabledRef.current) {
+      // Draw text overlay with face tracking information
+      // Re-enabled with error handling to prevent crashes
+      if (textOverlayEnabledRef.current) {
         try {
-          // Clear previous text area with semi-transparent background
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-          ctx.fillRect(5, 5, 200, 250);
+          // Clear previous text area with semi-transparent background (expanded for more info)
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.fillRect(5, 5, 250, 320);
           
           ctx.font = 'bold 18px Arial';
           ctx.strokeStyle = 'black';
@@ -1650,14 +1677,34 @@ export const FaceTracker: React.FC = () => {
             ctx.fillText(textCacheRef.current.tiltText, 10, 55);
           }
           
+          // Draw yaw/pitch (head rotation)
+          if (textCacheRef.current.yawText) {
+            ctx.fillStyle = 'cyan';
+            ctx.strokeText(textCacheRef.current.yawText, 10, 80);
+            ctx.fillText(textCacheRef.current.yawText, 10, 80);
+          }
+          
+          if (textCacheRef.current.pitchText) {
+            ctx.fillStyle = 'cyan';
+            ctx.strokeText(textCacheRef.current.pitchText, 10, 105);
+            ctx.fillText(textCacheRef.current.pitchText, 10, 105);
+          }
+          
           if (textCacheRef.current.statusText) {
             ctx.fillStyle = textCacheRef.current.statusColor || 'red';
-            ctx.strokeText(textCacheRef.current.statusText, 10, 80);
-            ctx.fillText(textCacheRef.current.statusText, 10, 80);
+            ctx.strokeText(textCacheRef.current.statusText, 10, 130);
+            ctx.fillText(textCacheRef.current.statusText, 10, 130);
+          }
+          
+          // Draw gesture if available
+          if (textCacheRef.current.gestureText) {
+            ctx.fillStyle = 'magenta';
+            ctx.strokeText(textCacheRef.current.gestureText, 10, 155);
+            ctx.fillText(textCacheRef.current.gestureText, 10, 155);
           }
           
           // Draw additional detection info if available
-          let yOffset = 105;
+          let yOffset = 180;
           if (textCacheRef.current.blinkText) {
             ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
             ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
@@ -2008,6 +2055,7 @@ export const FaceTracker: React.FC = () => {
               
               // Always update face position - don't check for changes, just update
               // This ensures the box moves with the face
+              // Initialize with current face position - yaw/pitch will be added later
               lastFacePositionRef.current = {
                 x: faceX,
                 y: faceY,
@@ -2015,7 +2063,9 @@ export const FaceTracker: React.FC = () => {
                 height: faceH,
                 centerX: faceCenterX,
                 centerY: faceCenterY,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                yaw: undefined,
+                pitch: undefined
               };
               
               // Log position update for debugging static box issue
@@ -2294,6 +2344,26 @@ export const FaceTracker: React.FC = () => {
 
               // Now update face position with eye and mouth detection data
               // Always store eye/mouth data for preview, even if channels aren't configured
+              // CRITICAL: Ensure lastFacePositionRef exists before updating
+              if (!lastFacePositionRef.current) {
+                // Initialize if it doesn't exist
+                const faceX = face.x * scaleX;
+                const faceY = face.y * scaleY;
+                const faceW = face.width * scaleX;
+                const faceH = face.height * scaleY;
+                lastFacePositionRef.current = {
+                  x: faceX,
+                  y: faceY,
+                  width: faceW,
+                  height: faceH,
+                  centerX: faceCenterX,
+                  centerY: faceCenterY,
+                  timestamp: Date.now(),
+                  yaw: undefined,
+                  pitch: undefined
+                };
+              }
+              
               if (lastFacePositionRef.current) {
                 const faceX = face.x * scaleX;
                 const faceY = face.y * scaleY;
@@ -2876,15 +2946,8 @@ export const FaceTracker: React.FC = () => {
         }
 
         // Continue detection loop only if still running
-        // CRITICAL: Always schedule next frame to prevent loop from stopping
+        // CRITICAL: Always schedule next frame immediately to prevent loop from stopping
         if (state.isRunning) {
-          // Use setTimeout with 0 delay to ensure loop continues even if there are errors
-          setTimeout(() => {
-            if (state.isRunning && detectionFrameRef.current === undefined) {
-              detectionFrameRef.current = requestAnimationFrame(processDetection);
-            }
-          }, 0);
-          // Also set immediately as fallback
           detectionFrameRef.current = requestAnimationFrame(processDetection);
         } else {
           detectionFrameRef.current = undefined;
