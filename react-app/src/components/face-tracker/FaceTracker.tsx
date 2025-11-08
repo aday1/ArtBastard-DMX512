@@ -227,7 +227,7 @@ const calculateVariance = (values: number[]): number => {
 
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
-  const socket = useSocket();
+  const { socket, connected: socketConnected } = useSocket();
   const oscAssignments = useStore((state) => state.oscAssignments);
   const { fixtures, selectedFixtures, toggleFixtureSelection, setDmxChannel } = useStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -926,56 +926,79 @@ export const FaceTracker: React.FC = () => {
                     dmxUpdates[settings.tiltChannel - 1] = tiltValue;
                   }
 
-                  // Send via socket or HTTP
-                  if (socket && socket.connected) {
-                    (socket as any).emit('dmx:batch', dmxUpdates);
-                    
-                    // Send OSC if enabled
-                    if (settings.useOSC) {
-                      if (settings.useArtBastardOSC && oscAssignments) {
-                        // Use ArtBastard's OSC server with configured assignments
-                        const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
-                        const tiltOscAddress = oscAssignments[settings.tiltChannel - 1] || settings.oscTiltAddress;
+                  // Only send if we have updates
+                  if (Object.keys(dmxUpdates).length > 0) {
+                    // Send via socket or HTTP
+                    if (socket && (socketConnected || socket.connected || (socket as any).active)) {
+                      try {
+                        (socket as any).emit('dmx:batch', dmxUpdates);
+                        console.log('[FaceTracker] DMX batch sent:', dmxUpdates);
                         
-                        if (panOscAddress) {
-                          (socket as any).emit('sendOsc', {
-                            address: panOscAddress,
-                            args: [{ type: 'f', value: panValue / 255.0 }]
-                          });
+                        // Send OSC if enabled
+                        if (settings.useOSC) {
+                          if (settings.useArtBastardOSC && oscAssignments) {
+                            // Use ArtBastard's OSC server with configured assignments
+                            const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
+                            const tiltOscAddress = oscAssignments[settings.tiltChannel - 1] || settings.oscTiltAddress;
+                            
+                            if (panOscAddress) {
+                              (socket as any).emit('sendOsc', {
+                                address: panOscAddress,
+                                args: [{ type: 'f', value: panValue / 255.0 }]
+                              });
+                              console.log('[FaceTracker] OSC sent (Pan):', panOscAddress, panValue / 255.0);
+                            }
+                            if (tiltOscAddress) {
+                              (socket as any).emit('sendOsc', {
+                                address: tiltOscAddress,
+                                args: [{ type: 'f', value: tiltValue / 255.0 }]
+                              });
+                              console.log('[FaceTracker] OSC sent (Tilt):', tiltOscAddress, tiltValue / 255.0);
+                            }
+                          } else {
+                            // Use custom OSC sending (via server with custom host/port)
+                            if (settings.oscPanAddress) {
+                              (socket as any).emit('sendOsc', {
+                                address: settings.oscPanAddress,
+                                args: [{ type: 'f', value: panValue / 255.0 }],
+                                host: settings.oscHost,
+                                port: settings.oscPort
+                              });
+                              console.log('[FaceTracker] Custom OSC sent (Pan):', settings.oscPanAddress, settings.oscHost, settings.oscPort);
+                            }
+                            if (settings.oscTiltAddress) {
+                              (socket as any).emit('sendOsc', {
+                                address: settings.oscTiltAddress,
+                                args: [{ type: 'f', value: tiltValue / 255.0 }],
+                                host: settings.oscHost,
+                                port: settings.oscPort
+                              });
+                              console.log('[FaceTracker] Custom OSC sent (Tilt):', settings.oscTiltAddress, settings.oscHost, settings.oscPort);
+                            }
+                          }
                         }
-                        if (tiltOscAddress) {
-                          (socket as any).emit('sendOsc', {
-                            address: tiltOscAddress,
-                            args: [{ type: 'f', value: tiltValue / 255.0 }]
-                          });
-                        }
-                      } else {
-                        // Use custom OSC sending (via server with custom host/port)
-                        if (settings.oscPanAddress) {
-                          (socket as any).emit('sendOsc', {
-                            address: settings.oscPanAddress,
-                            args: [{ type: 'f', value: panValue / 255.0 }],
-                            host: settings.oscHost,
-                            port: settings.oscPort
-                          });
-                        }
-                        if (settings.oscTiltAddress) {
-                          (socket as any).emit('sendOsc', {
-                            address: settings.oscTiltAddress,
-                            args: [{ type: 'f', value: tiltValue / 255.0 }],
-                            host: settings.oscHost,
-                            port: settings.oscPort
-                          });
-                        }
+                      } catch (socketError) {
+                        console.error('[FaceTracker] Socket error:', socketError);
+                        // Fallback to HTTP API
+                        fetch('/api/dmx/batch', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(dmxUpdates),
+                        }).catch(err => console.error('[FaceTracker] HTTP fallback error:', err));
                       }
+                    } else {
+                      console.warn('[FaceTracker] Socket not connected, using HTTP fallback');
+                      // Fallback to HTTP API
+                      fetch('/api/dmx/batch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dmxUpdates),
+                      }).then(() => {
+                        console.log('[FaceTracker] DMX batch sent via HTTP:', dmxUpdates);
+                      }).catch(err => console.error('[FaceTracker] HTTP fallback error:', err));
                     }
                   } else {
-                    // Fallback to HTTP API
-                    fetch('/api/dmx/batch', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(dmxUpdates),
-                    }).catch(console.error);
+                    console.warn('[FaceTracker] No DMX updates to send (empty dmxUpdates object)');
                   }
                   
                   lastUpdateRef.current = now;
