@@ -390,7 +390,7 @@ if ($ClearForce) {
     # Reinstall dependencies
     Write-Host "📦 Reinstalling all dependencies..." -ForegroundColor Cyan
     Write-Host "  Installing root dependencies..." -ForegroundColor Cyan
-    npm install --no-audit --no-fund
+    npm install --no-audit --no-fund --legacy-peer-deps
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Root dependency installation failed!" -ForegroundColor Red
         exit 1
@@ -398,7 +398,7 @@ if ($ClearForce) {
     
     Write-Host "  Installing frontend dependencies..." -ForegroundColor Cyan
     Push-Location react-app
-    npm install --no-audit --no-fund
+    npm install --no-audit --no-fund --legacy-peer-deps
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Frontend dependency installation failed!" -ForegroundColor Red
         Pop-Location
