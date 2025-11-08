@@ -1695,10 +1695,10 @@ export const FaceTracker: React.FC = () => {
         
         const detectionTime = performance.now() - detectionStartTime;
         
-        // Log detection info more frequently for debugging
+        // Log detection info less frequently to prevent Firefox crashes
         const facesFound = faces.size();
-        // Log every 10th frame for debugging (more frequent)
-        if (detectionCallCount % 10 === 0) {
+        // Log every 30th frame for debugging (reduced frequency)
+        if (detectionCallCount % 30 === 0) {
           console.log(`[OpenCV] Detection cycle #${detectionCallCount} - Faces found: ${facesFound}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}, Video ready: ${video.readyState === video.HAVE_ENOUGH_DATA}`);
         }
 
@@ -1724,8 +1724,8 @@ export const FaceTracker: React.FC = () => {
               const imageCenterX = video.videoWidth / 2;
               const imageCenterY = video.videoHeight / 2;
               
-              // Log face position every 10 detections (~0.67 seconds at 15 FPS)
-              if (Math.random() < 0.1) {
+              // Log face position less frequently to prevent Firefox crashes
+              if (Math.random() < 0.02) {
                 console.log(`[OpenCV] Face detected - Position: (${face.x}, ${face.y}), Size: ${face.width}x${face.height}, Center: (${faceCenterX.toFixed(1)}, ${faceCenterY.toFixed(1)})`);
               }
 
@@ -1760,9 +1760,10 @@ export const FaceTracker: React.FC = () => {
               // Blink detection: Analyze eye region brightness/contrast
               // Eye regions are approximately: left eye (20-40% from left, 25-40% from top), right eye (60-80% from left, 25-40% from top)
               let isBlinking = false;
-              let irisValue = settings.irisChannel > 0 ? state.currentIris : 128;
+              let irisValue = 128; // Default center value
               
-              if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
+              // Always detect eyes/blinks for preview, even if channels aren't configured
+              {
                 try {
                   // Extract eye regions from the face rectangle
                   const faceX = face.x;
@@ -1822,8 +1823,8 @@ export const FaceTracker: React.FC = () => {
                   // Typical open eye EAR: 0.2-0.4, closed eye EAR: <0.15
                   isBlinking = smoothedEAR < settings.blinkThreshold;
                   
-                  // Log for debugging (every 10th detection)
-                  if (Math.random() < 0.1) {
+                  // Log for debugging (reduced frequency to prevent Firefox crashes)
+                  if (Math.random() < 0.02) {
                     console.log(`[Blink] Left EAR: ${leftEAR.toFixed(3)}, Right EAR: ${rightEAR.toFixed(3)}, Smoothed: ${smoothedEAR.toFixed(3)}, Threshold: ${settings.blinkThreshold}, Blinking: ${isBlinking}`);
                   }
                   
@@ -1840,24 +1841,21 @@ export const FaceTracker: React.FC = () => {
                     console.log('[Blink] Ended');
                   }
                   
-                  // Control iris based on blink
-                  if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
-                    const targetIrisChannel = settings.blinkIrisChannel > 0 ? settings.blinkIrisChannel : settings.irisChannel;
-                    if (isBlinking) {
-                      // Close iris when blinking
-                      irisValue = Math.round(
-                        Math.max(settings.irisMin, Math.min(settings.irisMax,
-                          settings.irisMin + (settings.irisMax - settings.irisMin) * (1 - settings.blinkSensitivity)
-                        ))
-                      );
-                    } else {
-                      // Open iris when not blinking
-                      irisValue = Math.round(
-                        Math.max(settings.irisMin, Math.min(settings.irisMax,
-                          settings.irisMin + (settings.irisMax - settings.irisMin) * settings.blinkSensitivity
-                        ))
-                      );
-                    }
+                  // Control iris based on blink (always calculate, even if channels aren't configured)
+                  if (isBlinking) {
+                    // Close iris when blinking
+                    irisValue = Math.round(
+                      Math.max(settings.irisMin, Math.min(settings.irisMax,
+                        settings.irisMin + (settings.irisMax - settings.irisMin) * (1 - settings.blinkSensitivity)
+                      ))
+                    );
+                  } else {
+                    // Open iris when not blinking
+                    irisValue = Math.round(
+                      Math.max(settings.irisMin, Math.min(settings.irisMax,
+                        settings.irisMin + (settings.irisMax - settings.irisMin) * settings.blinkSensitivity
+                      ))
+                    );
                   }
                   
                   // Eye history is already stored above in the EAR calculation section
@@ -1867,9 +1865,10 @@ export const FaceTracker: React.FC = () => {
               }
               
               // Mouth detection: Analyze mouth region for openness
+              // Always detect mouth for preview, even if channel isn't configured
               let mouthValue = 0;
               
-              if (settings.mouthChannel > 0) {
+              {
                 try {
                   // Mouth region is approximately: 30-70% from left, 50-75% from top of face
                   const faceX = face.x;
@@ -1959,8 +1958,8 @@ export const FaceTracker: React.FC = () => {
                     );
                   }
                   
-                  // Log for debugging (every 10th detection)
-                  if (Math.random() < 0.1) {
+                  // Log for debugging (reduced frequency to prevent Firefox crashes)
+                  if (Math.random() < 0.02) {
                     console.log(`[Tongue] Detection: ${tongueDetection.toFixed(3)}, Threshold: ${settings.tongueThreshold}, Out: ${isTongueOut}, Value: ${tongueValue}`);
                   }
                 } catch (err) {
@@ -2005,39 +2004,36 @@ export const FaceTracker: React.FC = () => {
               }
 
               // Now update face position with eye and mouth detection data
+              // Always store eye/mouth data for preview, even if channels aren't configured
               if (lastFacePositionRef.current) {
                 const faceX = face.x * scaleX;
                 const faceY = face.y * scaleY;
                 const faceW = face.width * scaleX;
                 const faceH = face.height * scaleY;
                 
-                // Calculate eye positions if blink detection is enabled
-                if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
-                  lastFacePositionRef.current.leftEye = {
-                    x: faceX + faceW * 0.2,
-                    y: faceY + faceH * 0.25,
-                    width: faceW * 0.2,
-                    height: faceH * 0.15
-                  };
-                  lastFacePositionRef.current.rightEye = {
-                    x: faceX + faceW * 0.6,
-                    y: faceY + faceH * 0.25,
-                    width: faceW * 0.2,
-                    height: faceH * 0.15
-                  };
-                  lastFacePositionRef.current.isBlinking = isBlinking;
-                }
+                // Always calculate and store eye positions for preview
+                lastFacePositionRef.current.leftEye = {
+                  x: faceX + faceW * 0.2,
+                  y: faceY + faceH * 0.25,
+                  width: faceW * 0.2,
+                  height: faceH * 0.15
+                };
+                lastFacePositionRef.current.rightEye = {
+                  x: faceX + faceW * 0.6,
+                  y: faceY + faceH * 0.25,
+                  width: faceW * 0.2,
+                  height: faceH * 0.15
+                };
+                lastFacePositionRef.current.isBlinking = isBlinking;
                 
-                // Calculate mouth position if mouth detection is enabled
-                if (settings.mouthChannel > 0) {
-                  lastFacePositionRef.current.mouth = {
-                    x: faceX + faceW * 0.3,
-                    y: faceY + faceH * 0.5,
-                    width: faceW * 0.4,
-                    height: faceH * 0.25
-                  };
-                  lastFacePositionRef.current.mouthOpenness = (mouthValue - settings.mouthMin) / (settings.mouthMax - settings.mouthMin);
-                }
+                // Always calculate and store mouth position for preview
+                lastFacePositionRef.current.mouth = {
+                  x: faceX + faceW * 0.3,
+                  y: faceY + faceH * 0.5,
+                  width: faceW * 0.4,
+                  height: faceH * 0.25
+                };
+                lastFacePositionRef.current.mouthOpenness = mouthValue > 0 ? (mouthValue - settings.mouthMin) / (settings.mouthMax - settings.mouthMin) : 0;
               }
 
               // IMPROVED HEAD POSE ESTIMATION - Track head orientation, not screen position
@@ -2046,22 +2042,11 @@ export const FaceTracker: React.FC = () => {
               const faceAspectRatio = face.width / face.height;
               
               // Calculate eye positions relative to face center for head rotation detection
-              let leftEyeCenterX = 0, leftEyeCenterY = 0;
-              let rightEyeCenterX = 0, rightEyeCenterY = 0;
-              
-              if (settings.blinkIrisChannel > 0 || settings.irisChannel > 0) {
-                // Use actual eye regions we calculated for blink detection
-                leftEyeCenterX = face.x + face.width * 0.3; // Left eye center (30% from left)
-                leftEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
-                rightEyeCenterX = face.x + face.width * 0.7; // Right eye center (70% from left)
-                rightEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
-              } else {
-                // Estimate eye positions if not tracking eyes
-                leftEyeCenterX = face.x + face.width * 0.3;
-                leftEyeCenterY = face.y + face.height * 0.325;
-                rightEyeCenterX = face.x + face.width * 0.7;
-                rightEyeCenterY = face.y + face.height * 0.325;
-              }
+              // Always use actual eye regions (we always detect them now)
+              const leftEyeCenterX = face.x + face.width * 0.3; // Left eye center (30% from left)
+              const leftEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
+              const rightEyeCenterX = face.x + face.width * 0.7; // Right eye center (70% from left)
+              const rightEyeCenterY = face.y + face.height * 0.325; // 32.5% from top
               
               // Calculate eye line (line connecting left and right eye centers)
               const eyeLineLength = Math.sqrt(
@@ -2129,8 +2114,8 @@ export const FaceTracker: React.FC = () => {
               const pan = Math.max(-1, Math.min(1, yaw)); // Clamp to -1 to 1
               const tilt = Math.max(-1, Math.min(1, pitch)); // Clamp to -1 to 1
               
-              // Log head pose for debugging (every 10th detection)
-              if (Math.random() < 0.1) {
+              // Log head pose for debugging (less frequently to prevent Firefox crashes)
+              if (Math.random() < 0.02) {
                 console.log(`[Head Pose] Yaw: ${yaw.toFixed(3)} (Pan: ${pan.toFixed(3)}), Pitch: ${pitch.toFixed(3)} (Tilt: ${tilt.toFixed(3)}) | Eye Angle: ${(eyeLineAngle * 180 / Math.PI).toFixed(1)}°, Aspect: ${faceAspectRatio.toFixed(2)}`);
               }
 
@@ -2249,8 +2234,8 @@ export const FaceTracker: React.FC = () => {
               smoothedPanRef.current = newPan;
               smoothedTiltRef.current = newTilt;
               
-              // Debug logging (can be removed later)
-              if (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1) {
+              // Debug logging (reduced frequency to prevent Firefox crashes)
+              if (Math.random() < 0.05 && (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1)) {
                 console.log('[FaceTracker] Pan:', pan.toFixed(3), 'Tilt:', tilt.toFixed(3), 
                   'Smoothed Pan:', smoothedPanRef.current.toFixed(3), 
                   'Smoothed Tilt:', smoothedTiltRef.current.toFixed(3));
@@ -2385,8 +2370,8 @@ export const FaceTracker: React.FC = () => {
                 currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
               }));
 
-              // Verbose logging for pan/tilt calculation (every 5 detections or when movement is significant)
-              if (Math.random() < 0.2 || Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1) {
+              // Verbose logging for pan/tilt calculation (reduced frequency to prevent Firefox crashes)
+              if (Math.random() < 0.05 && (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1)) {
                 console.log(`[Pan/Tilt] Raw: Pan=${pan.toFixed(4)}, Tilt=${tilt.toFixed(4)} | ` +
                   `Target: Pan=${targetPan.toFixed(4)}, Tilt=${targetTilt.toFixed(4)} | ` +
                   `Smoothed: Pan=${smoothedPanRef.current.toFixed(4)}, Tilt=${smoothedTiltRef.current.toFixed(4)} | ` +
