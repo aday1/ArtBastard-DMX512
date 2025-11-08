@@ -27,7 +27,9 @@
 }
 
 .debugPanel {
-  width: 580px;
+  width: 100%;
+  max-width: 1200px;
+  min-width: 800px;
   max-height: 90vh;
   background: linear-gradient(145deg, 
     rgba(15, 15, 25, 0.95), 
@@ -44,6 +46,7 @@
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: slideIn 0.3s ease-out;
+  margin: 0 auto;
 }
 
 @keyframes slideIn {

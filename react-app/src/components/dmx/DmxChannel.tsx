@@ -7,7 +7,6 @@ interface DmxChannelProps {
   index: number;
   key?: number | string;
   allowFullscreen?: boolean;
-  allowDetach?: boolean;
   touchOptimized?: boolean;
 }
 
@@ -87,7 +86,7 @@ const getFixtureInfoForChannel = (channelIndex: number, fixtures: any[]): Fixtur
   return {};
 };
 
-export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, allowDetach = true, touchOptimized = false }) => {
+export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen = true, touchOptimized = false }) => {
   const {
     dmxChannels,
     channelNames,
@@ -112,9 +111,6 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   const [showDetails, setShowDetails] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isDetached, setIsDetached] = useState(false);
-  const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
-  const [detachedSize, setDetachedSize] = useState({ width: 400, height: 600 });
   const [localOscAddress, setLocalOscAddress] = useState('');
   const [activityIndicator, setActivityIndicator] = useState(false);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -298,10 +294,6 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
     }
   };
 
-  const toggleDetached = () => {
-    setIsDetached(!isDetached);
-    setShowDetails(true);
-  };
 
   // Add ESC key handler to exit fullscreen
   useEffect(() => {
@@ -319,7 +311,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
   return (    <div
       ref={channelRef}
       className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${isFullscreen ? styles.fullscreen : ''} ${touchOptimized ? styles.touchOptimized : ''}`}
-      onClick={() => !isFullscreen && !isDetached && toggleChannelSelection(index)}
+      onClick={() => !isFullscreen && toggleChannelSelection(index)}
     >
       <div className={styles.header}>
         <div className={styles.address}>{dmxAddress}</div>
@@ -557,10 +549,20 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
                 </div>
                 
                 <div className={styles.midiRangeSection}>
-                  <h4 className={styles.midiSectionTitle}>Response Curve</h4>
+                  <h4 className={styles.midiSectionTitle}>
+                    Response Curve
+                    <span 
+                      className={styles.curveTooltip}
+                      title="Controls how MIDI input values are mapped to DMX output. Values less than 1.0 create a logarithmic curve (more sensitive at low values), 1.0 is linear, and values greater than 1.0 create an exponential curve (more sensitive at high values)."
+                    >
+                      <i className="fas fa-info-circle"></i>
+                    </span>
+                  </h4>
                   <div className={styles.midiRangeRow}>
                     <div className={styles.midiRangeColumn}>
-                      <label>Curve:</label>
+                      <label title="Controls how MIDI input values are mapped to DMX output. Values less than 1.0 create a logarithmic curve (more sensitive at low values), 1.0 is linear, and values greater than 1.0 create an exponential curve (more sensitive at high values).">
+                        Curve:
+                      </label>
                       <input 
                         type="range" 
                         min="0.1" 
@@ -569,6 +571,7 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
                         value={midiRangeMapping.curve}
                         onChange={(e) => handleMidiRangeChange('curve', parseFloat(e.target.value))}
                         className={styles.midiCurveSlider}
+                        title="Controls how MIDI input values are mapped to DMX output. Values less than 1.0 create a logarithmic curve (more sensitive at low values), 1.0 is linear, and values greater than 1.0 create an exponential curve (more sensitive at high values)."
                       />
                       <span className={styles.curveValue}>{midiRangeMapping.curve?.toFixed(1)}</span>
                     </div>
@@ -621,20 +624,6 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
               </button>
             )}
             
-            {allowDetach && !isFullscreen && (
-              <button 
-                className={styles.detachButton} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleDetached();
-                }}
-                title={isDetached ? "Dock Window" : "Detach Window"}
-                disabled={isFullscreen}
-              >
-                <i className={`fas fa-${isDetached ? 'thumbtack' : 'external-link-alt'}`}></i>
-                <span>{isDetached ? "Dock" : "Detach"}</span>
-              </button>
-            )}
           </div>
         </div>
       )}

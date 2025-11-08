@@ -1,6 +1,21 @@
 /// <reference types="react" />
 /// <reference types="react-dom" />
 
+// Ensure react-dom/client is properly typed
+declare module 'react-dom/client' {
+  import * as React from 'react';
+  
+  export interface Root {
+    render(children: React.ReactNode): void;
+    unmount(): void;
+  }
+  
+  export function createRoot(
+    container: Element | DocumentFragment,
+    options?: { hydrate?: boolean }
+  ): Root;
+}
+
 // Add proper types for our context hooks
 declare module '../../context/ThemeContext' {
   type Theme = 'artsnob' | 'standard' | 'minimal';

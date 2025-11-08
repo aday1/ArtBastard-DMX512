@@ -3,6 +3,7 @@
   border: 2px solid var(--color-card-border);
   border-radius: var(--border-radius, 8px);
   padding: 8px 12px;
+  min-width: 100px; // Ensure uniform width with other buttons
   display: flex;
   align-items: center;
   justify-content: center;

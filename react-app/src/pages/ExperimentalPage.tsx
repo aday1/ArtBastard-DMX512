@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FaceTracker } from '../components/face-tracker/FaceTracker';
-import { FaceTrackerConfig } from '../components/face-tracker/FaceTrackerConfig';
 import { useTheme } from '../context/ThemeContext';
 import { LucideIcon } from '../components/ui/LucideIcon';
 import styles from './ExperimentalPage.module.scss';
 
 const ExperimentalPage: React.FC = () => {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'tracker' | 'config'>('tracker');
-  const [showConfig, setShowConfig] = useState(false);
 
   return (
     <div className={styles.experimentalPage}>
@@ -30,43 +27,16 @@ const ExperimentalPage: React.FC = () => {
               </p>
             </div>
           </div>
-          
-          <div className={styles.headerActions}>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'tracker' ? styles.active : ''}`}
-              onClick={() => setActiveTab('tracker')}
-            >
-              <LucideIcon name="Video" />
-              <span>Face Tracker</span>
-            </button>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'config' ? styles.active : ''}`}
-              onClick={() => setActiveTab('config')}
-            >
-              <LucideIcon name="Settings" />
-              <span>Configuration</span>
-            </button>
-          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className={styles.content}>
-        {activeTab === 'tracker' && (
-          <div className={styles.trackerSection}>
-            <div className={styles.trackerContainer}>
-              <FaceTracker />
-            </div>
+        <div className={styles.trackerSection}>
+          <div className={styles.trackerContainer}>
+            <FaceTracker />
           </div>
-        )}
-
-        {activeTab === 'config' && (
-          <div className={styles.configSection}>
-            <div className={styles.configContainer}>
-              <FaceTrackerConfig />
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Elitist Footer Note */}

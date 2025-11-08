@@ -1,5 +1,6 @@
 param(
     [switch]$Clear,
+    [switch]$Quick,
     [switch]$Help
 )
 
@@ -9,19 +10,23 @@ if ($Help) {
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor Yellow
     Write-Host "  .\start.ps1           # EXQUISITE rapid deployment (recommended)" -ForegroundColor Green
+    Write-Host "  .\start.ps1 -Quick    # Quick start (clears cache, reinstalls, builds, starts)" -ForegroundColor Cyan
     Write-Host "  .\start.ps1 -Clear   # Immaculate reconstruction (purges all artifacts)" -ForegroundColor Red
     Write-Host "  .\start.ps1 -Help    # Display this refined documentation" -ForegroundColor White
     Write-Host ""
     Write-Host "Operational Modes:" -ForegroundColor Yellow
     Write-Host "  Standard (default): Elegantly rapid initialization, preserves curated artifacts" -ForegroundColor Green
+    Write-Host "  -Quick:           Quick start mode (clears cache, reinstalls dependencies, builds)" -ForegroundColor Cyan
     Write-Host "  -Clear:           Complete architectural reconstruction (more deliberate)" -ForegroundColor Red
     Write-Host ""
     Write-Host "Performance Characteristics:" -ForegroundColor Yellow
     Write-Host "  Standard deployment:    ~5-10 seconds" -ForegroundColor Green
+    Write-Host "  Quick start:           ~15-30 seconds" -ForegroundColor Cyan
     Write-Host "  Immaculate reconstruction: ~30-60 seconds" -ForegroundColor Red
     Write-Host ""
     Write-Host "Exemplary Invocations:" -ForegroundColor Yellow
     Write-Host "  .\start.ps1          # Sophisticated rapid deployment (daily preference)" -ForegroundColor Green
+    Write-Host "  .\start.ps1 -Quick   # Quick start with cache clear and reinstall" -ForegroundColor Cyan
     Write-Host "  .\start.ps1 -Clear   # When architectural purity is paramount" -ForegroundColor Red
     Write-Host ""
     exit 0
@@ -32,6 +37,9 @@ Write-Host "================================================================" -F
 if ($Clear) {
     Write-Host "IMMACULATE RECONSTRUCTION MODE: Architectural purity restoration" -ForegroundColor Red
     Write-Host "Eliminating all cached artifacts and dependencies for pristine foundation" -ForegroundColor Red
+} elseif ($Quick) {
+    Write-Host "QUICK START MODE: Clearing cache and reinstalling dependencies" -ForegroundColor Cyan
+    Write-Host "Skipping full setup - just clearing cache and starting quickly" -ForegroundColor Cyan
 } else {
     Write-Host "EXQUISITE RAPID DEPLOYMENT MODE: Elegantly accelerated initialization" -ForegroundColor Green
     Write-Host "Preserving curated artifacts and dependencies for optimal efficiency" -ForegroundColor Green
@@ -127,6 +135,173 @@ function Get-SophisticatedETA {
     }
 }
 
+# Function to check if rebuild is needed
+function Test-NeedsRebuild {
+    $rebuildNeeded = $false
+    $reasons = @()
+    
+    # Check backend
+    if (-not (Test-Path "dist") -or -not (Test-Path "dist/server.js")) {
+        $rebuildNeeded = $true
+        $reasons += "Backend build missing"
+    } else {
+        # Check if source files are newer than build
+        $serverBuildTime = (Get-Item "dist/server.js").LastWriteTime
+        $sourceFiles = Get-ChildItem -Path "src" -Recurse -File -ErrorAction SilentlyContinue
+        $newerSources = $sourceFiles | Where-Object { $_.LastWriteTime -gt $serverBuildTime }
+        if ($newerSources) {
+            $rebuildNeeded = $true
+            $reasons += "Backend source files modified"
+        }
+    }
+    
+    # Check React frontend
+    if (-not (Test-Path "react-app/dist") -or -not (Test-Path "react-app/dist/index.html")) {
+        $rebuildNeeded = $true
+        $reasons += "Frontend build missing"
+    } else {
+        $indexBuildTime = (Get-Item "react-app/dist/index.html").LastWriteTime
+        # Check if React source files are newer than build
+        $frontendSources = Get-ChildItem -Path "react-app/src" -Recurse -File -ErrorAction SilentlyContinue
+        $newerFrontend = $frontendSources | Where-Object { $_.LastWriteTime -gt $indexBuildTime }
+        if ($newerFrontend) {
+            $rebuildNeeded = $true
+            $reasons += "Frontend source files modified"
+        }
+        # Check if package.json changed (dependencies might have changed)
+        if ((Test-Path "react-app/package.json") -and ((Get-Item "react-app/package.json").LastWriteTime -gt $indexBuildTime)) {
+            $rebuildNeeded = $true
+            $reasons += "Frontend dependencies changed"
+        }
+    }
+    
+    # Check if node_modules are missing
+    if (-not (Test-Path "node_modules") -or -not (Test-Path "react-app/node_modules")) {
+        $rebuildNeeded = $true
+        $reasons += "Dependencies missing"
+    }
+    
+    return @{
+        NeedsRebuild = $rebuildNeeded
+        Reasons = $reasons
+    }
+}
+
+# Function to check if cache clear is needed
+function Test-NeedsCacheClear {
+    $cacheClearNeeded = $false
+    $reasons = @()
+    
+    # Check Vite cache
+    if (Test-Path "react-app/.vite") {
+        $viteCacheFiles = Get-ChildItem -Path "react-app/.vite" -Recurse -File -ErrorAction SilentlyContinue
+        $staleFiles = $viteCacheFiles | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) }
+        if ($staleFiles) {
+            $cacheClearNeeded = $true
+            $reasons += "Vite cache is stale (>7 days)"
+        }
+    }
+    
+    # Check npm cache size
+    $npmCachePath = "$env:APPDATA\npm-cache"
+    if (Test-Path $npmCachePath) {
+        $cacheSize = (Get-ChildItem -Path $npmCachePath -Recurse -File -ErrorAction SilentlyContinue | 
+            Measure-Object -Property Length -Sum).Sum / 1MB
+        if ($cacheSize -gt 500) {
+            $cacheClearNeeded = $true
+            $reasons += "npm cache is large (>500MB)"
+        }
+    }
+    
+    return @{
+        NeedsCacheClear = $cacheClearNeeded
+        Reasons = $reasons
+    }
+}
+
+# Function to launch browser when server is ready
+function Start-BrowserWhenReady {
+    param([string]$Url = "http://localhost:3030", [int]$MaxAttempts = 45)
+    
+    $browserJob = Start-Job -ScriptBlock {
+        param($url, $maxAttempts)
+        $attempt = 0
+        
+        while ($attempt -lt $maxAttempts) {
+            try {
+                $response = Invoke-WebRequest -Uri $url -TimeoutSec 3 -ErrorAction SilentlyContinue
+                if ($response.StatusCode -eq 200) {
+                    Start-Process $url
+                    Write-Host "Browser launched: $url" -ForegroundColor Green
+                    break
+                }
+            } catch {
+                # Server not ready yet
+                if ($attempt % 5 -eq 0) {
+                    Write-Host "  Waiting for server... (attempt $attempt/$maxAttempts)" -ForegroundColor Yellow
+                }
+            }
+            
+            Start-Sleep -Seconds 1
+            $attempt++
+        }
+        
+        if ($attempt -eq $maxAttempts) {
+            Write-Host "Server timeout - you may manually open: $url" -ForegroundColor Yellow
+        }
+    } -ArgumentList $Url, $MaxAttempts
+    
+    return $browserJob
+}
+
+# QUICK START PATH: Clear cache, reinstall, build, and start
+if ($Quick) {
+    Write-Host "🎭 ArtBastard Quick Start" -ForegroundColor Magenta
+    Write-Host "Skipping full setup - just clearing cache and starting..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Clear npm cache
+    Write-Host "🧹 Clearing npm cache..." -ForegroundColor Cyan
+    npm cache clean --force
+    
+    # Quick install (uses existing package-lock.json if available)
+    Write-Host "📦 Quick npm install..." -ForegroundColor Cyan
+    npm install --prefer-offline --no-audit
+    
+    # Quick install for react-app
+    Write-Host "📦 Quick react-app install..." -ForegroundColor Cyan
+    Set-Location react-app
+    npm install --prefer-offline --no-audit
+    Set-Location ..
+    
+    # Build and start
+    Write-Host "🔨 Building and starting..." -ForegroundColor Green
+    npm run build
+    
+    # Launch browser when server is ready
+    Write-Host "🌐 Browser will launch automatically when server is ready..." -ForegroundColor Cyan
+    $browserJob = Start-BrowserWhenReady
+    
+    # Start server
+    try {
+        npm start
+    } catch {
+        Write-Host "Server deployment encountered complications!" -ForegroundColor Red
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    } finally {
+        # Cleanup browser job
+        Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue
+    }
+    
+    # Update ETA metrics for future sophistication
+    $totalTime = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
+    Update-ETAMetrics $totalTime
+    
+    Write-Host ""
+    Write-Host "ArtBastard DMX512 quick start session concluded." -ForegroundColor Cyan
+    exit 0
+}
+
 # EXQUISITE RAPID DEPLOYMENT PATH: Sophisticated acceleration protocol
 if (-not $Clear) {
     Write-Host "🚀 EXQUISITE RAPID DEPLOYMENT MODE" -ForegroundColor Green
@@ -154,21 +329,123 @@ if (-not $Clear) {
     
     Write-Host ""
     
-    # Architectural validation with minimal intervention
-    if (-not (Test-Path "dist")) {
-        Write-Host "Architectural foundation missing - executing minimal reconstruction..." -ForegroundColor Yellow
-        try {
-            npm run build-backend
-            Write-Host "Minimal reconstruction completed with elegance!" -ForegroundColor Green
-        } catch {
-            Write-Host "Reconstruction encountered challenges, proceeding with grace..." -ForegroundColor Yellow
+    # Intelligent rebuild and cache detection
+    Write-Host "Conducting architectural analysis..." -ForegroundColor Cyan
+    $rebuildCheck = Test-NeedsRebuild
+    $cacheCheck = Test-NeedsCacheClear
+    
+    if ($cacheCheck.NeedsCacheClear) {
+        Write-Host "Cache optimization recommended..." -ForegroundColor Yellow
+        foreach ($reason in $cacheCheck.Reasons) {
+            Write-Host "  $reason" -ForegroundColor Yellow
         }
+        Write-Host "  Clearing Vite cache..." -ForegroundColor Cyan
+        if (Test-Path "react-app/.vite") {
+            Remove-Item -Recurse -Force "react-app/.vite" -ErrorAction SilentlyContinue
+        }
+        Write-Host "  Verifying npm cache..." -ForegroundColor Cyan
+        npm cache verify 2>$null
+    }
+    
+    # Check and install dependencies if missing
+    $needsRootInstall = -not (Test-Path "node_modules")
+    $needsFrontendInstall = -not (Test-Path "react-app/node_modules")
+    
+    if ($needsRootInstall -or $needsFrontendInstall) {
+        Write-Host "Dependencies missing - installing..." -ForegroundColor Yellow
+        if ($needsRootInstall) {
+            Write-Host "  Installing root dependencies..." -ForegroundColor Cyan
+            npm install --prefer-offline --no-optional --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Root dependency installation failed!" -ForegroundColor Red
+                exit 1
+            }
+        }
+        if ($needsFrontendInstall) {
+            Write-Host "  Installing frontend dependencies..." -ForegroundColor Cyan
+            Push-Location react-app
+            npm install --prefer-offline --no-optional --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Frontend dependency installation failed!" -ForegroundColor Red
+                Pop-Location
+                exit 1
+            }
+            Pop-Location
+        }
+        Write-Host "Dependencies installed!" -ForegroundColor Green
+        Write-Host ""
+    }
+    
+    if ($rebuildCheck.NeedsRebuild) {
+        Write-Host "Rebuild required:" -ForegroundColor Yellow
+        foreach ($reason in $rebuildCheck.Reasons) {
+            Write-Host "  $reason" -ForegroundColor Yellow
+        }
+        Write-Host ""
+        Write-Host "Executing intelligent rebuild..." -ForegroundColor Cyan
+        
+        # Build backend if needed
+        if (-not (Test-Path "dist") -or -not (Test-Path "dist/server.js")) {
+            Write-Host "  Building backend..." -ForegroundColor Cyan
+            npm run build-backend
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Backend build failed!" -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            $serverBuildTime = (Get-Item "dist/server.js").LastWriteTime
+            $sourceFiles = Get-ChildItem -Path "src" -Recurse -File -ErrorAction SilentlyContinue
+            $newerSources = $sourceFiles | Where-Object { $_.LastWriteTime -gt $serverBuildTime }
+            if ($newerSources) {
+                Write-Host "  Building backend (source files modified)..." -ForegroundColor Cyan
+                npm run build-backend
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "Backend build failed!" -ForegroundColor Red
+                    exit 1
+                }
+            }
+        }
+        
+        # Build frontend if needed
+        if (-not (Test-Path "react-app/dist") -or -not (Test-Path "react-app/dist/index.html")) {
+            Write-Host "  Building frontend..." -ForegroundColor Cyan
+            Push-Location react-app
+            npm run build:vite
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Frontend build failed!" -ForegroundColor Red
+                Pop-Location
+                exit 1
+            }
+            Pop-Location
+        } else {
+            $indexBuildTime = (Get-Item "react-app/dist/index.html").LastWriteTime
+            $frontendSources = Get-ChildItem -Path "react-app/src" -Recurse -File -ErrorAction SilentlyContinue
+            $newerFrontend = $frontendSources | Where-Object { $_.LastWriteTime -gt $indexBuildTime }
+            $packageJsonNewer = (Test-Path "react-app/package.json") -and ((Get-Item "react-app/package.json").LastWriteTime -gt $indexBuildTime)
+            if ($newerFrontend -or $packageJsonNewer) {
+                Write-Host "  Building frontend (source files or dependencies modified)..." -ForegroundColor Cyan
+                Push-Location react-app
+                npm run build:vite
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "Frontend build failed!" -ForegroundColor Red
+                    Pop-Location
+                    exit 1
+                }
+                Pop-Location
+            }
+        }
+        
+        Write-Host "Intelligent rebuild completed with sophistication!" -ForegroundColor Green
     } else {
-        Write-Host "Architectural foundation intact - preserving existing structure!" -ForegroundColor Green
+        Write-Host "Architectural foundation intact - no rebuild required!" -ForegroundColor Green
     }
     
     Write-Host ""
     Write-Host "Initiating ArtBastard DMX512 server deployment..." -ForegroundColor Green
+    
+    # Launch browser when server is ready
+    Write-Host "🌐 Browser will launch automatically when server is ready..." -ForegroundColor Cyan
+    $browserJob = Start-BrowserWhenReady
     
     # Deploy the server with sophistication
     try {
@@ -177,6 +454,9 @@ if (-not $Clear) {
         Write-Host "Server deployment encountered complications!" -ForegroundColor Red
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
         Write-Host "Consider executing with -Clear flag for architectural reconstruction" -ForegroundColor Cyan
+    } finally {
+        # Cleanup browser job
+        Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue
     }
     
     # Update ETA metrics for future sophistication
@@ -317,20 +597,6 @@ if (Test-Path "react-app/.vite") {
     Remove-Item -Recurse -Force "react-app/.vite" -ErrorAction SilentlyContinue
 }
 
-# Sophisticated Electron cache and build artifact elimination
-Write-Host "Executing Electron cache and build artifact elimination..." -ForegroundColor Yellow
-if (Test-Path "electron/node_modules") {
-    Write-Host "  Gracefully removing: electron/node_modules" -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "electron/node_modules" -ErrorAction SilentlyContinue
-}
-if (Test-Path "electron/electron-dist") {
-    Write-Host "  Elegantly removing: electron/electron-dist" -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "electron/electron-dist" -ErrorAction SilentlyContinue
-}
-if (Test-Path "electron/dist") {
-    Write-Host "  Sophisticated removal: electron/dist" -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "electron/dist" -ErrorAction SilentlyContinue
-}
 
 Write-Host "Architectural foundation reconstruction completed with sophistication!" -ForegroundColor Green
 Write-Host ""
@@ -427,9 +693,8 @@ Write-Host ""
 # Check if dependencies need to be installed
 $needsRootInstall = -not (Test-Path "node_modules")
 $needsFrontendInstall = -not (Test-Path "react-app/node_modules")
-$needsElectronInstall = -not (Test-Path "electron/node_modules")
 
-if ($needsRootInstall -or $needsFrontendInstall -or $needsElectronInstall -or $Clear) {
+if ($needsRootInstall -or $needsFrontendInstall -or $Clear) {
     Write-Host "Installing root dependencies..." -ForegroundColor Cyan
     try {
         # Always prefer offline mode for faster startup
@@ -497,41 +762,6 @@ if ($needsFrontendInstall -or $Clear) {
     Write-Host "Frontend dependencies already installed - skipping installation" -ForegroundColor Green
 }
 
-if ($needsElectronInstall -or $Clear) {
-    Write-Host "Installing Electron dependencies..." -ForegroundColor Cyan
-    try {
-        Push-Location electron
-        # Always prefer offline mode for faster startup
-        Write-Host "  Using offline mode for faster startup..." -ForegroundColor Cyan
-        npm install --prefer-offline --no-optional --no-audit --no-fund
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  Offline installation failed, trying with cached packages..." -ForegroundColor Yellow
-            npm install --prefer-offline --no-optional --no-audit --no-fund --no-cache
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  Cached packages failed, trying online as fallback..." -ForegroundColor Yellow
-                npm install --no-cache --prefer-offline=false
-                if ($LASTEXITCODE -ne 0) {
-                    throw "All npm install attempts failed with exit code $LASTEXITCODE"
-                }
-            }
-        }
-        Pop-Location
-        Write-Host "Electron dependencies installed!" -ForegroundColor Green
-    } catch {
-        Write-Host "FAILED: Electron dependency installation failed!" -ForegroundColor Red
-        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-        Pop-Location
-        Write-Host "Network troubleshooting steps:" -ForegroundColor Cyan
-        Write-Host "   1. Check your internet connection" -ForegroundColor White
-        Write-Host "   2. Try running: cd electron && npm cache clean --force" -ForegroundColor White
-        Write-Host "   3. Try running: cd electron && npm install --prefer-offline --no-optional" -ForegroundColor White
-        Write-Host "   4. If behind corporate firewall, configure npm proxy settings" -ForegroundColor White
-        exit 1
-    }
-} else {
-    Write-Host "Electron dependencies already installed - skipping installation" -ForegroundColor Green
-}
-Write-Host ""
 
 # Step 4: SOPHISTICATED ARCHITECTURAL CONSTRUCTION
 $currentStep = 4
@@ -620,59 +850,9 @@ if ($buildSuccess) {
 }
 Write-Host ""
 
-# Step 6: SOPHISTICATED ELECTRON APPLICATION DEPLOYMENT
+# Step 6: SOPHISTICATED ARTBASTARD WEB SERVER DEPLOYMENT
 $currentStep = 6
-Show-SophisticatedProgress "STEP 6/7: SOPHISTICATED ELECTRON APPLICATION DEPLOYMENT" $currentStep "Magenta"
-Write-Host "Initiating ArtBastard DMX512 Electron application with sophisticated native MIDI support..." -ForegroundColor Magenta
-
-# Deploy Electron application using sophisticated Start-Process methodology
-Write-Host "Deploying Electron application with sophisticated Start-Process architecture..." -ForegroundColor Magenta
-
-# Sophisticated server readiness verification
-$maxAttempts = 30
-$attempt = 0
-$url = "http://localhost:3030"
-
-Write-Host "Conducting sophisticated server readiness analysis before Electron deployment..." -ForegroundColor Cyan
-
-while ($attempt -lt $maxAttempts) {
-    try {
-        $response = Invoke-WebRequest -Uri $url -TimeoutSec 2 -ErrorAction SilentlyContinue
-        if ($response.StatusCode -eq 200) {
-            Write-Host "Server architecture verified! Deploying Electron application..." -ForegroundColor Green
-            break
-        }
-    } catch {
-        # Server architecture not yet ready
-        if ($attempt % 5 -eq 0) {
-            Write-Host "  Conducting server readiness analysis... (attempt $attempt/$maxAttempts)" -ForegroundColor Yellow
-        }
-    }
-    
-    Start-Sleep -Seconds 1
-    $attempt++
-}
-
-if ($attempt -eq $maxAttempts) {
-    Write-Host "Server readiness timeout - proceeding with Electron deployment..." -ForegroundColor Yellow
-}
-
-# Sophisticated Electron deployment using Start-Process
-try {
-    Write-Host "Initiating sophisticated Electron process deployment..." -ForegroundColor Cyan
-    $electronProcess = Start-Process -FilePath "npm" -ArgumentList "run", "electron" -WorkingDirectory "electron" -PassThru
-    Write-Host "Electron process deployed with sophisticated PID: $($electronProcess.Id)" -ForegroundColor Green
-} catch {
-    Write-Host "Electron deployment encountered complications: $($_.Exception.Message)" -ForegroundColor Red
-}
-
-Write-Host "Electron application deployed with sophisticated native MIDI support!" -ForegroundColor Green
-Write-Host "MIDI Learn functionality now operates with architectural elegance and native MIDI access!" -ForegroundColor Cyan
-Write-Host ""
-
-# Step 7: SOPHISTICATED ARTBASTARD WEB SERVER DEPLOYMENT
-$currentStep = 7
-Show-SophisticatedProgress "STEP 7/7: SOPHISTICATED ARTBASTARD WEB SERVER DEPLOYMENT" $currentStep "Green"
+Show-SophisticatedProgress "STEP 6/6: SOPHISTICATED ARTBASTARD WEB SERVER DEPLOYMENT" $currentStep "Green"
 Write-Host "Initiating ArtBastard DMX512 web server deployment with architectural sophistication..." -ForegroundColor Green
 
 # Sophisticated browser auto-open with architectural monitoring
@@ -717,9 +897,7 @@ Write-Host "ARCHITECTURAL RECONSTRUCTION COMPLETED WITH SOPHISTICATION!" -Foregr
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "Total Architectural Construction Time: ${totalTime}s" -ForegroundColor Yellow
 Write-Host "You now possess the most sophisticated ArtBastard DMX512 architecture!" -ForegroundColor White
-Write-Host "ELECTRON APPLICATION: Sophisticated native MIDI support with elegant MIDI Learn!" -ForegroundColor Magenta
 Write-Host "WEB SERVER ARCHITECTURE: All MIDI Learn, OSC, and lighting controls are architecturally pristine!" -ForegroundColor White
-Write-Host "Deploying both Electron application AND web server architecture..." -ForegroundColor White
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 

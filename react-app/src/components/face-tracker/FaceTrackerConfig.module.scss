@@ -1,7 +1,9 @@
 .faceTrackerConfig {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 
   .title {
     font-size: 24px;
@@ -47,7 +49,7 @@
 
   .configSections {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
   }
 

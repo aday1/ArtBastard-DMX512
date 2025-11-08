@@ -55,53 +55,11 @@ const MainPage: React.FC = () => {
                         (layout['bottom']?.components?.length > 0) ||
                         (layout['external']?.components?.length > 0);
 
+
   return (
     <div className={styles.mainPage} ref={containerRef}>
-      {/* Elitist Header */}
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.titleSection}>
-            <LucideIcon name="Layout" className={styles.headerIcon} />
-            <div>
-              <h1 className={styles.mainTitle}>
-                {theme === 'artsnob' 
-                  ? '🎭 Atelier de Contrôle Lumineux'
-                  : theme === 'minimal'
-                  ? 'Dashboard'
-                  : 'Control Dashboard'}
-              </h1>
-              <p className={styles.subtitle}>
-                {theme === 'artsnob'
-                  ? 'Where artistry meets precision. Compose your lighting masterpiece with unparalleled sophistication.'
-                  : 'Compose your lighting control workspace'}
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.headerActions}>
-            {hasComponents && (
-              <>
-                <button
-                  className={styles.actionButton}
-                  onClick={resetLayout}
-                  title="Reset layout to default"
-                >
-                  <LucideIcon name="RotateCcw" />
-                  <span>Reset</span>
-                </button>
-                <button
-                  className={styles.actionButton}
-                  onClick={loadBlankLayout}
-                  title="Clear all panels"
-                >
-                  <LucideIcon name="X" />
-                  <span>Clear</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Global Component Toolbar - Always accessible */}
+      <ComponentToolbar />
 
       {/* Main Layout */}
       <div className={styles.layoutWrapper}>

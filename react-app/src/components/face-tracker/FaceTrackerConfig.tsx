@@ -650,16 +650,6 @@ export const FaceTrackerConfig: React.FC = () => {
               Show 3D Visualization
             </label>
           </div>
-          <div className={styles.checkboxField}>
-            <label>
-              <input
-                type="checkbox"
-                checked={config.autoExposure}
-                onChange={(e) => updateConfig('autoExposure', e.target.checked)}
-              />
-              Auto Exposure
-            </label>
-          </div>
         </section>
       </div>
     </div>

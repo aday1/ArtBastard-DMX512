@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
-import { useElectronMidi } from '../../hooks/useElectronMidi';
 import { useTheme } from '../../context/ThemeContext';
 import { LucideIcon } from '../ui/LucideIcon';
 import styles from './DmxChannelControlPage.module.scss';
@@ -21,6 +20,10 @@ export const DmxChannelControlPage: React.FC = () => {
   const [showSceneControls, setShowSceneControls] = useState(true);
   const [showMidiControls, setShowMidiControls] = useState(true);
   const [showOscControls, setShowOscControls] = useState(false);
+  const [editingChannelName, setEditingChannelName] = useState<number | null>(null);
+  const [editingChannelNameValue, setEditingChannelNameValue] = useState('');
+  const [highlightedChannel, setHighlightedChannel] = useState<number | null>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   // Store hooks
   const {
@@ -37,6 +40,7 @@ export const DmxChannelControlPage: React.FC = () => {
     addMidiMapping,
     oscAssignments,
     setOscAssignment,
+    fixtures,
     
     // Scene Controls
     scenes,
@@ -64,18 +68,6 @@ export const DmxChannelControlPage: React.FC = () => {
     refreshDevices
   } = useGlobalBrowserMidi();
 
-  // Electron MIDI hook (preferred when available)
-  const {
-    isSupported: electronMidiSupported,
-    error: electronMidiError,
-    devices: electronDevices,
-    connectedDevices: electronConnectedDevices,
-    isRefreshing: electronRefreshing,
-    loadMidiDevices: electronLoadDevices,
-    connectDevice: electronConnectDevice,
-    disconnectDevice: electronDisconnectDevice,
-    isElectron
-  } = useElectronMidi();
 
   // Get filtered channels
   const getFilteredChannels = () => {
@@ -134,8 +126,95 @@ export const DmxChannelControlPage: React.FC = () => {
     }
   }, [midiMappings]);
 
+  // Helper function to get fixture info for a channel
+  const getFixtureInfoForChannel = (channelIndex: number) => {
+    const dmxAddress = channelIndex + 1; // Convert 0-based index to 1-based address
+    
+    for (const fixture of fixtures || []) {
+      const fixtureStartAddress = fixture.startAddress;
+      const fixtureEndAddress = fixtureStartAddress + (fixture.channels?.length || 0) - 1;
+      
+      if (dmxAddress >= fixtureStartAddress && dmxAddress <= fixtureEndAddress) {
+        const channelOffset = dmxAddress - fixtureStartAddress;
+        const channel = fixture.channels?.[channelOffset];
+        
+        if (channel) {
+          return {
+            fixtureName: fixture.name,
+            channelFunction: channel.name || `${channel.type} Channel`,
+            channelType: channel.type,
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Scroll to channel slider
+  const scrollToChannel = (channelIndex: number) => {
+    const element = document.getElementById(`dmx-channel-${channelIndex}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the channel briefly
+      setHighlightedChannel(channelIndex);
+      setTimeout(() => {
+        setHighlightedChannel(null);
+      }, 2000);
+    } else {
+      // If channel is not on current page, switch to it
+      const channelPosition = filteredChannels.indexOf(channelIndex);
+      if (channelPosition >= 0) {
+        const targetPage = Math.floor(channelPosition / channelsPerPage);
+        setCurrentPage(targetPage);
+        // Wait for render then scroll
+        setTimeout(() => {
+          const element = document.getElementById(`dmx-channel-${channelIndex}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setHighlightedChannel(channelIndex);
+            setTimeout(() => {
+              setHighlightedChannel(null);
+            }, 2000);
+          }
+        }, 100);
+      }
+    }
+  };
+
+  // Handle channel name editing
+  const handleStartEditName = (channelIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const fixtureInfo = getFixtureInfoForChannel(channelIndex);
+    // Only allow editing if no fixture name is assigned
+    if (!fixtureInfo) {
+      setEditingChannelName(channelIndex);
+      setEditingChannelNameValue(channelNames[channelIndex] || `Channel ${channelIndex + 1}`);
+    }
+  };
+
+  const handleSaveChannelName = (channelIndex: number) => {
+    const currentState = useStore.getState();
+    const newChannelNames = [...(currentState.channelNames || [])];
+    // Ensure array is long enough
+    while (newChannelNames.length <= channelIndex) {
+      newChannelNames.push('');
+    }
+    newChannelNames[channelIndex] = editingChannelNameValue;
+    useStore.setState({ channelNames: newChannelNames });
+    setEditingChannelName(null);
+    setEditingChannelNameValue('');
+  };
+
+  const handleCancelEditName = () => {
+    setEditingChannelName(null);
+    setEditingChannelNameValue('');
+  };
+
   // MIDI Learn handlers
   const handleMidiLearn = (channelIndex: number) => {
+    // Scroll to channel when Learn is clicked
+    scrollToChannel(channelIndex);
     console.log(`[DMXChannelControl] MIDI Learn clicked for channel ${channelIndex}`);
     console.log(`[DMXChannelControl] Current state:`, {
       isLearning,
@@ -167,57 +246,30 @@ export const DmxChannelControlPage: React.FC = () => {
 
   // MIDI connection handlers
   const handleMidiConnect = (inputId: string) => {
-    if (isElectron && electronMidiSupported) {
-      electronConnectDevice(inputId);
-      addNotification({
-        message: `Connected to MIDI input (Native): ${inputId}`,
-        type: 'success',
-        priority: 'normal'
-      });
-    } else {
-      connectBrowserInput(inputId);
-      addNotification({
-        message: `Connected to MIDI input (Web): ${inputId}`,
-        type: 'success',
-        priority: 'normal'
-      });
-    }
+    connectBrowserInput(inputId);
+    addNotification({
+      message: `Connected to MIDI input: ${inputId}`,
+      type: 'success',
+      priority: 'normal'
+    });
   };
 
   const handleMidiDisconnect = (inputId: string) => {
-    if (isElectron && electronMidiSupported) {
-      electronDisconnectDevice(inputId);
-      addNotification({
-        message: `Disconnected from MIDI input (Native): ${inputId}`,
-        type: 'info',
-        priority: 'normal'
-      });
-    } else {
-      disconnectBrowserInput(inputId);
-      addNotification({
-        message: `Disconnected from MIDI input (Web): ${inputId}`,
-        type: 'info',
-        priority: 'normal'
-      });
-    }
+    disconnectBrowserInput(inputId);
+    addNotification({
+      message: `Disconnected from MIDI input: ${inputId}`,
+      type: 'info',
+      priority: 'normal'
+    });
   };
 
   const handleRefreshMidiDevices = () => {
-    if (isElectron && electronMidiSupported) {
-      electronLoadDevices();
-      addNotification({
-        message: 'MIDI devices refreshed (Native)',
-        type: 'info',
-        priority: 'normal'
-      });
-    } else {
-      refreshDevices();
-      addNotification({
-        message: 'MIDI devices refreshed (Web)',
-        type: 'info',
-        priority: 'normal'
-      });
-    }
+    refreshDevices();
+    addNotification({
+      message: 'MIDI devices refreshed',
+      type: 'info',
+      priority: 'normal'
+    });
   };
 
   // OSC assignment handlers
@@ -714,9 +766,11 @@ export const DmxChannelControlPage: React.FC = () => {
                           className={styles.channelTag}
                           style={{
                             opacity: 0.7 + (intensity * 0.3),
-                            backgroundColor: `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 20)}%)`
+                            backgroundColor: `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 20)}%)`,
+                            cursor: 'pointer'
                           }}
-                          title={`CH ${i + 1}: ${value} (${Math.round(intensity * 100)}%)`}
+                          title={`CH ${i + 1}: ${value} (${Math.round(intensity * 100)}%) - Click to scroll to slider`}
+                          onClick={() => scrollToChannel(i)}
                         >
                           CH {i + 1}
                           <span className={styles.channelValue}>{value}</span>
@@ -741,15 +795,48 @@ export const DmxChannelControlPage: React.FC = () => {
           const isChannelLearning = isLearning && currentLearningChannel === channelIndex;
           const mapping = midiMappings[channelIndex];
 
+          const fixtureInfo = getFixtureInfoForChannel(channelIndex);
+          const hasFixtureName = !!fixtureInfo;
+          const isEditingName = editingChannelName === channelIndex;
+
           return (
             <div 
               key={channelIndex} 
-              className={`${styles.dmxChannel} ${isSelected ? styles.selected : ''} ${value > 0 ? styles.active : ''}`}
+              id={`dmx-channel-${channelIndex}`}
+              className={`${styles.dmxChannel} ${isSelected ? styles.selected : ''} ${value > 0 ? styles.active : ''} ${highlightedChannel === channelIndex ? styles.highlighted : ''}`}
             >
               <div className={styles.channelHeader}>
                 <div className={styles.channelInfo}>
                   <span className={styles.channelNumber}>{channelIndex + 1}</span>
-                  <span className={styles.channelName}>{channelName} <small>{value > 0 ? 'Active' : '(Idle)'}</small></span>
+                  {isEditingName ? (
+                    <div className={styles.channelNameEdit}>
+                      <input
+                        type="text"
+                        value={editingChannelNameValue}
+                        onChange={(e) => setEditingChannelNameValue(e.target.value)}
+                        onBlur={() => handleSaveChannelName(channelIndex)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveChannelName(channelIndex);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEditName();
+                          }
+                        }}
+                        autoFocus
+                        className={styles.channelNameInput}
+                      />
+                    </div>
+                  ) : (
+                    <span 
+                      className={styles.channelName}
+                      onDoubleClick={(e) => handleStartEditName(channelIndex, e)}
+                      title={hasFixtureName ? `${fixtureInfo?.fixtureName} - ${fixtureInfo?.channelFunction}` : 'Double-click to edit name'}
+                      style={{ cursor: hasFixtureName ? 'default' : 'pointer' }}
+                    >
+                      {hasFixtureName ? `${fixtureInfo.fixtureName} - ${fixtureInfo.channelFunction}` : channelName} 
+                      <small>{value > 0 ? 'Active' : '(Idle)'}</small>
+                    </span>
+                  )}
                 </div>
                 <div className={styles.channelValue}>
                   <span className={styles.valueDisplay}>{value}</span>

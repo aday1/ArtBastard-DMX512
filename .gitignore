@@ -29,6 +29,14 @@ push-now.sh
 .git-push-helper
 git.sh
 
+# JSON files (data and config)
+*.json
+!package.json
+!tsconfig.json
+!react-app/package.json
+!react-app/tsconfig.json
+!react-app/tsconfig.*.json
+
 # Other
 errors.log # If you want to specifically ignore a top-level errors.log
 # Rust build artifacts

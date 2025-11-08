@@ -32,65 +32,93 @@
 }
 
 .header {
-  position: relative; // Changed from sticky - header should be in normal flow
-  z-index: 10; // Lower z-index since it's not overlaying
-  padding: 1.5rem 2.5rem;
-  padding-right: calc(var(--navbar-expanded-width, 240px) + 360px); // Space for navbar + toolbar
-  background: rgba(0, 0, 0, 0.5);
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100; // Lower z-index so it doesn't cover other elements
+  padding: 1rem 1.5rem;
+  max-width: 500px;
+  background: rgba(0, 0, 0, 0.95) !important; // More opaque
   backdrop-filter: blur(20px);
-  border-bottom: 2px solid var(--accent-color);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
-  margin-bottom: 0; // Remove margin since it's in normal flow
+  border: 2px solid var(--accent-color) !important; // More visible border
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+  transition: all 0.5s ease-out;
+  overflow: hidden;
 
-  // Adjust padding when navbar is collapsed
-  :global(body.navbar-is-collapsed) & {
-    padding-right: calc(var(--navbar-collapsed-width, 64px) + 360px);
+  &.collapsed {
+    height: 0;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+    border: none;
+    pointer-events: none;
+    transform: translateY(-20px);
   }
 
   .headerContent {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
-    max-width: 1800px;
-    margin: 0 auto;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .titleSection {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
+    align-items: flex-start;
+    gap: 1rem;
 
     .headerIcon {
-      width: 40px;
-      height: 40px;
+      width: 32px;
+      height: 32px;
       color: var(--accent-color);
       filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.4));
+      flex-shrink: 0;
     }
 
     .mainTitle {
       margin: 0;
-      font-size: 1.75rem;
+      font-size: 1.25rem;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--accent-color) !important; // Use solid color for reliability
+      text-shadow: 0 0 10px rgba(78, 205, 196, 0.5), 0 0 20px rgba(78, 205, 196, 0.3);
       letter-spacing: -0.02em;
+      line-height: 1.5;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.25rem;
     }
 
-    .subtitle {
-      margin: 0.4rem 0 0 0;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
+    .subtitleInline {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-primary) !important;
       font-style: italic;
       opacity: 0.85;
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+      display: inline-block;
+      white-space: nowrap;
+      animation: fadeOutSubtitle 0.8s ease-out 2.2s forwards; // Start fade 2.2s in, complete by 3s
+    }
+    
+    @keyframes fadeOutSubtitle {
+      from {
+        opacity: 0.85;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-10px);
+        max-width: 0;
+        overflow: hidden;
+      }
     }
   }
 
   .headerActions {
     display: flex;
     gap: 0.5rem;
+    margin-top: 0.5rem;
   }
 
   .actionButton {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { COMPONENT_REGISTRY, ComponentDefinition, getAllCategories, getComponentsByCategory } from './ComponentRegistry';
 import { usePanels } from '../../context/PanelContext';
 import styles from './ComponentToolbar.module.scss';
@@ -62,8 +62,18 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) =
   );
 };
 
-export const ComponentToolbar: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('dmx');
+interface ComponentToolbarProps {
+  panelId?: string;
+  panelRef?: React.RefObject<HTMLDivElement>;
+  onClose?: () => void;
+}
+
+export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({ 
+  panelId, 
+  panelRef,
+  onClose 
+}) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDocked, setIsDocked] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -71,6 +81,10 @@ export const ComponentToolbar: React.FC = () => {
   const [layoutName, setLayoutName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
 
   const categories = getAllCategories();
   const savedLayouts = getSavedLayouts();
@@ -145,28 +159,130 @@ export const ComponentToolbar: React.FC = () => {
   const handleLoadBlankLayout = () => {
     loadBlankLayout();
   };
+
+  // Position toolbar relative to panel if panelRef is provided
+  useEffect(() => {
+    if (panelRef?.current && toolbarRef.current && !isDragging) {
+      const panelRect = panelRef.current.getBoundingClientRect();
+      const toolbar = toolbarRef.current;
+      
+      // Determine which side to slide out from based on panel position
+      const isLeftPanel = panelId?.includes('left');
+      const isRightPanel = panelId?.includes('right');
+      
+      if (isLeftPanel) {
+        // Slide out from right edge of left panel
+        toolbar.style.left = `${panelRect.right + 10}px`;
+        toolbar.style.top = `${panelRect.top}px`;
+        toolbar.style.right = 'auto';
+        toolbar.setAttribute('data-panel-side', 'left');
+      } else if (isRightPanel) {
+        // Slide out from left edge of right panel
+        toolbar.style.right = `${window.innerWidth - panelRect.left + 10}px`;
+        toolbar.style.top = `${panelRect.top}px`;
+        toolbar.style.left = 'auto';
+        toolbar.setAttribute('data-panel-side', 'right');
+      } else {
+        // Default: slide out from right
+        toolbar.style.right = `${window.innerWidth - panelRect.right + 10}px`;
+        toolbar.style.top = `${panelRect.top}px`;
+        toolbar.style.left = 'auto';
+        toolbar.setAttribute('data-panel-side', 'right');
+      }
+    }
+  }, [panelRef, panelId, isDragging]);
+
+  // Handle dragging for non-slideout toolbars
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (panelId) return; // Don't drag slideout toolbars
+    
+    if (toolbarRef.current) {
+      const rect = toolbarRef.current.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      setIsDragging(true);
+    }
+  }, [panelId]);
+
+  useEffect(() => {
+    if (!isDragging || panelId) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (toolbarRef.current) {
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
+        
+        // Keep toolbar within viewport
+        const maxX = window.innerWidth - (toolbarRef.current.offsetWidth || 320);
+        const maxY = window.innerHeight - (toolbarRef.current.offsetHeight || 400);
+        
+        const clampedX = Math.max(0, Math.min(newX, maxX));
+        const clampedY = Math.max(0, Math.min(newY, maxY));
+        
+        toolbarRef.current.style.left = `${clampedX}px`;
+        toolbarRef.current.style.top = `${clampedY}px`;
+        toolbarRef.current.style.right = 'auto';
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset, panelId]);
+
   return (
-    <div className={`${styles.componentToolbar} ${isCollapsed ? styles.collapsed : ''} ${isDocked ? styles.docked : ''} ${isMinimized ? styles.minimized : ''}`}>
-      <div className={styles.toolbarHeader}>
+    <div 
+      ref={toolbarRef}
+      className={`${styles.componentToolbar} ${panelId ? styles.slideout : ''} ${isCollapsed ? styles.collapsed : ''} ${isDocked ? styles.docked : ''} ${isMinimized ? styles.minimized : ''}`}
+    >
+      <div 
+        className={styles.toolbarHeader}
+        onMouseDown={handleMouseDown}
+        style={{ cursor: panelId ? 'default' : 'move' }}
+      >
         <h3 className={styles.toolbarTitle}>
           <i className="fas fa-toolbox"></i>
           {!isMinimized && 'Component Toolbar'}
         </h3>
         <div className={styles.toolbarControls}>
-          <button
-            className={styles.controlButton}
-            onClick={() => setIsDocked(!isDocked)}
-            title={isDocked ? 'Undock toolbar' : 'Dock toolbar'}
-          >
-            <i className={`fas fa-${isDocked ? 'expand-arrows-alt' : 'compress-arrows-alt'}`}></i>
-          </button>
-          <button
-            className={styles.controlButton}
-            onClick={() => setIsMinimized(!isMinimized)}
-            title={isMinimized ? 'Restore toolbar' : 'Minimize toolbar'}
-          >
-            <i className={`fas fa-${isMinimized ? 'window-restore' : 'window-minimize'}`}></i>
-          </button>
+          {onClose && (
+            <button
+              className={styles.controlButton}
+              onClick={onClose}
+              title="Close toolbar"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          )}
+          {!panelId && (
+            <>
+              <button
+                className={styles.controlButton}
+                onClick={() => setIsDocked(!isDocked)}
+                title={isDocked ? 'Undock toolbar' : 'Dock toolbar'}
+              >
+                <i className={`fas fa-${isDocked ? 'expand-arrows-alt' : 'compress-arrows-alt'}`}></i>
+              </button>
+              <button
+                className={styles.controlButton}
+                onClick={() => setIsMinimized(!isMinimized)}
+                title={isMinimized ? 'Restore toolbar' : 'Minimize toolbar'}
+              >
+                <i className={`fas fa-${isMinimized ? 'window-restore' : 'window-minimize'}`}></i>
+              </button>
+            </>
+          )}
           <button
             className={styles.collapseButton}
             onClick={() => setIsCollapsed(!isCollapsed)}

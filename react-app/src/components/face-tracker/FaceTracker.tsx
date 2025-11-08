@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import styles from './FaceTracker.module.scss';
-import { FaceTrackerConfig } from './FaceTrackerConfig';
 
 interface FaceTrackerState {
   isRunning: boolean;
@@ -32,16 +32,36 @@ interface FaceTrackerSettings {
   autoExposure: boolean;
   panChannel: number;
   tiltChannel: number;
+  irisChannel: number;
+  zoomChannel: number;
+  focusChannel: number;
   panMin: number;
   panMax: number;
   tiltMin: number;
   tiltMax: number;
+  irisMin: number;
+  irisMax: number;
+  zoomMin: number;
+  zoomMax: number;
+  focusMin: number;
+  focusMax: number;
+  panScale: number;
+  tiltScale: number;
+  panDeadZone: number;
+  tiltDeadZone: number;
+  panLimit: number;
+  tiltLimit: number;
+  panGear: number;
+  tiltGear: number;
   detectionThreshold: number;
   minFaceSize: number;
   maxFaceSize: number;
   cutoff: number; // Dead zone threshold (0-1)
   oscPanAddress: string;
   oscTiltAddress: string;
+  useOSC: boolean;
+  oscHost: string;
+  oscPort: number;
 }
 
 const DEFAULT_SETTINGS: FaceTrackerSettings = {
@@ -60,16 +80,36 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   autoExposure: true,
   panChannel: 1,
   tiltChannel: 2,
+  irisChannel: 0,
+  zoomChannel: 0,
+  focusChannel: 0,
   panMin: 0,
   panMax: 255,
   tiltMin: 0,
   tiltMax: 255,
+  irisMin: 0,
+  irisMax: 255,
+  zoomMin: 0,
+  zoomMax: 255,
+  focusMin: 0,
+  focusMax: 255,
+  panScale: 1.0,
+  tiltScale: 1.0,
+  panDeadZone: 0.0,
+  tiltDeadZone: 0.0,
+  panLimit: 1.0,
+  tiltLimit: 1.0,
+  panGear: 1.0,
+  tiltGear: 1.0,
   detectionThreshold: 0.3,
   minFaceSize: 50,
   maxFaceSize: 500,
-  cutoff: 0.05, // 5% dead zone
+  cutoff: 0.02, // 2% dead zone (reduced for better sensitivity)
   oscPanAddress: '/face-tracker/pan',
   oscTiltAddress: '/face-tracker/tilt',
+  useOSC: false,
+  oscHost: '127.0.0.1',
+  oscPort: 9000,
 };
 
 // Helper function to apply camera constraints with multiple fallback strategies
@@ -175,13 +215,24 @@ const applyCameraConstraints = async (
   return applied;
 };
 
+// Helper function to calculate variance for gesture detection
+const calculateVariance = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  return variance;
+};
+
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
   const socket = useSocket();
+  const oscAssignments = useStore((state) => state.oscAssignments);
   const { fixtures, selectedFixtures, toggleFixtureSelection, setDmxChannel } = useStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
+  const detectionFrameRef = useRef<number | undefined>(undefined);
+  const previewFrameRef = useRef<number | undefined>(undefined);
   
   const [state, setState] = useState<FaceTrackerState>({
     isRunning: false,
@@ -194,9 +245,9 @@ export const FaceTracker: React.FC = () => {
   });
 
   const [settings, setSettings] = useState<FaceTrackerSettings>(DEFAULT_SETTINGS);
-  const [showConfig, setShowConfig] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
 
   // OpenCV.js state
   const opencvRef = useRef<any>(null);
@@ -208,6 +259,54 @@ export const FaceTracker: React.FC = () => {
   const panVelocityRef = useRef<number>(0);
   const tiltVelocityRef = useRef<number>(0);
   const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: Date.now() });
+  const lastDetectionTimeRef = useRef<number>(0);
+  const canvasDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+  const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastFacePositionRef = useRef<{ 
+    x: number; 
+    y: number; 
+    width: number; 
+    height: number; 
+    centerX: number; 
+    centerY: number;
+    timestamp: number;
+  } | null>(null);
+  const gestureHistoryRef = useRef<{
+    panHistory: number[];
+    tiltHistory: number[];
+    lastGesture: string;
+    lastGestureTime: number;
+  }>({
+    panHistory: [],
+    tiltHistory: [],
+    lastGesture: '',
+    lastGestureTime: 0
+  });
+
+  // Enumerate available cameras
+  useEffect(() => {
+    const enumerateCameras = async () => {
+      try {
+        // Request permission first to get device labels
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        setAvailableCameras(videoDevices);
+        console.log('[FaceTracker] Available cameras:', videoDevices.map((d, i) => `${i}: ${d.label || `Camera ${i}`}`));
+      } catch (error) {
+        console.error('[FaceTracker] Error enumerating cameras:', error);
+        // Still try to enumerate without permission (labels will be empty)
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          setAvailableCameras(videoDevices);
+        } catch (e) {
+          console.error('[FaceTracker] Failed to enumerate cameras:', e);
+        }
+      }
+    };
+    enumerateCameras();
+  }, []);
 
   // Load OpenCV.js
   useEffect(() => {
@@ -401,7 +500,14 @@ export const FaceTracker: React.FC = () => {
         videoRef.current.play();
       }
 
-      setState(prev => ({ ...prev, isRunning: true, error: null }));
+      // Reset smoothed values when starting
+      smoothedPanRef.current = 0;
+      smoothedTiltRef.current = 0;
+      panVelocityRef.current = 0;
+      tiltVelocityRef.current = 0;
+      lastUpdateRef.current = 0;
+      
+      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset }));
       startTracking();
     } catch (error) {
       setState(prev => ({ ...prev, error: `Failed to start camera: ${error}`, isRunning: false }));
@@ -416,58 +522,191 @@ export const FaceTracker: React.FC = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+    if (detectionFrameRef.current) {
+      cancelAnimationFrame(detectionFrameRef.current);
+    }
+    if (previewFrameRef.current) {
+      cancelAnimationFrame(previewFrameRef.current);
+    }
     setState(prev => ({ ...prev, isRunning: false, faceDetected: false }));
   }, []);
 
-  // Face tracking loop
-  const startTracking = useCallback(() => {
+  // Fast preview rendering (separate from face detection)
+  const renderPreview = useCallback(() => {
+    if (!showPreview || !videoRef.current || !canvasRef.current) {
+      previewFrameRef.current = requestAnimationFrame(renderPreview);
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    
+    if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      previewFrameRef.current = requestAnimationFrame(renderPreview);
+      return;
+    }
+
+    // Only resize canvas when dimensions change (expensive operation)
+    if (canvasDimensionsRef.current.width !== video.videoWidth || 
+        canvasDimensionsRef.current.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvasDimensionsRef.current.width = video.videoWidth;
+      canvasDimensionsRef.current.height = video.videoHeight;
+    }
+
+    // Fast direct draw (no pixel manipulation for preview)
+    ctx.drawImage(video, 0, 0);
+
+    // Draw persistent overlays from last detection (makes them less blinky)
+    const now = Date.now();
+    const faceTimeout = 500; // Keep showing face for 500ms after last detection
+    
+    if (lastFacePositionRef.current && 
+        (now - lastFacePositionRef.current.timestamp) < faceTimeout) {
+      const face = lastFacePositionRef.current;
+      const imageCenterX = video.videoWidth / 2;
+      const imageCenterY = video.videoHeight / 2;
+      
+      // Calculate fade based on time since last detection
+      const timeSinceDetection = now - lastFacePositionRef.current.timestamp;
+      const fadeAlpha = Math.max(0.3, 1 - (timeSinceDetection / faceTimeout));
+      
+      // Draw face rectangle (scaled to full canvas)
+      ctx.strokeStyle = `rgba(255, 165, 0, ${fadeAlpha})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(face.x, face.y, face.width, face.height);
+      ctx.strokeStyle = `rgba(255, 200, 0, ${fadeAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(face.x, face.y, face.width, face.height);
+
+      // Draw center point (yellow circle)
+      ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
+      ctx.strokeStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(face.centerX, face.centerY, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(face.centerX, face.centerY, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw crosshair at image center (red)
+      ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(imageCenterX - 30, imageCenterY);
+      ctx.lineTo(imageCenterX + 30, imageCenterY);
+      ctx.moveTo(imageCenterX, imageCenterY - 30);
+      ctx.lineTo(imageCenterX, imageCenterY + 30);
+      ctx.stroke();
+      
+      // Draw line from face center to image center
+      ctx.strokeStyle = `rgba(0, 255, 0, ${fadeAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(face.centerX, face.centerY);
+      ctx.lineTo(imageCenterX, imageCenterY);
+      ctx.stroke();
+    }
+
+    // Draw text overlay
+    ctx.fillStyle = 'yellow';
+    ctx.font = 'bold 20px Arial';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    
+    const panText = `Pan: ${state.currentPan}`;
+    const tiltText = `Tilt: ${state.currentTilt}`;
+    const faceDetected = lastFacePositionRef.current && 
+                         (now - lastFacePositionRef.current.timestamp) < faceTimeout;
+    const statusText = faceDetected ? '✓ Face Detected' : 'No Face';
+    
+    // Draw with outline for better visibility
+    ctx.strokeText(panText, 10, 30);
+    ctx.fillText(panText, 10, 30);
+    
+    ctx.strokeText(tiltText, 10, 55);
+    ctx.fillText(tiltText, 10, 55);
+    
+    ctx.fillStyle = faceDetected ? 'lime' : 'red';
+    ctx.strokeText(statusText, 10, 80);
+    ctx.fillText(statusText, 10, 80);
+
+    // Update FPS counter (preview rendering FPS)
+    fpsCounterRef.current.frames++;
+    const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
+    if (timeSinceLastFpsUpdate >= 1000) {
+      const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
+      setState(prev => ({ ...prev, fps: calculatedFps }));
+      fpsCounterRef.current.frames = 0;
+      fpsCounterRef.current.lastTime = now;
+    }
+
+    previewFrameRef.current = requestAnimationFrame(renderPreview);
+  }, [showPreview, state.currentPan, state.currentTilt]);
+
+  // Face detection (runs at lower rate for performance)
+  const detectFaces = useCallback(() => {
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
       return;
     }
 
-    const processFrame = () => {
-      // Wrap entire frame processing in try-catch to prevent crashes
+    const processDetection = () => {
       try {
         if (!state.isRunning || !videoRef.current || !canvasRef.current) {
-          animationFrameRef.current = requestAnimationFrame(processFrame);
+          detectionFrameRef.current = requestAnimationFrame(processDetection);
           return;
         }
 
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          animationFrameRef.current = requestAnimationFrame(processFrame);
+          detectionFrameRef.current = requestAnimationFrame(processDetection);
           return;
         }
 
-        // Update FPS counter
+        // Run face detection at lower rate (every 3-5 frames = ~10-15 FPS detection)
         const now = Date.now();
-        fpsCounterRef.current.frames++;
-        if (now - fpsCounterRef.current.lastTime >= 1000) {
-          setState(prev => ({ ...prev, fps: fpsCounterRef.current.frames }));
-          fpsCounterRef.current.frames = 0;
-          fpsCounterRef.current.lastTime = now;
+        const detectionInterval = 1000 / 15; // 15 FPS for detection
+        if (now - lastDetectionTimeRef.current < detectionInterval) {
+          detectionFrameRef.current = requestAnimationFrame(processDetection);
+          return;
         }
+        lastDetectionTimeRef.current = now;
 
-        // Draw video frame
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+        // Create smaller canvas for detection (faster processing)
+        if (!detectionCanvasRef.current) {
+          detectionCanvasRef.current = document.createElement('canvas');
+        }
+        const detCanvas = detectionCanvasRef.current;
+        const detCtx = detCanvas.getContext('2d', { willReadFrequently: true });
+        
+        // Use smaller resolution for detection (320x240 is usually enough)
+        const detWidth = 320;
+        const detHeight = Math.round((video.videoHeight / video.videoWidth) * detWidth);
+        detCanvas.width = detWidth;
+        detCanvas.height = detHeight;
+        
+        // Draw scaled video for detection
+        detCtx.drawImage(video, 0, 0, detWidth, detHeight);
 
-        // Apply brightness/contrast
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Apply brightness/contrast only on detection canvas (smaller = faster)
+        const imageData = detCtx.getImageData(0, 0, detWidth, detHeight);
         const data = imageData.data;
+        const brightnessOffset = (settings.brightness - 1) * 127;
         for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.min(255, data[i] * settings.contrast + (settings.brightness - 1) * 127);     // R
-          data[i + 1] = Math.min(255, data[i + 1] * settings.contrast + (settings.brightness - 1) * 127); // G
-          data[i + 2] = Math.min(255, data[i + 2] * settings.contrast + (settings.brightness - 1) * 127); // B
+          data[i] = Math.min(255, Math.max(0, data[i] * settings.contrast + brightnessOffset));     // R
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * settings.contrast + brightnessOffset)); // G
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * settings.contrast + brightnessOffset)); // B
         }
-        ctx.putImageData(imageData, 0, 0);
+        detCtx.putImageData(imageData, 0, 0);
 
-        // Convert to OpenCV Mat
-        const src = opencvRef.current.imread(canvas);
+        // Convert detection canvas to OpenCV Mat (smaller = faster)
+        const src = opencvRef.current.imread(detCanvas);
         const gray = new opencvRef.current.Mat();
         opencvRef.current.cvtColor(src, gray, opencvRef.current.COLOR_RGBA2GRAY);
 
@@ -481,7 +720,14 @@ export const FaceTracker: React.FC = () => {
         // Use detectMultiScale with improved parameters for low-light face detection
         // scaleFactor: 1.05 (smaller = more scales checked, better detection but slower)
         // minNeighbors: 2 (lower = more detections, better for low light)
+        const detectionStartTime = performance.now();
         cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+        const detectionTime = performance.now() - detectionStartTime;
+        
+        // Log detection info every 30 frames (~2 seconds at 15 FPS detection rate)
+        if (Math.random() < 0.033) { // ~3.3% chance = ~1 in 30
+          console.log(`[OpenCV] Detection cycle - Faces found: ${faces.size()}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}`);
+        }
 
         let faceDetected = false;
         if (faces.size() > 0) {
@@ -492,90 +738,155 @@ export const FaceTracker: React.FC = () => {
             // Validate face dimensions to prevent crashes
             if (!face || face.width <= 0 || face.height <= 0 || 
                 face.x < 0 || face.y < 0 || 
-                face.x + face.width > canvas.width || 
-                face.y + face.height > canvas.height) {
+                face.x + face.width > detWidth || 
+                face.y + face.height > detHeight) {
               console.warn('[FaceTracker] Invalid face dimensions, skipping:', face);
               faceDetected = false;
             } else {
-              // Calculate face center
-              const faceCenterX = face.x + face.width / 2;
-              const faceCenterY = face.y + face.height / 2;
-              const imageCenterX = canvas.width / 2;
-              const imageCenterY = canvas.height / 2;
+              // Calculate face center (scale from detection canvas to full canvas)
+              const scaleX = video.videoWidth / detWidth;
+              const scaleY = video.videoHeight / detHeight;
+              const faceCenterX = (face.x + face.width / 2) * scaleX;
+              const faceCenterY = (face.y + face.height / 2) * scaleY;
+              const imageCenterX = video.videoWidth / 2;
+              const imageCenterY = video.videoHeight / 2;
+              
+              // Log face position every 10 detections (~0.67 seconds at 15 FPS)
+              if (Math.random() < 0.1) {
+                console.log(`[OpenCV] Face detected - Position: (${face.x}, ${face.y}), Size: ${face.width}x${face.height}, Center: (${faceCenterX.toFixed(1)}, ${faceCenterY.toFixed(1)})`);
+              }
 
-              // Calculate pan/tilt offsets
+              // Store face position for persistent overlay rendering
+              lastFacePositionRef.current = {
+                x: face.x * scaleX,
+                y: face.y * scaleY,
+                width: face.width * scaleX,
+                height: face.height * scaleY,
+                centerX: faceCenterX,
+                centerY: faceCenterY,
+                timestamp: Date.now()
+              };
+
+              // Calculate pan/tilt offsets (normalized -1 to 1)
               const pan = (faceCenterX - imageCenterX) / imageCenterX;
               const tilt = (faceCenterY - imageCenterY) / imageCenterY;
+              
+              // Log position offsets every 5 detections
+              if (Math.random() < 0.2) {
+                console.log(`[OpenCV] Face position - Pan offset: ${pan.toFixed(4)} (${((pan * 100).toFixed(1))}%), Tilt offset: ${tilt.toFixed(4)} (${((tilt * 100).toFixed(1))}%)`);
+              }
 
-              // Apply cutoff (dead zone) - ignore small movements
+              // Track gesture history for pattern detection
+              const history = gestureHistoryRef.current;
+              history.panHistory.push(pan);
+              history.tiltHistory.push(tilt);
+              
+              // Keep only last 10 samples (for gesture detection)
+              if (history.panHistory.length > 10) {
+                history.panHistory.shift();
+                history.tiltHistory.shift();
+              }
+
+              // Apply cutoff (dead zone) - only update if movement exceeds threshold
               const panAbs = Math.abs(pan);
               const tiltAbs = Math.abs(tilt);
-              const effectivePan = panAbs > settings.cutoff ? pan : 0;
-              const effectiveTilt = tiltAbs > settings.cutoff ? tilt : 0;
+              
+              // Target values: use actual pan/tilt if above cutoff, otherwise use 0 (center)
+              // This ensures the tracker responds to movement
+              const targetPan = panAbs > settings.cutoff ? pan : 0;
+              const targetTilt = tiltAbs > settings.cutoff ? tilt : 0;
+              
+              // Detect gestures
+              const currentTime = Date.now();
+              if (history.panHistory.length >= 5 && currentTime - history.lastGestureTime > 500) {
+                // Detect shaking head (rapid horizontal movement)
+                const panVariance = calculateVariance(history.panHistory);
+                const panRange = Math.max(...history.panHistory) - Math.min(...history.panHistory);
+                
+                // Detect nodding (rapid vertical movement)
+                const tiltVariance = calculateVariance(history.tiltHistory);
+                const tiltRange = Math.max(...history.tiltHistory) - Math.min(...history.tiltHistory);
+                
+                if (panVariance > 0.01 && panRange > 0.15 && tiltVariance < 0.005) {
+                  const gesture = 'SHAKING HEAD';
+                  if (gesture !== history.lastGesture) {
+                    console.log(`[Gesture] ${gesture} detected! Pan variance: ${panVariance.toFixed(4)}, Range: ${panRange.toFixed(3)}`);
+                    history.lastGesture = gesture;
+                    history.lastGestureTime = currentTime;
+                  }
+                } else if (tiltVariance > 0.01 && tiltRange > 0.15 && panVariance < 0.005) {
+                  const gesture = 'NODDING';
+                  if (gesture !== history.lastGesture) {
+                    console.log(`[Gesture] ${gesture} detected! Tilt variance: ${tiltVariance.toFixed(4)}, Range: ${tiltRange.toFixed(3)}`);
+                    history.lastGesture = gesture;
+                    history.lastGestureTime = currentTime;
+                  }
+                } else if (panVariance < 0.002 && tiltVariance < 0.002) {
+                  const gesture = 'STILL';
+                  if (gesture !== history.lastGesture && history.lastGesture !== '') {
+                    console.log(`[Gesture] ${gesture} - Face is relatively stationary`);
+                    history.lastGesture = gesture;
+                    history.lastGestureTime = currentTime;
+                  }
+                }
+              }
 
-              // Apply smoothing
-              const panDiff = effectivePan - smoothedPanRef.current;
-              panVelocityRef.current = panVelocityRef.current * settings.smoothingFactor + panDiff * (1 - settings.smoothingFactor);
-              panVelocityRef.current = Math.max(-settings.maxVelocity / 127, Math.min(settings.maxVelocity / 127, panVelocityRef.current));
-              smoothedPanRef.current += panVelocityRef.current;
+              // Apply smoothing with exponential moving average
+              const smoothingRate = 1 - settings.smoothingFactor;
+              let newPan = smoothedPanRef.current * settings.smoothingFactor + targetPan * smoothingRate;
+              let newTilt = smoothedTiltRef.current * settings.smoothingFactor + targetTilt * smoothingRate;
 
-              const tiltDiff = effectiveTilt - smoothedTiltRef.current;
-              tiltVelocityRef.current = tiltVelocityRef.current * settings.smoothingFactor + tiltDiff * (1 - settings.smoothingFactor);
-              tiltVelocityRef.current = Math.max(-settings.maxVelocity / 127, Math.min(settings.maxVelocity / 127, tiltVelocityRef.current));
-              smoothedTiltRef.current += tiltVelocityRef.current;
+              // Apply velocity limiting (max change per update)
+              const maxChange = settings.maxVelocity / 100; // Convert to reasonable scale (5.0 = 5% max change per frame)
+              const panChange = newPan - smoothedPanRef.current;
+              const tiltChange = newTilt - smoothedTiltRef.current;
+              
+              if (Math.abs(panChange) > maxChange) {
+                newPan = smoothedPanRef.current + Math.sign(panChange) * maxChange;
+              }
+              if (Math.abs(tiltChange) > maxChange) {
+                newTilt = smoothedTiltRef.current + Math.sign(tiltChange) * maxChange;
+              }
+              
+              smoothedPanRef.current = newPan;
+              smoothedTiltRef.current = newTilt;
+              
+              // Debug logging (can be removed later)
+              if (Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1) {
+                console.log('[FaceTracker] Pan:', pan.toFixed(3), 'Tilt:', tilt.toFixed(3), 
+                  'Smoothed Pan:', smoothedPanRef.current.toFixed(3), 
+                  'Smoothed Tilt:', smoothedTiltRef.current.toFixed(3));
+              }
 
-              // Map to DMX values
+              // Map to DMX values (pan/tilt are -1 to 1, map to 0-255)
+              // Apply sensitivity and scale, then add offset
+              const panScaled = smoothedPanRef.current * settings.panSensitivity * 127; // -127 to 127
+              const tiltScaled = smoothedTiltRef.current * settings.tiltSensitivity * 127; // -127 to 127
+              
               const panValue = Math.round(
                 Math.max(settings.panMin, Math.min(settings.panMax,
-                  smoothedPanRef.current * settings.panSensitivity * 127 + settings.panOffset
+                  panScaled + settings.panOffset // Offset is center (128), so result is 1-255
                 ))
               );
               const tiltValue = Math.round(
                 Math.max(settings.tiltMin, Math.min(settings.tiltMax,
-                  smoothedTiltRef.current * settings.tiltSensitivity * 127 + settings.tiltOffset
+                  tiltScaled + settings.tiltOffset // Offset is center (128), so result is 1-255
                 ))
               );
 
-              // Draw face rectangle and center point on the source image
-              // Color format: [B, G, R, A] for OpenCV
-              try {
-                const point1 = new opencvRef.current.Point(face.x, face.y);
-                const point2 = new opencvRef.current.Point(face.x + face.width, face.y + face.height);
-                
-                // Draw rectangle with bright orange color [B, G, R, A]
-                opencvRef.current.rectangle(src, point1, point2, [0, 165, 255, 255], 3);
-                opencvRef.current.rectangle(src, point1, point2, [0, 200, 255, 255], 1);
+              // Always update state for UI display (not just when sending DMX)
+              setState(prev => ({ ...prev, currentPan: panValue, currentTilt: tiltValue }));
 
-                // Draw center point (yellow circle)
-                const center = new opencvRef.current.Point(faceCenterX, faceCenterY);
-                opencvRef.current.circle(src, center, 8, [0, 255, 255, 255], 2);
-                opencvRef.current.circle(src, center, 3, [0, 255, 255, 255], -1);
-                
-                // Draw crosshair at image center (red)
-                const centerPoint1 = new opencvRef.current.Point(imageCenterX - 30, imageCenterY);
-                const centerPoint2 = new opencvRef.current.Point(imageCenterX + 30, imageCenterY);
-                const centerPoint3 = new opencvRef.current.Point(imageCenterX, imageCenterY - 30);
-                const centerPoint4 = new opencvRef.current.Point(imageCenterX, imageCenterY + 30);
-                const imgCenter = new opencvRef.current.Point(imageCenterX, imageCenterY);
-                
-                opencvRef.current.line(src, centerPoint1, centerPoint2, [0, 0, 255, 255], 2);
-                opencvRef.current.line(src, centerPoint3, centerPoint4, [0, 0, 255, 255], 2);
-                
-                // Draw line from face center to image center
-                opencvRef.current.line(src, center, imgCenter, [0, 255, 0, 255], 1);
-                
-                // Cleanup Point objects to prevent memory leaks
-                point1.delete();
-                point2.delete();
-                center.delete();
-                centerPoint1.delete();
-                centerPoint2.delete();
-                centerPoint3.delete();
-                centerPoint4.delete();
-                imgCenter.delete();
-              } catch (drawError) {
-                console.error('[FaceTracker] Error drawing face overlay:', drawError);
+              // Verbose logging for pan/tilt calculation (every 5 detections or when movement is significant)
+              if (Math.random() < 0.2 || Math.abs(pan) > 0.1 || Math.abs(tilt) > 0.1) {
+                console.log(`[Pan/Tilt] Raw: Pan=${pan.toFixed(4)}, Tilt=${tilt.toFixed(4)} | ` +
+                  `Target: Pan=${targetPan.toFixed(4)}, Tilt=${targetTilt.toFixed(4)} | ` +
+                  `Smoothed: Pan=${smoothedPanRef.current.toFixed(4)}, Tilt=${smoothedTiltRef.current.toFixed(4)} | ` +
+                  `DMX: Pan=${panValue}, Tilt=${tiltValue} | ` +
+                  `Sensitivity: Pan=${settings.panSensitivity}, Tilt=${settings.tiltSensitivity}`);
               }
+
+              // Overlays are now drawn in the preview loop for persistence
 
               // Send DMX update
               const now = Date.now();
@@ -615,18 +926,24 @@ export const FaceTracker: React.FC = () => {
                   if (socket && socket.connected) {
                     (socket as any).emit('dmx:batch', dmxUpdates);
                     
-                    // Also send OSC if addresses are configured
-                    if (settings.oscPanAddress) {
-                      (socket as any).emit('osc-send', {
-                        address: settings.oscPanAddress,
-                        args: [{ type: 'f', value: panValue / 255.0 }]
-                      });
-                    }
-                    if (settings.oscTiltAddress) {
-                      (socket as any).emit('osc-send', {
-                        address: settings.oscTiltAddress,
-                        args: [{ type: 'f', value: tiltValue / 255.0 }]
-                      });
+                    // Send OSC if enabled and addresses are configured
+                    if (settings.useOSC && oscAssignments) {
+                      // Use ArtBastard's OSC assignments for pan and tilt channels
+                      const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
+                      const tiltOscAddress = oscAssignments[settings.tiltChannel - 1] || settings.oscTiltAddress;
+                      
+                      if (panOscAddress) {
+                        (socket as any).emit('sendOsc', {
+                          address: panOscAddress,
+                          args: [{ type: 'f', value: panValue / 255.0 }]
+                        });
+                      }
+                      if (tiltOscAddress) {
+                        (socket as any).emit('sendOsc', {
+                          address: tiltOscAddress,
+                          args: [{ type: 'f', value: tiltValue / 255.0 }]
+                        });
+                      }
                     }
                   } else {
                     // Fallback to HTTP API
@@ -638,7 +955,6 @@ export const FaceTracker: React.FC = () => {
                   }
                   
                   lastUpdateRef.current = now;
-                  setState(prev => ({ ...prev, currentPan: panValue, currentTilt: tiltValue }));
                 } catch (dmxError) {
                   console.error('[FaceTracker] Error sending DMX update:', dmxError);
                 }
@@ -651,39 +967,15 @@ export const FaceTracker: React.FC = () => {
             faceDetected = false;
           }
         } else {
+          // No face detected - log occasionally
+          if (faces.size() === 0 && Math.random() < 0.05) {
+            console.log('[OpenCV] No faces detected in this frame');
+          }
           setState(prev => ({ ...prev, faceDetected: false }));
+          // Clear face position after timeout (handled in preview loop)
         }
 
-        // Draw on canvas - MUST draw before cleanup
-        if (showPreview && canvas && ctx) {
-          try {
-            // Convert OpenCV Mat to canvas - this draws the video frame with face detection overlays
-            opencvRef.current.imshow(canvas, src);
-            
-            // Draw text overlay on top of the OpenCV image
-            ctx.fillStyle = 'yellow';
-            ctx.font = 'bold 20px Arial';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
-            
-            const panText = `Pan: ${state.currentPan}`;
-            const tiltText = `Tilt: ${state.currentTilt}`;
-            const statusText = faceDetected ? '✓ Face Detected' : 'No Face';
-            
-            // Draw with outline for better visibility
-            ctx.strokeText(panText, 10, 30);
-            ctx.fillText(panText, 10, 30);
-            
-            ctx.strokeText(tiltText, 10, 55);
-            ctx.fillText(tiltText, 10, 55);
-            
-            ctx.fillStyle = faceDetected ? 'lime' : 'red';
-            ctx.strokeText(statusText, 10, 80);
-            ctx.fillText(statusText, 10, 80);
-          } catch (drawError) {
-            console.error('[FaceTracker] Error drawing canvas:', drawError);
-          }
-        }
+        // Text overlays are now drawn in the preview loop for better performance
 
         // Cleanup OpenCV objects - CRITICAL to prevent memory leaks
         try {
@@ -696,18 +988,31 @@ export const FaceTracker: React.FC = () => {
           console.error('[FaceTracker] Error during cleanup:', cleanupError);
         }
 
-        // Always continue the animation loop, even if there was an error
-        animationFrameRef.current = requestAnimationFrame(processFrame);
+        // Continue detection loop
+        detectionFrameRef.current = requestAnimationFrame(processDetection);
         } catch (error) {
           // Catch any unhandled errors and log them
           console.error('[FaceTracker] Frame processing error:', error);
           // Ensure we continue the loop even after an error
-          animationFrameRef.current = requestAnimationFrame(processFrame);
+          detectionFrameRef.current = requestAnimationFrame(processDetection);
         }
       };
 
-    processFrame();
+    processDetection();
   }, [state.isRunning, settings, showPreview, socket, state.currentPan, state.currentTilt]);
+
+  // Start both preview and detection loops
+  const startTracking = useCallback(() => {
+    if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
+      return;
+    }
+    
+    // Start fast preview rendering
+    renderPreview();
+    
+    // Start face detection (runs at lower rate)
+    detectFaces();
+  }, [renderPreview, detectFaces]);
 
   useEffect(() => {
     if (state.isRunning && state.isInitialized) {
@@ -730,12 +1035,6 @@ export const FaceTracker: React.FC = () => {
         <h2 className={styles.title}>Face Tracker</h2>
         <div className={styles.controls}>
           <button
-            onClick={() => setShowConfig(!showConfig)}
-            className={styles.configButton}
-          >
-            {showConfig ? 'Hide Config' : 'Show Config'}
-          </button>
-          <button
             onClick={state.isRunning ? stopCamera : startCamera}
             className={`${styles.startButton} ${state.isRunning ? styles.stopButton : ''}`}
             disabled={!state.isInitialized}
@@ -749,142 +1048,10 @@ export const FaceTracker: React.FC = () => {
         <div className={styles.error}>{state.error}</div>
       )}
 
-      {showConfig && (
-        <div className={styles.configPanel}>
-          <div className={styles.quickControls}>
-            <div className={styles.controlGroup}>
-              <label>Camera Index</label>
-              <input
-                type="number"
-                min="0"
-                max="10"
-                value={settings.cameraIndex}
-                onChange={(e) => updateSetting('cameraIndex', parseInt(e.target.value))}
-                disabled={state.isRunning}
-              />
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Brightness</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="3"
-                  step="0.1"
-                  value={settings.brightness}
-                  onChange={(e) => updateSetting('brightness', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{settings.brightness.toFixed(1)}</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Contrast</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="3"
-                  step="0.1"
-                  value={settings.contrast}
-                  onChange={(e) => updateSetting('contrast', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{settings.contrast.toFixed(1)}</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Pan Sensitivity</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={settings.panSensitivity}
-                  onChange={(e) => updateSetting('panSensitivity', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{settings.panSensitivity.toFixed(1)}</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Tilt Sensitivity</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={settings.tiltSensitivity}
-                  onChange={(e) => updateSetting('tiltSensitivity', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{settings.tiltSensitivity.toFixed(1)}</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Smoothing</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={settings.smoothingFactor}
-                  onChange={(e) => updateSetting('smoothingFactor', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{settings.smoothingFactor.toFixed(2)}</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>Cutoff (Dead Zone)</label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="0"
-                  max="0.5"
-                  step="0.01"
-                  value={settings.cutoff}
-                  onChange={(e) => updateSetting('cutoff', parseFloat(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{(settings.cutoff * 100).toFixed(0)}%</span>
-              </div>
-            </div>
-            <div className={styles.controlGroup}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={showPreview}
-                  onChange={(e) => setShowPreview(e.target.checked)}
-                />
-                Show Preview
-              </label>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* OSC Endpoint Display */}
-      <div className={styles.oscEndpoints}>
-        <h4>OSC Endpoints</h4>
-        <div className={styles.endpointList}>
-          <div className={styles.endpointItem}>
-            <LucideIcon name="Globe" className={styles.endpointIcon} />
-            <span className={styles.endpointLabel}>Pan:</span>
-            <code className={styles.endpointAddress}>{settings.oscPanAddress}</code>
-          </div>
-          <div className={styles.endpointItem}>
-            <LucideIcon name="Globe" className={styles.endpointIcon} />
-            <span className={styles.endpointLabel}>Tilt:</span>
-            <code className={styles.endpointAddress}>{settings.oscTiltAddress}</code>
-          </div>
-        </div>
-      </div>
-
-      {/* Fixture Selection */}
+      <div className={styles.mainContainer}>
+        {/* Left Side - Face Tracker Preview and Controls */}
+        <div className={styles.trackerSide}>
+          {/* Fixture Selection */}
       <div className={styles.fixtureSelection}>
         <h4>Target Fixtures</h4>
         <div className={styles.fixtureList}>
@@ -958,104 +1125,906 @@ export const FaceTracker: React.FC = () => {
         )}
         
         <div className={styles.previewControls}>
-          <div className={styles.cameraControls}>
-            <h4 className={styles.controlsTitle}>Camera Settings</h4>
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>
-                <input
-                  type="checkbox"
-                  checked={settings.autoExposure}
-                  onChange={async (e) => {
-                    updateSetting('autoExposure', e.target.checked);
-                    // When toggling auto exposure, reapply camera constraints
-                    if (state.isRunning && streamRef.current) {
-                      const track = streamRef.current.getVideoTracks()[0];
-                      if (track) {
-                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                        const updatedSettings = { ...settings, autoExposure: e.target.checked };
-                        const success = await applyCameraConstraints(track, capabilities, updatedSettings, false);
-                        if (!success) {
-                          console.warn('[FaceTracker] Could not toggle auto exposure. Your camera may not support exposure control via browser API.');
+          <div className={styles.allControls}>
+            {/* Camera Settings Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Camera Settings</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Automatically adjust camera exposure based on lighting conditions">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoExposure}
+                    onChange={async (e) => {
+                      updateSetting('autoExposure', e.target.checked);
+                      if (state.isRunning && streamRef.current) {
+                        const track = streamRef.current.getVideoTracks()[0];
+                        if (track) {
+                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                          const updatedSettings = { ...settings, autoExposure: e.target.checked };
+                          await applyCameraConstraints(track, capabilities, updatedSettings, false);
                         }
                       }
-                    }
-                  }}
-                />
-                Auto Exposure
-              </label>
-            </div>
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>
-                Exposure {settings.autoExposure ? '(Manual Override)' : '(Manual)'}
-              </label>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  min="-10"
-                  max="10"
-                  step="0.1"
-                  value={settings.cameraExposure >= 0 ? settings.cameraExposure : 0}
-                  onChange={async (e) => {
-                    const value = parseFloat(e.target.value);
-                    updateSetting('cameraExposure', value);
-                    // Apply exposure change immediately if camera is running
-                    // Even if auto exposure is enabled, allow manual override
-                    if (state.isRunning && streamRef.current) {
-                      const track = streamRef.current.getVideoTracks()[0];
-                      if (track) {
-                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                        const updatedSettings = { ...settings, cameraExposure: value };
-                        const success = await applyCameraConstraints(track, capabilities, updatedSettings, false);
-                        if (!success) {
-                          console.warn('[FaceTracker] Could not apply exposure. Your camera may not support exposure control via browser API.');
-                          console.warn('[FaceTracker] Try adjusting the Brightness slider instead, or use OS-level camera settings.');
+                    }}
+                    title="Automatically adjust camera exposure based on lighting conditions"
+                  />
+                  Auto Exposure
+                </label>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)">
+                  Exposure {settings.autoExposure ? '(Manual Override)' : '(Manual)'}
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>-10</span>
+                  <input
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.1"
+                    value={Math.max(-10, Math.min(10, settings.cameraExposure))}
+                    onChange={async (e) => {
+                      const value = parseFloat(e.target.value);
+                      updateSetting('cameraExposure', value);
+                      if (state.isRunning && streamRef.current) {
+                        const track = streamRef.current.getVideoTracks()[0];
+                        if (track) {
+                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                          const updatedSettings = { ...settings, cameraExposure: value };
+                          await applyCameraConstraints(track, capabilities, updatedSettings, false);
                         }
                       }
-                    }
-                  }}
-                  disabled={!state.isRunning}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>
-                  {settings.cameraExposure >= 0 ? settings.cameraExposure.toFixed(1) : 'Auto'}
-                </span>
+                    }}
+                    disabled={!state.isRunning}
+                    className={styles.slider}
+                    title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)"
+                  />
+                  <span className={styles.rangeLabel}>10</span>
+                  <input
+                    type="number"
+                    min="-10"
+                    max="10"
+                    step="0.1"
+                    value={Math.max(-10, Math.min(10, settings.cameraExposure)).toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updateSetting('cameraExposure', value);
+                        if (state.isRunning && streamRef.current) {
+                          const track = streamRef.current.getVideoTracks()[0];
+                          if (track) {
+                            const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                            const updatedSettings = { ...settings, cameraExposure: value };
+                            applyCameraConstraints(track, capabilities, updatedSettings, false);
+                          }
+                        }
+                      }
+                    }}
+                    disabled={!state.isRunning}
+                    className={styles.numberInput}
+                    title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Camera hardware brightness adjustment (-1 to 1, negative = darker, positive = brighter)">
+                  Brightness (Camera)
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>-1</span>
+                  <input
+                    type="range"
+                    min="-1"
+                    max="1"
+                    step="0.1"
+                    value={Math.max(-1, Math.min(1, settings.cameraBrightness))}
+                    onChange={async (e) => {
+                      const value = parseFloat(e.target.value);
+                      updateSetting('cameraBrightness', value);
+                      if (state.isRunning && streamRef.current) {
+                        const track = streamRef.current.getVideoTracks()[0];
+                        if (track) {
+                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                          const updatedSettings = { ...settings, cameraBrightness: value };
+                          await applyCameraConstraints(track, capabilities, updatedSettings, false);
+                        }
+                      }
+                    }}
+                    disabled={!state.isRunning}
+                    className={styles.slider}
+                    title="Camera hardware brightness adjustment (-1 to 1, negative = darker, positive = brighter)"
+                  />
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="number"
+                    min="-1"
+                    max="1"
+                    step="0.1"
+                    value={Math.max(-1, Math.min(1, settings.cameraBrightness)).toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updateSetting('cameraBrightness', value);
+                        if (state.isRunning && streamRef.current) {
+                          const track = streamRef.current.getVideoTracks()[0];
+                          if (track) {
+                            const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                            const updatedSettings = { ...settings, cameraBrightness: value };
+                            applyCameraConstraints(track, capabilities, updatedSettings, false);
+                          }
+                        }
+                      }
+                    }}
+                    disabled={!state.isRunning}
+                    className={styles.numberInput}
+                    title="Camera hardware brightness adjustment (-1 to 1, negative = darker, positive = brighter)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Select which camera to use for face tracking">
+                  Camera Selection
+                </label>
+                <div className={styles.cameraButtons}>
+                  {availableCameras.length === 0 ? (
+                    <div className={styles.noCameras}>No cameras detected. Click "Start" to enable camera access.</div>
+                  ) : (
+                    availableCameras.map((camera, index) => (
+                      <button
+                        key={camera.deviceId || index}
+                        type="button"
+                        onClick={() => updateSetting('cameraIndex', index)}
+                        disabled={state.isRunning}
+                        className={`${styles.cameraButton} ${settings.cameraIndex === index ? styles.cameraButtonActive : ''}`}
+                        title={camera.label || `Camera ${index + 1}`}
+                      >
+                        <LucideIcon name="Video" />
+                        <span>{camera.label || `Camera ${index + 1}`}</span>
+                        {settings.cameraIndex === index && (
+                          <LucideIcon name="Check" className={styles.cameraButtonCheck} />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Brightness (Camera)</label>
-              <div className={styles.sliderWrapper}>
+
+            {/* Display Settings Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Display Settings</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Software brightness multiplier for preview display (0-3, 1.0 = normal)">
+                  Brightness (Software)
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={settings.brightness}
+                    onChange={(e) => updateSetting('brightness', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Software brightness multiplier for preview display (0-3, 1.0 = normal)"
+                  />
+                  <span className={styles.rangeLabel}>3</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={settings.brightness.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('brightness', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Software brightness multiplier for preview display (0-3, 1.0 = normal)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Software contrast multiplier for preview display (0-3, 1.0 = normal)">
+                  Contrast
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={settings.contrast}
+                    onChange={(e) => updateSetting('contrast', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Software contrast multiplier for preview display (0-3, 1.0 = normal)"
+                  />
+                  <span className={styles.rangeLabel}>3</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={settings.contrast.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('contrast', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Software contrast multiplier for preview display (0-3, 1.0 = normal)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Show/hide the camera preview window">
+                  <input
+                    type="checkbox"
+                    checked={showPreview}
+                    onChange={(e) => setShowPreview(e.target.checked)}
+                    title="Show/hide the camera preview window"
+                  />
+                  Show Preview
+                </label>
+              </div>
+            </div>
+
+            {/* Tracking Settings Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Tracking Settings</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)">
+                  Pan Sensitivity
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={settings.panSensitivity}
+                    onChange={(e) => updateSetting('panSensitivity', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)"
+                  />
+                  <span className={styles.rangeLabel}>5</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={settings.panSensitivity.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('panSensitivity', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)">
+                  Tilt Sensitivity
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={settings.tiltSensitivity}
+                    onChange={(e) => updateSetting('tiltSensitivity', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)"
+                  />
+                  <span className={styles.rangeLabel}>5</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={settings.tiltSensitivity.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('tiltSensitivity', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Smoothing factor for movement (0-1, higher = smoother but less responsive)">
+                  Smoothing
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.smoothingFactor}
+                    onChange={(e) => updateSetting('smoothingFactor', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Smoothing factor for movement (0-1, higher = smoother but less responsive)"
+                  />
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.smoothingFactor.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('smoothingFactor', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Smoothing factor for movement (0-1, higher = smoother but less responsive)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)">
+                  Cutoff (Dead Zone)
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.5"
+                    step="0.01"
+                    value={settings.cutoff}
+                    onChange={(e) => updateSetting('cutoff', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)"
+                  />
+                  <span className={styles.rangeLabel}>0.5</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="0.5"
+                    step="0.01"
+                    value={settings.cutoff.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('cutoff', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* DMX Channels Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>DMX Channels</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="DMX channel number for pan control (0-512)">
+                  Pan Channel
+                </label>
                 <input
-                  type="range"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value={settings.cameraBrightness >= 0 ? settings.cameraBrightness : 0}
-                  onChange={async (e) => {
-                    const value = parseFloat(e.target.value);
-                    updateSetting('cameraBrightness', value);
-                    // Apply brightness change immediately if camera is running
-                    if (state.isRunning && streamRef.current) {
-                      const track = streamRef.current.getVideoTracks()[0];
-                      if (track) {
-                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                        const updatedSettings = { ...settings, cameraBrightness: value };
-                        const success = await applyCameraConstraints(track, capabilities, updatedSettings, false);
-                        if (!success) {
-                          console.warn('[FaceTracker] Could not apply brightness. Your camera may not support brightness control via browser API.');
-                          console.warn('[FaceTracker] Try adjusting the Brightness slider (software) instead, or use OS-level camera settings.');
-                        }
-                      }
-                    }
-                  }}
-                  disabled={!state.isRunning}
-                  className={styles.slider}
+                  type="number"
+                  min="0"
+                  max="512"
+                  step="1"
+                  value={settings.panChannel}
+                  onChange={(e) => updateSetting('panChannel', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="DMX channel number for pan control (0-512)"
                 />
-                <span className={styles.sliderValue}>
-                  {settings.cameraBrightness >= 0 ? settings.cameraBrightness.toFixed(1) : 'Auto'}
-                </span>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="DMX channel number for tilt control (0-512)">
+                  Tilt Channel
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="512"
+                  step="1"
+                  value={settings.tiltChannel}
+                  onChange={(e) => updateSetting('tiltChannel', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="DMX channel number for tilt control (0-512)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="DMX channel number for iris control (0 = disabled, 0-512)">
+                  Iris Channel
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="512"
+                  step="1"
+                  value={settings.irisChannel}
+                  onChange={(e) => updateSetting('irisChannel', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="DMX channel number for iris control (0 = disabled, 0-512)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="DMX channel number for zoom control (0 = disabled, 0-512)">
+                  Zoom Channel
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="512"
+                  step="1"
+                  value={settings.zoomChannel}
+                  onChange={(e) => updateSetting('zoomChannel', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="DMX channel number for zoom control (0 = disabled, 0-512)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="DMX channel number for focus control (0 = disabled, 0-512)">
+                  Focus Channel
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="512"
+                  step="1"
+                  value={settings.focusChannel}
+                  onChange={(e) => updateSetting('focusChannel', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="DMX channel number for focus control (0 = disabled, 0-512)"
+                />
+              </div>
+            </div>
+
+            {/* Range Limits Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Range Limits</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Minimum DMX value for pan movement (0-255)">
+                  Pan Min
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.panMin}
+                  onChange={(e) => updateSetting('panMin', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="Minimum DMX value for pan movement (0-255)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Maximum DMX value for pan movement (0-255)">
+                  Pan Max
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.panMax}
+                  onChange={(e) => updateSetting('panMax', parseInt(e.target.value) || 255)}
+                  className={styles.numberInput}
+                  title="Maximum DMX value for pan movement (0-255)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Minimum DMX value for tilt movement (0-255)">
+                  Tilt Min
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.tiltMin}
+                  onChange={(e) => updateSetting('tiltMin', parseInt(e.target.value) || 0)}
+                  className={styles.numberInput}
+                  title="Minimum DMX value for tilt movement (0-255)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Maximum DMX value for tilt movement (0-255)">
+                  Tilt Max
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.tiltMax}
+                  onChange={(e) => updateSetting('tiltMax', parseInt(e.target.value) || 255)}
+                  className={styles.numberInput}
+                  title="Maximum DMX value for tilt movement (0-255)"
+                />
+              </div>
+            </div>
+
+            {/* Rigging Parameters Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Rigging Parameters</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Scale factor for pan movement sensitivity (0-5, higher = more movement)">
+                  Pan Scale
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value={settings.panScale}
+                    onChange={(e) => updateSetting('panScale', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Scale factor for pan movement sensitivity (0-5, higher = more movement)"
+                  />
+                  <span className={styles.rangeLabel}>5</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value={settings.panScale.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('panScale', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Scale factor for pan movement sensitivity (0-5, higher = more movement)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Scale factor for tilt movement sensitivity (0-5, higher = more movement)">
+                  Tilt Scale
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value={settings.tiltScale}
+                    onChange={(e) => updateSetting('tiltScale', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Scale factor for tilt movement sensitivity (0-5, higher = more movement)"
+                  />
+                  <span className={styles.rangeLabel}>5</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value={settings.tiltScale.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('tiltScale', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Scale factor for tilt movement sensitivity (0-5, higher = more movement)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Dead zone threshold for pan (0-1, prevents small movements)">
+                  Pan Dead Zone
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.panDeadZone}
+                    onChange={(e) => updateSetting('panDeadZone', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Dead zone threshold for pan (0-1, prevents small movements)"
+                  />
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.panDeadZone.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('panDeadZone', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Dead zone threshold for pan (0-1, prevents small movements)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Dead zone threshold for tilt (0-1, prevents small movements)">
+                  Tilt Dead Zone
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.tiltDeadZone}
+                    onChange={(e) => updateSetting('tiltDeadZone', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Dead zone threshold for tilt (0-1, prevents small movements)"
+                  />
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.tiltDeadZone.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('tiltDeadZone', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Dead zone threshold for tilt (0-1, prevents small movements)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Pan movement limit multiplier (0-2, 1.0 = full range)">
+                  Pan Limit
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.01"
+                    value={settings.panLimit}
+                    onChange={(e) => updateSetting('panLimit', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Pan movement limit multiplier (0-2, 1.0 = full range)"
+                  />
+                  <span className={styles.rangeLabel}>2</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.01"
+                    value={settings.panLimit.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('panLimit', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Pan movement limit multiplier (0-2, 1.0 = full range)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Tilt movement limit multiplier (0-2, 1.0 = full range)">
+                  Tilt Limit
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.01"
+                    value={settings.tiltLimit}
+                    onChange={(e) => updateSetting('tiltLimit', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Tilt movement limit multiplier (0-2, 1.0 = full range)"
+                  />
+                  <span className={styles.rangeLabel}>2</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.01"
+                    value={settings.tiltLimit.toFixed(2)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('tiltLimit', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Tilt movement limit multiplier (0-2, 1.0 = full range)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Pan gear ratio multiplier (0.1-10, affects movement speed)">
+                  Pan Gear
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0.1</span>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.panGear}
+                    onChange={(e) => updateSetting('panGear', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Pan gear ratio multiplier (0.1-10, affects movement speed)"
+                  />
+                  <span className={styles.rangeLabel}>10</span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.panGear.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('panGear', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Pan gear ratio multiplier (0.1-10, affects movement speed)"
+                  />
+                </div>
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Tilt gear ratio multiplier (0.1-10, affects movement speed)">
+                  Tilt Gear
+                </label>
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0.1</span>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.tiltGear}
+                    onChange={(e) => updateSetting('tiltGear', parseFloat(e.target.value))}
+                    className={styles.slider}
+                    title="Tilt gear ratio multiplier (0.1-10, affects movement speed)"
+                  />
+                  <span className={styles.rangeLabel}>10</span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.tiltGear.toFixed(1)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) updateSetting('tiltGear', value);
+                    }}
+                    className={styles.numberInput}
+                    title="Tilt gear ratio multiplier (0.1-10, affects movement speed)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Advanced Settings Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>Advanced Settings</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Update rate in Hz (1-60, higher = smoother but more CPU)">
+                  Update Rate (Hz)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  step="1"
+                  value={settings.updateRate}
+                  onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
+                  className={styles.numberInput}
+                  title="Update rate in Hz (1-60, higher = smoother but more CPU)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Center position offset for pan (0-255, 128 = center)">
+                  Pan Offset
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.panOffset}
+                  onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
+                  className={styles.numberInput}
+                  title="Center position offset for pan (0-255, 128 = center)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Center position offset for tilt (0-255, 128 = center)">
+                  Tilt Offset
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.tiltOffset}
+                  onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
+                  className={styles.numberInput}
+                  title="Center position offset for tilt (0-255, 128 = center)"
+                />
+              </div>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel} title="Maximum velocity change per update (prevents overshooting)">
+                  Max Velocity
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={settings.maxVelocity}
+                  onChange={(e) => updateSetting('maxVelocity', parseFloat(e.target.value) || 5)}
+                  className={styles.numberInput}
+                  title="Maximum velocity change per update (prevents overshooting)"
+                />
+              </div>
+            </div>
+
+            {/* OSC Settings Section */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>OSC Settings</h4>
+              <div className={styles.controlGroup}>
+                <label className={styles.controlLabel}>
+                  <input
+                    type="checkbox"
+                    checked={settings.useOSC}
+                    onChange={(e) => updateSetting('useOSC', e.target.checked)}
+                    title="Enable OSC output. Messages will be sent via ArtBastard's OSC configuration and visible in the OSC Monitor."
+                  />
+                  Enable OSC Output
+                </label>
+                <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+                  When enabled, OSC messages will be sent using ArtBastard's OSC send configuration. 
+                  Configure OSC send host/port in the main ArtBastard settings (MIDI/OSC Setup).
+                </p>
+              </div>
+            </div>
+
+            {/* OSC Endpoints */}
+            <div className={styles.controlSection}>
+              <h4 className={styles.controlsTitle}>OSC Endpoints</h4>
+              <div className={styles.controlGroup}>
+                <div className={styles.infoBox}>
+                  <p className={styles.infoText}>
+                    <strong>ArtBastard OSC Endpoints (from Configuration):</strong>
+                  </p>
+                  <p className={styles.infoText}>
+                    Pan Channel {settings.panChannel}: <code className={styles.endpointAddress}>
+                      {oscAssignments && oscAssignments[settings.panChannel - 1] 
+                        ? oscAssignments[settings.panChannel - 1] 
+                        : `/1/fader${settings.panChannel}`}
+                    </code>
+                  </p>
+                  <p className={styles.infoText}>
+                    Tilt Channel {settings.tiltChannel}: <code className={styles.endpointAddress}>
+                      {oscAssignments && oscAssignments[settings.tiltChannel - 1] 
+                        ? oscAssignments[settings.tiltChannel - 1] 
+                        : `/1/fader${settings.tiltChannel}`}
+                    </code>
+                  </p>
+                  <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+                    When OSC is enabled, messages will be sent to these endpoints and visible in the OSC Monitor.
+                    Configure OSC assignments in the main ArtBastard settings.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
         </div>
         
         <div className={styles.status}>
@@ -1072,16 +2041,75 @@ export const FaceTracker: React.FC = () => {
             </span>
           </div>
           <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Pan:</span>
-            <span>{state.currentPan}</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Tilt:</span>
-            <span>{state.currentTilt}</span>
-          </div>
-          <div className={styles.statusItem}>
             <span className={styles.statusLabel}>FPS:</span>
             <span>{state.fps}</span>
+          </div>
+        </div>
+
+        {/* Live Pan/Tilt Control Indicators */}
+        <div className={styles.liveControlSection}>
+          <h4 className={styles.controlsTitle}>Live Control Output</h4>
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current pan value being sent to DMX (0-255)">
+              Pan: {state.currentPan}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>0</span>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentPan}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current pan value being sent to DMX (0-255)"
+              />
+              <span className={styles.rangeLabel}>255</span>
+              <input
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentPan}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current pan value being sent to DMX (0-255)"
+              />
+            </div>
+          </div>
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel} title="Current tilt value being sent to DMX (0-255)">
+              Tilt: {state.currentTilt}
+            </label>
+            <div className={styles.sliderWrapper}>
+              <span className={styles.rangeLabel}>0</span>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentTilt}
+                readOnly
+                disabled
+                className={`${styles.slider} ${styles.liveSlider}`}
+                title="Current tilt value being sent to DMX (0-255)"
+              />
+              <span className={styles.rangeLabel}>255</span>
+              <input
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+                value={state.currentTilt}
+                readOnly
+                disabled
+                className={styles.numberInput}
+                title="Current tilt value being sent to DMX (0-255)"
+              />
+            </div>
           </div>
         </div>
       </div>

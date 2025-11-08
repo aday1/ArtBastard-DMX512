@@ -5,7 +5,6 @@ import { useTheme } from '../../context/ThemeContext'
 import { useSocket } from '../../context/SocketContext'
 import { useChromaticEnergyManipulatorSettings } from '../../context/ChromaticEnergyManipulatorContext'
 import { MidiLearnButton } from '../midi/MidiLearnButton'
-import { DebugMenu } from '../debug/DebugMenu'
 
 import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version';
 import { ReleaseNotes } from './ReleaseNotes'
@@ -406,7 +405,6 @@ export const UnifiedSettings: React.FC = () => {
               { id: 'theme', label: 'Theme', icon: 'fas fa-palette' },
               { id: 'network', label: 'Network', icon: 'fas fa-network-wired' },
               { id: 'performance', label: 'Performance', icon: 'fas fa-tachometer-alt' },
-              { id: 'debug', label: 'Debug', icon: 'fas fa-bug' },
               { id: 'advanced', label: 'Advanced', icon: 'fas fa-tools' },
               { id: 'state', label: 'State Management', icon: 'fas fa-database' }
             ].map(section => (
@@ -698,33 +696,6 @@ export const UnifiedSettings: React.FC = () => {
             )}
 
 
-            {/* Debug Section */}
-            {activeSection === 'debug' && (
-              <div className={styles.settingsSection}>
-                <h3><i className="fas fa-bug"></i> Debug & Development Tools</h3>
-                
-                <div className={styles.settingGroup}>
-                  <label className={styles.settingLabel}>
-                    <i className="fas fa-tools"></i>
-                    Debug Menu
-                  </label>
-                  <p className={styles.settingDescription}>
-                    Comprehensive debugging tools for MIDI, OSC, and DMX functionality.
-                  </p>
-                  
-                  {/* Embedded Debug Menu without overlay */}
-                  <div style={{ 
-                    border: '1px solid var(--border-color, #333)', 
-                    borderRadius: '8px', 
-                    padding: '1rem',
-                    backgroundColor: 'var(--card-background, rgba(255,255,255,0.05))',
-                    marginTop: '1rem'
-                  }}>
-                    <DebugMenu position="embedded" />
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Advanced Settings */}
             {activeSection === 'advanced' && (

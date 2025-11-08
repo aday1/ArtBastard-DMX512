@@ -57,7 +57,6 @@ export const PanelLayout: React.FC = () => {
 
   return (
     <div className={styles.layoutContainer}>
-      <ComponentToolbar />
       <div
         ref={layoutRef}
         className={styles.panelLayout}

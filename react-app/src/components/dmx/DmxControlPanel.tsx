@@ -416,7 +416,6 @@ export const DmxControlPanel: React.FC = () => {
             key={index} 
             index={index}
             allowFullscreen={!selectedChannelsOnlyMode} 
-            allowDetach={!selectedChannelsOnlyMode}
             touchOptimized={selectedChannelsOnlyMode}
           />
         ))}

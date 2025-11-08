@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { usePanels, PanelId, PanelComponent } from '../../context/PanelContext';
 import { renderComponent } from './ComponentRegistry';
+import { ComponentToolbar } from './ComponentToolbar';
 import styles from './ResizablePanel.module.scss';
 
 interface ResizablePanelProps {
@@ -24,6 +25,7 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
   const [showPanelControls, setShowPanelControls] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [isPanelFullScreen, setIsPanelFullScreen] = useState(false);
 
@@ -145,6 +147,13 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
         </h3>
         
         <div className={styles.panelControls}>
+          <button
+            className={styles.panelControlButton}
+            onClick={() => setShowToolbar(!showToolbar)}
+            title="Toggle Component Toolbar"
+          >
+            <i className="fas fa-toolbox"></i>
+          </button>
           <button
             className={styles.panelControlButton}
             onClick={togglePanelFullScreen}
@@ -303,6 +312,15 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Component Toolbar - slides out from panel */}
+      {showToolbar && (
+        <ComponentToolbar 
+          panelId={panelId}
+          panelRef={panelRef}
+          onClose={() => setShowToolbar(false)}
+        />
+      )}
     </div>
   );
 };
