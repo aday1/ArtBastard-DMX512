@@ -816,8 +816,8 @@ export const FaceTracker: React.FC = () => {
       }
     }, 500); // Debounce: save 500ms after last change
   }, []);
-  // Always show preview when running - no toggle needed
-  const showPreview = state.isRunning; // Always show when Face Tracker is running
+  // Camera preview toggle - can be disabled to prevent crashes
+  const [showPreview, setShowPreview] = useState(true); // Default to enabled
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isDetached, setIsDetached] = useState(false);
@@ -1324,8 +1324,8 @@ export const FaceTracker: React.FC = () => {
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
-    // Stop the loop if not running (preview always shows when running)
-    if (!state.isRunning || !videoRef.current || !canvasRef.current) {
+    // Stop the loop if not running or preview disabled
+    if (!state.isRunning || !showPreview || !videoRef.current || !canvasRef.current) {
       previewFrameRef.current = undefined;
       return;
     }
@@ -1594,7 +1594,7 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     }
-  }, [state.currentPan, state.currentTilt, state.isRunning, showOverlays]);
+  }, [state.currentPan, state.currentTilt, state.isRunning, showOverlays, showPreview]);
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
@@ -2723,12 +2723,14 @@ export const FaceTracker: React.FC = () => {
     
     console.log('[FaceTracker] Starting preview and detection loops');
     
-    // Start fast preview rendering
-    renderPreview();
+    // Start fast preview rendering only if preview is enabled
+    if (showPreview) {
+      renderPreview();
+    }
     
     // Start face detection (runs at lower rate)
     detectFaces();
-  }, [renderPreview, detectFaces, state.isRunning]);
+  }, [renderPreview, detectFaces, state.isRunning, showPreview]);
 
   useEffect(() => {
     console.log('[FaceTracker] Effect triggered', {
@@ -3168,56 +3170,94 @@ export const FaceTracker: React.FC = () => {
           </div>
 
           <div className={styles.previewSection}>
-            {/* Overlay Toggle - Above camera preview */}
+            {/* Camera Preview Toggle - Above camera preview */}
             <div className={styles.controlSection} style={{ marginBottom: '0.5rem', padding: '0.5rem' }}>
               <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
-                <label className={styles.controlLabel} style={{ fontSize: '0.9rem' }} title="Toggle face detection overlays on camera preview">
+                <label className={styles.controlLabel} style={{ fontSize: '0.9rem', fontWeight: 'bold' }} title="Toggle camera preview display">
                   <input
                     type="checkbox"
-                    checked={showOverlays}
-                    onChange={(e) => setShowOverlays(e.target.checked)}
+                    checked={showPreview}
+                    onChange={(e) => {
+                      setShowPreview(e.target.checked);
+                      // Stop preview loop immediately if disabled
+                      if (!e.target.checked && previewFrameRef.current) {
+                        cancelAnimationFrame(previewFrameRef.current);
+                        previewFrameRef.current = undefined;
+                      }
+                    }}
                     disabled={!state.isRunning}
                     style={{ marginRight: '0.5rem', transform: 'scale(1.1)' }}
                   />
-                  Show Detection Overlays
+                  Show Camera Preview
                 </label>
                 <p className={styles.helpText} style={{ fontSize: '0.7rem', marginTop: '0.25rem', marginBottom: 0, opacity: 0.7 }}>
                   {state.isRunning 
-                    ? 'Enable to see face detection rectangles and indicators on camera preview' 
-                    : 'Start Face Tracker first to enable overlays'}
+                    ? 'Enable to see camera feed. Disable if preview causes crashes.' 
+                    : 'Start Face Tracker first to enable preview'}
                 </p>
               </div>
             </div>
             
-            {/* Camera Preview - Always shown when running */}
-            <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
-              <div className={styles.previewHeader}>
-                <span className={styles.previewTitle}>Camera Preview</span>
-                <button
-                  className={styles.detachButton}
-                  onClick={() => setIsDetached(!isDetached)}
-                  title={isDetached ? "Reattach Preview" : "Detach Preview"}
-                >
-                  <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
-                  <span>{isDetached ? 'Reattach' : 'Detach'}</span>
-                </button>
+            {/* Overlay Toggle - Above camera preview */}
+            {showPreview && (
+              <div className={styles.controlSection} style={{ marginBottom: '0.5rem', padding: '0.5rem' }}>
+                <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
+                  <label className={styles.controlLabel} style={{ fontSize: '0.9rem' }} title="Toggle face detection overlays on camera preview">
+                    <input
+                      type="checkbox"
+                      checked={showOverlays}
+                      onChange={(e) => setShowOverlays(e.target.checked)}
+                      disabled={!state.isRunning}
+                      style={{ marginRight: '0.5rem', transform: 'scale(1.1)' }}
+                    />
+                    Show Detection Overlays
+                  </label>
+                  <p className={styles.helpText} style={{ fontSize: '0.7rem', marginTop: '0.25rem', marginBottom: 0, opacity: 0.7 }}>
+                    {state.isRunning 
+                      ? 'Enable to see face detection rectangles and indicators on camera preview' 
+                      : 'Start Face Tracker first to enable overlays'}
+                  </p>
+                </div>
               </div>
-              {!isDetached && (
-                <>
-                  <video
-                    ref={videoRef}
-                    className={styles.video}
-                    autoPlay
-                    playsInline
-                    muted
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className={styles.canvas}
-                  />
-                </>
-              )}
-            </div>
+            )}
+            
+            {/* Camera Preview - Shown when enabled */}
+            {showPreview ? (
+              <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
+                <div className={styles.previewHeader}>
+                  <span className={styles.previewTitle}>Camera Preview</span>
+                  <button
+                    className={styles.detachButton}
+                    onClick={() => setIsDetached(!isDetached)}
+                    title={isDetached ? "Reattach Preview" : "Detach Preview"}
+                  >
+                    <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
+                    <span>{isDetached ? 'Reattach' : 'Detach'}</span>
+                  </button>
+                </div>
+                {!isDetached && (
+                  <>
+                    <video
+                      ref={videoRef}
+                      className={styles.video}
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className={styles.canvas}
+                    />
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className={styles.noPreview} style={{ padding: '2rem', textAlign: 'center' }}>
+                Camera preview disabled
+                <br />
+                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Enable "Show Camera Preview" above to view camera feed</span>
+              </div>
+            )}
 
             {/* Detached Camera Preview Window */}
             {isDetached && state.isRunning && (
