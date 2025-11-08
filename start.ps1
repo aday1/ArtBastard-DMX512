@@ -295,12 +295,12 @@ if ($Quick) {
     
     # Quick install (uses existing package-lock.json if available)
     Write-Host "📦 Quick npm install..." -ForegroundColor Cyan
-    npm install --prefer-offline --no-audit
+    npm install --prefer-offline --no-audit --legacy-peer-deps
     
     # Quick install for react-app
     Write-Host "📦 Quick react-app install..." -ForegroundColor Cyan
     Set-Location react-app
-    npm install --prefer-offline --no-audit
+    npm install --prefer-offline --no-audit --legacy-peer-deps
     Set-Location ..
     
     # Build and start
@@ -518,7 +518,7 @@ if (-not $Clear) {
         Write-Host "Dependencies missing - installing..." -ForegroundColor Yellow
         if ($needsRootInstall) {
             Write-Host "  Installing root dependencies..." -ForegroundColor Cyan
-            npm install --prefer-offline --no-optional --no-audit --no-fund
+            npm install --prefer-offline --no-optional --no-audit --no-fund --legacy-peer-deps
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "Root dependency installation failed!" -ForegroundColor Red
                 exit 1
@@ -527,7 +527,7 @@ if (-not $Clear) {
         if ($needsFrontendInstall) {
             Write-Host "  Installing frontend dependencies..." -ForegroundColor Cyan
             Push-Location react-app
-            npm install --prefer-offline --no-optional --no-audit --no-fund
+            npm install --prefer-offline --no-optional --no-audit --no-fund --legacy-peer-deps
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "Frontend dependency installation failed!" -ForegroundColor Red
                 Pop-Location
