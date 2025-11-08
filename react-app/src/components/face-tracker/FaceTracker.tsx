@@ -1433,11 +1433,20 @@ export const FaceTracker: React.FC = () => {
 
       // Draw persistent overlays from last detection (makes them less blinky)
       // Reuse 'now' variable from above to avoid redeclaration
-      const faceTimeout = 500; // Keep showing face for 500ms after last detection
+      const faceTimeout = 2000; // Keep showing face for 2 seconds after last detection (increased for better visibility)
       
       // Always draw overlays when face is detected (toggles removed - always enabled)
       const shouldDrawOverlays = lastFacePositionRef.current && 
           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
+      
+      // Debug: Log overlay drawing status occasionally
+      if (Math.random() < 0.01) {
+        console.log('[FaceTracker] Overlay status:', {
+          hasFacePosition: !!lastFacePositionRef.current,
+          timeSinceDetection: lastFacePositionRef.current ? (now - lastFacePositionRef.current.timestamp) : null,
+          shouldDraw: shouldDrawOverlays
+        });
+      }
       
       if (shouldDrawOverlays) {
         try {
@@ -1728,12 +1737,14 @@ export const FaceTracker: React.FC = () => {
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
-    console.log('[FaceTracker] detectFaces called', {
+    console.log('[FaceTracker] 🔍 detectFaces called', {
       opencvReady: !!opencvRef.current,
       cascadeReady: !!cascadeRef.current,
-      videoReady: !!videoRef.current,
+      videoReady: !!videoRef.current && videoRef.current?.readyState >= 2,
       canvasReady: !!canvasRef.current,
-      isRunning: state.isRunning
+      isRunning: state.isRunning,
+      videoWidth: videoRef.current?.videoWidth,
+      videoHeight: videoRef.current?.videoHeight
     });
     
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
@@ -1885,7 +1896,19 @@ export const FaceTracker: React.FC = () => {
           }
           
           // Perform face detection
-          cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+          try {
+            cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+            // Log detection attempt for debugging
+            const detectedFaces = faces.size();
+            if (detectedFaces > 0) {
+              console.log('[FaceTracker] ✅ Detection successful! Faces found:', detectedFaces);
+            } else if (Math.random() < 0.1) {
+              console.log('[FaceTracker] 🔍 Detection attempt completed, no faces found');
+            }
+          } catch (detectError) {
+            console.error('[FaceTracker] Error in detectMultiScale:', detectError);
+            throw detectError;
+          }
         } catch (detectionError) {
           // Silent error handling to prevent Firefox crashes
           // Cleanup and continue
@@ -1906,10 +1929,12 @@ export const FaceTracker: React.FC = () => {
         
         const detectionTime = performance.now() - detectionStartTime;
         
-        // Log detection results occasionally for debugging
+        // Log detection results for debugging - always log when face detected
         const facesCount = faces.size();
-        if (facesCount > 0 && Math.random() < 0.1) {
-          console.log('[FaceTracker] Face detected! Count:', facesCount);
+        if (facesCount > 0) {
+          console.log('[FaceTracker] ✅ Face detected! Count:', facesCount, 'at', new Date().toLocaleTimeString());
+        } else if (Math.random() < 0.1) {
+          console.log('[FaceTracker] ⚠️ No faces detected in frame');
         }
 
         let faceDetected = false;
@@ -2821,13 +2846,27 @@ export const FaceTracker: React.FC = () => {
       };
 
     // Start the detection loop
-    console.log('[FaceTracker] Starting processDetection loop');
+    console.log('[FaceTracker] 🚀 Starting processDetection loop', {
+      isRunning: state.isRunning,
+      opencvReady: !!opencvRef.current,
+      cascadeReady: !!cascadeRef.current,
+      alreadyRunning: !!detectionFrameRef.current
+    });
     // Only start if running and initialized - don't recreate if already running
     if (state.isRunning && opencvRef.current && cascadeRef.current) {
       // Always start if not already running (even if detectionFrameRef is set, restart it)
       if (!detectionFrameRef.current) {
+        console.log('[FaceTracker] ▶️ Calling processDetection()');
         processDetection();
+      } else {
+        console.log('[FaceTracker] ⏸️ Detection loop already running, skipping');
       }
+    } else {
+      console.warn('[FaceTracker] ⛔ Cannot start detection:', {
+        isRunning: state.isRunning,
+        opencvReady: !!opencvRef.current,
+        cascadeReady: !!cascadeRef.current
+      });
     }
     
     // Cleanup function to stop loop when dependencies change
@@ -3365,6 +3404,36 @@ export const FaceTracker: React.FC = () => {
           </div>
 
           <div className={styles.previewSection}>
+            {/* Gesture Display - At top near camera preview */}
+            {settings.enableGestures && state.isRunning && (
+              <div className={styles.gestureIndicator}>
+                <div className={styles.gestureLabel}>Gesture Detection</div>
+                <div className={styles.gestureDisplay}>
+                  {state.currentGesture ? (
+                    <>
+                      <span className={styles.gestureEmoji}>
+                        {state.currentGesture === 'SMILING' && '😊'}
+                        {state.currentGesture === 'SAD' && '😢'}
+                        {state.currentGesture === 'SURPRISED' && '😲'}
+                        {state.currentGesture === 'NODDING' && '👍'}
+                        {state.currentGesture === 'SHAKING HEAD' && '👎'}
+                        {state.currentGesture === 'THUMBS_UP' && '👍'}
+                        {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
+                        {state.currentGesture === 'FIST' && '✊'}
+                        {state.currentGesture === 'OPEN_HAND' && '✋'}
+                        {state.currentGesture === 'NEUTRAL' && '😐'}
+                        {state.currentGesture === 'STILL' && '⏸️'}
+                        {!['SMILING', 'SAD', 'SURPRISED', 'NODDING', 'SHAKING HEAD', 'THUMBS_UP', 'MIDDLE_FINGER', 'FIST', 'OPEN_HAND', 'NEUTRAL', 'STILL'].includes(state.currentGesture) && '👤'}
+                      </span>
+                      <span className={styles.gestureText}>{state.currentGesture}</span>
+                    </>
+                  ) : (
+                    <span className={styles.gestureText}>No gesture detected</span>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Camera Preview - Always shown when running (toggles removed) */}
             {state.isRunning && (
               <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
@@ -5118,27 +5187,6 @@ export const FaceTracker: React.FC = () => {
             </div>
           </div>
           
-          {/* Gesture Display */}
-          {settings.enableGestures && state.currentGesture && (
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel} title="Current detected gesture">
-                Gesture: <strong>{state.currentGesture}</strong>
-              </label>
-              <div className={styles.gestureDisplay}>
-                {state.currentGesture === 'SMILING' && '😊'}
-                {state.currentGesture === 'SAD' && '😢'}
-                {state.currentGesture === 'SURPRISED' && '😲'}
-                {state.currentGesture === 'NODDING' && '👍'}
-                {state.currentGesture === 'SHAKING HEAD' && '👎'}
-                {state.currentGesture === 'THUMBS_UP' && '👍'}
-                {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
-                {state.currentGesture === 'FIST' && '✊'}
-                {state.currentGesture === 'OPEN_HAND' && '✋'}
-                {state.currentGesture === 'NEUTRAL' && '😐'}
-                {state.currentGesture === 'STILL' && '⏸️'}
-              </div>
-            </div>
-          )}
         </div>
         </div>
       </div>

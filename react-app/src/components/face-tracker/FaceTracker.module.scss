@@ -212,6 +212,16 @@
   flex-direction: column;
   gap: 0.75rem;
   min-width: 0; // Prevent overflow
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
   
   .helpText {
     display: block;
@@ -220,7 +230,7 @@
     color: var(--text-secondary);
     line-height: 1.4;
     padding: 0.5rem;
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     border-left: 3px solid var(--accent-color);
     border-radius: 4px;
     opacity: 0.9;
@@ -229,12 +239,13 @@
   label,
   .controlLabel {
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.4;
+    margin-bottom: 0.25rem;
   }
 
   input[type="number"] {
@@ -591,6 +602,56 @@
   }
 }
 
+.gestureIndicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  min-height: 200px;
+  justify-content: center;
+  align-items: center;
+  
+  .gestureLabel {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .gestureDisplay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 120px;
+  }
+  
+  .gestureEmoji {
+    font-size: 4rem;
+    line-height: 1;
+    animation: gesturePulse 0.5s ease-in-out;
+  }
+  
+  .gestureText {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    text-align: center;
+    text-transform: capitalize;
+  }
+}
+
+@keyframes gesturePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
 .previewContainer {
   flex: 1;
   display: flex;
@@ -598,11 +659,17 @@
   gap: 0.5rem;
   min-height: 0;
   position: relative;
-  overflow: hidden; // Prevent content from exceeding container
+  background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 0.5rem;
-  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
   
   // Hide preview when detached
   &.detached {
@@ -621,11 +688,17 @@
   min-height: 0;
   position: relative;
   overflow: hidden;
+  background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 0.5rem;
-  background: var(--bg-secondary);
   z-index: 10; /* Position above lattice/grid */
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
   
   &.detached {
     min-height: auto;
@@ -863,10 +936,16 @@
 
 .allControls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1rem;
-  padding: 1rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
   overflow-y: auto;
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
   
   // Better scrolling
   &::-webkit-scrollbar {
