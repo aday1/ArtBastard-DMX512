@@ -958,40 +958,70 @@ export const FaceTracker: React.FC = () => {
 
   const initializeOpenCV = async () => {
     try {
+      console.log('[FaceTracker] Initializing OpenCV...', {
+        opencvExists: !!opencvRef.current,
+        hasCascadeClassifier: !!(opencvRef.current?.CascadeClassifier),
+        opencvKeys: opencvRef.current ? Object.keys(opencvRef.current).slice(0, 10) : []
+      });
+      
       if (!opencvRef.current || !opencvRef.current.CascadeClassifier) {
+        console.error('[FaceTracker] OpenCV not properly loaded', {
+          opencvRef: !!opencvRef.current,
+          CascadeClassifier: !!(opencvRef.current?.CascadeClassifier)
+        });
         throw new Error('OpenCV not loaded');
       }
 
       // Load face cascade classifier
       let text: string;
+      let cascadePath = '';
       try {
         const response = await fetch('/haarcascade_frontalface_alt.xml');
         if (!response.ok) {
           throw new Error('Not found');
         }
         text = await response.text();
+        cascadePath = '/haarcascade_frontalface_alt.xml';
+        console.log('[FaceTracker] Loaded cascade from /haarcascade_frontalface_alt.xml');
       } catch {
         // Try alternative path
-        const altResponse = await fetch('/face-tracker/haarcascade_frontalface_alt.xml');
-        if (!altResponse.ok) {
+        try {
+          const altResponse = await fetch('/face-tracker/haarcascade_frontalface_alt.xml');
+          if (!altResponse.ok) {
+            throw new Error('Not found');
+          }
+          text = await altResponse.text();
+          cascadePath = '/face-tracker/haarcascade_frontalface_alt.xml';
+          console.log('[FaceTracker] Loaded cascade from /face-tracker/haarcascade_frontalface_alt.xml');
+        } catch (altError) {
+          console.error('[FaceTracker] Failed to load cascade from both paths');
           throw new Error('Failed to load face cascade classifier. Please ensure haarcascade_frontalface_alt.xml is in the public directory.');
         }
-        text = await altResponse.text();
       }
 
+      if (!text || text.length === 0) {
+        throw new Error('Cascade classifier file is empty');
+      }
+
+      console.log('[FaceTracker] Writing cascade to OpenCV filesystem, size:', text.length);
       // Write to OpenCV filesystem
       opencvRef.current.FS.writeFile('haarcascade_frontalface_alt.xml', text);
 
+      console.log('[FaceTracker] Creating CascadeClassifier...');
       cascadeRef.current = new opencvRef.current.CascadeClassifier();
+      
+      console.log('[FaceTracker] Loading cascade classifier...');
       const loadResult = cascadeRef.current.load('haarcascade_frontalface_alt.xml');
       
       if (!loadResult) {
+        console.error('[FaceTracker] Cascade classifier load returned false');
         throw new Error('Failed to load cascade classifier file');
       }
       
       console.log('[FaceTracker] OpenCV initialized successfully, cascade classifier loaded');
       setState(prev => ({ ...prev, isInitialized: true, error: null }));
     } catch (error: any) {
+      console.error('[FaceTracker] OpenCV initialization error:', error);
       setState(prev => ({ ...prev, error: `Failed to initialize OpenCV: ${error?.message || error}` }));
     }
   };
@@ -1555,15 +1585,41 @@ export const FaceTracker: React.FC = () => {
         const detectionStartTime = performance.now();
         
         try {
+          // Verify cascade is still valid before detection
+          if (!cascadeRef.current) {
+            console.error('[FaceTracker] Cascade classifier is null or undefined');
+            if (src && !src.isDeleted()) src.delete();
+            if (gray && !gray.isDeleted()) gray.delete();
+            if (faces && !faces.isDeleted()) faces.delete();
+            if (msize && !msize.isDeleted()) msize.delete();
+            if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+            if (state.isRunning) {
+              detectionFrameRef.current = requestAnimationFrame(processDetection);
+            }
+            return;
+          }
+          
+          // Perform face detection
           cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
         } catch (detectionError) {
           console.error('[FaceTracker] Error during face detection:', detectionError);
+          console.error('[FaceTracker] Detection error details:', {
+            errorType: detectionError?.constructor?.name,
+            errorMessage: detectionError?.message,
+            cascadeExists: !!cascadeRef.current,
+            grayExists: !!gray,
+            facesExists: !!faces
+          });
           // Cleanup and continue
-          if (src && !src.isDeleted()) src.delete();
-          if (gray && !gray.isDeleted()) gray.delete();
-          if (faces && !faces.isDeleted()) faces.delete();
-          if (msize && !msize.isDeleted()) msize.delete();
-          if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+          try {
+            if (src && !src.isDeleted()) src.delete();
+            if (gray && !gray.isDeleted()) gray.delete();
+            if (faces && !faces.isDeleted()) faces.delete();
+            if (msize && !msize.isDeleted()) msize.delete();
+            if (maxSizeObj && !maxSizeObj.isDeleted()) maxSizeObj.delete();
+          } catch (cleanupError) {
+            console.error('[FaceTracker] Error during cleanup:', cleanupError);
+          }
           if (state.isRunning) {
             detectionFrameRef.current = requestAnimationFrame(processDetection);
           }
@@ -2500,9 +2556,20 @@ export const FaceTracker: React.FC = () => {
   }, [renderPreview, detectFaces, state.isRunning]);
 
   useEffect(() => {
+    console.log('[FaceTracker] Effect triggered', {
+      isRunning: state.isRunning,
+      isInitialized: state.isInitialized,
+      opencvReady: !!opencvRef.current,
+      cascadeReady: !!cascadeRef.current,
+      videoReady: !!videoRef.current,
+      canvasReady: !!canvasRef.current
+    });
+    
     if (state.isRunning && state.isInitialized) {
+      console.log('[FaceTracker] Starting tracking...');
       startTracking();
     } else {
+      console.log('[FaceTracker] Stopping tracking', { isRunning: state.isRunning, isInitialized: state.isInitialized });
       // Stop all loops when not running
       if (previewFrameRef.current) {
         cancelAnimationFrame(previewFrameRef.current);
@@ -2511,6 +2578,10 @@ export const FaceTracker: React.FC = () => {
       if (detectionFrameRef.current) {
         cancelAnimationFrame(detectionFrameRef.current);
         detectionFrameRef.current = undefined;
+      }
+      if (detectionTimeoutRef.current) {
+        clearTimeout(detectionTimeoutRef.current);
+        detectionTimeoutRef.current = undefined;
       }
     }
     return () => {
