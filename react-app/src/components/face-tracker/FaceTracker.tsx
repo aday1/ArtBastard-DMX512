@@ -1105,9 +1105,9 @@ export const FaceTracker: React.FC = () => {
         minimalConstraints.facingMode = { ideal: 'user' };
       }
       
-      // Add a small delay before getUserMedia to prevent Firefox freezes
-      // This gives the browser time to process previous operations
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Add a longer delay before getUserMedia to prevent Firefox freezes
+      // This gives the browser time to process previous operations and prevents crashes
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Add timeout for getUserMedia (Edge needs more time - 15 seconds)
       const cameraTimeout = new Promise<never>((_, reject) => {
@@ -1235,8 +1235,11 @@ export const FaceTracker: React.FC = () => {
       
       // Defer startTracking to prevent blocking during camera initialization
       // This gives the browser time to process the camera stream
-      // Note: startTracking is called via useEffect when state.isRunning changes
-      // So we don't need to call it here directly
+      // Use a longer delay to ensure camera is fully ready before starting detection
+      setTimeout(() => {
+        // startTracking will be called via useEffect when state.isRunning changes
+        // This delay just ensures the camera stream is fully established
+      }, 500);
     } catch (error: any) {
       const errorMsg = `Failed to start camera: ${error?.message || error}`;
       // Defer error state updates to prevent blocking
@@ -1350,8 +1353,8 @@ export const FaceTracker: React.FC = () => {
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
-    // Stop the loop if not running or preview disabled
-    if (!state.isRunning || !showPreview || !videoRef.current || !canvasRef.current) {
+    // Stop the loop if not running (preview always enabled - toggle removed)
+    if (!state.isRunning || !videoRef.current || !canvasRef.current) {
       previewFrameRef.current = undefined;
       return;
     }
@@ -1359,6 +1362,18 @@ export const FaceTracker: React.FC = () => {
     try {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      
+      // Additional safety check - ensure video is actually ready before drawing
+      if (!video.srcObject || video.readyState < video.HAVE_CURRENT_DATA) {
+        // Video not ready yet, try again in a bit
+        if (state.isRunning) {
+          previewFrameRef.current = requestAnimationFrame(() => {
+            setTimeout(renderPreview, 100);
+          });
+        }
+        return;
+      }
+      
       const now = performance.now();
       
       // Skip frames to reduce rendering load (target 15 FPS to prevent Firefox freezes)
@@ -1420,10 +1435,8 @@ export const FaceTracker: React.FC = () => {
       // Reuse 'now' variable from above to avoid redeclaration
       const faceTimeout = 500; // Keep showing face for 500ms after last detection
       
-      // Draw overlays only if enabled by user toggle
-      // Draw more frequently now that cleanup is fixed
-      const shouldDrawOverlays = showOverlays &&
-          lastFacePositionRef.current && 
+      // Always draw overlays when face is detected (toggles removed - always enabled)
+      const shouldDrawOverlays = lastFacePositionRef.current && 
           (now - lastFacePositionRef.current.timestamp) < faceTimeout;
       
       if (shouldDrawOverlays) {
@@ -1497,7 +1510,7 @@ export const FaceTracker: React.FC = () => {
             ctx.lineTo(imageCenterX, imageCenterY + 20);
             ctx.stroke();
             
-            // Draw eye detection boxes if available
+            // Draw eye detection boxes if available (coordinates are already scaled to full video size)
             if (face.leftEye) {
               ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
               ctx.lineWidth = 2;
@@ -1510,7 +1523,7 @@ export const FaceTracker: React.FC = () => {
               ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
             }
             
-            // Draw mouth detection box if available
+            // Draw mouth detection box if available (coordinates are already scaled to full video size)
             if (face.mouth) {
               const mouthOpenness = face.mouthOpenness || 0;
               const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
@@ -1711,7 +1724,7 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     }
-  }, [state.currentPan, state.currentTilt, state.isRunning, showOverlays, showPreview]);
+  }, [state.currentPan, state.currentTilt, state.isRunning]);
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
@@ -2858,19 +2871,43 @@ export const FaceTracker: React.FC = () => {
     
     console.log('[FaceTracker] Starting preview and detection loops');
     
-    // Defer starting loops to prevent blocking
+    // Defer starting loops to prevent blocking - use longer delay for Firefox stability
     setTimeout(() => {
-      // Start fast preview rendering only if preview is enabled
-      if (showPreview && state.isRunning) {
-        renderPreview();
+      // Only start if still running after delay
+      if (!state.isRunning) {
+        return;
       }
       
-      // Start face detection (runs at lower rate)
-      if (state.isRunning) {
-        detectFaces();
-      }
-    }, 200); // Delay to let camera fully initialize
-  }, [renderPreview, detectFaces, state.isRunning, showPreview]);
+      // Always start preview rendering (preview always enabled - toggle removed)
+      // Add another small delay before starting preview to ensure video is ready
+      setTimeout(() => {
+        if (state.isRunning && videoRef.current && canvasRef.current) {
+          const video = videoRef.current;
+          // Only start preview if video is actually ready
+          if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            renderPreview();
+          } else {
+            // Wait for video to be ready
+            const checkReady = () => {
+              if (video.readyState >= video.HAVE_CURRENT_DATA && state.isRunning) {
+                renderPreview();
+              } else if (state.isRunning) {
+                setTimeout(checkReady, 100);
+              }
+            };
+            setTimeout(checkReady, 100);
+          }
+        }
+      }, 200);
+      
+      // Start face detection (runs at lower rate) - delay this even more
+      setTimeout(() => {
+        if (state.isRunning) {
+          detectFaces();
+        }
+      }, 500); // Longer delay for detection to ensure camera is fully ready
+    }, 500); // Initial delay to let camera fully initialize
+  }, [renderPreview, detectFaces, state.isRunning]);
 
   useEffect(() => {
     console.log('[FaceTracker] Effect triggered', {
@@ -2921,19 +2958,19 @@ export const FaceTracker: React.FC = () => {
 
   // Handle preview toggle - start/stop preview loop
   useEffect(() => {
-    if (state.isRunning && showPreview && videoRef.current && canvasRef.current) {
-      // Start preview loop if enabled
+    if (state.isRunning && videoRef.current && canvasRef.current) {
+      // Start preview loop (always enabled - toggle removed)
       if (!previewFrameRef.current) {
         renderPreview();
       }
     } else {
-      // Stop preview loop if disabled
+      // Stop preview loop if not running
       if (previewFrameRef.current) {
         cancelAnimationFrame(previewFrameRef.current);
         previewFrameRef.current = undefined;
       }
     }
-  }, [showPreview, state.isRunning, renderPreview]);
+  }, [state.isRunning, renderPreview]);
 
   const updateSetting = (key: keyof FaceTrackerSettings, value: any) => {
     setSettings(prev => {
@@ -3328,59 +3365,8 @@ export const FaceTracker: React.FC = () => {
           </div>
 
           <div className={styles.previewSection}>
-            {/* Camera Preview Toggle - Above camera preview */}
-            <div className={styles.controlSection} style={{ marginBottom: '0.5rem', padding: '0.5rem' }}>
-              <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
-                <label className={styles.controlLabel} style={{ fontSize: '0.9rem', fontWeight: 'bold' }} title="Toggle camera preview display">
-                  <input
-                    type="checkbox"
-                    checked={showPreview}
-                    onChange={(e) => {
-                      setShowPreview(e.target.checked);
-                      // Stop preview loop immediately if disabled
-                      if (!e.target.checked && previewFrameRef.current) {
-                        cancelAnimationFrame(previewFrameRef.current);
-                        previewFrameRef.current = undefined;
-                      }
-                    }}
-                    disabled={!state.isRunning}
-                    style={{ marginRight: '0.5rem', transform: 'scale(1.1)' }}
-                  />
-                  Show Camera Preview
-                </label>
-                <p className={styles.helpText} style={{ fontSize: '0.7rem', marginTop: '0.25rem', marginBottom: 0, opacity: 0.7 }}>
-                  {state.isRunning 
-                    ? 'Enable to see camera feed. Disable if preview causes crashes.' 
-                    : 'Start Face Tracker first to enable preview'}
-                </p>
-              </div>
-            </div>
-            
-            {/* Overlay Toggle - Above camera preview */}
-            {showPreview && (
-              <div className={styles.controlSection} style={{ marginBottom: '0.5rem', padding: '0.5rem' }}>
-                <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
-                  <label className={styles.controlLabel} style={{ fontSize: '0.9rem' }} title="Toggle face detection overlays on camera preview">
-                    <input
-                      type="checkbox"
-                      checked={showOverlays}
-                      onChange={(e) => setShowOverlays(e.target.checked)}
-                      disabled={!state.isRunning}
-                      style={{ marginRight: '0.5rem', transform: 'scale(1.1)' }}
-                    />
-                    Show Detection Overlays
-                  </label>
-                  <p className={styles.helpText} style={{ fontSize: '0.7rem', marginTop: '0.25rem', marginBottom: 0, opacity: 0.7 }}>
-                    {state.isRunning 
-                      ? 'Enable to see face detection rectangles and indicators on camera preview' 
-                      : 'Start Face Tracker first to enable overlays'}
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {/* Camera Preview - Shown when enabled */}
-            {showPreview ? (
+            {/* Camera Preview - Always shown when running (toggles removed) */}
+            {state.isRunning && (
               <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
                 <div className={styles.previewHeader}>
                   <span className={styles.previewTitle}>Camera Preview</span>
@@ -3408,12 +3394,6 @@ export const FaceTracker: React.FC = () => {
                     />
                   </>
                 )}
-              </div>
-            ) : (
-              <div className={styles.noPreview} style={{ padding: '2rem', textAlign: 'center' }}>
-                Camera preview disabled
-                <br />
-                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Enable "Show Camera Preview" above to view camera feed</span>
               </div>
             )}
 
