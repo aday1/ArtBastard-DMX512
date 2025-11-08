@@ -580,10 +580,15 @@
   border-radius: 8px;
   padding: 0.5rem;
   background: var(--bg-secondary);
+  z-index: 10; /* Position above lattice/grid */
   
   &.detached {
     min-height: auto;
     height: auto;
+  }
+  
+  canvas {
+    z-index: 11; /* Ensure canvas is above everything */
   }
 }
 

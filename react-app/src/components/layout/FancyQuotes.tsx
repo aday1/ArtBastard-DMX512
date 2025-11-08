@@ -339,8 +339,6 @@ export const FancyQuotes: React.FC<FancyQuotesProps> = ({
   useEffect(() => {
     if (!animate) return;
     
-    console.log(`Setting up quote rotation with interval: ${intervalSeconds} seconds`);
-    
     // Initial setup - ensure we have a valid starting quote
     if (luxuryQuotes.length > 0) {
       const initialIndex = Math.floor(Math.random() * luxuryQuotes.length);
@@ -350,13 +348,11 @@ export const FancyQuotes: React.FC<FancyQuotesProps> = ({
     }
     
     const intervalId = setInterval(() => {
-      console.log('Quote rotation triggered');
       setIsVisible(false);
       
       // After fade out, change the quote
       setTimeout(() => {
         const newIndex = getRandomQuoteIndex();
-        console.log(`New quote index: ${newIndex}`);
         setCurrentQuoteIndex(newIndex);
         setQuoteColor(luxuryQuotes[newIndex]?.color || '#4ecdc4');
         setIsVisible(true);
@@ -365,7 +361,6 @@ export const FancyQuotes: React.FC<FancyQuotesProps> = ({
     }, intervalSeconds * 1000);
     
     return () => {
-      console.log('Cleaning up quote rotation interval');
       clearInterval(intervalId);
     };
   }, [intervalSeconds, animate, getRandomQuoteIndex]);

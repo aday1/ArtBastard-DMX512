@@ -1630,8 +1630,9 @@ export const FaceTracker: React.FC = () => {
         
         // Log detection info more frequently for debugging
         const facesFound = faces.size();
-        if (Math.random() < 0.1) { // 10% chance = more frequent logging
-          console.log(`[OpenCV] Detection cycle - Faces found: ${facesFound}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}, Video ready: ${video.readyState === video.HAVE_ENOUGH_DATA}`);
+        // Log every 10th frame for debugging (more frequent)
+        if (detectionCallCount % 10 === 0) {
+          console.log(`[OpenCV] Detection cycle #${detectionCallCount} - Faces found: ${facesFound}, Detection time: ${detectionTime.toFixed(2)}ms, Canvas size: ${detWidth}x${detHeight}, Video ready: ${video.readyState === video.HAVE_ENOUGH_DATA}`);
         }
 
         let faceDetected = false;
@@ -2508,15 +2509,27 @@ export const FaceTracker: React.FC = () => {
         } catch (error) {
           // Catch any unhandled errors and log them
           console.error('[FaceTracker] Frame processing error:', error);
+          console.error('[FaceTracker] Error details:', {
+            errorType: error?.constructor?.name,
+            errorMessage: error?.message,
+            stack: error?.stack
+          });
           // Only continue loop if still running
           if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
+            // Add a small delay before retrying to prevent tight error loop
+            setTimeout(() => {
+              if (state.isRunning && detectionFrameRef.current === undefined) {
+                detectionFrameRef.current = requestAnimationFrame(processDetection);
+              }
+            }, 100);
           } else {
             detectionFrameRef.current = undefined;
           }
         }
       };
 
+    // Start the detection loop
+    console.log('[FaceTracker] Starting processDetection loop');
     processDetection();
   }, [state.isRunning, settings, showPreview, socket, state.currentPan, state.currentTilt]);
 
@@ -2899,6 +2912,18 @@ export const FaceTracker: React.FC = () => {
                   startCamera();
                 } else {
                   stopCamera();
+                }
+              }}
+              onClick={(e) => {
+                // Edge compatibility: ensure click is handled
+                e.stopPropagation();
+                const target = e.target as HTMLInputElement;
+                if (target.checked !== state.isRunning) {
+                  if (target.checked) {
+                    startCamera();
+                  } else {
+                    stopCamera();
+                  }
                 }
               }}
               disabled={!state.isInitialized}
