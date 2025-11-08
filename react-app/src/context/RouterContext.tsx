@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'scenesActs' | 'misc' | 'state' | 'dmxControl' | 'debug'
+export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'planner' | 'scenesActs' | 'misc' | 'state' | 'dmxControl' | 'debug' | 'experimental'
 
 interface RouterContextType {
   currentView: ViewType

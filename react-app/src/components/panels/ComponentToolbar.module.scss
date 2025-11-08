@@ -1,17 +1,22 @@
 .componentToolbar {
   position: fixed;
   top: 20px;
-  right: 240px; // Moved to avoid navbar overlap
+  right: calc(var(--navbar-expanded-width, 240px) + 20px); // Dynamic spacing from navbar
   width: 320px;
-  max-height: 80vh;
+  max-height: calc(100vh - 40px); // Account for top/bottom spacing
   background: rgba(0, 0, 0, 0.95);
   border: 1px solid rgba(78, 205, 196, 0.3);
   border-radius: 8px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 1000; // Lower than navbar z-index (1001)
+  z-index: 1020; // Below navbar (1030) but above content
   transition: all 0.3s ease;
   overflow: hidden;
+
+  // Adjust position when navbar is collapsed
+  :global(body.navbar-is-collapsed) & {
+    right: calc(var(--navbar-collapsed-width, 64px) + 20px);
+  }
 
   &.collapsed {
     height: auto;
@@ -415,21 +420,52 @@
     padding: 0.75rem;
     background: rgba(0, 0, 0, 0.6);
     border: 1px solid rgba(78, 205, 196, 0.2);
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: grab;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(78, 205, 196, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
 
     &:hover {
-      background: rgba(78, 205, 196, 0.1);
-      border-color: rgba(78, 205, 196, 0.4);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      background: rgba(78, 205, 196, 0.15);
+      border-color: rgba(78, 205, 196, 0.5);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(78, 205, 196, 0.2);
+
+      &::before {
+        left: 100%;
+      }
+
+      .dragIndicator {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    &.hovered {
+      border-color: rgba(78, 205, 196, 0.6);
     }
 
     &.dragging {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: grabbing;
+      transform: scale(0.95);
+      border-color: rgba(78, 205, 196, 0.8);
+      box-shadow: 0 0 20px rgba(78, 205, 196, 0.4);
     }
 
     .componentIcon {
@@ -442,6 +478,14 @@
       border-radius: 4px;
       color: #4ecdc4;
       font-size: 1rem;
+    }
+
+    .dragIndicator {
+      opacity: 0;
+      transform: translateX(-5px);
+      transition: all 0.3s ease;
+      color: rgba(78, 205, 196, 0.6);
+      font-size: 0.85rem;
     }
 
     .componentInfo {

@@ -7,8 +7,9 @@ import ActsScenesPage from '../../pages/ActsScenesPage'
 import SettingsPage from '../../pages/SettingsPage'
 import DmxChannelControlPage from '../pages/DmxChannelControlPage'
 import DebugPage from '../../pages/DebugPage'
+import ExperimentalPage from '../../pages/ExperimentalPage'
 
-export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenesActs' | 'misc' | 'dmxControl' | 'debug'
+export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenesActs' | 'misc' | 'dmxControl' | 'debug' | 'experimental'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
@@ -28,6 +29,8 @@ const PageRouter: React.FC = () => {
         return <DmxChannelControlPage />
       case 'debug':
         return <DebugPage />
+      case 'experimental':
+        return <ExperimentalPage />
       default:
         return <MainPage />
     }

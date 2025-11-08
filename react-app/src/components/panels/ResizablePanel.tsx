@@ -39,13 +39,23 @@ export const ResizablePanel: React.FC<ResizablePanelProps> = ({
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
+    e.stopPropagation();
+    // Only set drag over to false if we're actually leaving the panel
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = e.clientX;
+      const y = e.clientY;
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+        setIsDragOver(false);
+      }
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

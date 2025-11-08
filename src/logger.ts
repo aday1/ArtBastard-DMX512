@@ -22,6 +22,7 @@ const logTypes = {
   DMX: { color: chalk.gray, label: 'DMX', colorString: 'gray' },
   SYSTEM: { color: chalk.white.bold, label: 'SYSTEM', colorString: 'white' },
   CLOCK: { color: chalk.hex('#FF69B4'), label: 'CLOCK', colorString: 'hotpink' }, // Hot Pink
+  FACE_TRACKER: { color: chalk.hex('#00CED1'), label: 'FACE_TRACKER', colorString: 'darkturquoise' }, // Dark Turquoise
 };
 
 export type LogType = keyof typeof logTypes;

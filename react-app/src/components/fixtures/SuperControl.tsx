@@ -1088,21 +1088,114 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       b: Math.round((b + m) * 255)
     };  };
 
-  // MIDI Learn Button Component for SuperControl
+  // Enhanced MIDI/OSC Learn Button Component for SuperControl
+  const [editingOscAddress, setEditingOscAddress] = useState<string | null>(null);
+  const [oscInputValue, setOscInputValue] = useState<string>('');
+
   const renderMidiButtons = (controlName: string) => {
     const isCurrentlyLearning = isSuperControlLearning && currentLearningControlName === controlName;
     const hasMapping = superControlMappings[controlName];
     const oscAddress = oscAddresses[controlName];
+    const isEditingOsc = editingOscAddress === controlName;
+    
+    const handleOscEdit = () => {
+      setEditingOscAddress(controlName);
+      setOscInputValue(oscAddress || '');
+    };
+
+    const handleOscSave = () => {
+      if (oscInputValue.trim()) {
+        updateOscAddress(controlName, oscInputValue.trim());
+      }
+      setEditingOscAddress(null);
+      setOscInputValue('');
+    };
+
+    const handleOscCancel = () => {
+      setEditingOscAddress(null);
+      setOscInputValue('');
+    };
+
+    const handleOscDelete = () => {
+      updateOscAddress(controlName, '');
+      setEditingOscAddress(null);
+    };
     
     return (
       <div className={styles.midiOscButtons}>
-        {/* OSC Address Display */}
-        {oscAddress && (
-          <div className={styles.oscInfo}>
-            <span className={styles.oscLabel}>OSC:</span>
-            <span className={styles.oscAddress}>{oscAddress}</span>
-          </div>
-        )}
+        {/* OSC Address Section */}
+        <div className={styles.oscSection}>
+          {isEditingOsc ? (
+            <div className={styles.oscEditMode}>
+              <input
+                type="text"
+                value={oscInputValue}
+                onChange={(e) => setOscInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleOscSave();
+                  if (e.key === 'Escape') handleOscCancel();
+                }}
+                placeholder="/supercontrol/..."
+                className={styles.oscInput}
+                autoFocus
+              />
+              <div className={styles.oscEditActions}>
+                <button
+                  className={styles.oscSaveButton}
+                  onClick={handleOscSave}
+                  title="Save OSC address"
+                >
+                  <LucideIcon name="Check" />
+                </button>
+                <button
+                  className={styles.oscCancelButton}
+                  onClick={handleOscCancel}
+                  title="Cancel editing"
+                >
+                  <LucideIcon name="X" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.oscDisplayMode}>
+              {oscAddress ? (
+                <>
+                  <div className={styles.oscInfo}>
+                    <LucideIcon name="Globe" className={styles.oscIcon} />
+                    <span className={styles.oscAddress} title={`OSC: ${oscAddress}`}>
+                      {oscAddress}
+                    </span>
+                  </div>
+                  <div className={styles.oscActions}>
+                    <button
+                      className={styles.oscEditButton}
+                      onClick={handleOscEdit}
+                      title="Edit OSC address"
+                    >
+                      <LucideIcon name="Edit" />
+                    </button>
+                    <button
+                      className={styles.oscDeleteButton}
+                      onClick={handleOscDelete}
+                      title="Remove OSC address"
+                    >
+                      <LucideIcon name="Trash2" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  className={styles.oscAddButton}
+                  onClick={handleOscEdit}
+                  title="Add OSC address"
+                >
+                  <LucideIcon name="Plus" />
+                  <span>OSC</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         
         {/* MIDI Learn/Forget Buttons */}
         <div className={styles.midiControls}>
@@ -1113,19 +1206,22 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               disabled={isSuperControlLearning && !isCurrentlyLearning}
               title={isCurrentlyLearning ? 'Send MIDI CC or Note...' : 'Learn MIDI mapping'}
             >
-              {isCurrentlyLearning ? '🎵 Listening...' : 'MIDI Learn'}
+              <LucideIcon name={isCurrentlyLearning ? "Radio" : "Music"} />
+              {isCurrentlyLearning ? 'Listening...' : 'MIDI'}
             </button>
           ) : (
             <div className={styles.midiMappingInfo}>
-              <span className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel + 1}`}>
-                MIDI: {hasMapping.controller ? `CC${hasMapping.controller}` : `N${hasMapping.note}`} CH{hasMapping.channel + 1}
-              </span>
+              <div className={styles.midiMappedIndicator} title={`Mapped to ${hasMapping.controller ? `CC${hasMapping.controller}` : `Note${hasMapping.note}`} on channel ${hasMapping.channel + 1}`}>
+                <LucideIcon name="Link" />
+                <span>{hasMapping.controller ? `CC${hasMapping.controller}` : `N${hasMapping.note}`}</span>
+                <span className={styles.midiChannel}>CH{hasMapping.channel + 1}</span>
+              </div>
               <button
                 className={styles.midiForgetButton}
                 onClick={() => forgetSuperControlMidiMapping(controlName)}
                 title="Remove MIDI mapping"
               >
-                Forget
+                <LucideIcon name="Unlink" />
               </button>
             </div>
           )}

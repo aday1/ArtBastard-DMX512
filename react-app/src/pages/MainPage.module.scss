@@ -1,484 +1,279 @@
+// CSS variables are defined globally in styles/index.scss
+
 .mainPage {
-  width: 100%;
-  padding: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100vh; // Use viewport height instead of 100%
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+  position: relative;
+  overflow: hidden; // Keep hidden on main container, let layoutWrapper handle scrolling
 
-  .navigation {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 10% 20%, rgba(78, 205, 196, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 90% 80%, rgba(255, 107, 180, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(78, 205, 196, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: pulse 20s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+}
+
+.header {
+  position: relative; // Changed from sticky - header should be in normal flow
+  z-index: 10; // Lower z-index since it's not overlaying
+  padding: 1.5rem 2.5rem;
+  padding-right: calc(var(--navbar-expanded-width, 240px) + 360px); // Space for navbar + toolbar
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  border-bottom: 2px solid var(--accent-color);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  margin-bottom: 0; // Remove margin since it's in normal flow
+
+  // Adjust padding when navbar is collapsed
+  :global(body.navbar-is-collapsed) & {
+    padding-right: calc(var(--navbar-collapsed-width, 64px) + 360px);
+  }
+
+  .headerContent {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-
-    .navButton {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      border: 2px solid rgba(78, 205, 196, 0.3);
-      border-radius: 8px;
-      background: rgba(78, 205, 196, 0.1);
-      color: #4ecdc4;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      min-width: 120px;
-      justify-content: center;
-
-      i {
-        font-size: 1em;
-        transition: transform 0.2s ease;
-      }
-
-      &:hover {
-        background: rgba(78, 205, 196, 0.2);
-        border-color: rgba(78, 205, 196, 0.4);
-        transform: translateY(-1px);
-
-        i {
-          transform: scale(1.1);
-        }
-      }
-
-      &:active {
-        transform: translateY(0);
-      }
-
-      &.active {
-        background: rgba(78, 205, 196, 0.3);
-        border-color: rgba(78, 205, 196, 0.6);
-        color: #f0f0f0;
-      }
-    }
-  }
-
-  .content {
-    width: 100%;
-    min-height: calc(100vh - 200px);
-    position: relative;
-
-    .connectionWarning {
-      background: rgba(255, 59, 48, 0.1);
-      border: 1px solid rgba(255, 59, 48, 0.2);
-      color: #ff3b30;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      animation: pulse 2s infinite;
-
-      i {
-        font-size: 1.2em;
-      }
-    }
-
-    .viewContainer {
-      opacity: 0;
-      animation: slideIn 0.3s ease forwards;
-
-      > * {
-        margin-bottom: 2rem;
-
-        &:last-child {
-          margin-bottom: 0;
-        }
-      }
-    }  }
-  
-  // New stable docked layout system
-  .mainLayout {
-    position: relative;
-    width: 100%;
-    min-height: 100vh;
-    padding-bottom: 120px; // Space for bottom docked element
-    // Ensure this container doesn't create stacking context issues
-    z-index: auto;
-    transform: none;
-    contain: none;
-  }
-  .fixedQuickCapture {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1200;
-    background: rgba(0, 0, 0, 0.8);
-    border-radius: 8px;
-    padding: 8px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-  .centralContent {
-    max-width: 1200px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    max-width: 1800px;
     margin: 0 auto;
-    padding: 2rem;
-    padding-left: 300px; // Space for left dock
-    padding-right: 300px; // Space for right dock (navbar now on right)
-    position: relative; // Normal document flow
-    z-index: 1; // Lower than docked components
-  }
-  .dockedElements {
-    position: relative;
-    pointer-events: none; // Allow clicks to pass through to content
-
-    // Ensure all docked children are positioned relative to viewport, not any scroll container
-    .leftMiddleDock,
-    .rightMiddleDock,
-    .bottomCenterDock,
-    .bottomLeftDock {
-      pointer-events: auto; // Re-enable clicks on the docked elements
-      position: fixed !important; // Force fixed positioning
-      z-index: 1100 !important; // Ensure high z-index
-    }
-  }
-  .leftMiddleDock {
-    position: fixed;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1100;
-    max-width: 250px;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 12px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(78, 205, 196, 0.2);
   }
 
-  .rightMiddleDock {
-    position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1100;
-    max-width: 250px;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 12px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(78, 205, 196, 0.2);
-  }
-  .bottomCenterDock {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1100;
-    background: rgba(0, 0, 0, 0.9);
-    border-radius: 12px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(78, 205, 196, 0.2);
-    min-width: 300px;
-  }
-  .bottomLeftDock {
-    position: fixed;
-    bottom: 100px;
-    left: 20px;
-    z-index: 1100;
-    max-width: 250px;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 12px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(78, 205, 196, 0.2);
-  }
-
-  .mainControls {
+  .titleSection {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 1rem; /* Added gap between buttons */
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-  }  .quickSaveButton {
+    gap: 1.25rem;
+
+    .headerIcon {
+      width: 40px;
+      height: 40px;
+      color: var(--accent-color);
+      filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.4));
+    }
+
+    .mainTitle {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      margin: 0.4rem 0 0 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      opacity: 0.85;
+    }
+  }
+
+  .headerActions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .actionButton {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    border: none;
+    padding: 0.6rem 1.2rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
-    background: linear-gradient(135deg, #4a90e2, #357abd);
-    color: white;
-    font-weight: 600;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
 
     &:hover {
-      background: linear-gradient(135deg, #357abd, #2b62a3);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-color);
+      color: var(--text-primary);
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
+      box-shadow: 0 4px 12px rgba(78, 205, 196, 0.2);
     }
 
-    &:active {
-      background: linear-gradient(135deg, #2b62a3, #1e4a7a);
-      transform: translateY(0);
-      box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.layoutWrapper {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  overflow: auto; // Changed from hidden to auto so content can scroll
+  min-height: 0;
+  padding-top: 0;
+}
+
+.dragPreview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(78, 205, 196, 0.5);
+  transform: translate(-50%, -50%);
+  font-weight: 600;
+  font-size: 0.9rem;
+  animation: dragPulse 1s ease-in-out infinite;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  @keyframes dragPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
+  }
+}
+
+.emptyState {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+  text-align: center;
+  max-width: 500px;
+  padding: 2rem;
+
+  .emptyStateContent {
+    .emptyIcon {
+      width: 64px;
+      height: 64px;
+      color: var(--accent-color);
+      opacity: 0.3;
+      margin: 0 auto 1.5rem;
+      filter: drop-shadow(0 0 20px rgba(78, 205, 196, 0.3));
     }
 
-    i {
-      font-size: 1.1em;
-      animation: pulse 2s infinite;
-    }  }
-  @media (max-width: 768px) {
-    padding: 0.5rem;
+    .emptyTitle {
+      margin: 0 0 1rem 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      opacity: 0.7;
+    }
 
-    .navigation {
-      flex-direction: column;
-      padding: 0.5rem;
+    .emptyDescription {
+      margin: 0 0 1.5rem 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      opacity: 0.6;
+    }
 
-      .navButton {
-        width: 100%;
-        min-width: unset;
-        padding: 0.5rem 1rem;
+    .emptyHint {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(78, 205, 196, 0.1);
+      border: 1px dashed rgba(78, 205, 196, 0.3);
+      border-radius: 8px;
+      color: var(--accent-color);
+      font-size: 0.85rem;
+      font-weight: 500;
+
+      svg {
+        width: 16px;
+        height: 16px;
+        animation: bounce 2s ease-in-out infinite;
       }
-    }
 
-    .content {
-      .section {
-        padding: 1rem;
-
-        .sectionTitle {
-          font-size: 1.4rem;
-        }
-      }
-    }
-
-    // Mobile responsive adjustments for docked layout
-    .fixedQuickCapture {
-      position: relative;
-      top: auto;
-      right: auto;
-      margin-bottom: 1rem;
-      background: rgba(0, 0, 0, 0.6);
-    }
-
-    .centralContent {
-      padding: 1rem;
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-
-    .sceneControls {
-      padding: 0 1rem;
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-
-    .leftMiddleDock,
-    .rightMiddleDock {
-      position: relative;
-      left: auto;
-      right: auto;
-      top: auto;
-      transform: none;
-      max-width: 100%;
-      margin-bottom: 1rem;
-      background: rgba(0, 0, 0, 0.6);
-    }
-
-    .bottomCenterDock {
-      position: relative;
-      bottom: auto;
-      left: auto;
-      transform: none;
-      min-width: auto;
-      width: 100%;
-      margin-top: 1rem;
-      background: rgba(0, 0, 0, 0.6);
-    }
-
-    .mainLayout {
-      padding-bottom: 20px;
-    }
-  }
-
-  // Pinning states
-  .pinned {
-    position: fixed !important;
-    z-index: 1100 !important;
-  }
-
-  .unpinned {
-    position: relative !important;
-    z-index: auto !important;
-    transform: none !important;
-    top: auto !important;
-    left: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    margin: 1rem !important;
-    display: block !important;
-    max-width: 100% !important;
-    width: auto !important;
-  }
-
-  // Unpinned layout adjustments for central content
-  .centralContent {
-    transition: padding 0.3s ease;
-  }
-
-  // When components are unpinned, reduce padding to make room
-  .mainLayout:has(.unpinned) .centralContent {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-
-  // Special unpinned container for organizing unpinned components
-  .unpinnedContainer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin: 1rem 0;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    border: 1px dashed rgba(78, 205, 196, 0.2);
-  }
-
-  // Special handling for unpinned quick capture
-  .fixedQuickCapture.unpinned {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    margin: 1rem !important;
-    display: inline-block !important;
-  }
-
-  .fixedQuickCapture {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1200;
-    background: rgba(0, 0, 0, 0.8);
-    border-radius: 8px;
-    padding: 8px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  // Enhanced docked component styles with pin button positioning
-  .leftMiddleDock,
-  .rightMiddleDock,
-  .bottomCenterDock,
-  .bottomLeftDock,
-  .fixedQuickCapture {
-    position: relative;
-    
-    // Pin button positioning within docked components
-    .pinButton {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      z-index: 10;
-      background: rgba(0, 0, 0, 0.7) !important;
-      border: 1px solid rgba(78, 205, 196, 0.3) !important;
-      color: #4ecdc4 !important;
-      padding: 2px 6px !important;
-      font-size: 0.7rem !important;
-      border-radius: 3px !important;
-      
-      &:hover {
-        background: rgba(78, 205, 196, 0.2) !important;
-        border-color: rgba(78, 205, 196, 0.5) !important;
-      }
-      
-      .label {
-        display: none; // Hide labels in docked components for space
+      @keyframes bounce {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(5px); }
       }
     }
   }
+}
 
-  // Specific positioning adjustments for each dock
-  .fixedQuickCapture .pinButton {
-    top: 2px;
-    right: 2px;
-  }
+.dropZoneHints {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 100;
+  pointer-events: none;
 
-  // Global pin controls styling
-  .globalPinControls {
+  .dropHint {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    border: 1px solid rgba(78, 205, 196, 0.2);
-    
-    .globalPinButton {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: rgba(78, 205, 196, 0.1);
-      border: 1px solid rgba(78, 205, 196, 0.3);
-      border-radius: 6px;
-      color: #4ecdc4;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-size: 0.9rem;
-      font-weight: 500;
-      
-      &:hover {
-        background: rgba(78, 205, 196, 0.2);
-        border-color: rgba(78, 205, 196, 0.5);
-        transform: translateY(-1px);
-      }
-      
-      &:active {
-        transform: translateY(0);
-      }
-      
-      i {
-        font-size: 0.9em;
-      }
-    }
-    
-    .pinnedCount {
-      margin-left: auto;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.85rem;
-      font-style: italic;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(78, 205, 196, 0.3);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    opacity: 0.7;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      color: var(--accent-color);
     }
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+// Responsive
+@media (max-width: 1200px) {
+  .header .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
-@keyframes pulse {
-  0% {
-    background: rgba(255, 59, 48, 0.1);
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem 1.5rem;
   }
-  50% {
-    background: rgba(255, 59, 48, 0.15);
+
+  .header .titleSection .mainTitle {
+    font-size: 1.4rem;
   }
-  100% {
-    background: rgba(255, 59, 48, 0.1);
+
+  .emptyState {
+    padding: 1.5rem;
   }
 }

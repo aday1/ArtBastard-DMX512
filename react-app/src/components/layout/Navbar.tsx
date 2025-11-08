@@ -93,6 +93,16 @@ const navItems: Array<{
       tooltip: "Debug tools and help for the truly enlightened. *adjusts monocle*"
     }
   },
+  {
+    id: 'experimental',
+    icon: 'FlaskConical',
+    title: {
+    artsnob: "🧪 Laboratoire Expérimental",
+      standard: 'Experimental',
+      minimal: 'Exp',
+      tooltip: "Experimental features for the avant-garde. Face tracking and cutting-edge controls. Not for the faint of heart, mon ami."
+    }
+  },
 ]
 
 export const Navbar: React.FC = () => {

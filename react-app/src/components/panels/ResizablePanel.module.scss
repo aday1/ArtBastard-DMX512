@@ -9,9 +9,41 @@
   height: 100%;
 
   &.dragOver {
-    border-color: rgba(78, 205, 196, 0.8);
-    background: rgba(78, 205, 196, 0.1);
-    box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+    border-color: rgba(78, 205, 196, 1);
+    border-width: 2px;
+    background: rgba(78, 205, 196, 0.15);
+    box-shadow: 
+      0 0 30px rgba(78, 205, 196, 0.5),
+      inset 0 0 30px rgba(78, 205, 196, 0.1);
+    transform: scale(1.01);
+    animation: dropZonePulse 1.5s ease-in-out infinite;
+
+    &::before {
+      content: 'Drop component here';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--accent-color);
+      font-size: 1.2rem;
+      font-weight: 600;
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 0 0 10px rgba(78, 205, 196, 0.8);
+    }
+  }
+
+  @keyframes dropZonePulse {
+    0%, 100% { 
+      box-shadow: 
+        0 0 30px rgba(78, 205, 196, 0.5),
+        inset 0 0 30px rgba(78, 205, 196, 0.1);
+    }
+    50% { 
+      box-shadow: 
+        0 0 40px rgba(78, 205, 196, 0.7),
+        inset 0 0 40px rgba(78, 205, 196, 0.15);
+    }
   }
 
   &.touchOptimized {

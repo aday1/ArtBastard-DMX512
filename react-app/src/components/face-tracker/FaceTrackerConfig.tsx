@@ -74,6 +74,9 @@ const SliderField: React.FC<SliderFieldProps> = ({
   step = 1,
   disabled = false
 }) => {
+  // Ensure value is a valid number
+  const safeValue = typeof value === 'number' && !isNaN(value) ? value : min;
+  
   return (
     <div className={styles.configField}>
       <label className={styles.fieldLabel}>{label}</label>
@@ -83,12 +86,12 @@ const SliderField: React.FC<SliderFieldProps> = ({
           min={min}
           max={max}
           step={step}
-          value={value}
+          value={safeValue}
           onChange={(e) => onChange(Number(e.target.value))}
           disabled={disabled}
           className={styles.slider}
         />
-        <span className={styles.valueDisplay}>{value.toFixed(step < 1 ? 2 : 0)}</span>
+        <span className={styles.valueDisplay}>{safeValue.toFixed(step < 1 ? 2 : 0)}</span>
       </div>
     </div>
   );
@@ -111,7 +114,64 @@ export const FaceTrackerConfig: React.FC = () => {
       const response = await fetch('/api/face-tracker/config');
       if (!response.ok) throw new Error('Failed to load config');
       const data = await response.json();
-      setConfig(data);
+      
+      // Ensure all required fields have default values
+      const defaultConfig: FaceTrackerConfig = {
+        dmxApiUrl: "http://localhost:3030/api/dmx/batch",
+        panChannel: 1,
+        tiltChannel: 2,
+        irisChannel: 0,
+        zoomChannel: 0,
+        focusChannel: 0,
+        cameraIndex: 0,
+        updateRate: 30,
+        panSensitivity: 1.0,
+        tiltSensitivity: 1.0,
+        panOffset: 128,
+        tiltOffset: 128,
+        irisValue: 128,
+        zoomValue: 128,
+        focusValue: 128,
+        showPreview: true,
+        show3DVisualization: true,
+        smoothingFactor: 0.85,
+        maxVelocity: 5.0,
+        brightness: 1.0,
+        contrast: 1.0,
+        cameraExposure: -1,
+        cameraBrightness: -1,
+        autoExposure: true,
+        useOSC: false,
+        oscHost: "127.0.0.1",
+        oscPort: 9000,
+        oscPanPath: "/dmx/pan",
+        oscTiltPath: "/dmx/tilt",
+        oscIrisPath: "/dmx/iris",
+        oscZoomPath: "/dmx/zoom",
+        oscFocusPath: "/dmx/focus",
+        panMin: 0,
+        panMax: 255,
+        tiltMin: 0,
+        tiltMax: 255,
+        irisMin: 0,
+        irisMax: 255,
+        zoomMin: 0,
+        zoomMax: 255,
+        focusMin: 0,
+        focusMax: 255,
+        panScale: 1.0,
+        tiltScale: 1.0,
+        panDeadZone: 0.0,
+        tiltDeadZone: 0.0,
+        panLimit: 1.0,
+        tiltLimit: 1.0,
+        panGear: 1.0,
+        tiltGear: 1.0,
+      };
+      
+      // Merge loaded config with defaults to ensure all fields exist
+      const mergedConfig = { ...defaultConfig, ...data };
+      setConfig(mergedConfig);
       setLoading(false);
     } catch (error) {
       console.error('Error loading face tracker config:', error);

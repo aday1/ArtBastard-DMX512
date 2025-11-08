@@ -9,11 +9,29 @@ interface DraggableComponentProps {
 
 const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
     e.dataTransfer.setData('application/json', JSON.stringify(definition));
     e.dataTransfer.effectAllowed = 'copy';
+    
+    // Create custom drag image
+    const dragImage = document.createElement('div');
+    dragImage.style.cssText = `
+      position: absolute;
+      top: -1000px;
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, #4ECDC4, #FF6BB4);
+      color: white;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(78, 205, 196, 0.5);
+    `;
+    dragImage.textContent = definition.title;
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
   };
 
   const handleDragEnd = () => {
@@ -22,10 +40,12 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) =
 
   return (
     <div
-      className={`${styles.draggableComponent} ${isDragging ? styles.dragging : ''}`}
+      className={`${styles.draggableComponent} ${isDragging ? styles.dragging : ''} ${isHovered ? styles.hovered : ''}`}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       title={definition.description}
     >
       <div className={styles.componentIcon}>
@@ -33,7 +53,10 @@ const DraggableComponent: React.FC<DraggableComponentProps> = ({ definition }) =
       </div>
       <div className={styles.componentInfo}>
         <div className={styles.componentTitle}>{definition.title}</div>
-        <div className={styles.componentCategory}>{definition.category}</div>
+        <div className={styles.componentCategory}>{definition.category.toUpperCase()}</div>
+      </div>
+      <div className={styles.dragIndicator}>
+        <i className="fas fa-grip-vertical"></i>
       </div>
     </div>
   );
@@ -58,6 +81,7 @@ export const ComponentToolbar: React.FC = () => {
     'dmx-control-panel', 
     'dmx-channels',
     'dmx-visualizer',
+    'face-tracker',
     'scene-quick-launch',
     'chromatic-energy-manipulator'
   ];

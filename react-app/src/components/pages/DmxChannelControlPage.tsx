@@ -658,21 +658,73 @@ export const DmxChannelControlPage: React.FC = () => {
       {/* Active DMX Channels Summary */}
       {(() => {
         const activeChannels = Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
+        const activeChannelsSet = new Set(activeChannels);
+        
         return (
           <div className={styles.sceneSection}>
             <h3 className={styles.sectionTitle}>
               <LucideIcon name="Zap" />
               Active Channels
+              <span className={styles.activeCount}>({activeChannels.length})</span>
             </h3>
             {activeChannels.length === 0 ? (
-              <div>No active channels (Idle)</div>
+              <div className={styles.noActiveChannels}>No active channels (Idle)</div>
             ) : (
-              <div>
-                {activeChannels.map((i) => (
-                  <span key={i} style={{ display: 'inline-block', marginRight: '8px', marginBottom: '6px' }}>
-                    CH {i + 1}
-                  </span>
-                ))}
+              <div className={styles.activeChannelsContainer}>
+                {/* Visual Grid Representation */}
+                <div className={styles.channelsGrid}>
+                  {Array.from({ length: 512 }, (_, i) => {
+                    const isActive = activeChannelsSet.has(i);
+                    const value = dmxChannels[i] || 0;
+                    const intensity = value / 255;
+                    
+                    return (
+                      <div
+                        key={i}
+                        className={`${styles.channelCell} ${isActive ? styles.active : ''}`}
+                        style={{
+                          opacity: isActive ? 0.3 + (intensity * 0.7) : 0.1,
+                          backgroundColor: isActive 
+                            ? `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
+                            : 'transparent'
+                        }}
+                        title={`Channel ${i + 1}: ${value > 0 ? `${value} (${Math.round(intensity * 100)}%)` : 'Inactive'}`}
+                      >
+                        {isActive && (
+                          <span className={styles.channelNumber}>{i + 1}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Compact Text List */}
+                <div className={styles.channelsList}>
+                  <div className={styles.listHeader}>
+                    <span>Active Channel Numbers:</span>
+                    <span className={styles.channelCount}>{activeChannels.length} channels</span>
+                  </div>
+                  <div className={styles.channelTags}>
+                    {activeChannels.map((i) => {
+                      const value = dmxChannels[i] || 0;
+                      const intensity = value / 255;
+                      return (
+                        <span 
+                          key={i} 
+                          className={styles.channelTag}
+                          style={{
+                            opacity: 0.7 + (intensity * 0.3),
+                            backgroundColor: `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 20)}%)`
+                          }}
+                          title={`CH ${i + 1}: ${value} (${Math.round(intensity * 100)}%)`}
+                        >
+                          CH {i + 1}
+                          <span className={styles.channelValue}>{value}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -1,0 +1,439 @@
+// CSS variables are defined globally in styles/index.scss
+
+.faceTracker {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.configButton,
+.startButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--accent-color);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.startButton {
+  background: var(--success-color);
+  color: white;
+  border-color: var(--success-color);
+
+  &:hover:not(:disabled) {
+    background: var(--success-color-hover);
+  }
+
+  &.stopButton {
+    background: var(--error-color);
+    border-color: var(--error-color);
+
+    &:hover:not(:disabled) {
+      background: var(--error-color-hover);
+    }
+  }
+}
+
+.error {
+  padding: 1rem;
+  background: var(--error-bg);
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+  border-radius: 4px;
+}
+
+.configPanel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.quickControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label,
+  .controlLabel {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  input[type="number"] {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 100%;
+  }
+
+  input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+  }
+}
+
+.sliderWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.slider {
+  flex: 1;
+  height: 12px; // Bigger slider height
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; // Bigger thumb
+    height: 20px; // Bigger thumb
+    background: var(--accent-color, #00d4ff);
+    border: 2px solid var(--bg-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+    }
+  }
+  
+  &::-moz-range-thumb {
+    width: 20px; // Bigger thumb
+    height: 20px; // Bigger thumb
+    background: var(--accent-color, #00d4ff);
+    border: 2px solid var(--bg-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+    }
+  }
+  
+  &::-webkit-slider-runnable-track {
+    height: 12px;
+    background: linear-gradient(to right, var(--bg-primary), var(--accent-color, #00d4ff));
+    border-radius: 6px;
+  }
+  
+  &::-moz-range-track {
+    height: 12px;
+    background: linear-gradient(to right, var(--bg-primary), var(--accent-color, #00d4ff));
+    border-radius: 6px;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &::-webkit-slider-thumb {
+      cursor: not-allowed;
+    }
+    
+    &::-moz-range-thumb {
+      cursor: not-allowed;
+    }
+  }
+}
+
+.sliderValue {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-color, #00d4ff);
+  min-width: 60px;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.previewContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  position: relative;
+}
+
+.video {
+  display: none; // Hidden, used as source for canvas
+}
+
+.canvas {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: contain;
+  background: #000;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.noPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.previewControls {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.cameraControls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.controlsTitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.statusItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.statusLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.running {
+  color: var(--success-color);
+}
+
+.stopped {
+  color: var(--text-secondary);
+}
+
+.detected {
+  color: var(--success-color);
+}
+
+.notDetected {
+  color: var(--text-secondary);
+}
+
+// OSC Endpoints Section
+.oscEndpoints {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  
+  h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.endpointList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.endpointItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.endpointIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-color, #00d4ff);
+  flex-shrink: 0;
+}
+
+.endpointLabel {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  min-width: 40px;
+}
+
+.endpointAddress {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--accent-color, #00d4ff);
+  background: rgba(0, 212, 255, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  flex: 1;
+}
+
+// Fixture Selection Section
+.fixtureSelection {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  
+  h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.fixtureList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.fixtureItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-color);
+  }
+  
+  &.selected {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: var(--accent-color);
+  }
+  
+  input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+  }
+}
+
+.fixtureName {
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.channelInfo {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.noFixtures {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.fixtureHint {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px dashed rgba(0, 212, 255, 0.3);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--accent-color, #00d4ff);
+  text-align: center;
+}
+

@@ -299,10 +299,77 @@ update_eta_metrics() {
     fi
 }
 
+# Function to check if rebuild is needed
+needs_rebuild() {
+    local rebuild_needed=false
+    
+    # Check backend
+    if [ ! -d "dist" ] || [ ! -f "dist/server.js" ]; then
+        rebuild_needed=true
+        echo "  Backend build missing"
+    else
+        # Check if source files are newer than build
+        if find src -type f -newer dist/server.js 2>/dev/null | grep -q .; then
+            rebuild_needed=true
+            echo "  Backend source files modified"
+        fi
+    fi
+    
+    # Check React frontend
+    if [ ! -d "react-app/dist" ] || [ ! -f "react-app/dist/index.html" ]; then
+        rebuild_needed=true
+        echo "  Frontend build missing"
+    else
+        # Check if React source files are newer than build
+        if find react-app/src -type f -newer react-app/dist/index.html 2>/dev/null | grep -q .; then
+            rebuild_needed=true
+            echo "  Frontend source files modified"
+        fi
+        # Check if package.json changed (dependencies might have changed)
+        if [ "react-app/package.json" -nt "react-app/dist/index.html" ] 2>/dev/null; then
+            rebuild_needed=true
+            echo "  Frontend dependencies changed"
+        fi
+    fi
+    
+    # Check if node_modules are missing
+    if [ ! -d "node_modules" ] || [ ! -d "react-app/node_modules" ]; then
+        rebuild_needed=true
+        echo "  Dependencies missing"
+    fi
+    
+    echo "$rebuild_needed"
+}
+
+# Function to check if cache clear is needed
+needs_cache_clear() {
+    local cache_clear_needed=false
+    
+    # Check Vite cache
+    if [ -d "react-app/.vite" ]; then
+        local vite_cache_age=$(find react-app/.vite -type f -mtime +7 2>/dev/null | wc -l)
+        if [ "$vite_cache_age" -gt 0 ]; then
+            cache_clear_needed=true
+            echo "  Vite cache is stale (>7 days)"
+        fi
+    fi
+    
+    # Check npm cache issues
+    if [ -d "$HOME/.npm/_cacache" ]; then
+        local npm_cache_size=$(du -sm "$HOME/.npm/_cacache" 2>/dev/null | cut -f1)
+        if [ -n "$npm_cache_size" ] && [ "$npm_cache_size" -gt 500 ]; then
+            cache_clear_needed=true
+            echo "  npm cache is large (>500MB)"
+        fi
+    fi
+    
+    echo "$cache_clear_needed"
+}
+
 # EXQUISITE RAPID DEPLOYMENT PATH: Sophisticated acceleration protocol
 if [ "$CLEAR" = false ]; then
     echo "🚀 EXQUISITE RAPID DEPLOYMENT MODE"
-    echo "Bypassing validation protocols and dependency verification for optimal velocity..."
+    echo "Intelligent rebuild detection and cache management enabled..."
     echo ""
     
     # Elegant process termination (minimal intervention)
@@ -329,16 +396,49 @@ if [ "$CLEAR" = false ]; then
     echo "Process termination completed with sophistication!"
     echo ""
     
-    # Architectural validation with minimal intervention
-    if [ ! -d "dist" ]; then
-        echo "Architectural foundation missing - executing minimal reconstruction..."
-        if npm run build-backend 2>/dev/null; then
-            echo "Minimal reconstruction completed with elegance!"
-        else
-            echo "Reconstruction encountered challenges, proceeding with grace..."
+    # Intelligent rebuild detection
+    echo "Conducting architectural analysis..."
+    rebuild_check=$(needs_rebuild)
+    cache_check=$(needs_cache_clear)
+    
+    needs_rebuild_result=$(echo "$rebuild_check" | tail -1)
+    needs_cache_result=$(echo "$cache_check" | tail -1)
+    
+    if [ "$needs_cache_result" = "true" ]; then
+        echo "Cache optimization recommended..."
+        echo "  Clearing Vite cache..."
+        rm -rf react-app/.vite 2>/dev/null || true
+        echo "  Verifying npm cache..."
+        npm cache verify 2>/dev/null || true
+    fi
+    
+    if [ "$needs_rebuild_result" = "true" ]; then
+        echo "Architectural reconstruction required - detected changes:"
+        echo "$rebuild_check" | grep -v "^true$\|^false$"
+        echo ""
+        echo "Executing intelligent rebuild..."
+        
+        # Build backend if needed
+        if [ ! -d "dist" ] || find src -type f -newer dist/server.js 2>/dev/null | grep -q .; then
+            echo "  Building backend..."
+            npm run build-backend || {
+                echo "Backend build failed!"
+                exit 1
+            }
         fi
+        
+        # Build frontend if needed
+        if [ ! -d "react-app/dist" ] || find react-app/src -type f -newer react-app/dist/index.html 2>/dev/null | grep -q . || [ "react-app/package.json" -nt "react-app/dist/index.html" ] 2>/dev/null; then
+            echo "  Building frontend..."
+            (cd react-app && npm run build:vite) || {
+                echo "Frontend build failed!"
+                exit 1
+            }
+        fi
+        
+        echo "Intelligent rebuild completed with sophistication!"
     else
-        echo "Architectural foundation intact - preserving existing structure!"
+        echo "Architectural foundation intact - no rebuild required!"
     fi
     
     echo ""
@@ -347,6 +447,55 @@ if [ "$CLEAR" = false ]; then
     # Deploy the server with sophistication
     total_time=$(($(date +%s) - start_time))
     update_eta_metrics "$total_time"
+    
+    # Start server in background and open browser
+    (
+        # Wait for server to be ready
+        max_attempts=45
+        attempt=0
+        url="http://localhost:3030"
+        
+        echo "Waiting for server to initialize..."
+        while [ $attempt -lt $max_attempts ]; do
+            if curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null | grep -q "200\|301\|302"; then
+                echo ""
+                echo "✨ ARCHITECTURAL SUCCESS! Server is ready!"
+                echo "Opening browser to $url..."
+                
+                # Try different methods to open browser
+                if command -v xdg-open &> /dev/null; then
+                    xdg-open "$url" 2>/dev/null &
+                elif command -v gnome-open &> /dev/null; then
+                    gnome-open "$url" 2>/dev/null &
+                elif command -v kde-open &> /dev/null; then
+                    kde-open "$url" 2>/dev/null &
+                elif command -v firefox &> /dev/null; then
+                    firefox "$url" 2>/dev/null &
+                elif command -v chromium &> /dev/null; then
+                    chromium "$url" 2>/dev/null &
+                elif command -v chromium-browser &> /dev/null; then
+                    chromium-browser "$url" 2>/dev/null &
+                else
+                    echo "  Could not auto-open browser. Please navigate to: $url"
+                fi
+                break
+            fi
+            
+            if [ $((attempt % 5)) -eq 0 ] && [ $attempt -gt 0 ]; then
+                echo "  Still waiting... ($attempt/$max_attempts)"
+            fi
+            
+            sleep 1
+            attempt=$((attempt + 1))
+        done
+        
+        if [ $attempt -eq $max_attempts ]; then
+            echo ""
+            echo "⚠️  Server took longer than expected to start"
+            echo "   Please manually navigate to: $url"
+            echo "   The server may still be initializing..."
+        fi
+    ) &
     
     npm start || {
         echo "Server deployment encountered complications!"

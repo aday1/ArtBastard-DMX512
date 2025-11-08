@@ -2,7 +2,7 @@
   "dmxApiUrl": "http://localhost:3030/api/dmx/batch",
   "panChannel": 1,
   "tiltChannel": 2,
-  "cameraIndex": 0,
+  "cameraIndex": 2,
   "updateRate": 30,
   "panSensitivity": 1.0,
   "tiltSensitivity": 1.0,

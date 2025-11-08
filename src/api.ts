@@ -21,6 +21,7 @@ import {
   getDmxChannels, // Added import
   getChannelNames // Added import
 } from './index';
+import { FaceTrackerService } from './faceTrackerService';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const EXPORT_FILE = path.join(DATA_DIR, 'all_settings.json');
@@ -947,6 +948,7 @@ apiRouter.post('/api/config', (req, res) => {
 
 // Face Tracker Configuration endpoints
 const FACE_TRACKER_CONFIG_PATH = path.join(__dirname, '..', 'face-tracker', 'face-tracker-config.json');
+const faceTrackerService = new FaceTrackerService();
 
 apiRouter.get('/face-tracker/config', (req, res) => {
   try {
@@ -1053,6 +1055,47 @@ apiRouter.put('/face-tracker/config', (req, res) => {
     res.status(500).json({ 
       error: `Failed to save face tracker config: ${error instanceof Error ? error.message : String(error)}`, 
       success: false 
+    });
+  }
+});
+
+// Face Tracker Service endpoints
+apiRouter.post('/face-tracker/start', async (req, res) => {
+  try {
+    const config = req.body || {};
+    await faceTrackerService.start(config);
+    res.json({ success: true, message: 'Face tracker started' });
+  } catch (error) {
+    log('Error starting face tracker', 'ERROR', { error });
+    res.status(500).json({
+      error: `Failed to start face tracker: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.post('/face-tracker/stop', (req, res) => {
+  try {
+    faceTrackerService.stop();
+    res.json({ success: true, message: 'Face tracker stopped' });
+  } catch (error) {
+    log('Error stopping face tracker', 'ERROR', { error });
+    res.status(500).json({
+      error: `Failed to stop face tracker: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.get('/face-tracker/status', (req, res) => {
+  try {
+    const status = faceTrackerService.getStatus();
+    res.json({ success: true, ...status });
+  } catch (error) {
+    log('Error getting face tracker status', 'ERROR', { error });
+    res.status(500).json({
+      error: `Failed to get face tracker status: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
     });
   }
 });
