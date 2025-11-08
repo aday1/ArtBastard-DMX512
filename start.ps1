@@ -382,10 +382,10 @@ if ($Clear) {
     exit 0
 }
 
-# EXQUISITE RAPID DEPLOYMENT PATH: Sophisticated acceleration protocol
+# FAST START PATH: Smart rebuild (only rebuilds if needed)
 if (-not $Clear) {
-    Write-Host "🚀 EXQUISITE RAPID DEPLOYMENT MODE" -ForegroundColor Green
-    Write-Host "Bypassing validation protocols and dependency verification for optimal velocity..." -ForegroundColor Yellow
+    Write-Host "🚀 FAST START MODE" -ForegroundColor Green
+    Write-Host "Smart rebuild - only rebuilds if source files changed" -ForegroundColor Green
     Write-Host ""
     
     # Elegant process termination (minimal intervention)
