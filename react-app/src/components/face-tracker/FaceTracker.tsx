@@ -249,7 +249,37 @@ export const FaceTracker: React.FC = () => {
     error: null,
   });
 
-  const [settings, setSettings] = useState<FaceTrackerSettings>(DEFAULT_SETTINGS);
+  // Load settings from localStorage on mount
+  const loadSettings = (): FaceTrackerSettings => {
+    try {
+      const saved = localStorage.getItem('faceTrackerSettings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...DEFAULT_SETTINGS, ...parsed };
+      }
+    } catch (error) {
+      console.error('Error loading Face Tracker settings:', error);
+    }
+    return DEFAULT_SETTINGS;
+  };
+
+  const [settings, setSettings] = useState<FaceTrackerSettings>(loadSettings());
+  
+  // Autosave settings with debouncing
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveSettings = useCallback((settingsToSave: FaceTrackerSettings) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem('faceTrackerSettings', JSON.stringify(settingsToSave));
+        console.log('[FaceTracker] Settings autosaved');
+      } catch (error) {
+        console.error('Error saving Face Tracker settings:', error);
+      }
+    }, 500); // Debounce: save 500ms after last change
+  }, []);
   const [showPreview, setShowPreview] = useState(true);
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
@@ -814,7 +844,7 @@ export const FaceTracker: React.FC = () => {
               // Calculate pan/tilt offsets (normalized -1 to 1)
               const pan = (faceCenterX - imageCenterX) / imageCenterX;
               const tilt = (faceCenterY - imageCenterY) / imageCenterY;
-              
+
               // Log position offsets every 5 detections
               if (Math.random() < 0.2) {
                 console.log(`[OpenCV] Face position - Pan offset: ${pan.toFixed(4)} (${((pan * 100).toFixed(1))}%), Tilt offset: ${tilt.toFixed(4)} (${((tilt * 100).toFixed(1))}%)`);
@@ -968,10 +998,10 @@ export const FaceTracker: React.FC = () => {
 
                   // Only send if we have updates
                   if (Object.keys(dmxUpdates).length > 0) {
-                    // Send via socket or HTTP
+                  // Send via socket or HTTP
                     if (socket && socketConnected) {
                       try {
-                        (socket as any).emit('dmx:batch', dmxUpdates);
+                    (socket as any).emit('dmx:batch', dmxUpdates);
                         console.log('[FaceTracker] DMX batch sent:', dmxUpdates);
                         
                         // Send OSC if enabled and throttled
@@ -989,37 +1019,31 @@ export const FaceTracker: React.FC = () => {
                             if (panOscAddress) {
                               (socket as any).emit('sendOsc', {
                                 address: panOscAddress,
-                                args: [{ type: 'f', value: panValue / 255.0 }],
-                                // When using ArtBastard OSC, use the configured port from settings
-                                host: settings.oscHost,
-                                port: settings.oscPort
+                                args: [{ type: 'f', value: panValue / 255.0 }]
                               });
-                              console.log('[FaceTracker] OSC sent (Pan):', panOscAddress, panValue / 255.0, 'to', settings.oscHost, ':', settings.oscPort);
+                              console.log('[FaceTracker] OSC sent (Pan):', panOscAddress, panValue / 255.0);
                             }
                             if (tiltOscAddress) {
                               (socket as any).emit('sendOsc', {
                                 address: tiltOscAddress,
-                                args: [{ type: 'f', value: tiltValue / 255.0 }],
-                                // When using ArtBastard OSC, use the configured port from settings
-                                host: settings.oscHost,
-                                port: settings.oscPort
+                                args: [{ type: 'f', value: tiltValue / 255.0 }]
                               });
-                              console.log('[FaceTracker] OSC sent (Tilt):', tiltOscAddress, tiltValue / 255.0, 'to', settings.oscHost, ':', settings.oscPort);
+                              console.log('[FaceTracker] OSC sent (Tilt):', tiltOscAddress, tiltValue / 255.0);
                             }
                           } else {
                             // Use custom OSC sending (via server with custom host/port)
-                            if (settings.oscPanAddress) {
+                    if (settings.oscPanAddress) {
                               (socket as any).emit('sendOsc', {
-                                address: settings.oscPanAddress,
+                        address: settings.oscPanAddress,
                                 args: [{ type: 'f', value: panValue / 255.0 }],
                                 host: settings.oscHost,
                                 port: settings.oscPort
-                              });
+                      });
                               console.log('[FaceTracker] Custom OSC sent (Pan):', settings.oscPanAddress, settings.oscHost, settings.oscPort);
-                            }
-                            if (settings.oscTiltAddress) {
+                    }
+                    if (settings.oscTiltAddress) {
                               (socket as any).emit('sendOsc', {
-                                address: settings.oscTiltAddress,
+                        address: settings.oscTiltAddress,
                                 args: [{ type: 'f', value: tiltValue / 255.0 }],
                                 host: settings.oscHost,
                                 port: settings.oscPort
@@ -1036,14 +1060,14 @@ export const FaceTracker: React.FC = () => {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(dmxUpdates),
                         }).catch(err => console.error('[FaceTracker] HTTP fallback error:', err));
-                      }
-                    } else {
+                    }
+                  } else {
                       console.warn('[FaceTracker] Socket not connected, using HTTP fallback');
-                      // Fallback to HTTP API
-                      fetch('/api/dmx/batch', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(dmxUpdates),
+                    // Fallback to HTTP API
+                    fetch('/api/dmx/batch', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(dmxUpdates),
                       }).then(() => {
                         console.log('[FaceTracker] DMX batch sent via HTTP:', dmxUpdates);
                       }).catch(err => console.error('[FaceTracker] HTTP fallback error:', err));
@@ -1124,7 +1148,11 @@ export const FaceTracker: React.FC = () => {
   }, [state.isRunning, state.isInitialized, startTracking]);
 
   const updateSetting = (key: keyof FaceTrackerSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => {
+      const updated = { ...prev, [key]: value };
+      saveSettings(updated); // Autosave on change
+      return updated;
+    });
   };
 
   return (
@@ -1149,7 +1177,7 @@ export const FaceTracker: React.FC = () => {
       <div className={styles.mainContainer}>
         {/* Left Side - Face Tracker Preview and Controls */}
         <div className={styles.trackerSide}>
-          {/* Fixture Selection */}
+      {/* Fixture Selection */}
       <div className={styles.fixtureSelection}>
         <h4>Target Fixtures</h4>
         <div className={styles.fixtureList}>
@@ -1206,7 +1234,7 @@ export const FaceTracker: React.FC = () => {
       <div className={styles.previewSection}>
         {/* Camera Preview */}
         <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
-          {showPreview ? (
+        {showPreview ? (
             <>
               <div className={styles.previewHeader}>
                 <span className={styles.previewTitle}>Camera Preview</span>
@@ -1220,24 +1248,24 @@ export const FaceTracker: React.FC = () => {
                 </button>
               </div>
               {!isDetached && (
-                <>
-                  <video
-                    ref={videoRef}
-                    className={styles.video}
-                    autoPlay
-                    playsInline
-                    muted
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className={styles.canvas}
-                  />
+          <>
+            <video
+              ref={videoRef}
+              className={styles.video}
+              autoPlay
+              playsInline
+              muted
+            />
+            <canvas
+              ref={canvasRef}
+              className={styles.canvas}
+            />
                 </>
               )}
-            </>
-          ) : (
-            <div className={styles.noPreview}>Preview disabled</div>
-          )}
+          </>
+        ) : (
+          <div className={styles.noPreview}>Preview disabled</div>
+        )}
         </div>
 
         {/* Detached Camera Preview Window */}
@@ -1265,10 +1293,12 @@ export const FaceTracker: React.FC = () => {
                   autoPlay
                   playsInline
                   muted
+                  style={{ display: 'block', width: '100%', height: 'auto', maxHeight: '70vh', objectFit: 'contain' }}
                 />
                 <canvas
                   ref={canvasRef}
                   className={styles.detachedCanvas}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
                 />
               </div>
             </div>
@@ -1318,7 +1348,6 @@ export const FaceTracker: React.FC = () => {
               </div>
               <div className={styles.detachedPreviewContent}>
                 <Fixture3DModel
-                  key={`fixture-detached-${state.currentPan}-${state.currentTilt}`}
                   panValue={state.currentPan}
                   tiltValue={state.currentTilt}
                   width={500}
@@ -1334,54 +1363,54 @@ export const FaceTracker: React.FC = () => {
           <div className={styles.allControls}>
             {/* Camera Settings Section */}
             <div className={styles.controlSection}>
-              <h4 className={styles.controlsTitle}>Camera Settings</h4>
-              <div className={styles.controlGroup}>
+            <h4 className={styles.controlsTitle}>Camera Settings</h4>
+            <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Automatically adjust camera exposure based on lighting conditions">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoExposure}
-                    onChange={async (e) => {
-                      updateSetting('autoExposure', e.target.checked);
-                      if (state.isRunning && streamRef.current) {
-                        const track = streamRef.current.getVideoTracks()[0];
-                        if (track) {
-                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                          const updatedSettings = { ...settings, autoExposure: e.target.checked };
+                <input
+                  type="checkbox"
+                  checked={settings.autoExposure}
+                  onChange={async (e) => {
+                    updateSetting('autoExposure', e.target.checked);
+                    if (state.isRunning && streamRef.current) {
+                      const track = streamRef.current.getVideoTracks()[0];
+                      if (track) {
+                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                        const updatedSettings = { ...settings, autoExposure: e.target.checked };
                           await applyCameraConstraints(track, capabilities, updatedSettings, false);
-                        }
                       }
-                    }}
+                    }
+                  }}
                     title="Automatically adjust camera exposure based on lighting conditions"
-                  />
-                  Auto Exposure
-                </label>
-              </div>
-              <div className={styles.controlGroup}>
+                />
+                Auto Exposure
+              </label>
+            </div>
+            <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)">
-                  Exposure {settings.autoExposure ? '(Manual Override)' : '(Manual)'}
-                </label>
-                <div className={styles.sliderWrapper}>
+                Exposure {settings.autoExposure ? '(Manual Override)' : '(Manual)'}
+              </label>
+              <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>-10</span>
-                  <input
-                    type="range"
-                    min="-10"
-                    max="10"
-                    step="0.1"
+                <input
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="0.1"
                     value={Math.max(-10, Math.min(10, settings.cameraExposure))}
-                    onChange={async (e) => {
-                      const value = parseFloat(e.target.value);
-                      updateSetting('cameraExposure', value);
-                      if (state.isRunning && streamRef.current) {
-                        const track = streamRef.current.getVideoTracks()[0];
-                        if (track) {
-                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                          const updatedSettings = { ...settings, cameraExposure: value };
+                  onChange={async (e) => {
+                    const value = parseFloat(e.target.value);
+                    updateSetting('cameraExposure', value);
+                    if (state.isRunning && streamRef.current) {
+                      const track = streamRef.current.getVideoTracks()[0];
+                      if (track) {
+                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                        const updatedSettings = { ...settings, cameraExposure: value };
                           await applyCameraConstraints(track, capabilities, updatedSettings, false);
-                        }
                       }
-                    }}
-                    disabled={!state.isRunning}
-                    className={styles.slider}
+                    }
+                  }}
+                  disabled={!state.isRunning}
+                  className={styles.slider}
                     title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)"
                   />
                   <span className={styles.rangeLabel}>10</span>
@@ -1409,28 +1438,28 @@ export const FaceTracker: React.FC = () => {
                     className={styles.numberInput}
                     title="Manual exposure control (-10 to 10, negative = darker, positive = brighter)"
                   />
-                </div>
               </div>
-              <div className={styles.controlGroup}>
+            </div>
+            <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Camera hardware brightness adjustment (-1 to 1, negative = darker, positive = brighter)">
                   Brightness (Camera)
                 </label>
-                <div className={styles.sliderWrapper}>
+              <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>-1</span>
-                  <input
-                    type="range"
-                    min="-1"
-                    max="1"
-                    step="0.1"
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.1"
                     value={Math.max(-1, Math.min(1, settings.cameraBrightness))}
-                    onChange={async (e) => {
-                      const value = parseFloat(e.target.value);
-                      updateSetting('cameraBrightness', value);
-                      if (state.isRunning && streamRef.current) {
-                        const track = streamRef.current.getVideoTracks()[0];
-                        if (track) {
-                          const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
-                          const updatedSettings = { ...settings, cameraBrightness: value };
+                  onChange={async (e) => {
+                    const value = parseFloat(e.target.value);
+                    updateSetting('cameraBrightness', value);
+                    if (state.isRunning && streamRef.current) {
+                      const track = streamRef.current.getVideoTracks()[0];
+                      if (track) {
+                        const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
+                        const updatedSettings = { ...settings, cameraBrightness: value };
                           await applyCameraConstraints(track, capabilities, updatedSettings, false);
                         }
                       }
@@ -1456,11 +1485,11 @@ export const FaceTracker: React.FC = () => {
                             const capabilities = (track as any)._faceTrackerCapabilities || track.getCapabilities() as any;
                             const updatedSettings = { ...settings, cameraBrightness: value };
                             applyCameraConstraints(track, capabilities, updatedSettings, false);
-                          }
                         }
                       }
-                    }}
-                    disabled={!state.isRunning}
+                    }
+                  }}
+                  disabled={!state.isRunning}
                     className={styles.numberInput}
                     title="Camera hardware brightness adjustment (-1 to 1, negative = darker, positive = brighter)"
                   />
@@ -1511,7 +1540,7 @@ export const FaceTracker: React.FC = () => {
                     step="0.1"
                     value={settings.brightness}
                     onChange={(e) => updateSetting('brightness', parseFloat(e.target.value))}
-                    className={styles.slider}
+                  className={styles.slider}
                     title="Software brightness multiplier for preview display (0-3, 1.0 = normal)"
                   />
                   <span className={styles.rangeLabel}>3</span>
@@ -2343,138 +2372,31 @@ export const FaceTracker: React.FC = () => {
             {/* OSC Endpoints */}
             <div className={styles.controlSection}>
               <h4 className={styles.controlsTitle}>OSC Endpoints</h4>
-              {settings.useArtBastardOSC ? (
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="OSC address for pan channel (from ArtBastard configuration)">
-                    Pan Channel {settings.panChannel}:
-                  </label>
-                  <div className={styles.oscAddressRow}>
-                    <input
-                      type="text"
-                      value={oscAssignments && oscAssignments[settings.panChannel - 1] 
+              <div className={styles.controlGroup}>
+                <div className={styles.infoBox}>
+                  <p className={styles.infoText}>
+                    <strong>ArtBastard OSC Endpoints (from Configuration):</strong>
+                  </p>
+                  <p className={styles.infoText}>
+                    Pan Channel {settings.panChannel}: <code className={styles.endpointAddress}>
+                      {oscAssignments && oscAssignments[settings.panChannel - 1] 
                         ? oscAssignments[settings.panChannel - 1] 
                         : `/1/fader${settings.panChannel}`}
-                      onChange={(e) => {
-                        // Update the OSC assignment in the store
-                        const newAssignments = [...(oscAssignments || [])];
-                        while (newAssignments.length < settings.panChannel) {
-                          newAssignments.push('');
-                        }
-                        newAssignments[settings.panChannel - 1] = e.target.value;
-                        useStore.setState({ oscAssignments: newAssignments });
-                      }}
-                      className={styles.textInput}
-                      placeholder={`/1/fader${settings.panChannel}`}
-                      title="OSC address for pan channel"
-                    />
-                    <button
-                      className={styles.quickBindButton}
-                      onClick={() => {
-                        const newAssignments = [...(oscAssignments || [])];
-                        while (newAssignments.length < settings.panChannel) {
-                          newAssignments.push('');
-                        }
-                        newAssignments[settings.panChannel - 1] = `/1/fader${settings.panChannel}`;
-                        useStore.setState({ oscAssignments: newAssignments });
-                      }}
-                      title={`Quick bind to /1/fader${settings.panChannel}`}
-                    >
-                      <i className="fas fa-link"></i> Bind
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="OSC address for pan channel (custom)">
-                    Pan Channel {settings.panChannel}:
-                  </label>
-                  <div className={styles.oscAddressRow}>
-                    <input
-                      type="text"
-                      value={settings.oscPanAddress}
-                      onChange={(e) => updateSetting('oscPanAddress', e.target.value)}
-                      className={styles.textInput}
-                      placeholder="/face-tracker/pan"
-                      title="OSC address for pan channel"
-                    />
-                    <button
-                      className={styles.quickBindButton}
-                      onClick={() => updateSetting('oscPanAddress', `/1/fader${settings.panChannel}`)}
-                      title={`Quick bind to /1/fader${settings.panChannel}`}
-                    >
-                      <i className="fas fa-link"></i> Bind
-                    </button>
-                  </div>
-                </div>
-              )}
-              {settings.useArtBastardOSC ? (
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="OSC address for tilt channel (from ArtBastard configuration)">
-                    Tilt Channel {settings.tiltChannel}:
-                  </label>
-                  <div className={styles.oscAddressRow}>
-                    <input
-                      type="text"
-                      value={oscAssignments && oscAssignments[settings.tiltChannel - 1] 
+                    </code>
+                  </p>
+                  <p className={styles.infoText}>
+                    Tilt Channel {settings.tiltChannel}: <code className={styles.endpointAddress}>
+                      {oscAssignments && oscAssignments[settings.tiltChannel - 1] 
                         ? oscAssignments[settings.tiltChannel - 1] 
                         : `/1/fader${settings.tiltChannel}`}
-                      onChange={(e) => {
-                        // Update the OSC assignment in the store
-                        const newAssignments = [...(oscAssignments || [])];
-                        while (newAssignments.length < settings.tiltChannel) {
-                          newAssignments.push('');
-                        }
-                        newAssignments[settings.tiltChannel - 1] = e.target.value;
-                        useStore.setState({ oscAssignments: newAssignments });
-                      }}
-                      className={styles.textInput}
-                      placeholder={`/1/fader${settings.tiltChannel}`}
-                      title="OSC address for tilt channel"
-                    />
-                    <button
-                      className={styles.quickBindButton}
-                      onClick={() => {
-                        const newAssignments = [...(oscAssignments || [])];
-                        while (newAssignments.length < settings.tiltChannel) {
-                          newAssignments.push('');
-                        }
-                        newAssignments[settings.tiltChannel - 1] = `/1/fader${settings.tiltChannel}`;
-                        useStore.setState({ oscAssignments: newAssignments });
-                      }}
-                      title={`Quick bind to /1/fader${settings.tiltChannel}`}
-                    >
-                      <i className="fas fa-link"></i> Bind
-                    </button>
-                  </div>
+                    </code>
+                  </p>
+                  <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+                    When OSC is enabled, messages will be sent to these endpoints and visible in the OSC Monitor.
+                    Configure OSC assignments in the main ArtBastard settings.
+                  </p>
                 </div>
-              ) : (
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="OSC address for tilt channel (custom)">
-                    Tilt Channel {settings.tiltChannel}:
-                  </label>
-                  <div className={styles.oscAddressRow}>
-                    <input
-                      type="text"
-                      value={settings.oscTiltAddress}
-                      onChange={(e) => updateSetting('oscTiltAddress', e.target.value)}
-                      className={styles.textInput}
-                      placeholder="/face-tracker/tilt"
-                      title="OSC address for tilt channel"
-                    />
-                    <button
-                      className={styles.quickBindButton}
-                      onClick={() => updateSetting('oscTiltAddress', `/1/fader${settings.tiltChannel}`)}
-                      title={`Quick bind to /1/fader${settings.tiltChannel}`}
-                    >
-                      <i className="fas fa-link"></i> Bind
-                    </button>
-                  </div>
-                </div>
-              )}
-              <p className={styles.infoText} style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
-                When OSC is enabled, messages will be sent to these endpoints and visible in the OSC Monitor.
-                {settings.useArtBastardOSC && ' These addresses are shared with the main ArtBastard OSC configuration.'}
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -2563,9 +2485,9 @@ export const FaceTracker: React.FC = () => {
               />
             </div>
           </div>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };
