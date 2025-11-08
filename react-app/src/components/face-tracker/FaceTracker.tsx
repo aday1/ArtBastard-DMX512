@@ -929,7 +929,7 @@ export const FaceTracker: React.FC = () => {
                   // Only send if we have updates
                   if (Object.keys(dmxUpdates).length > 0) {
                     // Send via socket or HTTP
-                    if (socket && (socketConnected || socket.connected || (socket as any).active)) {
+                    if (socket && socketConnected) {
                       try {
                         (socket as any).emit('dmx:batch', dmxUpdates);
                         console.log('[FaceTracker] DMX batch sent:', dmxUpdates);
