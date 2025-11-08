@@ -4119,9 +4119,14 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Center position offset for pan (0-255, 128 = center)">
+                <label className={styles.controlLabel} title="Center position offset for pan (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration.">
                   Pan Offset
                 </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                  The DMX value sent when your face is looking straight ahead (center position). 
+                  Default: 128 (center of 0-255 range). Adjust if your fixture's center isn't at 128. 
+                  <strong> Tip: Use the 'SET TO CENTER' button for automatic calibration!</strong>
+                </p>
                 <div className={styles.sliderWrapper}>
                   <input
                     type="range"
@@ -4131,7 +4136,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.panOffset}
                     onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
                     className={styles.slider}
-                    title="Center position offset for pan (0-255, 128 = center)"
+                    title="Center position offset for pan (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration."
                   />
                   <input
                     type="number"
@@ -4141,15 +4146,20 @@ export const FaceTracker: React.FC = () => {
                     value={settings.panOffset}
                     onChange={(e) => updateSetting('panOffset', parseInt(e.target.value) || 128)}
                     className={styles.numberInput}
-                    title="Center position offset for pan (0-255, 128 = center)"
+                    title="Center position offset for pan (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration."
                   />
                   <span className={styles.rangeLabel}>0-255</span>
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Center position offset for tilt (0-255, 128 = center)">
+                <label className={styles.controlLabel} title="Center position offset for tilt (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration.">
                   Tilt Offset
                 </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                  The DMX value sent when your face is looking straight ahead (center position). 
+                  Default: 128 (center of 0-255 range). Adjust if your fixture's center isn't at 128. 
+                  <strong> Tip: Use the 'SET TO CENTER' button for automatic calibration!</strong>
+                </p>
                 <div className={styles.sliderWrapper}>
                   <input
                     type="range"
@@ -4159,7 +4169,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.tiltOffset}
                     onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
                     className={styles.slider}
-                    title="Center position offset for tilt (0-255, 128 = center)"
+                    title="Center position offset for tilt (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration."
                   />
                   <input
                     type="number"
@@ -4169,15 +4179,20 @@ export const FaceTracker: React.FC = () => {
                     value={settings.tiltOffset}
                     onChange={(e) => updateSetting('tiltOffset', parseInt(e.target.value) || 128)}
                     className={styles.numberInput}
-                    title="Center position offset for tilt (0-255, 128 = center)"
+                    title="Center position offset for tilt (0-255, 128 = center). This is the DMX value sent when your face is looking straight ahead. Adjust if your fixture's center position isn't at 128. Use 'SET TO CENTER' button for automatic calibration."
                   />
                   <span className={styles.rangeLabel}>0-255</span>
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Maximum velocity change per update (0.1-10, prevents overshooting)">
+                <label className={styles.controlLabel} title="Maximum velocity change per update (0.1-10). Limits how fast the fixture can move between updates, preventing overshooting and jerky movement. Lower (0.5-2.0) = slower, smoother movement. Higher (5-10) = faster, more responsive but may overshoot. Default: 3.0 - good balance.">
                   Max Velocity
                 </label>
+                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                  Limits how fast the fixture can move between updates, preventing overshooting and jerky movement. 
+                  Lower (0.5-2.0) = slower, smoother movement. Higher (5-10) = faster, more responsive but may overshoot. 
+                  <strong> Default: 3.0</strong> - Good balance for most fixtures.
+                </p>
                 <div className={styles.sliderWrapper}>
                   <input
                     type="range"
@@ -4187,7 +4202,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.maxVelocity}
                     onChange={(e) => updateSetting('maxVelocity', parseFloat(e.target.value) || 3.0)}
                     className={styles.slider}
-                    title="Maximum velocity change per update (0.1-10, prevents overshooting)"
+                    title="Maximum velocity change per update (0.1-10). Limits how fast the fixture can move between updates, preventing overshooting and jerky movement. Lower (0.5-2.0) = slower, smoother movement. Higher (5-10) = faster, more responsive but may overshoot. Default: 3.0 - good balance."
                   />
                   <input
                     type="number"
@@ -4200,7 +4215,7 @@ export const FaceTracker: React.FC = () => {
                       if (!isNaN(value)) updateSetting('maxVelocity', value);
                     }}
                     className={styles.numberInput}
-                    title="Maximum velocity change per update (0.1-10, prevents overshooting)"
+                    title="Maximum velocity change per update (0.1-10). Limits how fast the fixture can move between updates, preventing overshooting and jerky movement. Lower (0.5-2.0) = slower, smoother movement. Higher (5-10) = faster, more responsive but may overshoot. Default: 3.0 - good balance."
                   />
                   <span className={styles.rangeLabel}>0.1-10</span>
                 </div>
