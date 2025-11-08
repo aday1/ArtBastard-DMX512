@@ -5019,29 +5019,27 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
             </div>
+            </div>
           </div>
           
-        <div className={styles.status}>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Status:</span>
-            <span className={state.isRunning ? styles.running : styles.stopped}>
-              {state.isRunning ? 'Running' : 'Stopped'}
-            </span>
+          <div className={styles.status}>
+            <div className={styles.statusItem}>
+              <span className={styles.statusLabel}>Status:</span>
+              <span className={state.isRunning ? styles.running : styles.stopped}>
+                {state.isRunning ? 'Running' : 'Stopped'}
+              </span>
+            </div>
+            <div className={styles.statusItem}>
+              <span className={styles.statusLabel}>Face:</span>
+              <span className={state.faceDetected ? styles.detected : styles.notDetected}>
+                {state.faceDetected ? 'Detected' : 'Not Detected'}
+              </span>
+            </div>
+            <div className={styles.statusItem}>
+              <span className={styles.statusLabel}>FPS:</span>
+              <span>{state.fps}</span>
+            </div>
           </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Face:</span>
-            <span className={state.faceDetected ? styles.detected : styles.notDetected}>
-              {state.faceDetected ? 'Detected' : 'Not Detected'}
-            </span>
-          </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>FPS:</span>
-            <span>{state.fps}</span>
-          </div>
-        </div>
-          </div>
-        </div>
-
         </div>
       </div>
     </div>
