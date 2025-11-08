@@ -265,6 +265,7 @@ export const FaceTracker: React.FC = () => {
   const cascadeRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  const lastOscSendRef = useRef<number>(0); // Track last OSC send time for throttling
   const smoothedPanRef = useRef<number>(0);
   const smoothedTiltRef = useRef<number>(0);
   const panVelocityRef = useRef<number>(0);
@@ -2432,8 +2433,6 @@ export const FaceTracker: React.FC = () => {
                 title="Current tilt value being sent to DMX (0-255)"
               />
             </div>
-          </div>
-        </div>
           </div>
         </div>
       </div>
