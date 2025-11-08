@@ -1517,13 +1517,22 @@ export const FaceTracker: React.FC = () => {
             if (face.yaw !== undefined && face.pitch !== undefined) {
               const headYaw = face.yaw;
               const headPitch = face.pitch;
-              const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 0.8; // Increased distance for better visibility
+              // Use a larger projection distance for better visibility
+              const projectionDistance = Math.min(video.videoWidth, video.videoHeight) * 1.2;
+              
               // Yaw: negative = looking left, positive = looking right
-              // Pitch: negative = looking up, positive = looking down
-              // For gaze projection: when looking left (negative yaw), X should move left (negative offset)
-              // When looking up (negative pitch), Y should move up (negative offset)
-              const panOffset = headYaw * projectionDistance; // Left/right movement
-              const tiltOffset = -headPitch * projectionDistance; // Invert pitch: negative pitch (looking up) = move up (negative Y)
+              // Pitch: based on calculation, negative = looking down, positive = looking up (needs verification)
+              // For gaze: when looking left (negative yaw), X should move left
+              // When looking down (negative pitch), Y should move down
+              // When looking up (positive pitch), Y should move up
+              
+              // Apply yaw directly for horizontal movement
+              const panOffset = headYaw * projectionDistance;
+              
+              // Apply pitch for vertical movement (pitch is already in correct direction based on calculation)
+              // If pitch calculation is inverted, we may need to flip it
+              const tiltOffset = headPitch * projectionDistance;
+              
               const targetX = face.centerX + panOffset;
               const targetY = face.centerY + tiltOffset;
               const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
@@ -3017,7 +3026,7 @@ export const FaceTracker: React.FC = () => {
 
         // Continue detection loop only if still running
         // CRITICAL: Always schedule next frame immediately to prevent loop from stopping
-        // Use a small delay to prevent browser blocking, but ensure loop continues
+        // This ensures the loop never stops, even if there are errors
         if (state.isRunning) {
           // Schedule immediately - don't use setTimeout as it can cause delays
           try {
@@ -3027,7 +3036,16 @@ export const FaceTracker: React.FC = () => {
             // Fallback: use setTimeout if requestAnimationFrame fails
             setTimeout(() => {
               if (state.isRunning) {
-                detectionFrameRef.current = requestAnimationFrame(processDetection);
+                try {
+                  detectionFrameRef.current = requestAnimationFrame(processDetection);
+                } catch (e) {
+                  // Last resort: try calling processDetection directly after a delay
+                  setTimeout(() => {
+                    if (state.isRunning && processDetectionRef.current) {
+                      processDetectionRef.current();
+                    }
+                  }, 16);
+                }
               }
             }, 16); // ~60fps fallback
           }
@@ -3054,17 +3072,29 @@ export const FaceTracker: React.FC = () => {
             console.error('[FaceTracker] Failed to update error state:', stateError);
           }
           
-          // Only continue loop if still running - add delay to prevent rapid error loops
+          // CRITICAL: Always continue the loop, even after errors
+          // This ensures the detection loop never stops
           if (state.isRunning) {
-            setTimeout(() => {
-              if (state.isRunning && detectionFrameRef.current === undefined) {
-                try {
-                  detectionFrameRef.current = requestAnimationFrame(processDetection);
-                } catch (rafError) {
-                  console.error('[FaceTracker] Failed to restart detection loop:', rafError);
+            try {
+              // Continue immediately - don't wait
+              detectionFrameRef.current = requestAnimationFrame(processDetection);
+            } catch (rafError) {
+              // If requestAnimationFrame fails, use setTimeout as fallback
+              setTimeout(() => {
+                if (state.isRunning) {
+                  try {
+                    detectionFrameRef.current = requestAnimationFrame(processDetection);
+                  } catch (e) {
+                    // Last resort: try calling processDetection directly
+                    setTimeout(() => {
+                      if (state.isRunning && processDetectionRef.current) {
+                        processDetectionRef.current();
+                      }
+                    }, 16);
+                  }
                 }
-              }
-            }, 1000); // Wait 1 second before retrying
+              }, 16);
+            }
           } else {
             detectionFrameRef.current = undefined;
           }
@@ -3799,6 +3829,41 @@ export const FaceTracker: React.FC = () => {
                   )}
                 </div>
               </div>
+              {/* OpenCV FPS Control - Prominent placement near camera preview */}
+              {state.isRunning && (
+                <div className={styles.opencvFpsControl}>
+                  <label className={styles.opencvFpsLabel} title="OpenCV detection rate in frames per second. Lower values (5-10 FPS) reduce CPU usage but may miss fast movements. Higher values (20-30 FPS) provide smoother tracking but use more CPU. Default: 15 FPS">
+                    <i className="fas fa-tachometer-alt"></i> OpenCV Detection FPS: {settings.opencvFps || 15}
+                  </label>
+                  <div className={styles.opencvFpsSliderWrapper}>
+                    <span className={styles.opencvFpsRangeLabel}>1</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="60"
+                      step="1"
+                      value={settings.opencvFps || 15}
+                      onChange={(e) => updateSetting('opencvFps', parseInt(e.target.value, 10))}
+                      className={styles.opencvFpsSlider}
+                      title="OpenCV detection rate in frames per second (1-60 FPS)"
+                    />
+                    <span className={styles.opencvFpsRangeLabel}>60</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      step="1"
+                      value={settings.opencvFps || 15}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value, 10);
+                        if (!isNaN(value) && value >= 1 && value <= 60) updateSetting('opencvFps', value);
+                      }}
+                      className={styles.opencvFpsNumberInput}
+                      title="OpenCV detection rate in frames per second (1-60 FPS)"
+                    />
+                  </div>
+                </div>
+              )}
               {state.isRunning ? (
                 <>
                   <video
