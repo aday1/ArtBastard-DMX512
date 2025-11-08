@@ -612,37 +612,22 @@ export const DmxChannelControlPage: React.FC = () => {
               </div>
             )}
 
-            {electronMidiError && (
-              <div className={styles.errorMessage}>
-                <LucideIcon name="AlertCircle" />
-                Electron MIDI Error: {electronMidiError}
-              </div>
-            )}
-
-            {!browserMidiSupported && !electronMidiSupported && (
+            {!browserMidiSupported && (
               <div className={styles.warningMessage}>
                 <LucideIcon name="AlertTriangle" />
                 No MIDI support available
               </div>
             )}
 
-            {isElectron && (
-              <div className={styles.infoMessage}>
-                <LucideIcon name="CheckCircle" />
-                Running in Electron - Native MIDI support available
-              </div>
-            )}
-
-            {(browserMidiSupported || electronMidiSupported) && (
+            {browserMidiSupported && (
               <div className={styles.midiDevices}>
                 <div className={styles.deviceHeader}>
                   <label className={styles.deviceLabel}>
-                    Available MIDI Devices {isElectron ? '(Native)' : '(Web)'}:
+                    Available MIDI Devices:
                   </label>
                   <button 
                     className={styles.refreshButton}
                     onClick={handleRefreshMidiDevices}
-                    disabled={electronRefreshing}
                     title="Refresh MIDI devices"
                   >
                     <LucideIcon name="RefreshCw" />
@@ -651,8 +636,8 @@ export const DmxChannelControlPage: React.FC = () => {
                 </div>
                 
                 {(() => {
-                  const devices = isElectron && electronMidiSupported ? electronDevices.inputs : browserInputs;
-                  const connectedDevices = isElectron && electronMidiSupported ? electronConnectedDevices : activeBrowserInputs;
+                  const devices = browserInputs;
+                  const connectedDevices = activeBrowserInputs;
                   
                   if (devices.length === 0) {
                     return (
