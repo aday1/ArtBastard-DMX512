@@ -1198,6 +1198,45 @@ function startLaserTime(io: Server) {
             updateDmxChannel(channel, value, io);
         });
 
+        // Handle batch DMX updates (for Face Tracker and other bulk operations)
+        socket.on('dmx:batch', (updates: Record<number, number>) => {
+            if (!updates || typeof updates !== 'object') {
+                log('Invalid batch DMX update payload', 'ERROR', { socketId: socket.id, updates });
+                return;
+            }
+            
+            let updateCount = 0;
+            const errors: string[] = [];
+            
+            for (const [channelStr, value] of Object.entries(updates)) {
+                const channel = parseInt(channelStr, 10);
+                
+                if (isNaN(channel) || typeof value !== 'number') {
+                    errors.push(`Invalid channel ${channelStr} or value ${value}`);
+                    continue;
+                }
+                
+                if (channel < 0 || channel >= 512) {
+                    errors.push(`Channel ${channel} out of range (0-511)`);
+                    continue;
+                }
+                
+                if (value < 0 || value > 255) {
+                    errors.push(`Value ${value} for channel ${channel} out of range (0-255)`);
+                    continue;
+                }
+                
+                updateDmxChannel(channel, value, io);
+                updateCount++;
+            }
+            
+            if (errors.length > 0) {
+                log('Batch DMX update completed with errors', 'WARN', { updateCount, errors, socketId: socket.id });
+            } else if (updateCount > 0) {
+                log('Batch DMX update completed successfully', 'DMX', { updateCount, socketId: socket.id, quiet: true });
+            }
+        });
+
         socket.on('saveScene', ({ name, oscAddress, state }: { name: string; oscAddress: string; state: number[] }) => {
             log('Saving scene via socket', 'INFO', { name, socketId: socket.id });
             saveScene(io, name, oscAddress, state);

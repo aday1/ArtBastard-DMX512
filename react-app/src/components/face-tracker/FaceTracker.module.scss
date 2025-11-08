@@ -55,7 +55,8 @@
 }
 
 .configButton,
-.startButton {
+.startButton,
+.secondaryButton {
   padding: 0.5rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -68,6 +69,10 @@
   &:hover:not(:disabled) {
     background: var(--bg-hover);
     border-color: var(--accent-color);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
   }
 
   &:disabled {
@@ -121,6 +126,19 @@
   flex-direction: column;
   gap: 0.75rem;
   min-width: 0; // Prevent overflow
+  
+  .helpText {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 4px;
+    opacity: 0.9;
+  }
 
   label,
   .controlLabel {

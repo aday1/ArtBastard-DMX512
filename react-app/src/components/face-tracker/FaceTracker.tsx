@@ -1012,18 +1012,22 @@ export const FaceTracker: React.FC = () => {
                       }
                     });
                   } else {
-                    // Use configured channels
-                    dmxUpdates[settings.panChannel - 1] = panValue;
-                    dmxUpdates[settings.tiltChannel - 1] = tiltValue;
+                    // Use configured channels (only if channels are configured)
+                    if (settings.panChannel > 0) {
+                      dmxUpdates[settings.panChannel - 1] = panValue;
+                    }
+                    if (settings.tiltChannel > 0) {
+                      dmxUpdates[settings.tiltChannel - 1] = tiltValue;
+                    }
                   }
 
                   // Only send if we have updates
                   if (Object.keys(dmxUpdates).length > 0) {
-                  // Send via socket or HTTP
+                    // Send via socket or HTTP
                     if (socket && socketConnected) {
                       try {
-                    (socket as any).emit('dmx:batch', dmxUpdates);
-                        console.log('[FaceTracker] DMX batch sent:', dmxUpdates);
+                        (socket as any).emit('dmx:batch', dmxUpdates);
+                        console.log('[FaceTracker] DMX batch sent:', dmxUpdates, 'Pan:', panValue, 'Tilt:', tiltValue);
                         
                         // Send OSC if enabled and throttled
                         const nowForOsc = Date.now();
@@ -1208,11 +1212,84 @@ export const FaceTracker: React.FC = () => {
     });
   };
 
+  // Load default settings
+  const loadDefaults = () => {
+    if (window.confirm('Reset all Face Tracker settings to defaults? This will lose your current configuration.')) {
+      setSettings(DEFAULT_SETTINGS);
+      saveSettings(DEFAULT_SETTINGS);
+      console.log('[FaceTracker] Settings reset to defaults');
+    }
+  };
+
+  // Save preset
+  const savePreset = () => {
+    const presetName = window.prompt('Enter a name for this preset:');
+    if (presetName && presetName.trim()) {
+      try {
+        const presets = JSON.parse(localStorage.getItem('faceTrackerPresets') || '{}');
+        presets[presetName.trim()] = settings;
+        localStorage.setItem('faceTrackerPresets', JSON.stringify(presets));
+        console.log('[FaceTracker] Preset saved:', presetName.trim());
+        alert(`Preset "${presetName.trim()}" saved successfully!`);
+      } catch (error) {
+        console.error('[FaceTracker] Error saving preset:', error);
+        alert('Failed to save preset. Please try again.');
+      }
+    }
+  };
+
+  // Load preset
+  const loadPreset = () => {
+    try {
+      const presets = JSON.parse(localStorage.getItem('faceTrackerPresets') || '{}');
+      const presetNames = Object.keys(presets);
+      
+      if (presetNames.length === 0) {
+        alert('No presets saved yet. Save a preset first!');
+        return;
+      }
+      
+      const selectedPreset = window.prompt(`Available presets:\n${presetNames.join('\n')}\n\nEnter preset name to load:`);
+      if (selectedPreset && presets[selectedPreset]) {
+        setSettings(presets[selectedPreset]);
+        saveSettings(presets[selectedPreset]);
+        console.log('[FaceTracker] Preset loaded:', selectedPreset);
+        alert(`Preset "${selectedPreset}" loaded successfully!`);
+      } else if (selectedPreset) {
+        alert(`Preset "${selectedPreset}" not found.`);
+      }
+    } catch (error) {
+      console.error('[FaceTracker] Error loading preset:', error);
+      alert('Failed to load presets. Please try again.');
+    }
+  };
+
   return (
     <div className={styles.faceTracker}>
       <div className={styles.header}>
         <h2 className={styles.title}>Face Tracker</h2>
         <div className={styles.controls}>
+          <button
+            onClick={loadDefaults}
+            className={styles.secondaryButton}
+            title="Reset all settings to default values"
+          >
+            Load Defaults
+          </button>
+          <button
+            onClick={savePreset}
+            className={styles.secondaryButton}
+            title="Save current settings as a preset"
+          >
+            Save Preset
+          </button>
+          <button
+            onClick={loadPreset}
+            className={styles.secondaryButton}
+            title="Load a saved preset"
+          >
+            Load Preset
+          </button>
           <button
             onClick={state.isRunning ? stopCamera : startCamera}
             className={`${styles.startButton} ${state.isRunning ? styles.stopButton : ''}`}
@@ -1661,9 +1738,13 @@ export const FaceTracker: React.FC = () => {
             <div className={styles.controlSection}>
               <h4 className={styles.controlsTitle}>Tracking Settings</h4>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)">
+                <label className={styles.controlLabel} title="Controls how much horizontal (left/right) head movement translates to pan DMX values. Higher values = more movement per head turn. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter.">
                   Pan Sensitivity
                 </label>
+                <p className={styles.helpText}>
+                  Controls horizontal (left/right) head movement translation to pan DMX. Higher = more movement per head turn. 
+                  Start at 1.0: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter jitter.
+                </p>
                 <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>0</span>
                   <input
@@ -1674,7 +1755,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.panSensitivity}
                     onChange={(e) => updateSetting('panSensitivity', parseFloat(e.target.value))}
                     className={styles.slider}
-                    title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)"
+                    title="Controls how much horizontal (left/right) head movement translates to pan DMX values. Higher values = more movement per head turn. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter."
                   />
                   <span className={styles.rangeLabel}>5</span>
                   <input
@@ -1688,14 +1769,18 @@ export const FaceTracker: React.FC = () => {
                       if (!isNaN(value)) updateSetting('panSensitivity', value);
                     }}
                     className={styles.numberInput}
-                    title="Sensitivity multiplier for horizontal (pan) face tracking movement (0-5, higher = more responsive)"
+                    title="Controls how much horizontal (left/right) head movement translates to pan DMX values. Higher values = more movement per head turn. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter."
                   />
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)">
+                <label className={styles.controlLabel} title="Controls how much vertical (up/down) head movement translates to tilt DMX values. Higher values = more movement per head nod. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter.">
                   Tilt Sensitivity
                 </label>
+                <p className={styles.helpText}>
+                  Controls vertical (up/down) head movement translation to tilt DMX. Higher = more movement per head nod. 
+                  Start at 1.0: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter jitter.
+                </p>
                 <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>0</span>
                   <input
@@ -1706,7 +1791,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.tiltSensitivity}
                     onChange={(e) => updateSetting('tiltSensitivity', parseFloat(e.target.value))}
                     className={styles.slider}
-                    title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)"
+                    title="Controls how much vertical (up/down) head movement translates to tilt DMX values. Higher values = more movement per head nod. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter."
                   />
                   <span className={styles.rangeLabel}>5</span>
                   <input
@@ -1720,7 +1805,7 @@ export const FaceTracker: React.FC = () => {
                       if (!isNaN(value)) updateSetting('tiltSensitivity', value);
                     }}
                     className={styles.numberInput}
-                    title="Sensitivity multiplier for vertical (tilt) face tracking movement (0-5, higher = more responsive)"
+                    title="Controls how much vertical (up/down) head movement translates to tilt DMX values. Higher values = more movement per head nod. Start with 1.0 and adjust: lower (0.5-0.8) for subtle tracking, higher (1.5-2.5) for dramatic movement. Works with Cutoff to filter out jitter."
                   />
                 </div>
               </div>
@@ -1757,9 +1842,14 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)">
+                <label className={styles.controlLabel} title="Dead zone threshold to filter out small face movements and prevent jitter. Lower values (0.01-0.02) = more sensitive, tracks tiny movements. Higher values (0.05-0.1) = less sensitive, only tracks larger head movements. Works with Pan/Tilt Sensitivity: if tracking is too jittery, increase Cutoff. If tracking feels unresponsive, decrease Cutoff.">
                   Cutoff (Dead Zone)
                 </label>
+                <p className={styles.helpText}>
+                  Filters out small face movements to prevent jitter. Lower (0.01-0.02) = more sensitive, tracks tiny movements. 
+                  Higher (0.05-0.1) = less sensitive, only tracks larger head movements. 
+                  If tracking is jittery, increase Cutoff. If unresponsive, decrease Cutoff. Works with Pan/Tilt Sensitivity.
+                </p>
                 <div className={styles.sliderWrapper}>
                   <span className={styles.rangeLabel}>0</span>
                   <input
@@ -1770,7 +1860,7 @@ export const FaceTracker: React.FC = () => {
                     value={settings.cutoff}
                     onChange={(e) => updateSetting('cutoff', parseFloat(e.target.value))}
                     className={styles.slider}
-                    title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)"
+                    title="Dead zone threshold to filter out small face movements and prevent jitter. Lower values (0.01-0.02) = more sensitive, tracks tiny movements. Higher values (0.05-0.1) = less sensitive, only tracks larger head movements. Works with Pan/Tilt Sensitivity: if tracking is too jittery, increase Cutoff. If tracking feels unresponsive, decrease Cutoff."
                   />
                   <span className={styles.rangeLabel}>0.5</span>
                   <input
@@ -1784,7 +1874,7 @@ export const FaceTracker: React.FC = () => {
                       if (!isNaN(value)) updateSetting('cutoff', value);
                     }}
                     className={styles.numberInput}
-                    title="Dead zone threshold to prevent small movements (0-0.5, higher = larger dead zone)"
+                    title="Dead zone threshold to filter out small face movements and prevent jitter. Lower values (0.01-0.02) = more sensitive, tracks tiny movements. Higher values (0.05-0.1) = less sensitive, only tracks larger head movements. Works with Pan/Tilt Sensitivity: if tracking is too jittery, increase Cutoff. If tracking feels unresponsive, decrease Cutoff."
                   />
                 </div>
               </div>
@@ -2363,32 +2453,9 @@ export const FaceTracker: React.FC = () => {
                         />
                       </div>
                       <div className={styles.controlGroup}>
-                        <label className={styles.controlLabel} title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)">
-                          OSC Port
+                        <label className={styles.controlLabel} title="OSC port matches ArtBastard's listening port (8000)">
+                          OSC Port: {settings.oscPort} (ArtBastard's listening port)
                         </label>
-                        <div className={styles.sliderWrapper}>
-                          <input
-                            type="range"
-                            min="1024"
-                            max="65535"
-                            step="1"
-                            value={settings.oscPort}
-                            onChange={(e) => updateSetting('oscPort', parseInt(e.target.value) || 8000)}
-                            className={styles.slider}
-                            title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)"
-                          />
-                          <input
-                            type="number"
-                            min="1024"
-                            max="65535"
-                            step="1"
-                            value={settings.oscPort}
-                            onChange={(e) => updateSetting('oscPort', parseInt(e.target.value) || 8000)}
-                            className={styles.numberInput}
-                            title="Custom OSC server port (defaults to ArtBastard's incoming port: 8000)"
-                          />
-                          <span className={styles.rangeLabel}>1024-65535</span>
-                        </div>
                       </div>
                       <div className={styles.controlGroup}>
                         <label className={styles.controlLabel} title="OSC address path for pan values">
