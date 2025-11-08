@@ -1071,88 +1071,118 @@ export const FaceTracker: React.FC = () => {
     setDiagnostics(prev => ({ ...prev, cameraStatus: 'starting', cameraError: null }));
     
     try {
-      // Add timeout for camera access (Edge sometimes hangs)
-      const cameraTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Camera access timeout (10s)')), 10000);
-      });
-      
-      const enumerateDevices = navigator.mediaDevices.enumerateDevices();
-      const devices = await Promise.race([enumerateDevices, cameraTimeout]);
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      
-      if (videoDevices.length === 0) {
-        throw new Error('No video devices found');
+      // Edge needs more time and simpler approach - don't timeout enumerateDevices
+      let devices: MediaDeviceInfo[] = [];
+      try {
+        devices = await navigator.mediaDevices.enumerateDevices();
+      } catch (enumError) {
+        // If enumerateDevices fails, try getUserMedia directly (Edge sometimes has issues with enumerateDevices)
+        console.warn('[FaceTracker] enumerateDevices failed, trying direct getUserMedia:', enumError);
       }
-
-      const deviceId = videoDevices[settings.cameraIndex]?.deviceId || videoDevices[0].deviceId;
       
-      // Build constraints with exposure/brightness if we have values
-      const videoConstraints: any = {
-        deviceId: deviceId ? { ideal: deviceId } : undefined,
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const deviceId = videoDevices.length > 0 && settings.cameraIndex < videoDevices.length
+        ? videoDevices[settings.cameraIndex]?.deviceId 
+        : videoDevices[0]?.deviceId;
+      
+      // Build minimal constraints first (Edge works better with simpler constraints)
+      const minimalConstraints: any = {
         width: { ideal: 640 },
         height: { ideal: 480 },
-        facingMode: { ideal: 'user' },
       };
       
-      // Try to add exposure/brightness to initial constraints
-      // Many cameras need these set at stream creation, not after
-      if (!settings.autoExposure && settings.cameraExposure >= -10) {
-        // Try multiple exposure property names
-        videoConstraints.exposure = { ideal: settings.cameraExposure };
-        videoConstraints.exposureCompensation = { ideal: settings.cameraExposure };
+      // Only add deviceId if we have one (Edge can be picky about deviceId format)
+      if (deviceId) {
+        minimalConstraints.deviceId = { exact: deviceId };
+      } else {
+        // Fallback to facingMode if no deviceId
+        minimalConstraints.facingMode = { ideal: 'user' };
       }
       
-      if (settings.cameraBrightness >= -1) {
-        videoConstraints.brightness = { ideal: settings.cameraBrightness };
-      }
+      // Add timeout for getUserMedia (Edge needs more time - 15 seconds)
+      const cameraTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Camera access timeout (15s) - please check camera permissions')), 15000);
+      });
       
-      // Try to get stream with constraints (with timeout)
+      // Try to get stream with minimal constraints first (Edge prefers this)
       let stream: MediaStream;
       try {
         const getUserMediaPromise = navigator.mediaDevices.getUserMedia({
-          video: videoConstraints
+          video: minimalConstraints
         });
         stream = await Promise.race([getUserMediaPromise, cameraTimeout]);
-      } catch (error) {
-        // If that fails, try with minimal constraints (with timeout)
-        console.warn('[FaceTracker] Failed with advanced constraints, trying minimal:', error);
-        const minimalPromise = navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: deviceId ? { ideal: deviceId } : undefined
+      } catch (error: any) {
+        // If exact deviceId fails, try with ideal (Edge sometimes rejects exact)
+        if (error?.name === 'OverconstrainedError' || error?.name === 'NotFoundError') {
+          console.warn('[FaceTracker] Failed with exact deviceId, trying ideal:', error);
+          const fallbackConstraints: any = {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          };
+          if (deviceId) {
+            fallbackConstraints.deviceId = { ideal: deviceId };
+          } else {
+            fallbackConstraints.facingMode = { ideal: 'user' };
           }
-        });
-        stream = await Promise.race([minimalPromise, cameraTimeout]);
+          const fallbackPromise = navigator.mediaDevices.getUserMedia({
+            video: fallbackConstraints
+          });
+          stream = await Promise.race([fallbackPromise, cameraTimeout]);
+        } else {
+          // If that fails, try with absolute minimal constraints (no deviceId at all)
+          console.warn('[FaceTracker] Failed with device constraints, trying absolute minimal:', error);
+          const absoluteMinimalPromise = navigator.mediaDevices.getUserMedia({
+            video: true // Absolute minimal - let browser choose
+          });
+          stream = await Promise.race([absoluteMinimalPromise, cameraTimeout]);
+        }
       }
       
       // After getting the stream, try to apply exposure/brightness if supported
+      // Edge: Apply constraints more carefully, don't fail if they don't work
       if (stream && stream.getVideoTracks().length > 0) {
         const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities() as any;
-        const settings_ = track.getSettings() as any;
-        
-        // Log capabilities and current settings for debugging
-        console.log('[FaceTracker] Camera capabilities:', {
-          exposure: capabilities.exposure,
-          exposureMode: capabilities.exposureMode,
-          exposureCompensation: capabilities.exposureCompensation,
-          brightness: capabilities.brightness,
-          whiteBalanceMode: capabilities.whiteBalanceMode,
-          iso: capabilities.iso,
-          torch: capabilities.torch,
-        });
-        console.log('[FaceTracker] Current camera settings:', {
-          exposure: settings_.exposure,
-          exposureMode: settings_.exposureMode,
-          exposureCompensation: settings_.exposureCompensation,
-          brightness: settings_.brightness,
-        });
-        
-        // Store capabilities in ref for later use
-        (track as any)._faceTrackerCapabilities = capabilities;
-        (track as any)._faceTrackerSettings = settings_;
-        
-        // Try to apply constraints with multiple fallback strategies
-        await applyCameraConstraints(track, capabilities, settings, true);
+        try {
+          const capabilities = track.getCapabilities() as any;
+          const settings_ = track.getSettings() as any;
+          
+          // Log capabilities and current settings for debugging (only in dev)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[FaceTracker] Camera capabilities:', {
+              exposure: capabilities.exposure,
+              exposureMode: capabilities.exposureMode,
+              exposureCompensation: capabilities.exposureCompensation,
+              brightness: capabilities.brightness,
+              whiteBalanceMode: capabilities.whiteBalanceMode,
+              iso: capabilities.iso,
+              torch: capabilities.torch,
+            });
+            console.log('[FaceTracker] Current camera settings:', {
+              exposure: settings_.exposure,
+              exposureMode: settings_.exposureMode,
+              exposureCompensation: settings_.exposureCompensation,
+              brightness: settings_.brightness,
+            });
+          }
+          
+          // Store capabilities in ref for later use
+          (track as any)._faceTrackerCapabilities = capabilities;
+          (track as any)._faceTrackerSettings = settings_;
+          
+          // Try to apply constraints with multiple fallback strategies (non-blocking for Edge)
+          // Don't await - let it happen in background, don't fail if it doesn't work
+          applyCameraConstraints(track, capabilities, settings, true).catch(err => {
+            // Silent fail - constraints are optional, camera still works without them
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[FaceTracker] Could not apply camera constraints (non-critical):', err);
+            }
+          });
+        } catch (capError) {
+          // Edge sometimes doesn't support getCapabilities/getSettings - that's OK
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[FaceTracker] Could not get camera capabilities (non-critical):', capError);
+          }
+        }
       }
 
       streamRef.current = stream;
