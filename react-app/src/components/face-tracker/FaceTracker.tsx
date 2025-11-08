@@ -1746,8 +1746,8 @@ export const FaceTracker: React.FC = () => {
           if (textOverlayErrorCountRef.current >= MAX_TEXT_ERRORS) {
             textOverlayEnabledRef.current = false;
             console.warn('[FaceTracker] Text overlay disabled due to repeated errors to prevent Firefox crashes');
+          }
         }
-      }
       }
 
       // Update FPS counter (preview rendering FPS) - heavily throttled
