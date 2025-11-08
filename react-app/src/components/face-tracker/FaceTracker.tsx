@@ -1428,8 +1428,9 @@ export const FaceTracker: React.FC = () => {
       ctx.arc(clampedTargetX, clampedTargetY, 20, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Draw text label showing gaze direction (only if significant movement to reduce text rendering)
-      if (Math.abs(headYaw) > 0.1 || Math.abs(headPitch) > 0.1) {
+      // Draw text label showing gaze direction (throttled to reduce rendering cost)
+      // Only update every 4 frames (~15 FPS for text)
+      if ((Math.abs(headYaw) > 0.05 || Math.abs(headPitch) > 0.05) && Math.floor(now / 66) % 4 === 0) {
         ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
         ctx.font = 'bold 14px Arial';
         ctx.strokeStyle = 'black';
@@ -1451,76 +1452,157 @@ export const FaceTracker: React.FC = () => {
       ctx.lineTo(imageCenterX, imageCenterY + 20);
       ctx.stroke();
       
-      // Draw eye detection boxes (simplified to reduce rendering cost)
+      // Draw eye detection boxes with labels (throttled rendering)
       if (face.leftEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
-        // Removed text labels to reduce rendering cost
+        // Draw label (only every 3rd frame to reduce rendering cost)
+        if (Math.floor(now / 50) % 3 === 0) {
+          ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
+          ctx.font = 'bold 12px Arial';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 1;
+          ctx.strokeText('L Eye', face.leftEye.x, face.leftEye.y - 5);
+          ctx.fillText('L Eye', face.leftEye.x, face.leftEye.y - 5);
+        }
       }
       
       if (face.rightEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
-        // Removed text labels to reduce rendering cost
+        // Draw label (only every 3rd frame to reduce rendering cost)
+        if (Math.floor(now / 50) % 3 === 0) {
+          ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
+          ctx.font = 'bold 12px Arial';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 1;
+          ctx.strokeText('R Eye', face.rightEye.x, face.rightEye.y - 5);
+          ctx.fillText('R Eye', face.rightEye.x, face.rightEye.y - 5);
+        }
       }
       
-      // Draw mouth detection box (simplified)
+      // Draw mouth detection box with label
       if (face.mouth) {
         const mouthOpenness = face.mouthOpenness || 0;
         const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
         ctx.strokeStyle = mouthColor;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
-        // Removed text labels to reduce rendering cost
+        // Draw label (only every 3rd frame to reduce rendering cost)
+        if (Math.floor(now / 50) % 3 === 0) {
+          ctx.fillStyle = mouthColor;
+          ctx.font = 'bold 12px Arial';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 1;
+          const opennessPercent = Math.round(mouthOpenness * 100);
+          const mouthLabel = `Mouth ${opennessPercent}%`;
+          ctx.strokeText(mouthLabel, face.mouth.x, face.mouth.y - 5);
+          ctx.fillText(mouthLabel, face.mouth.x, face.mouth.y - 5);
+        }
       }
       
-      // Draw blink indicator (simplified - just a red circle to reduce text rendering)
+      // Draw blink indicator with text
       if (face.isBlinking) {
+        // Draw red circle
         ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
         ctx.beginPath();
         ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
         ctx.fill();
+        // Draw text (only every 2nd frame to reduce rendering cost)
+        if (Math.floor(now / 33) % 2 === 0) {
+          ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+          ctx.font = 'bold 20px Arial';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 2;
+          const blinkText = '👁️ BLINKING';
+          const textX = face.centerX - 60;
+          const textY = face.y - 20;
+          ctx.strokeText(blinkText, textX, textY);
+          ctx.fillText(blinkText, textX, textY);
+        }
       }
     }
     
     // Restore canvas state after batch operations
     ctx.restore();
 
-    // Draw minimal text overlay (reduced to prevent Firefox freezes)
-    // Only update text every few frames to reduce rendering cost
-    const frameSkip = 2; // Only draw text every 2nd frame
-    if (Math.floor(now / 16) % frameSkip === 0) {
+    // Draw text overlay (throttled to prevent Firefox freezes)
+    // Only update text every 3 frames (~20 FPS text updates instead of 60 FPS)
+    const textUpdateInterval = 3;
+    if (Math.floor(now / 50) % textUpdateInterval === 0) {
       ctx.fillStyle = 'yellow';
-      ctx.font = 'bold 16px Arial'; // Smaller font for better performance
+      ctx.font = 'bold 18px Arial';
       ctx.strokeStyle = 'black';
-      ctx.lineWidth = 1; // Thinner outline
+      ctx.lineWidth = 2;
       
       const panText = `Pan: ${state.currentPan}`;
       const tiltText = `Tilt: ${state.currentTilt}`;
       const faceDetected = lastFacePositionRef.current && 
                            (now - lastFacePositionRef.current.timestamp) < faceTimeout;
-      const statusText = faceDetected ? '✓ Face' : 'No Face';
+      const statusText = faceDetected ? '✓ Face Detected' : 'No Face';
       
-      // Draw with outline for better visibility (simplified)
-      ctx.strokeText(panText, 10, 25);
-      ctx.fillText(panText, 10, 25);
+      // Draw with outline for better visibility
+      ctx.strokeText(panText, 10, 30);
+      ctx.fillText(panText, 10, 30);
       
-      ctx.strokeText(tiltText, 10, 45);
-      ctx.fillText(tiltText, 10, 45);
+      ctx.strokeText(tiltText, 10, 55);
+      ctx.fillText(tiltText, 10, 55);
       
       ctx.fillStyle = faceDetected ? 'lime' : 'red';
-      ctx.strokeText(statusText, 10, 65);
-      ctx.fillText(statusText, 10, 65);
+      ctx.strokeText(statusText, 10, 80);
+      ctx.fillText(statusText, 10, 80);
+      
+      // Draw additional detection info (throttled)
+      if (faceDetected && lastFacePositionRef.current) {
+        const face = lastFacePositionRef.current;
+        let yOffset = 105;
+        
+        // Blink status
+        if (face.isBlinking !== undefined) {
+          ctx.fillStyle = face.isBlinking ? 'red' : 'lime';
+          const blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
+          ctx.strokeText(blinkText, 10, yOffset);
+          ctx.fillText(blinkText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        // Iris value
+        if (state.currentIris > 0) {
+          ctx.fillStyle = 'cyan';
+          const irisText = `Iris: ${state.currentIris}`;
+          ctx.strokeText(irisText, 10, yOffset);
+          ctx.fillText(irisText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        // Mouth status
+        if (face.mouth && face.mouthOpenness !== undefined) {
+          ctx.fillStyle = 'magenta';
+          const mouthPercent = Math.round(face.mouthOpenness * 100);
+          const mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
+          ctx.strokeText(mouthText, 10, yOffset);
+          ctx.fillText(mouthText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        // X/Y Position
+        if (state.currentX > 0 || state.currentY > 0) {
+          ctx.fillStyle = 'orange';
+          const posText = `X: ${state.currentX} Y: ${state.currentY}`;
+          ctx.strokeText(posText, 10, yOffset);
+          ctx.fillText(posText, 10, yOffset);
+        }
+      }
     }
 
     // Update FPS counter (preview rendering FPS)
     fpsCounterRef.current.frames++;
     const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
     
-    // Update FPS every second (1000ms)
-    if (timeSinceLastFpsUpdate >= 1000) {
+    // Update FPS every 3 seconds (3000ms) to reduce state updates and prevent Firefox crashes
+    if (timeSinceLastFpsUpdate >= 3000) {
       // Calculate FPS: frames counted / time elapsed in seconds
       const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
       
