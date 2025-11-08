@@ -593,8 +593,9 @@ export const FaceTracker: React.FC = () => {
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
+    // Stop the loop if not running or preview disabled
     if (!showPreview || !videoRef.current || !canvasRef.current || !state.isRunning) {
-      previewFrameRef.current = requestAnimationFrame(renderPreview);
+      previewFrameRef.current = undefined;
       return;
     }
 
@@ -603,7 +604,12 @@ export const FaceTracker: React.FC = () => {
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
     
     if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      previewFrameRef.current = requestAnimationFrame(renderPreview);
+      // Only continue loop if still running
+      if (state.isRunning) {
+        previewFrameRef.current = requestAnimationFrame(renderPreview);
+      } else {
+        previewFrameRef.current = undefined;
+      }
       return;
     }
 
@@ -718,8 +724,13 @@ export const FaceTracker: React.FC = () => {
       fpsCounterRef.current.lastTime = now;
     }
 
-    previewFrameRef.current = requestAnimationFrame(renderPreview);
-  }, [showPreview, state.currentPan, state.currentTilt]);
+    // Continue preview loop only if still running
+    if (state.isRunning) {
+      previewFrameRef.current = requestAnimationFrame(renderPreview);
+    } else {
+      previewFrameRef.current = undefined;
+    }
+  }, [showPreview, state.currentPan, state.currentTilt, state.isRunning]);
 
   // Face detection (runs at lower rate for performance)
   const detectFaces = useCallback(() => {
@@ -739,7 +750,12 @@ export const FaceTracker: React.FC = () => {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          detectionFrameRef.current = requestAnimationFrame(processDetection);
+          // Only continue loop if still running
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } else {
+            detectionFrameRef.current = undefined;
+          }
           return;
         }
 
@@ -747,7 +763,12 @@ export const FaceTracker: React.FC = () => {
         const now = Date.now();
         const detectionInterval = 1000 / 15; // 15 FPS for detection
         if (now - lastDetectionTimeRef.current < detectionInterval) {
-          detectionFrameRef.current = requestAnimationFrame(processDetection);
+          // Only continue loop if still running
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } else {
+            detectionFrameRef.current = undefined;
+          }
           return;
         }
         lastDetectionTimeRef.current = now;
@@ -1110,13 +1131,21 @@ export const FaceTracker: React.FC = () => {
           console.error('[FaceTracker] Error during cleanup:', cleanupError);
         }
 
-        // Continue detection loop
-        detectionFrameRef.current = requestAnimationFrame(processDetection);
+        // Continue detection loop only if still running
+        if (state.isRunning) {
+          detectionFrameRef.current = requestAnimationFrame(processDetection);
+        } else {
+          detectionFrameRef.current = undefined;
+        }
         } catch (error) {
           // Catch any unhandled errors and log them
           console.error('[FaceTracker] Frame processing error:', error);
-          // Ensure we continue the loop even after an error
-          detectionFrameRef.current = requestAnimationFrame(processDetection);
+          // Only continue loop if still running
+          if (state.isRunning) {
+            detectionFrameRef.current = requestAnimationFrame(processDetection);
+          } else {
+            detectionFrameRef.current = undefined;
+          }
         }
       };
 
@@ -1129,20 +1158,44 @@ export const FaceTracker: React.FC = () => {
       return;
     }
     
+    // Only start if actually running
+    if (!state.isRunning) {
+      return;
+    }
+    
     // Start fast preview rendering
     renderPreview();
     
     // Start face detection (runs at lower rate)
     detectFaces();
-  }, [renderPreview, detectFaces]);
+  }, [renderPreview, detectFaces, state.isRunning]);
 
   useEffect(() => {
     if (state.isRunning && state.isInitialized) {
       startTracking();
+    } else {
+      // Stop all loops when not running
+      if (previewFrameRef.current) {
+        cancelAnimationFrame(previewFrameRef.current);
+        previewFrameRef.current = undefined;
+      }
+      if (detectionFrameRef.current) {
+        cancelAnimationFrame(detectionFrameRef.current);
+        detectionFrameRef.current = undefined;
+      }
     }
     return () => {
+      if (previewFrameRef.current) {
+        cancelAnimationFrame(previewFrameRef.current);
+        previewFrameRef.current = undefined;
+      }
+      if (detectionFrameRef.current) {
+        cancelAnimationFrame(detectionFrameRef.current);
+        detectionFrameRef.current = undefined;
+      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
       }
     };
   }, [state.isRunning, state.isInitialized, startTracking]);
