@@ -4571,6 +4571,98 @@ export const FaceTracker: React.FC = () => {
               </div>
             </div>
           )}
+          
+          {/* Zoom Control */}
+          {settings.zoomChannel > 0 && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current zoom value being sent to DMX (0-255)">
+                Zoom: {state.currentZoom}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>{settings.zoomMin}</span>
+                <input
+                  type="range"
+                  min={settings.zoomMin}
+                  max={settings.zoomMax}
+                  step="1"
+                  value={state.currentZoom}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current zoom value being sent to DMX (based on face distance)"
+                />
+                <span className={styles.rangeLabel}>{settings.zoomMax}</span>
+                <input
+                  type="number"
+                  min={settings.zoomMin}
+                  max={settings.zoomMax}
+                  step="1"
+                  value={state.currentZoom}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current zoom value being sent to DMX"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Tongue Control */}
+          {settings.tongueChannel > 0 && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current tongue detection value being sent to DMX (0-255)">
+                Tongue: {state.currentTongue} {state.isTongueOut ? '👅 OUT' : ''}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>0</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={state.currentTongue}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current tongue detection value (255 = tongue out, 0 = tongue in)"
+                />
+                <span className={styles.rangeLabel}>255</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="255"
+                  step="1"
+                  value={state.currentTongue}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current tongue detection value"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Gesture Display */}
+          {settings.enableGestures && state.currentGesture && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current detected gesture">
+                Gesture: <strong>{state.currentGesture}</strong>
+              </label>
+              <div className={styles.gestureDisplay}>
+                {state.currentGesture === 'SMILING' && '😊'}
+                {state.currentGesture === 'SAD' && '😢'}
+                {state.currentGesture === 'SURPRISED' && '😲'}
+                {state.currentGesture === 'NODDING' && '👍'}
+                {state.currentGesture === 'SHAKING HEAD' && '👎'}
+                {state.currentGesture === 'THUMBS_UP' && '👍'}
+                {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
+                {state.currentGesture === 'FIST' && '✊'}
+                {state.currentGesture === 'OPEN_HAND' && '✋'}
+                {state.currentGesture === 'NEUTRAL' && '😐'}
+                {state.currentGesture === 'STILL' && '⏸️'}
+              </div>
+            </div>
+          )}
         </div>
           </div>
         </div>
