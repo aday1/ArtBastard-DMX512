@@ -5,6 +5,7 @@ import path from 'path';
 import { log } from './logger'; // Import from logger instead of index
 import { 
   setDmxChannel, 
+  setDmxChannels,
   learnMidiMapping, 
   loadScene, 
   saveScene, 
@@ -245,10 +246,60 @@ const batchDmxHandler: RequestHandler = (req: Request, res: Response) => {
       return;
     }
     
-    let updateCount = 0;
+    const updateEntries = Object.entries(updates);
+    const updateCount = updateEntries.length;
+    
+    // Check if this is a "set all to zero" operation (all values are 0 and many channels)
+    const allZero = updateEntries.every(([_, value]) => value === 0);
+    const isLargeBatch = updateCount > 50;
+    
+    // For large batches or all-zero operations, use optimized setDmxChannels
+    if ((allZero && updateCount > 10) || (isLargeBatch && updateCount > 100)) {
+      // Build array of all 512 channels, using updates where provided, otherwise keep current
+      const currentChannels = getDmxChannels();
+      const newChannels = [...currentChannels];
+      
+      const errors: string[] = [];
+      
+      for (const [channelStr, value] of updateEntries) {
+        const channel = parseInt(channelStr, 10);
+        
+        if (isNaN(channel) || typeof value !== 'number') {
+          errors.push(`Invalid channel ${channelStr} or value ${value}`);
+          continue;
+        }
+        
+        if (channel < 0 || channel >= 512) {
+          errors.push(`Channel ${channel} out of range (0-511)`);
+          continue;
+        }
+        
+        if (value < 0 || value > 255) {
+          errors.push(`Value ${value} for channel ${channel} out of range (0-255)`);
+          continue;
+        }
+        
+        newChannels[channel] = value;
+      }
+      
+      // Use optimized setDmxChannels which handles OSC batching
+      setDmxChannels(newChannels);
+      
+      if (errors.length > 0) {
+        log('Batch DMX update completed with errors (optimized path)', 'WARN', { updateCount, errors });
+        res.status(207).json({ success: true, updateCount, errors }); // 207 Multi-Status
+      } else {
+        log('Batch DMX update completed successfully (optimized path)', 'INFO', { updateCount });
+        res.json({ success: true, updateCount });
+      }
+      return;
+    }
+    
+    // For small batches, use individual updates (but still optimized)
+    let successCount = 0;
     const errors: string[] = [];
     
-    for (const [channelStr, value] of Object.entries(updates)) {
+    for (const [channelStr, value] of updateEntries) {
       const channel = parseInt(channelStr, 10);
       
       if (isNaN(channel) || typeof value !== 'number') {
@@ -267,15 +318,15 @@ const batchDmxHandler: RequestHandler = (req: Request, res: Response) => {
       }
       
       setDmxChannel(channel, value);
-      updateCount++;
+      successCount++;
     }
     
     if (errors.length > 0) {
-      log('Batch DMX update completed with errors', 'WARN', { updateCount, errors });
-      res.status(207).json({ success: true, updateCount, errors }); // 207 Multi-Status
+      log('Batch DMX update completed with errors', 'WARN', { updateCount: successCount, errors });
+      res.status(207).json({ success: true, updateCount: successCount, errors }); // 207 Multi-Status
     } else {
-      log('Batch DMX update completed successfully', 'INFO', { updateCount });
-      res.json({ success: true, updateCount });
+      log('Batch DMX update completed successfully', 'INFO', { updateCount: successCount });
+      res.json({ success: true, updateCount: successCount });
     }
   } catch (error) {
     log('Error in batch DMX update', 'ERROR', { error, body: req.body });

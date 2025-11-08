@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { useSocket } from '../../context/SocketContext';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
@@ -37,6 +37,10 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
   const [baselineChannelValues, setBaselineChannelValues] = useState<{ [key: number]: number } | null>(null);
   const [isMasterFaderActive, setIsMasterFaderActive] = useState<boolean>(false);
   const [masterFaderValueWhenActivated, setMasterFaderValueWhenActivated] = useState<number>(255);
+  // Throttle OSC messages to prevent spam
+  const oscThrottleRef = useRef<NodeJS.Timeout | null>(null);
+  const lastOscValueRef = useRef<number | null>(null);
+  const pendingOscValueRef = useRef<number | null>(null);
 
   const { dmxChannels, setMultipleDmxChannels, groups, fixtures, oscAssignments, midiMessages } = useStore(state => ({
     dmxChannels: state.dmxChannels,
@@ -140,13 +144,22 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     // If master fader is at 255 and we have a baseline, restore it
     if (newValue === 255 && baselineChannelValues && masterFaderValueWhenActivated === 255) {
       restoreBaselineState();
-      // Continue to send OSC update
+      // Continue to send OSC update (with throttling)
       if (socket && oscAddress) {
+        const normalizedValue = newValue / 255.0;
+        // Send immediately for full value (255)
         try {
           (socket as any).emit('sendOsc', {
             address: oscAddress,
-            args: [{ type: 'f', value: newValue / 255.0 }]
+            args: [{ type: 'f', value: normalizedValue }]
           });
+          lastOscValueRef.current = normalizedValue;
+          pendingOscValueRef.current = null;
+          // Clear any pending throttle
+          if (oscThrottleRef.current) {
+            clearTimeout(oscThrottleRef.current);
+            oscThrottleRef.current = null;
+          }
         } catch (error) {
           console.error('[MasterFader] Failed to send OSC:', error);
         }
@@ -190,15 +203,49 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       setMultipleDmxChannels(dmxUpdates, true);
     }
 
-    // Send OSC update if configured
+    // Send OSC update if configured (with throttling to prevent spam)
     if (socket && oscAddress) {
-      try {
-        (socket as any).emit('sendOsc', {
-          address: oscAddress,
-          args: [{ type: 'f', value: newValue / 255.0 }]
-        });
-      } catch (error) {
-        console.error('[MasterFader] Failed to send OSC:', error);
+      const normalizedValue = newValue / 255.0;
+      pendingOscValueRef.current = normalizedValue;
+      
+      // Clear any existing throttle timer
+      if (oscThrottleRef.current) {
+        clearTimeout(oscThrottleRef.current);
+      }
+      
+      // Send immediately if value changed significantly (>5%) or if it's been more than 100ms since last send
+      const lastValue = lastOscValueRef.current;
+      const significantChange = lastValue === null || Math.abs(normalizedValue - lastValue) > 0.05;
+      
+      if (significantChange) {
+        // Send immediately for significant changes
+        try {
+          (socket as any).emit('sendOsc', {
+            address: oscAddress,
+            args: [{ type: 'f', value: normalizedValue }]
+          });
+          lastOscValueRef.current = normalizedValue;
+          pendingOscValueRef.current = null;
+        } catch (error) {
+          console.error('[MasterFader] Failed to send OSC:', error);
+        }
+      } else {
+        // Throttle small changes - send at most every 100ms
+        oscThrottleRef.current = setTimeout(() => {
+          if (pendingOscValueRef.current !== null) {
+            try {
+              (socket as any).emit('sendOsc', {
+                address: oscAddress,
+                args: [{ type: 'f', value: pendingOscValueRef.current }]
+              });
+              lastOscValueRef.current = pendingOscValueRef.current;
+              pendingOscValueRef.current = null;
+            } catch (error) {
+              console.error('[MasterFader] Failed to send OSC:', error);
+            }
+          }
+          oscThrottleRef.current = null;
+        }, 100);
       }
     }
   }, [value, onValueChange, baselineChannelValues, masterFaderValueWhenActivated, restoreBaselineState, socket, oscAddress, isChannelIgnored, dmxChannels, setMultipleDmxChannels]);
@@ -238,6 +285,16 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
       socket.off('oscMessage', handleOscMessage);
     };
   }, [socket, oscAddress, handleValueChange]);
+
+  // Cleanup throttle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (oscThrottleRef.current) {
+        clearTimeout(oscThrottleRef.current);
+        oscThrottleRef.current = null;
+      }
+    };
+  }, []);
   
   // Listen for MIDI learn completion
   useEffect(() => {
