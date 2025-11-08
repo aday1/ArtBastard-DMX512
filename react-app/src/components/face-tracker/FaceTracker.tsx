@@ -1203,6 +1203,9 @@ export const FaceTracker: React.FC = () => {
       fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
       
       setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0 }));
+      // Re-enable text overlay when starting (in case it was disabled due to crashes)
+      textOverlayEnabledRef.current = true;
+      textOverlayErrorCountRef.current = 0;
       setDiagnostics(prev => ({ 
         ...prev, 
         cameraStatus: 'running', 
@@ -1287,6 +1290,10 @@ export const FaceTracker: React.FC = () => {
   // Text rendering cache to prevent flickering
   const lastTextRenderTimeRef = useRef<number>(0);
   const TEXT_RENDER_INTERVAL = 200; // Only update text every 200ms (5 FPS for text)
+  // Crash detection for text overlay - disable if too many errors
+  const textOverlayErrorCountRef = useRef<number>(0);
+  const textOverlayEnabledRef = useRef<boolean>(true);
+  const MAX_TEXT_ERRORS = 3; // Disable text overlay after 3 consecutive errors
   // Cache text values to always redraw them (prevents flickering)
   const textCacheRef = useRef<{
     panText: string;
@@ -1547,9 +1554,12 @@ export const FaceTracker: React.FC = () => {
     const shouldUpdateText = (now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL;
     
     if (shouldUpdateText) {
-      // Update cached text values
-      textCacheRef.current.panText = `Pan: ${state.currentPan}`;
-      textCacheRef.current.tiltText = `Tilt: ${state.currentTilt}`;
+      // Update cached text values - use current state values (not stale)
+      // Force read from state to ensure we get latest values
+      const currentPan = state.currentPan;
+      const currentTilt = state.currentTilt;
+      textCacheRef.current.panText = `Pan: ${currentPan}`;
+      textCacheRef.current.tiltText = `Tilt: ${currentTilt}`;
       const faceDetected = lastFacePositionRef.current && 
                            (now - lastFacePositionRef.current.timestamp) < faceTimeout;
       textCacheRef.current.faceDetected = faceDetected;
@@ -1601,65 +1611,76 @@ export const FaceTracker: React.FC = () => {
       lastTextRenderTimeRef.current = now;
     }
     
-    // Always draw text from cache to prevent flickering (text is always visible)
-    try {
-      // Clear previous text area with semi-transparent background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.fillRect(5, 5, 200, 250);
-      
-      ctx.font = 'bold 18px Arial';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 2;
-      
-      // Draw pan/tilt/status (always visible)
-      ctx.fillStyle = 'yellow';
-      if (textCacheRef.current.panText) {
-        ctx.strokeText(textCacheRef.current.panText, 10, 30);
-        ctx.fillText(textCacheRef.current.panText, 10, 30);
+    // Draw text overlay only if enabled (disabled after crashes to prevent Firefox freezes)
+    if (textOverlayEnabledRef.current) {
+      try {
+        // Clear previous text area with semi-transparent background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(5, 5, 200, 250);
+        
+        ctx.font = 'bold 18px Arial';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        
+        // Draw pan/tilt/status (always visible)
+        ctx.fillStyle = 'yellow';
+        if (textCacheRef.current.panText) {
+          ctx.strokeText(textCacheRef.current.panText, 10, 30);
+          ctx.fillText(textCacheRef.current.panText, 10, 30);
+        }
+        
+        if (textCacheRef.current.tiltText) {
+          ctx.strokeText(textCacheRef.current.tiltText, 10, 55);
+          ctx.fillText(textCacheRef.current.tiltText, 10, 55);
+        }
+        
+        if (textCacheRef.current.statusText) {
+          ctx.fillStyle = textCacheRef.current.statusColor || 'red';
+          ctx.strokeText(textCacheRef.current.statusText, 10, 80);
+          ctx.fillText(textCacheRef.current.statusText, 10, 80);
+        }
+        
+        // Draw additional detection info if available
+        let yOffset = 105;
+        if (textCacheRef.current.blinkText) {
+          ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
+          ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
+          ctx.fillText(textCacheRef.current.blinkText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        if (textCacheRef.current.irisText) {
+          ctx.fillStyle = 'cyan';
+          ctx.strokeText(textCacheRef.current.irisText, 10, yOffset);
+          ctx.fillText(textCacheRef.current.irisText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        if (textCacheRef.current.mouthText) {
+          ctx.fillStyle = 'magenta';
+          ctx.strokeText(textCacheRef.current.mouthText, 10, yOffset);
+          ctx.fillText(textCacheRef.current.mouthText, 10, yOffset);
+          yOffset += 25;
+        }
+        
+        if (textCacheRef.current.posText) {
+          ctx.fillStyle = 'orange';
+          ctx.strokeText(textCacheRef.current.posText, 10, yOffset);
+          ctx.fillText(textCacheRef.current.posText, 10, yOffset);
+        }
+        
+        // Reset error count on successful render
+        textOverlayErrorCountRef.current = 0;
+      } catch (error) {
+        textOverlayErrorCountRef.current++;
+        console.warn(`[FaceTracker] Error drawing text overlay (${textOverlayErrorCountRef.current}/${MAX_TEXT_ERRORS}):`, error);
+        
+        // Disable text overlay after too many errors to prevent Firefox crashes
+        if (textOverlayErrorCountRef.current >= MAX_TEXT_ERRORS) {
+          textOverlayEnabledRef.current = false;
+          console.warn('[FaceTracker] Text overlay disabled due to repeated errors to prevent Firefox crashes');
+        }
       }
-      
-      if (textCacheRef.current.tiltText) {
-        ctx.strokeText(textCacheRef.current.tiltText, 10, 55);
-        ctx.fillText(textCacheRef.current.tiltText, 10, 55);
-      }
-      
-      if (textCacheRef.current.statusText) {
-        ctx.fillStyle = textCacheRef.current.statusColor || 'red';
-        ctx.strokeText(textCacheRef.current.statusText, 10, 80);
-        ctx.fillText(textCacheRef.current.statusText, 10, 80);
-      }
-      
-      // Draw additional detection info if available
-      let yOffset = 105;
-      if (textCacheRef.current.blinkText) {
-        ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
-        ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
-        ctx.fillText(textCacheRef.current.blinkText, 10, yOffset);
-        yOffset += 25;
-      }
-      
-      if (textCacheRef.current.irisText) {
-        ctx.fillStyle = 'cyan';
-        ctx.strokeText(textCacheRef.current.irisText, 10, yOffset);
-        ctx.fillText(textCacheRef.current.irisText, 10, yOffset);
-        yOffset += 25;
-      }
-      
-      if (textCacheRef.current.mouthText) {
-        ctx.fillStyle = 'magenta';
-        ctx.strokeText(textCacheRef.current.mouthText, 10, yOffset);
-        ctx.fillText(textCacheRef.current.mouthText, 10, yOffset);
-        yOffset += 25;
-      }
-      
-      if (textCacheRef.current.posText) {
-        ctx.fillStyle = 'orange';
-        ctx.strokeText(textCacheRef.current.posText, 10, yOffset);
-        ctx.fillText(textCacheRef.current.posText, 10, yOffset);
-      }
-    } catch (error) {
-      console.warn('[FaceTracker] Error drawing text overlay:', error);
-      // Continue even if text drawing fails
     }
 
     // Update FPS counter (preview rendering FPS)
@@ -2534,20 +2555,46 @@ export const FaceTracker: React.FC = () => {
               }
 
               // Always update state for UI display (not just when sending DMX)
-              setState(prev => ({ 
-                ...prev, 
-                currentPan: panValue, 
-                currentTilt: tiltValue,
-                currentX: finalXValue,
-                currentY: finalYValue,
-                currentIris: finalIrisValue,
-                currentMouth: finalMouthValue,
-                currentTongue: finalTongueValue,
-                currentZoom: finalZoomValue,
-                isBlinking: isBlinking,
-                isTongueOut: isTongueOut,
-                currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
-              }));
+              // Only update if values actually changed to prevent unnecessary re-renders
+              setState(prev => {
+                // Check if values actually changed
+                const valuesChanged = prev.currentPan !== panValue || 
+                                     prev.currentTilt !== tiltValue ||
+                                     prev.currentX !== finalXValue ||
+                                     prev.currentY !== finalYValue ||
+                                     prev.currentIris !== finalIrisValue ||
+                                     prev.currentMouth !== finalMouthValue ||
+                                     prev.currentTongue !== finalTongueValue ||
+                                     prev.currentZoom !== finalZoomValue ||
+                                     prev.isBlinking !== isBlinking ||
+                                     prev.isTongueOut !== isTongueOut;
+                
+                // Log occasionally if values seem stuck (for debugging)
+                if (!valuesChanged && Math.random() < 0.01) {
+                  console.log('[FaceTracker] Values update check:', {
+                    panValue,
+                    tiltValue,
+                    prevPan: prev.currentPan,
+                    prevTilt: prev.currentTilt,
+                    faceDetected: !!lastFacePositionRef.current
+                  });
+                }
+                
+                return {
+                  ...prev, 
+                  currentPan: panValue, 
+                  currentTilt: tiltValue,
+                  currentX: finalXValue,
+                  currentY: finalYValue,
+                  currentIris: finalIrisValue,
+                  currentMouth: finalMouthValue,
+                  currentTongue: finalTongueValue,
+                  currentZoom: finalZoomValue,
+                  isBlinking: isBlinking,
+                  isTongueOut: isTongueOut,
+                  currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
+                };
+              });
 
               // Removed logging to prevent Firefox crashes
 
