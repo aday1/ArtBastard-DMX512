@@ -255,7 +255,12 @@ export const FaceTracker: React.FC = () => {
       const saved = localStorage.getItem('faceTrackerSettings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { ...DEFAULT_SETTINGS, ...parsed };
+        const loaded = { ...DEFAULT_SETTINGS, ...parsed };
+        // Ensure oscPort defaults to 8000 if invalid
+        if (!loaded.oscPort || loaded.oscPort < 1024 || loaded.oscPort > 65535) {
+          loaded.oscPort = 8000;
+        }
+        return loaded;
       }
     } catch (error) {
       console.error('Error loading Face Tracker settings:', error);
@@ -1402,16 +1407,18 @@ export const FaceTracker: React.FC = () => {
         {isDetached && showPreview && (
           <Draggable
             position={detachedPosition}
+            onDrag={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
             onStop={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
             handle=".detachedPreviewHeader"
           >
             <div className={styles.detachedPreview}>
-              <div className={styles.detachedPreviewHeader}>
+              <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
                 <span className={styles.detachedPreviewTitle}>Camera Preview</span>
                 <button
                   className={styles.closeDetachedButton}
                   onClick={() => setIsDetached(false)}
                   title="Reattach Preview"
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <i className="fas fa-times"></i>
                 </button>
@@ -1462,16 +1469,18 @@ export const FaceTracker: React.FC = () => {
         {is3DFixtureDetached && (
           <Draggable
             position={fixture3DPosition}
+            onDrag={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
             onStop={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
             handle=".detachedPreviewHeader"
           >
             <div className={styles.detachedPreview}>
-              <div className={styles.detachedPreviewHeader}>
+              <div className={`${styles.detachedPreviewHeader} detachedPreviewHeader`}>
                 <span className={styles.detachedPreviewTitle}>3D Fixture Model</span>
                 <button
                   className={styles.closeDetachedButton}
                   onClick={() => setIs3DFixtureDetached(false)}
                   title="Reattach 3D Model"
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <i className="fas fa-times"></i>
                 </button>
@@ -1882,36 +1891,88 @@ export const FaceTracker: React.FC = () => {
 
             {/* DMX Channels Section */}
             <div className={styles.controlSection}>
-              <h4 className={styles.controlsTitle}>DMX Channels</h4>
+              <h4 className={styles.controlsTitle}>DMX Channels (Auto-detected from OSC Assignments)</h4>
+              <p className={styles.helpText} style={{ marginBottom: '1rem' }}>
+                DMX channels are automatically detected from your OSC assignments. If you use ArtBastard OSC, 
+                the channel numbers match the OSC assignment indices. You can manually override if needed.
+              </p>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="DMX channel number for pan control (0-512)">
+                <label className={styles.controlLabel} title="DMX channel number for pan control (auto-detected from OSC assignments)">
                   Pan Channel
+                  {oscAssignments && oscAssignments[settings.panChannel - 1] && (
+                    <span style={{ fontSize: '0.8rem', opacity: 0.7, marginLeft: '0.5rem' }}>
+                      → OSC: {oscAssignments[settings.panChannel - 1]}
+                    </span>
+                  )}
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="512"
-                  step="1"
-                  value={settings.panChannel}
-                  onChange={(e) => updateSetting('panChannel', parseInt(e.target.value) || 0)}
-                  className={styles.numberInput}
-                  title="DMX channel number for pan control (0-512)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="512"
+                    step="1"
+                    value={settings.panChannel}
+                    onChange={(e) => updateSetting('panChannel', parseInt(e.target.value) || 1)}
+                    className={styles.slider}
+                    title="DMX channel number for pan control (auto-detected from OSC assignments)"
+                  />
+                  <span className={styles.rangeLabel}>512</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="512"
+                    step="1"
+                    value={settings.panChannel}
+                    onChange={(e) => updateSetting('panChannel', parseInt(e.target.value) || 1)}
+                    className={styles.numberInput}
+                    title="DMX channel number for pan control (auto-detected from OSC assignments)"
+                  />
+                </div>
+                {oscAssignments && oscAssignments[settings.panChannel - 1] && (
+                  <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    OSC Address: <code>{oscAssignments[settings.panChannel - 1]}</code>
+                  </p>
+                )}
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="DMX channel number for tilt control (0-512)">
+                <label className={styles.controlLabel} title="DMX channel number for tilt control (auto-detected from OSC assignments)">
                   Tilt Channel
+                  {oscAssignments && oscAssignments[settings.tiltChannel - 1] && (
+                    <span style={{ fontSize: '0.8rem', opacity: 0.7, marginLeft: '0.5rem' }}>
+                      → OSC: {oscAssignments[settings.tiltChannel - 1]}
+                    </span>
+                  )}
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="512"
-                  step="1"
-                  value={settings.tiltChannel}
-                  onChange={(e) => updateSetting('tiltChannel', parseInt(e.target.value) || 0)}
-                  className={styles.numberInput}
-                  title="DMX channel number for tilt control (0-512)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="512"
+                    step="1"
+                    value={settings.tiltChannel}
+                    onChange={(e) => updateSetting('tiltChannel', parseInt(e.target.value) || 2)}
+                    className={styles.slider}
+                    title="DMX channel number for tilt control (auto-detected from OSC assignments)"
+                  />
+                  <span className={styles.rangeLabel}>512</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="512"
+                    step="1"
+                    value={settings.tiltChannel}
+                    onChange={(e) => updateSetting('tiltChannel', parseInt(e.target.value) || 2)}
+                    className={styles.numberInput}
+                    title="DMX channel number for tilt control (auto-detected from OSC assignments)"
+                  />
+                </div>
+                {oscAssignments && oscAssignments[settings.tiltChannel - 1] && (
+                  <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    OSC Address: <code>{oscAssignments[settings.tiltChannel - 1]}</code>
+                  </p>
+                )}
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="DMX channel number for iris control (0 = disabled, 0-512)">
@@ -1967,61 +2028,117 @@ export const FaceTracker: React.FC = () => {
                 <label className={styles.controlLabel} title="Minimum DMX value for pan movement (0-255)">
                   Pan Min
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.panMin}
-                  onChange={(e) => updateSetting('panMin', parseInt(e.target.value) || 0)}
-                  className={styles.numberInput}
-                  title="Minimum DMX value for pan movement (0-255)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panMin}
+                    onChange={(e) => updateSetting('panMin', parseInt(e.target.value) || 0)}
+                    className={styles.slider}
+                    title="Minimum DMX value for pan movement (0-255)"
+                  />
+                  <span className={styles.rangeLabel}>255</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panMin}
+                    onChange={(e) => updateSetting('panMin', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="Minimum DMX value for pan movement (0-255)"
+                  />
+                </div>
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Maximum DMX value for pan movement (0-255)">
                   Pan Max
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.panMax}
-                  onChange={(e) => updateSetting('panMax', parseInt(e.target.value) || 255)}
-                  className={styles.numberInput}
-                  title="Maximum DMX value for pan movement (0-255)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panMax}
+                    onChange={(e) => updateSetting('panMax', parseInt(e.target.value) || 255)}
+                    className={styles.slider}
+                    title="Maximum DMX value for pan movement (0-255)"
+                  />
+                  <span className={styles.rangeLabel}>255</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.panMax}
+                    onChange={(e) => updateSetting('panMax', parseInt(e.target.value) || 255)}
+                    className={styles.numberInput}
+                    title="Maximum DMX value for pan movement (0-255)"
+                  />
+                </div>
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Minimum DMX value for tilt movement (0-255)">
                   Tilt Min
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.tiltMin}
-                  onChange={(e) => updateSetting('tiltMin', parseInt(e.target.value) || 0)}
-                  className={styles.numberInput}
-                  title="Minimum DMX value for tilt movement (0-255)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltMin}
+                    onChange={(e) => updateSetting('tiltMin', parseInt(e.target.value) || 0)}
+                    className={styles.slider}
+                    title="Minimum DMX value for tilt movement (0-255)"
+                  />
+                  <span className={styles.rangeLabel}>255</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltMin}
+                    onChange={(e) => updateSetting('tiltMin', parseInt(e.target.value) || 0)}
+                    className={styles.numberInput}
+                    title="Minimum DMX value for tilt movement (0-255)"
+                  />
+                </div>
               </div>
               <div className={styles.controlGroup}>
                 <label className={styles.controlLabel} title="Maximum DMX value for tilt movement (0-255)">
                   Tilt Max
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="255"
-                  step="1"
-                  value={settings.tiltMax}
-                  onChange={(e) => updateSetting('tiltMax', parseInt(e.target.value) || 255)}
-                  className={styles.numberInput}
-                  title="Maximum DMX value for tilt movement (0-255)"
-                />
+                <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltMax}
+                    onChange={(e) => updateSetting('tiltMax', parseInt(e.target.value) || 255)}
+                    className={styles.slider}
+                    title="Maximum DMX value for tilt movement (0-255)"
+                  />
+                  <span className={styles.rangeLabel}>255</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={settings.tiltMax}
+                    onChange={(e) => updateSetting('tiltMax', parseInt(e.target.value) || 255)}
+                    className={styles.numberInput}
+                    title="Maximum DMX value for tilt movement (0-255)"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2290,10 +2407,16 @@ export const FaceTracker: React.FC = () => {
             <div className={styles.controlSection}>
               <h4 className={styles.controlsTitle}>Advanced Settings</h4>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="Update rate in Hz (1-60, higher = smoother but more CPU)">
-                  Update Rate (Hz)
+                <label className={styles.controlLabel} title="Controls how often DMX and OSC values are sent (1-60 Hz). Higher = smoother updates but more CPU/network traffic. Lower = less frequent updates, less CPU. Default: 30 Hz (30 updates per second).">
+                  Update Rate (Hz) - DMX & OSC
                 </label>
+                <p className={styles.helpText}>
+                  Controls how often DMX and OSC values are sent. Higher (30-60 Hz) = smoother updates but more CPU/network. 
+                  Lower (10-20 Hz) = less frequent updates, less CPU. Default: 30 Hz (30 updates per second). 
+                  This affects both DMX channel updates and OSC message sending frequency.
+                </p>
                 <div className={styles.sliderWrapper}>
+                  <span className={styles.rangeLabel}>1</span>
                   <input
                     type="range"
                     min="1"
@@ -2302,8 +2425,9 @@ export const FaceTracker: React.FC = () => {
                     value={settings.updateRate}
                     onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
                     className={styles.slider}
-                    title="Update rate in Hz (1-60, higher = smoother but more CPU)"
+                    title="Controls how often DMX and OSC values are sent (1-60 Hz). Higher = smoother updates but more CPU/network traffic. Lower = less frequent updates, less CPU. Default: 30 Hz (30 updates per second)."
                   />
+                  <span className={styles.rangeLabel}>60</span>
                   <input
                     type="number"
                     min="1"
@@ -2312,9 +2436,8 @@ export const FaceTracker: React.FC = () => {
                     value={settings.updateRate}
                     onChange={(e) => updateSetting('updateRate', parseInt(e.target.value) || 30)}
                     className={styles.numberInput}
-                    title="Update rate in Hz (1-60, higher = smoother but more CPU)"
+                    title="Controls how often DMX and OSC values are sent (1-60 Hz). Higher = smoother updates but more CPU/network traffic. Lower = less frequent updates, less CPU. Default: 30 Hz (30 updates per second)."
                   />
-                  <span className={styles.rangeLabel}>1-60</span>
                 </div>
               </div>
               <div className={styles.controlGroup}>
@@ -2453,9 +2576,28 @@ export const FaceTracker: React.FC = () => {
                         />
                       </div>
                       <div className={styles.controlGroup}>
-                        <label className={styles.controlLabel} title="OSC port matches ArtBastard's listening port (8000)">
-                          OSC Port: {settings.oscPort} (ArtBastard's listening port)
+                        <label className={styles.controlLabel} title="OSC sending port (defaults to ArtBastard's listening port: 8000)">
+                          OSC Sending Port
                         </label>
+                        <input
+                          type="number"
+                          min="1024"
+                          max="65535"
+                          step="1"
+                          value={settings.oscPort}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10);
+                            if (!isNaN(value) && value >= 1024 && value <= 65535) {
+                              updateSetting('oscPort', value);
+                            }
+                          }}
+                          className={styles.numberInput}
+                          style={{ width: '120px' }}
+                          title="OSC sending port (defaults to ArtBastard's listening port: 8000)"
+                        />
+                        <p className={styles.helpText} style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                          Default: 8000 (ArtBastard's listening port). Change this if sending to a different OSC server.
+                        </p>
                       </div>
                       <div className={styles.controlGroup}>
                         <label className={styles.controlLabel} title="OSC address path for pan values">
