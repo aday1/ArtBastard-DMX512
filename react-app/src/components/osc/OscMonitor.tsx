@@ -15,6 +15,12 @@ export const OscMonitor: React.FC = () => {
   const [flashActive, setFlashActive] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<OscMessage | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isPaused, setIsPaused] = useState(false);
+  const [scrollback, setScrollback] = useState<number>(() => {
+    const saved = localStorage.getItem('oscMonitorScrollback');
+    return saved ? parseInt(saved, 10) : 100;
+  });
+  const [editingScrollback, setEditingScrollback] = useState(false);
   const { socket, connected: socketConnected } = useSocket();
   const monitorRef = useRef<HTMLDivElement>(null);
 
@@ -54,56 +60,67 @@ export const OscMonitor: React.FC = () => {
   // }; // Removed drag end handler
 
   useEffect(() => {
-    if (socket && socketConnected) {
+    if (socket && socketConnected && !isPaused) {
       const handleOscMessage = (message: OscMessage) => {
         addOscMessageToStore(message);
         setFlashActive(true);
-        const timer = setTimeout(() => setFlashActive(false), 200);
-        return () => clearTimeout(timer);
+        setTimeout(() => setFlashActive(false), 200);
       };
       socket.on('oscMessage', handleOscMessage);
       return () => {
         socket.off('oscMessage', handleOscMessage);
       };
     }
-  }, [socket, socketConnected, addOscMessageToStore]);
+  }, [socket, socketConnected, addOscMessageToStore, isPaused]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const lastMessageCountRef = useRef<number>(0);
 
+  // Update displayed messages based on scrollback setting
   useEffect(() => {
     if (oscMessagesFromStore.length > 0) {
-      const recentMessages = oscMessagesFromStore.slice(-10);
-      const previousMessageCount = lastMessageCountRef.current;
-      const hasNewMessages = oscMessagesFromStore.length > previousMessageCount;
-      
+      // Show last N messages based on scrollback setting
+      const recentMessages = oscMessagesFromStore.slice(-scrollback);
       setLastMessages(recentMessages);
-      lastMessageCountRef.current = oscMessagesFromStore.length;
-      
-      // Auto-scroll to bottom when new messages arrive or when auto-scroll is enabled
-      if (autoScroll && contentRef.current) {
-        // Use double requestAnimationFrame to ensure DOM has fully updated
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (contentRef.current) {
-              // Force scroll to bottom
-              const element = contentRef.current;
-              element.scrollTop = element.scrollHeight;
-            }
-          });
-        });
-      } else if (!autoScroll && hasNewMessages && contentRef.current) {
-        // If auto-scroll is disabled but new messages arrived, check if user is near bottom
-        // If so, re-enable auto-scroll
-        const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-        const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
-        if (isNearBottom) {
-          setAutoScroll(true);
+    } else {
+      setLastMessages([]);
+    }
+  }, [oscMessagesFromStore, scrollback]);
+
+  // Auto-scroll to bottom when new messages arrive (tail -f behavior)
+  useEffect(() => {
+    const previousMessageCount = lastMessageCountRef.current;
+    const hasNewMessages = oscMessagesFromStore.length > previousMessageCount;
+    lastMessageCountRef.current = oscMessagesFromStore.length;
+    
+    if (hasNewMessages && autoScroll && contentRef.current) {
+      // Use multiple strategies to ensure scrolling works
+      const scrollToBottom = () => {
+        if (contentRef.current) {
+          const element = contentRef.current;
+          element.scrollTop = element.scrollHeight;
         }
+      };
+      
+      // Immediate scroll
+      scrollToBottom();
+      
+      // Also try after a short delay to catch any DOM updates
+      setTimeout(scrollToBottom, 10);
+      requestAnimationFrame(() => {
+        setTimeout(scrollToBottom, 10);
+      });
+    } else if (!autoScroll && hasNewMessages && contentRef.current) {
+      // If auto-scroll is disabled but new messages arrived, check if user is near bottom
+      // If so, re-enable auto-scroll
+      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+      const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+      if (isNearBottom) {
+        setAutoScroll(true);
       }
     }
-  }, [oscMessagesFromStore, autoScroll]);
+  }, [oscMessagesFromStore.length, autoScroll]);
 
   const handleMouseEnter = (msg: OscMessage, event: React.MouseEvent) => {
     setHoveredMessage(msg);
@@ -120,6 +137,27 @@ export const OscMonitor: React.FC = () => {
     setHoveredMessage(null);
   };
 
+  const scrollToLastMessage = () => {
+    if (contentRef.current) {
+      const element = contentRef.current;
+      element.scrollTop = element.scrollHeight;
+      setAutoScroll(true);
+    }
+  };
+
+  const clearMessages = () => {
+    useStore.setState({ oscMessages: [] });
+    setLastMessages([]);
+    lastMessageCountRef.current = 0;
+  };
+
+  const handleScrollbackChange = (value: number) => {
+    const newValue = Math.max(10, Math.min(1000, value)); // Limit between 10 and 1000
+    setScrollback(newValue);
+    localStorage.setItem('oscMonitorScrollback', newValue.toString());
+    setEditingScrollback(false);
+  };
+
   const renderHeader = () => (
     <div
       className={`${styles.header} handle`}
@@ -134,9 +172,94 @@ export const OscMonitor: React.FC = () => {
       {/* <div className={styles.dragHandle}> // Removed drag handle icon container
         <LucideIcon name="GripVertical" size={18} strokeWidth={1.5} />
       </div> */}
-      <span className={styles.title}>OSC Monitor</span>
+      <span className={styles.title}>
+        OSC Monitor
+        {!isCollapsed && (
+          <span className={styles.scrollbackSetting}>
+            {' '}(
+            {editingScrollback ? (
+              <input
+                type="number"
+                min="10"
+                max="1000"
+                value={scrollback}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value)) {
+                    setScrollback(value);
+                  }
+                }}
+                onBlur={() => handleScrollbackChange(scrollback)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleScrollbackChange(scrollback);
+                  } else if (e.key === 'Escape') {
+                    setEditingScrollback(false);
+                    const saved = localStorage.getItem('oscMonitorScrollback');
+                    setScrollback(saved ? parseInt(saved, 10) : 100);
+                  }
+                }}
+                className={styles.scrollbackInput}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                className={styles.scrollbackValue}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingScrollback(true);
+                }}
+                title="Click to edit scrollback limit"
+              >
+                {scrollback}
+              </span>
+            )}
+            )
+          </span>
+        )}
+      </span>
       {!isCollapsed && <span className={styles.status}>Recent: {oscMessagesFromStore.length}</span>}
       <div className={styles.controls}>
+        {!isCollapsed && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                scrollToLastMessage();
+              }}
+              onPointerDown={e => e.stopPropagation()}
+              title="Go to last received message"
+            >
+              <LucideIcon name="ArrowDown" size={14} strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPaused(!isPaused);
+              }}
+              onPointerDown={e => e.stopPropagation()}
+              title={isPaused ? "Resume receiving OSC messages" : "Pause receiving OSC messages"}
+              className={isPaused ? styles.active : ''}
+            >
+              {isPaused ? (
+                <LucideIcon name="Play" size={14} strokeWidth={1.5} />
+              ) : (
+                <LucideIcon name="Pause" size={14} strokeWidth={1.5} />
+              )}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                clearMessages();
+              }}
+              onPointerDown={e => e.stopPropagation()}
+              title="Clear all messages"
+            >
+              <LucideIcon name="X" size={14} strokeWidth={1.5} />
+            </button>
+          </>
+        )}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)} 
           onPointerDown={e => e.stopPropagation()}
@@ -189,13 +312,16 @@ export const OscMonitor: React.FC = () => {
           }
         }}
       >
-        {lastMessages.map((msg, index) => (
-          <div
-            key={msg.timestamp || index}
-            className={styles.messageRow}
-            onMouseEnter={(e) => handleMouseEnter(msg, e)}
-            onMouseLeave={handleMouseLeave}
-          >
+        {lastMessages.map((msg, index) => {
+          // Use a more unique key that includes the index to ensure proper rendering
+          const uniqueKey = `${msg.timestamp || Date.now()}-${index}-${msg.address}`;
+          return (
+            <div
+              key={uniqueKey}
+              className={styles.messageRow}
+              onMouseEnter={(e) => handleMouseEnter(msg, e)}
+              onMouseLeave={handleMouseLeave}
+            >
             <span className={styles.address}>{msg.address}</span>
             <div className={styles.args}>
               {msg.args.map((arg, argIndex) => (
@@ -208,7 +334,8 @@ export const OscMonitor: React.FC = () => {
               {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

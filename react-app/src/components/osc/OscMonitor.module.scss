@@ -56,6 +56,41 @@
   font-weight: bold;
   color: #ff6600; /* OSC title color */
   margin-right: auto; /* Push controls to the right */
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.scrollbackSetting {
+  font-size: 0.75em;
+  color: #aaa;
+  font-weight: normal;
+}
+
+.scrollbackValue {
+  cursor: pointer;
+  text-decoration: underline;
+  color: #ffaa00;
+  
+  &:hover {
+    color: #ffcc00;
+  }
+}
+
+.scrollbackInput {
+  width: 50px;
+  padding: 2px 4px;
+  background: #222;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 0.75em;
+  text-align: center;
+  
+  &:focus {
+    outline: none;
+    border-color: #ff6600;
+  }
 }
 
 .status {

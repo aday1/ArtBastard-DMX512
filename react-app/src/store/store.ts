@@ -1630,7 +1630,8 @@ export const useStore = create<State>()(
       },
       
       addOscMessage: (message) => { // Implemented addOscMessage
-        const messages = [...get().oscMessages, message].slice(-20); // Keep last 20 messages
+        // Keep last 1000 messages in store (UI will limit display based on scrollback setting)
+        const messages = [...get().oscMessages, message].slice(-1000);
         set({ oscMessages: messages });
         // console.log('OSC message received in store:', message); // Optional: for debugging
         if (get().recordingActive) {
