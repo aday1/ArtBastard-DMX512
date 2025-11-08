@@ -3,6 +3,7 @@ import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { useTheme } from '../../context/ThemeContext';
 import { useSocket } from '../../context/SocketContext';
 import { useStore } from '../../store';
+import { Fixture3DModel } from './Fixture3DModel';
 import { LucideIcon } from '../ui/LucideIcon';
 import styles from './FaceTracker.module.scss';
 
@@ -63,6 +64,7 @@ interface FaceTrackerSettings {
   useArtBastardOSC: boolean; // Use ArtBastard's OSC server vs custom
   oscHost: string;
   oscPort: number;
+  oscSmoothing: number; // Throttle/debounce OSC messages (0-1000ms)
 }
 
 const DEFAULT_SETTINGS: FaceTrackerSettings = {
@@ -112,6 +114,7 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   useArtBastardOSC: true, // Default to using ArtBastard's OSC server
   oscHost: '127.0.0.1',
   oscPort: 8000, // Default to ArtBastard's OSC incoming port
+  oscSmoothing: 50, // Default: throttle OSC messages to max 20 per second (50ms interval)
 };
 
 // Helper function to apply camera constraints with multiple fallback strategies
@@ -252,6 +255,10 @@ export const FaceTracker: React.FC = () => {
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isDetached, setIsDetached] = useState(false);
   const [detachedPosition, setDetachedPosition] = useState({ x: 100, y: 100 });
+  const [is3DFixtureDetached, setIs3DFixtureDetached] = useState(false);
+  const [fixture3DPosition, setFixture3DPosition] = useState({ x: 100, y: 100 });
+  const [canvasSize, setCanvasSize] = useState({ width: 640, height: 480 });
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // OpenCV.js state
   const opencvRef = useRef<any>(null);
@@ -262,7 +269,7 @@ export const FaceTracker: React.FC = () => {
   const smoothedTiltRef = useRef<number>(0);
   const panVelocityRef = useRef<number>(0);
   const tiltVelocityRef = useRef<number>(0);
-  const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: Date.now() });
+  const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
   const lastDetectionTimeRef = useRef<number>(0);
   const canvasDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -511,7 +518,10 @@ export const FaceTracker: React.FC = () => {
       tiltVelocityRef.current = 0;
       lastUpdateRef.current = 0;
       
-      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset }));
+      // Reset FPS counter
+      fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
+      
+      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0 }));
       startTracking();
     } catch (error) {
       setState(prev => ({ ...prev, error: `Failed to start camera: ${error}`, isRunning: false }));
@@ -564,7 +574,7 @@ export const FaceTracker: React.FC = () => {
     ctx.drawImage(video, 0, 0);
 
     // Draw persistent overlays from last detection (makes them less blinky)
-    const now = Date.now();
+    const now = performance.now();
     const faceTimeout = 500; // Keep showing face for 500ms after last detection
     
     if (lastFacePositionRef.current && 
@@ -641,9 +651,21 @@ export const FaceTracker: React.FC = () => {
     // Update FPS counter (preview rendering FPS)
     fpsCounterRef.current.frames++;
     const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
+    
+    // Update FPS every second (1000ms)
     if (timeSinceLastFpsUpdate >= 1000) {
+      // Calculate FPS: frames counted / time elapsed in seconds
       const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
-      setState(prev => ({ ...prev, fps: calculatedFps }));
+      
+      // Cap FPS at reasonable maximum (e.g., 120 FPS) to prevent display issues
+      const cappedFps = Math.min(calculatedFps, 120);
+      
+      // Only update if calculation is valid (time > 0 and frames > 0)
+      if (timeSinceLastFpsUpdate > 0 && fpsCounterRef.current.frames > 0) {
+        setState(prev => ({ ...prev, fps: cappedFps }));
+      }
+      
+      // Reset counter
       fpsCounterRef.current.frames = 0;
       fpsCounterRef.current.lastTime = now;
     }
@@ -934,8 +956,13 @@ export const FaceTracker: React.FC = () => {
                         (socket as any).emit('dmx:batch', dmxUpdates);
                         console.log('[FaceTracker] DMX batch sent:', dmxUpdates);
                         
-                        // Send OSC if enabled
-                        if (settings.useOSC) {
+                        // Send OSC if enabled and throttled
+                        const nowForOsc = Date.now();
+                        const oscThrottleInterval = settings.oscSmoothing || 50; // Default 50ms = 20 messages/sec max
+                        const canSendOsc = (nowForOsc - lastOscSendRef.current) >= oscThrottleInterval;
+                        
+                        if (settings.useOSC && canSendOsc) {
+                          lastOscSendRef.current = nowForOsc;
                           if (settings.useArtBastardOSC && oscAssignments) {
                             // Use ArtBastard's OSC server with configured assignments
                             const panOscAddress = oscAssignments[settings.panChannel - 1] || settings.oscPanAddress;
@@ -1152,24 +1179,133 @@ export const FaceTracker: React.FC = () => {
         )}
       </div>
 
-      <div className={styles.previewContainer}>
-        {showPreview ? (
-          <>
-            <video
-              ref={videoRef}
-              className={styles.video}
-              autoPlay
-              playsInline
-              muted
-            />
-            <canvas
-              ref={canvasRef}
-              className={styles.canvas}
-            />
-          </>
-        ) : (
-          <div className={styles.noPreview}>Preview disabled</div>
+      <div className={styles.previewSection}>
+        {/* Camera Preview */}
+        <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
+          {showPreview ? (
+            <>
+              <div className={styles.previewHeader}>
+                <span className={styles.previewTitle}>Camera Preview</span>
+                <button
+                  className={styles.detachButton}
+                  onClick={() => setIsDetached(!isDetached)}
+                  title={isDetached ? "Reattach Preview" : "Detach Preview"}
+                >
+                  <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
+                  <span>{isDetached ? 'Reattach' : 'Detach'}</span>
+                </button>
+              </div>
+              {!isDetached && (
+                <>
+                  <video
+                    ref={videoRef}
+                    className={styles.video}
+                    autoPlay
+                    playsInline
+                    muted
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className={styles.canvas}
+                    style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <div className={styles.noPreview}>Preview disabled</div>
+          )}
+        </div>
+
+        {/* Detached Camera Preview Window */}
+        {isDetached && showPreview && (
+          <Draggable
+            position={detachedPosition}
+            onStop={(e, data) => setDetachedPosition({ x: data.x, y: data.y })}
+            handle=".detachedPreviewHeader"
+          >
+            <div className={styles.detachedPreview}>
+              <div className={styles.detachedPreviewHeader}>
+                <span className={styles.detachedPreviewTitle}>Camera Preview</span>
+                <button
+                  className={styles.closeDetachedButton}
+                  onClick={() => setIsDetached(false)}
+                  title="Reattach Preview"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className={styles.detachedPreviewContent}>
+                <video
+                  ref={videoRef}
+                  className={styles.video}
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                <canvas
+                  ref={canvasRef}
+                  className={styles.detachedCanvas}
+                  style={{ width: `${canvasSize.width}px`, height: `${canvasSize.height}px` }}
+                />
+              </div>
+            </div>
+          </Draggable>
         )}
+
+        {/* 3D Fixture Model */}
+        <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
+          <div className={styles.previewHeader}>
+            <span className={styles.previewTitle}>3D Fixture Model</span>
+            <button
+              className={styles.detachButton}
+              onClick={() => setIs3DFixtureDetached(!is3DFixtureDetached)}
+              title={is3DFixtureDetached ? "Reattach 3D Model" : "Detach 3D Model"}
+            >
+              <i className={`fas fa-${is3DFixtureDetached ? 'compress' : 'expand'}`}></i>
+              <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
+            </button>
+          </div>
+          {!is3DFixtureDetached && (
+            <Fixture3DModel
+              panValue={state.currentPan}
+              tiltValue={state.currentTilt}
+              width={400}
+              height={400}
+            />
+          )}
+        </div>
+
+        {/* Detached 3D Fixture Window */}
+        {is3DFixtureDetached && (
+          <Draggable
+            position={fixture3DPosition}
+            onStop={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
+            handle=".detachedPreviewHeader"
+          >
+            <div className={styles.detachedPreview}>
+              <div className={styles.detachedPreviewHeader}>
+                <span className={styles.detachedPreviewTitle}>3D Fixture Model</span>
+                <button
+                  className={styles.closeDetachedButton}
+                  onClick={() => setIs3DFixtureDetached(false)}
+                  title="Reattach 3D Model"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className={styles.detachedPreviewContent}>
+                <Fixture3DModel
+                  panValue={state.currentPan}
+                  tiltValue={state.currentTilt}
+                  width={500}
+                  height={500}
+                />
+              </div>
+            </div>
+          </Draggable>
+        )}
+      </div>
         
         <div className={styles.previewControls}>
           <div className={styles.allControls}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../../store';
 import { MidiLearnButton } from '../midi/MidiLearnButton';
 import styles from './DmxChannel.module.scss';
@@ -312,103 +313,50 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isFullscreen]);
-  return (    <div
-      ref={channelRef}
-      className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${isFullscreen ? styles.fullscreen : ''} ${touchOptimized ? styles.touchOptimized : ''}`}
-      onClick={() => !isFullscreen && toggleChannelSelection(index)}
-    >
-      <div className={styles.header}>
-        <div className={styles.address}>{dmxAddress}</div>
-        <div className={styles.name}>
-          <div className={styles.primaryName}>{displayName}</div>
-          {fixtureInfo.fixtureName && (
-            <div className={styles.channelFunction} title={fixtureInfo.channelFunction}>
-              {fixtureInfo.channelFunction}
-            </div>
-          )}
-        </div>
-        <div className={styles.headerControls}>
-          <button
-            className={styles.detailsToggle}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDetails(!showDetails);
-            }}
-          >
-            <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
-          </button>
-        </div>
-      </div>
-      
-      {isFullscreen ? (
-        <>
-          <div className={styles.fullscreenHeader}>
-            <h2>DMX Channel {dmxAddress}</h2>
-            <p>{displayName}</p>
+
+  // Extract regular content to reuse in both normal and fullscreen views
+  const regularContent = (
+    <>
+      {!isFullscreen && (
+        <div className={styles.header}>
+          <div className={styles.address}>{dmxAddress}</div>
+          <div className={styles.name}>
+            <div className={styles.primaryName}>{displayName}</div>
             {fixtureInfo.fixtureName && (
-              <div className={styles.fullscreenFixtureInfo}>
-                <span className={styles.fixtureName}>{fixtureInfo.fixtureName}</span>
-                <span className={styles.channelFunction}>{fixtureInfo.channelFunction}</span>
+              <div className={styles.channelFunction} title={fixtureInfo.channelFunction}>
+                {fixtureInfo.channelFunction}
               </div>
             )}
           </div>
-          
-          <div 
-            className={`${styles.value} ${styles.fullscreenValue}`} 
-            style={{ backgroundColor: getBackgroundColor() }}
-          >
-            {value}
-            <div className={styles.valuePercentOverlay}>
-              {Math.round((value / 255) * 100)}%
-            </div>
-          </div>
-          
-          <div className={`${styles.slider} ${styles.fullscreenSlider}`} data-dmx-channel={index}>
-            <input
-              type="range"
-              min="0"
-              max="255"
-              value={value}
-              onChange={handleValueChange}
-              onClick={(e) => e.stopPropagation()}
-              data-slider-index={index}
-            />
-          </div>
-          
-          {/* Exit Fullscreen button - always visible in fullscreen */}
-          {allowFullscreen && (
-            <button 
-              className={styles.fullscreenButton} 
+          <div className={styles.headerControls}>
+            <button
+              className={styles.detailsToggle}
               onClick={(e) => {
                 e.stopPropagation();
-                toggleFullscreen();
+                setShowDetails(!showDetails);
               }}
-              title="Exit Fullscreen (ESC)"
             >
-              <i className="fas fa-compress"></i>
-              <span>Exit Fullscreen</span>
+              <i className={`fas fa-${showDetails ? 'chevron-up' : 'chevron-down'}`}></i>
             </button>
-          )}
-        </>
-      ) : (
-        <>
-          <div className={`${styles.value}`} style={{ backgroundColor: getBackgroundColor() }}>
-            {value}
           </div>
-
-          <div className={`${styles.slider}`} data-dmx-channel={index}>
-            <input
-              type="range"
-              min="0"
-              max="255"
-              value={value}
-              onChange={handleValueChange}
-              onClick={(e) => e.stopPropagation()}
-              data-slider-index={index}
-            />
-          </div>
-        </>
+        </div>
       )}
+      
+      <div className={`${styles.value}`} style={{ backgroundColor: getBackgroundColor() }}>
+        {value}
+      </div>
+
+      <div className={`${styles.slider}`} data-dmx-channel={index}>
+        <input
+          type="range"
+          min="0"
+          max="255"
+          value={value}
+          onChange={handleValueChange}
+          onClick={(e) => e.stopPropagation()}
+          data-slider-index={index}
+        />
+      </div>
 
       {showDetails && (
         <div className={styles.details} onClick={(e) => e.stopPropagation()}>
@@ -652,6 +600,82 @@ export const DmxChannel: React.FC<DmxChannelProps> = ({ index, allowFullscreen =
           </div>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Regular channel view */}
+      <div
+        ref={channelRef}
+        className={`${styles.channel} ${isSelected ? styles.selected : ''} ${showDetails ? styles.expanded : ''} ${isExpanded ? styles.maximized : ''} ${touchOptimized ? styles.touchOptimized : ''}`}
+        onClick={() => toggleChannelSelection(index)}
+        style={isFullscreen ? { visibility: 'hidden', height: 0, overflow: 'hidden' } : {}}
+      >
+        {regularContent}
+      </div>
+      
+      {/* Fullscreen view via portal - renders directly to body */}
+      {isFullscreen && typeof document !== 'undefined' && createPortal(
+        <div
+          className={`${styles.channel} ${styles.fullscreen}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.fullscreenHeader}>
+            <h2>DMX Channel {dmxAddress}</h2>
+            <p>{displayName}</p>
+            {fixtureInfo.fixtureName && (
+              <div className={styles.fullscreenFixtureInfo}>
+                <span className={styles.fixtureName}>{fixtureInfo.fixtureName}</span>
+                <span className={styles.channelFunction}>{fixtureInfo.channelFunction}</span>
+              </div>
+            )}
+          </div>
+          
+          <div 
+            className={`${styles.value} ${styles.fullscreenValue}`} 
+            style={{ backgroundColor: getBackgroundColor() }}
+          >
+            {value}
+            <div className={styles.valuePercentOverlay}>
+              {Math.round((value / 255) * 100)}%
+            </div>
+          </div>
+          
+          <div className={`${styles.slider} ${styles.fullscreenSlider}`} data-dmx-channel={index}>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={value}
+              onChange={handleValueChange}
+              onClick={(e) => e.stopPropagation()}
+              data-slider-index={index}
+            />
+          </div>
+          
+          {/* Details section in fullscreen */}
+          <div className={styles.details}>
+            {regularContent}
+          </div>
+          
+          {/* Exit Fullscreen button - always visible in fullscreen */}
+          {allowFullscreen && (
+            <button 
+              className={styles.fullscreenButton} 
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              title="Exit Fullscreen (ESC)"
+            >
+              <i className="fas fa-compress"></i>
+              <span>Exit Fullscreen</span>
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+    </>
   );
 };

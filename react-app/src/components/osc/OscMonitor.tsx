@@ -68,12 +68,24 @@ export const OscMonitor: React.FC = () => {
     }
   }, [socket, socketConnected, addOscMessageToStore]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+
   useEffect(() => {
     if (oscMessagesFromStore.length > 0) {
       const recentMessages = oscMessagesFromStore.slice(-10);
       setLastMessages(recentMessages);
+      
+      // Auto-scroll to bottom when new messages arrive
+      if (autoScroll && contentRef.current) {
+        setTimeout(() => {
+          if (contentRef.current) {
+            contentRef.current.scrollTop = contentRef.current.scrollHeight;
+          }
+        }, 10);
+      }
     }
-  }, [oscMessagesFromStore]);
+  }, [oscMessagesFromStore, autoScroll]);
 
   const handleMouseEnter = (msg: OscMessage, event: React.MouseEvent) => {
     setHoveredMessage(msg);
@@ -145,7 +157,19 @@ export const OscMonitor: React.FC = () => {
     }
 
     return (
-      <div className={styles.content} onMouseMove={handleMouseMove}>
+      <div 
+        ref={contentRef}
+        className={styles.content} 
+        onMouseMove={handleMouseMove}
+        onScroll={() => {
+          // Disable auto-scroll if user manually scrolls up
+          if (contentRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px threshold
+            setAutoScroll(isAtBottom);
+          }
+        }}
+      >
         {lastMessages.map((msg, index) => (
           <div
             key={msg.timestamp || index}
