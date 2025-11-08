@@ -816,7 +816,7 @@ export const FaceTracker: React.FC = () => {
       }
     }, 500); // Debounce: save 500ms after last change
   }, []);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false); // Default to OFF to prevent crashes
   const [selectedFixtureIds, setSelectedFixtureIds] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isDetached, setIsDetached] = useState(false);
@@ -1277,6 +1277,15 @@ export const FaceTracker: React.FC = () => {
   // Throttle diagnostic updates to prevent excessive state updates
   const lastDiagnosticUpdateRef = useRef<number>(0);
   const DIAGNOSTIC_UPDATE_INTERVAL = 500; // Update diagnostics max once per 500ms
+  
+  // Frame skipping for preview to prevent crashes - very aggressive throttling
+  const lastPreviewFrameRef = useRef<number>(0);
+  const PREVIEW_FPS_TARGET = 20; // Target 20 FPS instead of 60 FPS (much lower to prevent crashes)
+  const PREVIEW_FRAME_INTERVAL = 1000 / PREVIEW_FPS_TARGET; // ~50ms per frame
+  
+  // Text rendering cache to prevent flickering
+  const lastTextRenderTimeRef = useRef<number>(0);
+  const TEXT_RENDER_INTERVAL = 200; // Only update text every 200ms (5 FPS for text)
 
   // Fast preview rendering (separate from face detection)
   const renderPreview = useCallback(() => {
@@ -1289,9 +1298,19 @@ export const FaceTracker: React.FC = () => {
     try {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      const now = performance.now();
+      
+      // Skip frames to reduce rendering load (target 30 FPS instead of 60 FPS)
+      if (now - lastPreviewFrameRef.current < PREVIEW_FRAME_INTERVAL) {
+        // Skip this frame, continue loop
+        if (state.isRunning) {
+          previewFrameRef.current = requestAnimationFrame(renderPreview);
+        }
+        return;
+      }
+      lastPreviewFrameRef.current = now;
       
       // Throttle diagnostic updates (only update max once per 500ms to prevent Firefox freezes)
-      const now = performance.now();
       if (video.readyState >= video.HAVE_ENOUGH_DATA && 
           (now - lastDiagnosticUpdateRef.current) >= DIAGNOSTIC_UPDATE_INTERVAL) {
         setDiagnostics(prev => ({ ...prev, videoReady: true }));
@@ -1327,11 +1346,12 @@ export const FaceTracker: React.FC = () => {
     // Reuse 'now' variable from above to avoid redeclaration
     const faceTimeout = 500; // Keep showing face for 500ms after last detection
     
-    // Batch canvas operations for better performance
-    ctx.save();
-    
+    // Only draw overlays if face was detected recently (skip drawing when no face)
     if (lastFacePositionRef.current && 
         (now - lastFacePositionRef.current.timestamp) < faceTimeout) {
+      // Batch canvas operations for better performance
+      ctx.save();
+      
       const face = lastFacePositionRef.current;
       const imageCenterX = video.videoWidth / 2;
       const imageCenterY = video.videoHeight / 2;
@@ -1340,23 +1360,15 @@ export const FaceTracker: React.FC = () => {
       const timeSinceDetection = now - lastFacePositionRef.current.timestamp;
       const fadeAlpha = Math.max(0.3, 1 - (timeSinceDetection / faceTimeout));
       
-      // Draw face rectangle (scaled to full canvas)
+      // Draw face rectangle (simplified - single stroke to reduce operations)
       ctx.strokeStyle = `rgba(255, 165, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(face.x, face.y, face.width, face.height);
-      ctx.strokeStyle = `rgba(255, 200, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 2;
       ctx.strokeRect(face.x, face.y, face.width, face.height);
 
-      // Draw center point (yellow circle)
+      // Draw center point (yellow circle - simplified)
       ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
-      ctx.strokeStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(face.centerX, face.centerY, 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(face.centerX, face.centerY, 3, 0, Math.PI * 2);
+      ctx.arc(face.centerX, face.centerY, 5, 0, Math.PI * 2);
       ctx.fill();
       
       // Draw accurate gaze projection based on actual head pose (yaw/pitch)
@@ -1384,10 +1396,9 @@ export const FaceTracker: React.FC = () => {
       const clampedTargetX = Math.max(0, Math.min(video.videoWidth, targetX));
       const clampedTargetY = Math.max(0, Math.min(video.videoHeight, targetY));
       
-      // Draw arrow pointing in gaze direction (more visible indicator)
+      // Draw simplified gaze indicator (reduced operations)
       ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-      ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha * 0.5})`;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       
       // Draw line from face center to target (gaze direction)
       ctx.beginPath();
@@ -1395,42 +1406,23 @@ export const FaceTracker: React.FC = () => {
       ctx.lineTo(clampedTargetX, clampedTargetY);
       ctx.stroke();
       
-      // Draw arrowhead at target position
-      const arrowLength = 25;
-      const arrowAngle = Math.atan2(clampedTargetY - face.centerY, clampedTargetX - face.centerX);
+      // Draw simple X marker at target (simplified)
       ctx.beginPath();
-      ctx.moveTo(clampedTargetX, clampedTargetY);
-      ctx.lineTo(
-        clampedTargetX - arrowLength * Math.cos(arrowAngle - Math.PI / 6),
-        clampedTargetY - arrowLength * Math.sin(arrowAngle - Math.PI / 6)
-      );
-      ctx.lineTo(
-        clampedTargetX - arrowLength * Math.cos(arrowAngle + Math.PI / 6),
-        clampedTargetY - arrowLength * Math.sin(arrowAngle + Math.PI / 6)
-      );
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      
-      // Draw X marker at target position (where head is looking)
-      ctx.strokeStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      // Draw X shape
-      ctx.moveTo(clampedTargetX - 15, clampedTargetY - 15);
-      ctx.lineTo(clampedTargetX + 15, clampedTargetY + 15);
-      ctx.moveTo(clampedTargetX + 15, clampedTargetY - 15);
-      ctx.lineTo(clampedTargetX - 15, clampedTargetY + 15);
+      ctx.moveTo(clampedTargetX - 12, clampedTargetY - 12);
+      ctx.lineTo(clampedTargetX + 12, clampedTargetY + 12);
+      ctx.moveTo(clampedTargetX + 12, clampedTargetY - 12);
+      ctx.lineTo(clampedTargetX - 12, clampedTargetY + 12);
       ctx.stroke();
       
       // Draw circle around X marker
       ctx.beginPath();
-      ctx.arc(clampedTargetX, clampedTargetY, 20, 0, Math.PI * 2);
+      ctx.arc(clampedTargetX, clampedTargetY, 15, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Draw text label showing gaze direction (throttled to reduce rendering cost)
-      // Only update every 4 frames (~15 FPS for text)
-      if ((Math.abs(headYaw) > 0.05 || Math.abs(headPitch) > 0.05) && Math.floor(now / 66) % 4 === 0) {
+      // Draw text label showing gaze direction (heavily throttled to prevent flickering)
+      // Only update every 200ms to prevent flickering
+      if ((Math.abs(headYaw) > 0.05 || Math.abs(headPitch) > 0.05) && 
+          (now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL) {
         ctx.fillStyle = `rgba(255, 255, 0, ${fadeAlpha})`;
         ctx.font = 'bold 14px Arial';
         ctx.strokeStyle = 'black';
@@ -1440,98 +1432,65 @@ export const FaceTracker: React.FC = () => {
         const gazeText = `Gaze: Yaw ${yawDeg}° Pitch ${pitchDeg}°`;
         ctx.strokeText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
         ctx.fillText(gazeText, clampedTargetX - 60, clampedTargetY - 30);
+        lastTextRenderTimeRef.current = now;
       }
       
-      // Draw crosshair at image center (blue, for reference)
-      ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(imageCenterX - 20, imageCenterY);
-      ctx.lineTo(imageCenterX + 20, imageCenterY);
-      ctx.moveTo(imageCenterX, imageCenterY - 20);
-      ctx.lineTo(imageCenterX, imageCenterY + 20);
-      ctx.stroke();
+      // Draw crosshair at image center (blue, for reference) - only every 3rd frame to reduce operations
+      if (Math.floor(now / 50) % 3 === 0) {
+        ctx.strokeStyle = `rgba(0, 150, 255, ${fadeAlpha * 0.5})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(imageCenterX - 20, imageCenterY);
+        ctx.lineTo(imageCenterX + 20, imageCenterY);
+        ctx.moveTo(imageCenterX, imageCenterY - 20);
+        ctx.lineTo(imageCenterX, imageCenterY + 20);
+        ctx.stroke();
+      }
       
-      // Draw eye detection boxes with labels (throttled rendering)
+      // Draw eye detection boxes (simplified - no labels to reduce operations)
       if (face.leftEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
-        // Draw label (only every 3rd frame to reduce rendering cost)
-        if (Math.floor(now / 50) % 3 === 0) {
-          ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
-          ctx.font = 'bold 12px Arial';
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 1;
-          ctx.strokeText('L Eye', face.leftEye.x, face.leftEye.y - 5);
-          ctx.fillText('L Eye', face.leftEye.x, face.leftEye.y - 5);
-        }
       }
       
       if (face.rightEye) {
         ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
-        // Draw label (only every 3rd frame to reduce rendering cost)
-        if (Math.floor(now / 50) % 3 === 0) {
-          ctx.fillStyle = `rgba(0, 255, 255, ${fadeAlpha})`;
-          ctx.font = 'bold 12px Arial';
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 1;
-          ctx.strokeText('R Eye', face.rightEye.x, face.rightEye.y - 5);
-          ctx.fillText('R Eye', face.rightEye.x, face.rightEye.y - 5);
-        }
       }
       
-      // Draw mouth detection box with label
+      // Draw mouth detection box (simplified)
       if (face.mouth) {
         const mouthOpenness = face.mouthOpenness || 0;
         const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
         ctx.strokeStyle = mouthColor;
         ctx.lineWidth = 2;
         ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
-        // Draw label (only every 3rd frame to reduce rendering cost)
-        if (Math.floor(now / 50) % 3 === 0) {
-          ctx.fillStyle = mouthColor;
-          ctx.font = 'bold 12px Arial';
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 1;
-          const opennessPercent = Math.round(mouthOpenness * 100);
-          const mouthLabel = `Mouth ${opennessPercent}%`;
-          ctx.strokeText(mouthLabel, face.mouth.x, face.mouth.y - 5);
-          ctx.fillText(mouthLabel, face.mouth.x, face.mouth.y - 5);
-        }
       }
       
-      // Draw blink indicator with text
+      // Draw blink indicator (simplified - just circle, no text)
       if (face.isBlinking) {
-        // Draw red circle
         ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
         ctx.beginPath();
         ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
         ctx.fill();
-        // Draw text (only every 2nd frame to reduce rendering cost)
-        if (Math.floor(now / 33) % 2 === 0) {
-          ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-          ctx.font = 'bold 20px Arial';
-          ctx.strokeStyle = 'black';
-          ctx.lineWidth = 2;
-          const blinkText = '👁️ BLINKING';
-          const textX = face.centerX - 60;
-          const textY = face.y - 20;
-          ctx.strokeText(blinkText, textX, textY);
-          ctx.fillText(blinkText, textX, textY);
-        }
       }
+      
+      // Restore canvas state after batch operations
+      ctx.restore();
     }
-    
-    // Restore canvas state after batch operations
-    ctx.restore();
 
-    // Draw text overlay (throttled to prevent Firefox freezes)
-    // Only update text every 3 frames (~20 FPS text updates instead of 60 FPS)
-    const textUpdateInterval = 3;
-    if (Math.floor(now / 50) % textUpdateInterval === 0) {
+    // Draw text overlay (heavily throttled to prevent flickering and crashes)
+    // Only update text every 200ms (5 FPS for text) to prevent flickering
+    // Use a single timestamp check for all text to ensure they update together (no flicker)
+    const shouldUpdateText = (now - lastTextRenderTimeRef.current) >= TEXT_RENDER_INTERVAL;
+    
+    if (shouldUpdateText) {
+      // Clear previous text area to prevent flickering (draw semi-transparent background)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(5, 5, 200, 200);
+      
       ctx.fillStyle = 'yellow';
       ctx.font = 'bold 18px Arial';
       ctx.strokeStyle = 'black';
@@ -1595,14 +1554,16 @@ export const FaceTracker: React.FC = () => {
           ctx.fillText(posText, 10, yOffset);
         }
       }
+      
+      lastTextRenderTimeRef.current = now;
     }
 
     // Update FPS counter (preview rendering FPS)
     fpsCounterRef.current.frames++;
     const timeSinceLastFpsUpdate = now - fpsCounterRef.current.lastTime;
     
-    // Update FPS every 3 seconds (3000ms) to reduce state updates and prevent Firefox crashes
-    if (timeSinceLastFpsUpdate >= 3000) {
+    // Update FPS every 5 seconds (5000ms) to reduce state updates and prevent Firefox crashes
+    if (timeSinceLastFpsUpdate >= 5000) {
       // Calculate FPS: frames counted / time elapsed in seconds
       const calculatedFps = Math.round((fpsCounterRef.current.frames * 1000) / timeSinceLastFpsUpdate);
       
@@ -3090,6 +3051,8 @@ export const FaceTracker: React.FC = () => {
                 setState(prev => ({ ...prev, isRunning: shouldRun }));
                 try {
                   if (shouldRun) {
+                    // Turn preview OFF by default when starting face tracker to prevent crashes
+                    setShowPreview(false);
                     await startCamera();
                   } else {
                     stopCamera();
@@ -3126,6 +3089,27 @@ export const FaceTracker: React.FC = () => {
       <div className={styles.mainContainer}>
         {/* Left Side - Face Tracker Preview and Controls */}
         <div className={styles.trackerSide}>
+      {/* Preview Toggle - Above camera and 3D fixture */}
+      <div className={styles.controlSection} style={{ marginBottom: '1rem', padding: '0.75rem' }}>
+        <div className={styles.controlGroup} style={{ marginBottom: 0 }}>
+          <label className={styles.controlLabel} style={{ fontSize: '1rem', fontWeight: 'bold' }} title="Toggle camera preview and 3D fixture model display">
+            <input
+              type="checkbox"
+              checked={showPreview}
+              onChange={(e) => setShowPreview(e.target.checked)}
+              disabled={!state.isRunning}
+              style={{ marginRight: '0.5rem', transform: 'scale(1.2)' }}
+            />
+            Show Preview & 3D Model
+          </label>
+          <p className={styles.helpText} style={{ fontSize: '0.75rem', marginTop: '0.25rem', marginBottom: 0 }}>
+            {state.isRunning 
+              ? 'Enable to see camera preview and 3D fixture visualization' 
+              : 'Start Face Tracker first to enable preview'}
+          </p>
+        </div>
+      </div>
+      
       {/* Fixture Selection */}
       <div className={styles.fixtureSelection}>
         <h4>Target Fixtures</h4>
@@ -3257,6 +3241,7 @@ export const FaceTracker: React.FC = () => {
         )}
 
         {/* 3D Fixture Model */}
+        {showPreview && (
         <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
           <div className={styles.previewHeader}>
             <span className={styles.previewTitle}>3D Fixture Model</span>
@@ -3321,7 +3306,7 @@ export const FaceTracker: React.FC = () => {
         </div>
 
         {/* Detached 3D Fixture Window */}
-        {is3DFixtureDetached && (
+        {showPreview && is3DFixtureDetached && (
           <Draggable
             position={fixture3DPosition}
             onDrag={(e, data) => setFixture3DPosition({ x: data.x, y: data.y })}
@@ -3394,7 +3379,8 @@ export const FaceTracker: React.FC = () => {
             </div>
           </Draggable>
         )}
-      </div>
+        </div>
+        )}
         
         <div className={styles.previewControls}>
           <div className={styles.allControls}>
