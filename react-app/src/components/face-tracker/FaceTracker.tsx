@@ -754,6 +754,7 @@ export const FaceTracker: React.FC = () => {
   const detectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previewFrameRef = useRef<number | undefined>(undefined);
   const trackingStartedRef = useRef<boolean>(false);
+  const processDetectionRef = useRef<(() => void) | null>(null); // Store processDetection function for manual trigger
   
   const [state, setState] = useState<FaceTrackerState>({
     isRunning: false,
@@ -1873,6 +1874,8 @@ export const FaceTracker: React.FC = () => {
     let detectionCallCount = 0;
     const processDetection = () => {
       detectionCallCount++;
+      // Store reference for manual triggering
+      processDetectionRef.current = processDetection;
       // Removed excessive logging to prevent Firefox crashes
       
       try {
@@ -1936,6 +1939,25 @@ export const FaceTracker: React.FC = () => {
         // Run face detection at lower rate (every 3-5 frames = ~10-15 FPS detection)
         const now = Date.now();
         const detectionInterval = 1000 / 15; // 15 FPS for detection
+        
+        // Update OpenCV FPS counter - count every loop iteration, not just detection runs
+        // This gives us the actual loop FPS, which is more useful
+        opencvFpsCounterRef.current.frames++;
+        
+        // Update OpenCV FPS display every second
+        const opencvTimeSince = now - opencvFpsCounterRef.current.lastTime;
+        if (opencvTimeSince >= 1000) {
+          const opencvFps = Math.round((opencvFpsCounterRef.current.frames * 1000) / opencvTimeSince);
+          const cappedOpencvFps = Math.min(opencvFps, 60);
+          if (opencvTimeSince > 0 && opencvFpsCounterRef.current.frames > 0) {
+            setTimeout(() => {
+              setState(prev => ({ ...prev, opencvFps: cappedOpencvFps }));
+            }, 0);
+          }
+          opencvFpsCounterRef.current.frames = 0;
+          opencvFpsCounterRef.current.lastTime = now;
+        }
+        
         if (now - lastDetectionTimeRef.current < detectionInterval) {
           // Continue loop immediately - requestAnimationFrame will naturally throttle
           if (state.isRunning) {
@@ -1946,9 +1968,6 @@ export const FaceTracker: React.FC = () => {
           return;
         }
         lastDetectionTimeRef.current = now;
-        
-        // Update OpenCV FPS counter - increment for each detection attempt
-        opencvFpsCounterRef.current.frames++;
 
         // Create smaller canvas for detection (faster processing)
         if (!detectionCanvasRef.current) {
@@ -2966,21 +2985,6 @@ export const FaceTracker: React.FC = () => {
 
         // Text overlays are now drawn in the preview loop for better performance
 
-        // Update OpenCV FPS counter
-        const opencvNow = Date.now();
-        const opencvTimeSince = opencvNow - opencvFpsCounterRef.current.lastTime;
-        if (opencvTimeSince >= 1000) { // Update every second
-          const opencvFps = Math.round((opencvFpsCounterRef.current.frames * 1000) / opencvTimeSince);
-          const cappedOpencvFps = Math.min(opencvFps, 60);
-          if (opencvTimeSince > 0 && opencvFpsCounterRef.current.frames > 0) {
-            setTimeout(() => {
-              setState(prev => ({ ...prev, opencvFps: cappedOpencvFps }));
-            }, 0);
-          }
-          opencvFpsCounterRef.current.frames = 0;
-          opencvFpsCounterRef.current.lastTime = opencvNow;
-        }
-
         // Cleanup OpenCV objects - CRITICAL to prevent memory leaks
         // Don't check isDeleted() - just try to delete and catch errors
         try {
@@ -3746,13 +3750,46 @@ export const FaceTracker: React.FC = () => {
             <div className={`${styles.previewContainer} ${!state.isRunning ? styles.placeholder : ''}`} ref={previewContainerRef}>
               <div className={styles.previewHeader}>
                 <span className={styles.previewTitle}>Camera Preview</span>
-                {state.isRunning && (
-                  <div className={styles.fpsCounters}>
-                    <span className={styles.fpsCounterItem}>Webcam: {state.webcamFps} FPS</span>
-                    <span className={styles.fpsCounterItem}>Overlay: {state.overlayFps} FPS</span>
-                    <span className={styles.fpsCounterItem}>OpenCV: {state.opencvFps} FPS</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {state.isRunning && (
+                    <div className={styles.fpsCounters}>
+                      <span className={styles.fpsCounterItem}>Webcam: {state.webcamFps} FPS</span>
+                      <span className={styles.fpsCounterItem}>Overlay: {state.overlayFps} FPS</span>
+                      <span className={styles.fpsCounterItem}>OpenCV: {state.opencvFps} FPS</span>
+                    </div>
+                  )}
+                  {state.isRunning && (
+                    <button
+                      className={styles.refreshButton}
+                      onClick={() => {
+                        console.log('[FaceTracker] 🔄 Manual OpenCV refresh triggered');
+                        // Force immediate detection by resetting last detection time
+                        // This will cause the next detection cycle to run immediately
+                        lastDetectionTimeRef.current = 0;
+                        
+                        // Also ensure the detection loop is running
+                        if (opencvRef.current && cascadeRef.current && videoRef.current && canvasRef.current) {
+                          // If detection loop is not running, restart it
+                          if (!detectionFrameRef.current) {
+                            console.log('[FaceTracker] Restarting detection loop...');
+                            detectFaces();
+                          } else if (processDetectionRef.current) {
+                            // Force immediate detection by calling processDetection directly
+                            console.log('[FaceTracker] Forcing immediate detection cycle...');
+                            // Reset the interval so detection runs immediately
+                            lastDetectionTimeRef.current = 0;
+                            // The next loop iteration will run detection immediately
+                          }
+                        } else {
+                          console.warn('[FaceTracker] Cannot refresh: OpenCV or video not ready');
+                        }
+                      }}
+                      title="Manually refresh OpenCV detection - forces immediate face detection cycle"
+                    >
+                      <i className="fas fa-sync-alt"></i> Refresh OpenCV
+                    </button>
+                  )}
+                </div>
               </div>
               {state.isRunning ? (
                 <>
