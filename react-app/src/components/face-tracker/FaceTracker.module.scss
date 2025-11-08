@@ -581,65 +581,136 @@
   font-family: 'Courier New', monospace;
 }
 
-.previewSection {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
+.liveControlRow {
   position: sticky;
   top: 0;
   z-index: 100;
   background: var(--bg-primary);
   padding: 1rem 0;
   border-bottom: 2px solid var(--border-color);
-  
-  @media (max-width: 1400px) {
-    grid-template-columns: 1fr 1fr;
-  }
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.previewSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 200px; /* Adjust based on liveControlRow height */
+  z-index: 99;
+  background: var(--bg-primary);
+  padding: 1rem 0;
+  border-bottom: 2px solid var(--border-color);
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
   }
 }
 
-.gestureIndicator {
+.liveControlContainer {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
   padding: 1rem;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  min-height: 200px;
-  justify-content: center;
+  width: 100%;
+  
+  .controlsTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+  }
+}
+
+.liveControlSliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.liveControlSliderItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.liveControlSliderLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+}
+
+.liveControlSlider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  outline: none;
+  opacity: 0.8;
+  cursor: not-allowed;
+  
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: not-allowed;
+  }
+  
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: not-allowed;
+    border: none;
+  }
+}
+
+.gestureIndicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
   
   .gestureLabel {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
   }
   
   .gestureDisplay {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    min-height: 120px;
+    gap: 0.75rem;
   }
   
   .gestureEmoji {
-    font-size: 4rem;
+    font-size: 2rem;
     line-height: 1;
     animation: gesturePulse 0.5s ease-in-out;
   }
   
   .gestureText {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--accent-color);
     text-align: center;
@@ -678,6 +749,22 @@
       display: none;
     }
   }
+  
+  // Placeholder state when tracker is off
+  &.placeholder {
+    opacity: 0.7;
+  }
+}
+
+.placeholderContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
 }
 
 .fixture3DContainer {
@@ -703,6 +790,11 @@
   &.detached {
     min-height: auto;
     height: auto;
+  }
+  
+  // Placeholder state when tracker is off
+  &.placeholder {
+    opacity: 0.7;
   }
   
   canvas {
@@ -932,17 +1024,21 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .allControls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
   gap: 1.5rem;
   padding: 1.5rem;
   overflow-y: auto;
+  width: 100%;
+  max-width: 100%;
   
   @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
     gap: 1rem;
     padding: 1rem;
   }
@@ -975,6 +1071,8 @@
   border-radius: 8px;
   border: 1px solid var(--border-color);
   min-width: 0; // Prevent overflow
+  width: 100%;
+  max-width: 100%;
 }
 
 .cameraControls {

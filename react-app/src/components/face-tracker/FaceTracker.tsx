@@ -3403,42 +3403,128 @@ export const FaceTracker: React.FC = () => {
             )}
           </div>
 
-          <div className={styles.previewSection}>
-            {/* Gesture Display - At top near camera preview */}
-            {settings.enableGestures && state.isRunning && (
-              <div className={styles.gestureIndicator}>
-                <div className={styles.gestureLabel}>Gesture Detection</div>
-                <div className={styles.gestureDisplay}>
-                  {state.currentGesture ? (
-                    <>
-                      <span className={styles.gestureEmoji}>
-                        {state.currentGesture === 'SMILING' && '😊'}
-                        {state.currentGesture === 'SAD' && '😢'}
-                        {state.currentGesture === 'SURPRISED' && '😲'}
-                        {state.currentGesture === 'NODDING' && '👍'}
-                        {state.currentGesture === 'SHAKING HEAD' && '👎'}
-                        {state.currentGesture === 'THUMBS_UP' && '👍'}
-                        {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
-                        {state.currentGesture === 'FIST' && '✊'}
-                        {state.currentGesture === 'OPEN_HAND' && '✋'}
-                        {state.currentGesture === 'NEUTRAL' && '😐'}
-                        {state.currentGesture === 'STILL' && '⏸️'}
-                        {!['SMILING', 'SAD', 'SURPRISED', 'NODDING', 'SHAKING HEAD', 'THUMBS_UP', 'MIDDLE_FINGER', 'FIST', 'OPEN_HAND', 'NEUTRAL', 'STILL'].includes(state.currentGesture) && '👤'}
-                      </span>
-                      <span className={styles.gestureText}>{state.currentGesture}</span>
-                    </>
-                  ) : (
-                    <span className={styles.gestureText}>No gesture detected</span>
-                  )}
+          {/* Live Control Output - Full width row, sticky */}
+          <div className={styles.liveControlRow}>
+            <div className={styles.liveControlContainer}>
+              <h4 className={styles.controlsTitle}>Live Control Output</h4>
+              {settings.enableGestures && (
+                <div className={styles.gestureIndicator}>
+                  <div className={styles.gestureLabel}>Gesture Detection</div>
+                  <div className={styles.gestureDisplay}>
+                    {state.currentGesture ? (
+                      <>
+                        <span className={styles.gestureEmoji}>
+                          {state.currentGesture === 'SMILING' && '😊'}
+                          {state.currentGesture === 'SAD' && '😢'}
+                          {state.currentGesture === 'SURPRISED' && '😲'}
+                          {state.currentGesture === 'NODDING' && '👍'}
+                          {state.currentGesture === 'SHAKING HEAD' && '👎'}
+                          {state.currentGesture === 'THUMBS_UP' && '👍'}
+                          {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
+                          {state.currentGesture === 'FIST' && '✊'}
+                          {state.currentGesture === 'OPEN_HAND' && '✋'}
+                          {state.currentGesture === 'NEUTRAL' && '😐'}
+                          {state.currentGesture === 'STILL' && '⏸️'}
+                          {!['SMILING', 'SAD', 'SURPRISED', 'NODDING', 'SHAKING HEAD', 'THUMBS_UP', 'MIDDLE_FINGER', 'FIST', 'OPEN_HAND', 'NEUTRAL', 'STILL'].includes(state.currentGesture) && '👤'}
+                        </span>
+                        <span className={styles.gestureText}>{state.currentGesture}</span>
+                      </>
+                    ) : (
+                      <span className={styles.gestureText}>No gesture detected</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className={styles.liveControlSliders}>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>Pan: {state.currentPan}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={state.currentPan}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
+                </div>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>Tilt: {state.currentTilt}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    step="1"
+                    value={state.currentTilt}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
+                </div>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>X: {state.currentX}</label>
+                  <input
+                    type="range"
+                    min={settings.xPositionMin}
+                    max={settings.xPositionMax}
+                    step="1"
+                    value={state.currentX}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
+                </div>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>Y: {state.currentY}</label>
+                  <input
+                    type="range"
+                    min={settings.yPositionMin}
+                    max={settings.yPositionMax}
+                    step="1"
+                    value={state.currentY}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
+                </div>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>Iris: {state.currentIris}</label>
+                  <input
+                    type="range"
+                    min={settings.irisMin}
+                    max={settings.irisMax}
+                    step="1"
+                    value={state.currentIris}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
+                </div>
+                <div className={styles.liveControlSliderItem}>
+                  <label className={styles.liveControlSliderLabel}>Mouth: {state.currentMouth}</label>
+                  <input
+                    type="range"
+                    min={settings.mouthMin}
+                    max={settings.mouthMax}
+                    step="1"
+                    value={state.currentMouth}
+                    readOnly
+                    disabled
+                    className={styles.liveControlSlider}
+                  />
                 </div>
               </div>
-            )}
-            
-            {/* Camera Preview - Always shown when running (toggles removed) */}
-            {state.isRunning && (
-              <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''}`} ref={previewContainerRef}>
-                <div className={styles.previewHeader}>
-                  <span className={styles.previewTitle}>Camera Preview</span>
+            </div>
+          </div>
+
+          {/* Camera Preview and 3D Fixture - 2 columns, sticky */}
+          <div className={styles.previewSection}>
+            {/* Camera Preview - Always shown (placeholder when off) */}
+            <div className={`${styles.previewContainer} ${isDetached ? styles.detached : ''} ${!state.isRunning ? styles.placeholder : ''}`} ref={previewContainerRef}>
+              <div className={styles.previewHeader}>
+                <span className={styles.previewTitle}>Camera Preview</span>
+                {state.isRunning && (
                   <button
                     className={styles.detachButton}
                     onClick={() => setIsDetached(!isDetached)}
@@ -3447,24 +3533,33 @@ export const FaceTracker: React.FC = () => {
                     <i className={`fas fa-${isDetached ? 'compress' : 'expand'}`}></i>
                     <span>{isDetached ? 'Reattach' : 'Detach'}</span>
                   </button>
-                </div>
-                {!isDetached && (
-                  <>
-                    <video
-                      ref={videoRef}
-                      className={styles.video}
-                      autoPlay
-                      playsInline
-                      muted
-                    />
-                    <canvas
-                      ref={canvasRef}
-                      className={styles.canvas}
-                    />
-                  </>
                 )}
               </div>
-            )}
+              {!isDetached && (
+                <>
+                  {state.isRunning ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        className={styles.video}
+                        autoPlay
+                        playsInline
+                        muted
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        className={styles.canvas}
+                      />
+                    </>
+                  ) : (
+                    <div className={styles.placeholderContent}>
+                      <i className="fas fa-video" style={{ fontSize: '3rem', opacity: 0.3, marginBottom: '1rem' }}></i>
+                      <span style={{ opacity: 0.5 }}>Camera preview will appear when Face Tracker is enabled</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Detached Camera Preview Window */}
             {isDetached && state.isRunning && (
@@ -3505,11 +3600,11 @@ export const FaceTracker: React.FC = () => {
               </Draggable>
             )}
 
-            {/* 3D Fixture Model - Always shown when running */}
-            {state.isRunning && (
-              <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''}`}>
-                <div className={styles.previewHeader}>
-                  <span className={styles.previewTitle}>3D Fixture Model</span>
+            {/* 3D Fixture Model - Always shown (placeholder when off) */}
+            <div className={`${styles.fixture3DContainer} ${is3DFixtureDetached ? styles.detached : ''} ${!state.isRunning ? styles.placeholder : ''}`}>
+              <div className={styles.previewHeader}>
+                <span className={styles.previewTitle}>3D Fixture Model</span>
+                {state.isRunning && (
                   <button
                     className={styles.detachButton}
                     onClick={() => setIs3DFixtureDetached(!is3DFixtureDetached)}
@@ -3518,8 +3613,10 @@ export const FaceTracker: React.FC = () => {
                     <i className={`fas fa-${is3DFixtureDetached ? 'compress' : 'expand'}`}></i>
                     <span>{is3DFixtureDetached ? 'Reattach' : 'Detach'}</span>
                   </button>
-                </div>
-                {!is3DFixtureDetached && (() => {
+                )}
+              </div>
+              {!is3DFixtureDetached && (
+                state.isRunning ? (() => {
                   // Get RGB color from first selected fixture
                   let rgbColor = { r: 255, g: 200, b: 100 }; // Default warm white
                   if (selectedFixtureIds.length > 0) {
@@ -3567,9 +3664,14 @@ export const FaceTracker: React.FC = () => {
                       height={400}
                     />
                   );
-                })()}
-              </div>
-            )}
+                })() : (
+                  <div className={styles.placeholderContent}>
+                    <i className="fas fa-cube" style={{ fontSize: '3rem', opacity: 0.3, marginBottom: '1rem' }}></i>
+                    <span style={{ opacity: 0.5 }}>3D fixture model will appear when Face Tracker is enabled</span>
+                  </div>
+                )
+              )}
+            </div>
 
             {/* Detached 3D Fixture Window */}
             {state.isRunning && is3DFixtureDetached && (
