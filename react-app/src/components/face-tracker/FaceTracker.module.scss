@@ -24,7 +24,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-y: auto;
+  overflow: hidden; // Changed from overflow-y: auto to allow sticky preview
 }
 
 .configSide {
@@ -572,9 +572,19 @@
 
 .previewSection {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-primary);
+  padding: 1rem 0;
+  border-bottom: 2px solid var(--border-color);
+  
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 1fr;
+  }
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
@@ -846,6 +856,9 @@
   border-radius: 4px;
   padding: 1.5rem;
   margin-top: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .allControls {
@@ -853,7 +866,6 @@
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 1rem;
   padding: 1rem;
-  max-height: calc(100vh - 400px);
   overflow-y: auto;
   
   // Better scrolling
