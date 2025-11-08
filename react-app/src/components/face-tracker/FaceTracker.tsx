@@ -2777,6 +2777,22 @@ export const FaceTracker: React.FC = () => {
     };
   }, [state.isRunning, state.isInitialized, startTracking]);
 
+  // Handle preview toggle - start/stop preview loop
+  useEffect(() => {
+    if (state.isRunning && showPreview && videoRef.current && canvasRef.current) {
+      // Start preview loop if enabled
+      if (!previewFrameRef.current) {
+        renderPreview();
+      }
+    } else {
+      // Stop preview loop if disabled
+      if (previewFrameRef.current) {
+        cancelAnimationFrame(previewFrameRef.current);
+        previewFrameRef.current = undefined;
+      }
+    }
+  }, [showPreview, state.isRunning, renderPreview]);
+
   const updateSetting = (key: keyof FaceTrackerSettings, value: any) => {
     setSettings(prev => {
       const updated = { ...prev, [key]: value };
