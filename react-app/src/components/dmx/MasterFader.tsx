@@ -201,6 +201,32 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
     handleValueChange(0);
   };
 
+  const setAllToZero = () => {
+    // Set all channels to 0 without remembering previous values
+    // This is different from blackout which saves values for restoration
+    const dmxUpdates: Record<number, number> = {};
+    
+    // Set all channels to 0, respecting ignored channels
+    for (let i = 0; i < 512; i++) {
+      if (isChannelIgnored(i)) {
+        dmxUpdates[i] = dmxChannels[i]; // Keep current value for ignored channels
+      } else {
+        dmxUpdates[i] = 0; // Set to 0 for all non-ignored channels
+      }
+    }
+    
+    if (Object.keys(dmxUpdates).length > 0) {
+      setMultipleDmxChannels(dmxUpdates);
+    }
+    
+    // Also set the master fader value to 0
+    setValue(0);
+    
+    // Clear any saved values since we're doing a hard reset
+    setPreviousChannelValues({});
+    setFullOnSavedValues({});
+  };
+
   const toggleFullOn = () => {
     const dmxUpdates: Record<number, number> = {};
     if (isFullOn) { // Turning OFF (was ON)
@@ -345,11 +371,20 @@ export const MasterFader: React.FC<MasterFaderProps> = ({
         <button 
           className={`${styles.blackoutButton} ${value === 0 ? styles.active : ''}`}
           onClick={blackoutAll}
-          title="Blackout All Channels"
+          title="Blackout All Channels (remembers values for restoration)"
         >
           <i className="fas fa-power-off"></i>
           {!isMinimized && !compact && "Blackout"}
           {compact && "BLACK"}
+        </button>
+        <button 
+          className={`${styles.setToZeroButton} ${value === 0 ? styles.active : ''}`}
+          onClick={setAllToZero}
+          title="Set All Channels to 0 (hard reset, no restoration)"
+        >
+          <i className="fas fa-ban"></i>
+          {!isMinimized && !compact && "SET TO 0"}
+          {compact && "ZERO"}
         </button>
         <button
           className={`${styles.slowFadeoutButton} ${isFading && value > 0 ? styles.active : ''}`}

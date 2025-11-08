@@ -3526,8 +3526,7 @@ export const FaceTracker: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-        
+          
         <div className={styles.status}>
           <div className={styles.statusItem}>
             <span className={styles.statusLabel}>Status:</span>
@@ -3550,6 +3549,11 @@ export const FaceTracker: React.FC = () => {
         {/* Live Pan/Tilt Control Indicators */}
         <div className={styles.liveControlSection}>
           <h4 className={styles.controlsTitle}>Live Control Output</h4>
+          <p className={styles.helpText} style={{ marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.8 }}>
+            Real-time preview of all tracked values being sent to DMX channels
+          </p>
+          
+          {/* Pan Control */}
           <div className={styles.controlGroup}>
             <label className={styles.controlLabel} title="Current pan value being sent to DMX (0-255)">
               Pan: {state.currentPan}
@@ -3581,6 +3585,8 @@ export const FaceTracker: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* Tilt Control */}
           <div className={styles.controlGroup}>
             <label className={styles.controlLabel} title="Current tilt value being sent to DMX (0-255)">
               Tilt: {state.currentTilt}
@@ -3612,6 +3618,147 @@ export const FaceTracker: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* X Position Control */}
+          {settings.xPositionChannel > 0 && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current X position value being sent to DMX (0-255)">
+                X Position: {state.currentX}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>{settings.xPositionMin}</span>
+                <input
+                  type="range"
+                  min={settings.xPositionMin}
+                  max={settings.xPositionMax}
+                  step="1"
+                  value={state.currentX}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current X position value being sent to DMX"
+                />
+                <span className={styles.rangeLabel}>{settings.xPositionMax}</span>
+                <input
+                  type="number"
+                  min={settings.xPositionMin}
+                  max={settings.xPositionMax}
+                  step="1"
+                  value={state.currentX}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current X position value being sent to DMX"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Y Position Control */}
+          {settings.yPositionChannel > 0 && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current Y position value being sent to DMX (0-255)">
+                Y Position: {state.currentY}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>{settings.yPositionMin}</span>
+                <input
+                  type="range"
+                  min={settings.yPositionMin}
+                  max={settings.yPositionMax}
+                  step="1"
+                  value={state.currentY}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current Y position value being sent to DMX"
+                />
+                <span className={styles.rangeLabel}>{settings.yPositionMax}</span>
+                <input
+                  type="number"
+                  min={settings.yPositionMin}
+                  max={settings.yPositionMax}
+                  step="1"
+                  value={state.currentY}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current Y position value being sent to DMX"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Iris Control (Blink Detection) */}
+          {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current iris value being sent to DMX (0-255)">
+                Iris: {state.currentIris} {state.isBlinking && <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>👁️ BLINKING</span>}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>{settings.irisMin}</span>
+                <input
+                  type="range"
+                  min={settings.irisMin}
+                  max={settings.irisMax}
+                  step="1"
+                  value={state.currentIris}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current iris value being sent to DMX (controlled by blink detection)"
+                />
+                <span className={styles.rangeLabel}>{settings.irisMax}</span>
+                <input
+                  type="number"
+                  min={settings.irisMin}
+                  max={settings.irisMax}
+                  step="1"
+                  value={state.currentIris}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current iris value being sent to DMX (controlled by blink detection)"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Mouth Control */}
+          {settings.mouthChannel > 0 && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel} title="Current mouth openness value being sent to DMX (0-255)">
+                Mouth: {state.currentMouth}
+              </label>
+              <div className={styles.sliderWrapper}>
+                <span className={styles.rangeLabel}>{settings.mouthMin}</span>
+                <input
+                  type="range"
+                  min={settings.mouthMin}
+                  max={settings.mouthMax}
+                  step="1"
+                  value={state.currentMouth}
+                  readOnly
+                  disabled
+                  className={`${styles.slider} ${styles.liveSlider}`}
+                  title="Current mouth openness value being sent to DMX"
+                />
+                <span className={styles.rangeLabel}>{settings.mouthMax}</span>
+                <input
+                  type="number"
+                  min={settings.mouthMin}
+                  max={settings.mouthMax}
+                  step="1"
+                  value={state.currentMouth}
+                  readOnly
+                  disabled
+                  className={styles.numberInput}
+                  title="Current mouth openness value being sent to DMX"
+                />
+              </div>
+            </div>
+          )}
+        </div>
           </div>
         </div>
       </div>

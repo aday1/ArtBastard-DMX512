@@ -34,7 +34,7 @@
       margin-bottom: 0;
       gap: 0.25rem;
       
-      .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+      .fullOnButton, .blackoutButton, .setToZeroButton, .slowFadeoutButton, .fadeBackupButton {
         min-width: 60px;
         padding: 0.4rem 0.5rem;
         font-size: 0.8rem;
@@ -115,7 +115,7 @@
       justify-content: center; /* Center buttons for better appearance */
       flex-wrap: wrap; /* Allow wrapping if needed on very small screens */
       
-      .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+      .fullOnButton, .blackoutButton, .setToZeroButton, .slowFadeoutButton, .fadeBackupButton {
         min-width: 80px; /* Increased from 40px for better usability */
         max-width: none; /* Allow buttons to grow if space permits */
         padding: 0.6rem 0.8rem; /* Increased from 0.4rem for better touch targets */
@@ -183,7 +183,7 @@
     min-height: 44px; /* Minimum height to prevent cramping */
 
     // Button styles for all action buttons - Made more usable
-    .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+    .fullOnButton, .blackoutButton, .setToZeroButton, .slowFadeoutButton, .fadeBackupButton {
       padding: 0.6rem 1rem; /* Increased from 0.5rem 0.8rem for better touch targets */
       color: #f0f0f0;
       border: none;
@@ -256,6 +256,18 @@
       }
     }
 
+    .setToZeroButton {
+      background: linear-gradient(135deg, #c44569, #8b2635);
+      &:hover:not(:disabled) {
+        box-shadow: 0 8px 25px rgba(196, 69, 105, 0.4);
+      }
+      &.active {
+        background: linear-gradient(135deg, #8b2635, #5a1a1f);
+        box-shadow: 0 4px 15px rgba(139, 38, 53, 0.4);
+        animation: hardResetPulse 1s ease-in-out infinite;
+      }
+    }
+
     .slowFadeoutButton {
       background: linear-gradient(135deg, #4e54c8, #8f94fb);
       &:hover:not(:disabled) {
@@ -300,6 +312,17 @@
     @keyframes riseGlow {
       from { box-shadow: 0 4px 15px rgba(86, 171, 47, 0.4); }
       to { box-shadow: 0 6px 20px rgba(86, 171, 47, 0.8); }
+    }
+
+    @keyframes hardResetPulse {
+      0%, 100% { 
+        box-shadow: 0 4px 15px rgba(139, 38, 53, 0.4);
+        transform: scale(1);
+      }
+      50% { 
+        box-shadow: 0 6px 20px rgba(139, 38, 53, 0.8);
+        transform: scale(1.02);
+      }
     }
   }
     .faderContainer {
@@ -537,12 +560,12 @@
         gap: 0.3rem;
         padding: 0 0.2rem; /* Add small horizontal padding */
         
-        .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+        .fullOnButton, .blackoutButton, .setToZeroButton, .slowFadeoutButton, .fadeBackupButton {
           min-width: 35px;
           padding: 0.3rem 0.2rem;
           height: 32px;
           flex: 1; /* Distribute space evenly */
-          max-width: calc(25% - 0.3rem); /* Ensure 4 buttons fit */
+          max-width: calc(20% - 0.3rem); /* Ensure 5 buttons fit */
           
           /* Hide text on very small screens, keep icons */
           span {
@@ -566,11 +589,12 @@
       
       .fullOnButton,
       .blackoutButton,
+      .setToZeroButton,
       .slowFadeoutButton,
       .fadeBackupButton {
         flex: 1;
         min-width: auto;
-        max-width: calc(25% - 0.3rem); /* Ensure 4 buttons fit */
+        max-width: calc(20% - 0.3rem); /* Ensure 5 buttons fit */
         padding: 0.5rem 0.2rem;
         font-size: 0.8rem;
         
@@ -592,7 +616,7 @@
   @media (max-width: 480px) {
     &.minimized {
       .headerActions {
-        .fullOnButton, .blackoutButton, .slowFadeoutButton, .fadeBackupButton {
+        .fullOnButton, .blackoutButton, .setToZeroButton, .slowFadeoutButton, .fadeBackupButton {
           min-width: 30px;
           padding: 0.25rem;
           height: 30px;
@@ -608,6 +632,7 @@
     .headerActions {
       .fullOnButton,
       .blackoutButton,
+      .setToZeroButton,
       .slowFadeoutButton,
       .fadeBackupButton {
         font-size: 0.7rem;
