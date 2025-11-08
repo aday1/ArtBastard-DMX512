@@ -2348,8 +2348,6 @@ export const FaceTracker: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-        </div>
         
         <div className={styles.status}>
           <div className={styles.statusItem}>
@@ -2436,7 +2434,10 @@ export const FaceTracker: React.FC = () => {
             </div>
           </div>
         </div>
+          </div>
+        </div>
       </div>
+    </div>
     </div>
   );
 };
