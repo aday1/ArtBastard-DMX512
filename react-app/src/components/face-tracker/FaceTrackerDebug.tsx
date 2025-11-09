@@ -531,18 +531,6 @@ export const FaceTrackerDebug: React.FC = () => {
             {connected ? '✅' : '❌'}
           </div>
         </div>
-        {state.currentGesture && (
-          <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
-            <div style={{ fontSize: '0.8rem', color: '#888' }}>Gesture</div>
-            <div style={{ fontSize: '1.2rem', color: '#fff' }}>
-              {state.currentGesture === 'THUMBS_UP' && '👍'}
-              {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
-              {state.currentGesture === 'FIST' && '✊'}
-              {state.currentGesture === 'OPEN_HAND' && '✋'}
-              {state.currentGesture}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* DMX/OSC Output Display */}
@@ -770,42 +758,6 @@ export const FaceTrackerDebug: React.FC = () => {
               title="Enable basic face tracking (pan/tilt). This is the core feature."
             />
             <span>Enable Face Tracking (Pan/Tilt)</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={featureFlags.enableEyes}
-              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableEyes: e.target.checked }))}
-              title="Enable eye/blink detection. Disable if crashes occur."
-            />
-            <span>Enable Eye/Blink Detection</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={featureFlags.enableMouth}
-              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableMouth: e.target.checked }))}
-              title="Enable mouth detection. Disable if crashes occur."
-            />
-            <span>Enable Mouth Detection</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={featureFlags.enableTongue}
-              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableTongue: e.target.checked }))}
-              title="Enable tongue detection. Detects when tongue is extended."
-            />
-            <span>Enable Tongue Detection</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={featureFlags.enableGestures}
-              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableGestures: e.target.checked }))}
-              title="Enable hand gesture detection. Disabled by default (causes performance issues)."
-            />
-            <span>Enable Hand Gesture Detection</span>
           </label>
         </div>
       </div>
