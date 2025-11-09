@@ -496,6 +496,14 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
     detectionCountRef.current = 0;
   }, []);
 
+  // Auto-start detection when OpenCV becomes ready and camera is running
+  useEffect(() => {
+    if (state.opencvReady && state.isRunning && state.cameraReady && opencvRef.current && cascadeRef.current) {
+      console.log('[DEBUG] 🔄 OpenCV ready while running, starting detection');
+      startDetection();
+    }
+  }, [state.opencvReady, state.isRunning, state.cameraReady, startDetection]);
+
   // Handle start/stop
   const handleToggle = async () => {
     const newRunning = !state.isRunning;
@@ -505,12 +513,27 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
     setState(prev => ({ ...prev, isRunning: newRunning }));
 
     if (newRunning) {
+      // Always start camera, even if OpenCV isn't ready
       await startCamera();
-      setTimeout(() => {
-        if (isRunningRef.current && state.opencvReady) {
-          startDetection();
-        }
-      }, 500);
+      // Start detection if OpenCV is ready, otherwise wait for it
+      if (state.opencvReady) {
+        setTimeout(() => {
+          if (isRunningRef.current) {
+            startDetection();
+          }
+        }, 500);
+      } else {
+        // Wait for OpenCV to be ready, then start detection
+        const checkOpenCV = setInterval(() => {
+          if (opencvRef.current && cascadeRef.current && isRunningRef.current) {
+            clearInterval(checkOpenCV);
+            console.log('[DEBUG] ✅ OpenCV ready, starting detection');
+            startDetection();
+          }
+        }, 100);
+        // Timeout after 10 seconds
+        setTimeout(() => clearInterval(checkOpenCV), 10000);
+      }
     } else {
       stopDetection();
       stopCamera();
@@ -1141,7 +1164,6 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
         <button
           onClick={handleToggle}
-          disabled={!state.opencvReady}
           style={{
             padding: '1rem 2rem',
             fontSize: '1.2rem',
@@ -1150,12 +1172,17 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            cursor: state.opencvReady ? 'pointer' : 'not-allowed',
-            opacity: state.opencvReady ? 1 : 0.5
+            cursor: 'pointer',
+            opacity: 1
           }}
         >
           {state.isRunning ? '🛑 STOP' : '▶️ START'}
         </button>
+        {!state.opencvReady && !state.isRunning && (
+          <span style={{ color: '#ff9800', fontSize: '0.9rem' }}>
+            ⚠️ OpenCV loading... Camera will start, detection will begin when ready
+          </span>
+        )}
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span>Detection Rate (Hz):</span>
