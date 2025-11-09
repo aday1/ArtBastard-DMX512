@@ -16,7 +16,6 @@ import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
 import TouchOSCDemo from '../demo/TouchOSCDemo';
-import { FaceTracker } from '../face-tracker/FaceTracker';
 
 export interface ComponentDefinition {
   type: string;
@@ -177,15 +176,6 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-mobile-alt',
     component: TouchOSCDemo,
     minSize: { width: 600, height: 400 },
-  },
-  'face-tracker': {
-    type: 'face-tracker',
-    title: 'Face Tracker',
-    description: 'Real-time face tracking with video preview, DMX control, and all configuration settings',
-    category: 'dmx',
-    icon: 'fas fa-user-circle',
-    component: FaceTracker,
-    minSize: { width: 800, height: 600 },
   },
 };
 

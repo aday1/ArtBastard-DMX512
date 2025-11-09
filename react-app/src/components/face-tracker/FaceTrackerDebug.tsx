@@ -1,7 +1,11 @@
 /**
- * FaceTracker Debug - Minimal implementation from scratch
- * Purpose: Identify what's breaking the main FaceTracker
- * Features: Only camera + OpenCV + basic detection + extensive logging
+ * OpenCV Visage Tracker Expérimental (WIP) - Œuvre Incomplète
+ * 
+ * ⚠️ AVERTISSEMENT / WARNING: Ceci est un travail en cours (Work In Progress)
+ * Cette implémentation est hautement expérimentale et incomplète.
+ * 
+ * Features: Camera + OpenCV + face detection + advanced tracking settings
+ * Status: Experimental / Incomplete / Work In Progress
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -27,7 +31,7 @@ interface FeatureFlags {
   enableFaceTracking: boolean; // Basic pan/tilt face tracking
 }
 
-export const FaceTrackerDebug: React.FC = () => {
+export const OpenCVVisageTrackerExperimental: React.FC = () => {
   const { socket, connected } = useSocket();
   const { fixtures } = useStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -77,11 +81,35 @@ export const FaceTrackerDebug: React.FC = () => {
     tilt: 1,
   });
 
+  // Tracking settings (advanced configuration)
+  const [settings, setSettings] = useState({
+    panSensitivity: 1.0,
+    tiltSensitivity: 1.0,
+    smoothingFactor: 0.85,
+    cutoff: 0.02,
+    panMin: 0,
+    panMax: 255,
+    tiltMin: 0,
+    tiltMax: 255,
+    flipPan: false,
+    flipTilt: false,
+    panOffset: 128,
+    tiltOffset: 128,
+    maxVelocity: 5.0,
+  });
+
+  // Refs for smoothed values (for setToCenter function)
+  const smoothedPanRef = useRef<number>(0);
+  const smoothedTiltRef = useRef<number>(0);
+
   // Ref to track feature flags for the detection loop (avoid stale closures)
   const featureFlagsRef = useRef<FeatureFlags>(featureFlags);
   
   // Ref to track DMX channels for the detection loop (avoid stale closures)
   const dmxChannelsRef = useRef(dmxChannels);
+  
+  // Ref to track settings for the detection loop (avoid stale closures)
+  const settingsRef = useRef(settings);
   
   // Keep featureFlagsRef in sync
   useEffect(() => {
@@ -94,6 +122,12 @@ export const FaceTrackerDebug: React.FC = () => {
     dmxChannelsRef.current = dmxChannels;
     console.log('[DEBUG] 🔄 DMX channels updated:', dmxChannels);
   }, [dmxChannels]);
+
+  // Keep settingsRef in sync
+  useEffect(() => {
+    settingsRef.current = settings;
+    console.log('[DEBUG] 🔄 Settings updated:', settings);
+  }, [settings]);
 
   // Keep hzRef in sync with hz state
   useEffect(() => {
@@ -323,10 +357,55 @@ export const FaceTrackerDebug: React.FC = () => {
           const currentFlags = featureFlagsRef.current;
           
           if (currentFlags.enableFaceTracking) {
-            const pan = (faceCenterX - imageCenterX) / imageCenterX;
-            const tilt = -(faceCenterY - imageCenterY) / imageCenterY;
-            panValue = Math.round(Math.max(0, Math.min(255, pan * 127 + 128)));
-            tiltValue = Math.round(Math.max(0, Math.min(255, tilt * 127 + 128)));
+            const currentSettings = settingsRef.current;
+            
+            // Calculate raw pan/tilt (-1 to 1)
+            const panRaw = (faceCenterX - imageCenterX) / imageCenterX;
+            const tiltRaw = -(faceCenterY - imageCenterY) / imageCenterY;
+            
+            // Apply cutoff (dead zone)
+            const panAbs = Math.abs(panRaw);
+            const tiltAbs = Math.abs(tiltRaw);
+            const targetPan = panAbs > currentSettings.cutoff ? panRaw : 0;
+            const targetTilt = tiltAbs > currentSettings.cutoff ? tiltRaw : 0;
+            
+            // Apply smoothing
+            const smoothingRate = 1 - currentSettings.smoothingFactor;
+            let newPan = smoothedPanRef.current * currentSettings.smoothingFactor + targetPan * smoothingRate;
+            let newTilt = smoothedTiltRef.current * currentSettings.smoothingFactor + targetTilt * smoothingRate;
+            
+            // Apply velocity limiting
+            const maxChange = currentSettings.maxVelocity / 100;
+            const panChange = newPan - smoothedPanRef.current;
+            const tiltChange = newTilt - smoothedTiltRef.current;
+            
+            if (Math.abs(panChange) > maxChange) {
+              newPan = smoothedPanRef.current + Math.sign(panChange) * maxChange;
+            }
+            if (Math.abs(tiltChange) > maxChange) {
+              newTilt = smoothedTiltRef.current + Math.sign(tiltChange) * maxChange;
+            }
+            
+            smoothedPanRef.current = newPan;
+            smoothedTiltRef.current = newTilt;
+            
+            // Map to DMX values with sensitivity, flip, and offset
+            const panDirection = currentSettings.flipPan ? -1 : 1;
+            const tiltDirection = currentSettings.flipTilt ? -1 : 1;
+            const panScaled = newPan * panDirection * currentSettings.panSensitivity * 127;
+            const tiltScaled = newTilt * tiltDirection * currentSettings.tiltSensitivity * 127;
+            
+            panValue = Math.round(
+              Math.max(currentSettings.panMin, Math.min(currentSettings.panMax,
+                panScaled + currentSettings.panOffset
+              ))
+            );
+            tiltValue = Math.round(
+              Math.max(currentSettings.tiltMin, Math.min(currentSettings.tiltMax,
+                tiltScaled + currentSettings.tiltOffset
+              ))
+            );
+            
             console.log(`[DEBUG] ✅ Face at (${faceCenterX.toFixed(0)}, ${faceCenterY.toFixed(0)}), Pan: ${panValue}, Tilt: ${tiltValue}`);
           } else {
             console.log(`[DEBUG] 👁️ Face detected but tracking disabled (enableFaceTracking: false)`);
@@ -438,9 +517,53 @@ export const FaceTrackerDebug: React.FC = () => {
     }
   };
 
+  // Set to center function
+  const setToCenter = () => {
+    if (!state.isRunning || !state.faceDetected) {
+      alert('Face Tracker must be running and detecting your face to set center position. Please start tracking and ensure your face is visible.');
+      return;
+    }
+
+    const currentPan = smoothedPanRef.current;
+    const currentTilt = smoothedTiltRef.current;
+    const panCenter = (settings.panMin + settings.panMax) / 2;
+    const tiltCenter = (settings.tiltMin + settings.tiltMax) / 2;
+    const panDirection = settings.flipPan ? -1 : 1;
+    const tiltDirection = settings.flipTilt ? -1 : 1;
+    const panScaled = currentPan * panDirection * settings.panSensitivity * 127;
+    const tiltScaled = currentTilt * tiltDirection * settings.tiltSensitivity * 127;
+    const newPanOffset = Math.round(panCenter - panScaled);
+    const newTiltOffset = Math.round(tiltCenter - tiltScaled);
+    const clampedPanOffset = Math.max(0, Math.min(255, newPanOffset));
+    const clampedTiltOffset = Math.max(0, Math.min(255, newTiltOffset));
+
+    setSettings(prev => ({
+      ...prev,
+      panOffset: clampedPanOffset,
+      tiltOffset: clampedTiltOffset
+    }));
+
+    alert(`Center position set!\nPan Offset: ${clampedPanOffset}\nTilt Offset: ${clampedTiltOffset}\n\nYour current face position is now the center.`);
+  };
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ color: '#00d4ff', marginBottom: '1rem' }}>🐛 Face Tracker DEBUG (Clean Implementation)</h1>
+      <div style={{ 
+        padding: '1rem', 
+        background: 'rgba(255, 165, 0, 0.2)', 
+        border: '3px solid #ff9800',
+        borderRadius: '8px',
+        marginBottom: '1rem'
+      }}>
+        <h1 style={{ color: '#ff9800', marginBottom: '0.5rem', fontSize: '1.5rem', fontWeight: 'bold' }}>
+          ⚠️ OpenCV Visage Tracker Expérimental (WIP) - Œuvre Incomplète
+        </h1>
+        <p style={{ color: '#ffcc80', fontSize: '0.9rem', margin: 0 }}>
+          <strong>AVERTISSEMENT / WARNING:</strong> Ceci est un travail en cours (Work In Progress). 
+          Cette implémentation est hautement expérimentale et incomplète. 
+          <em>Use at your own risk, mon ami.</em>
+        </p>
+      </div>
       
       <div style={{ 
         padding: '1rem', 
@@ -762,6 +885,258 @@ export const FaceTrackerDebug: React.FC = () => {
         </div>
       </div>
 
+      {/* Tracking Settings Section */}
+      <div style={{ 
+        border: '2px solid #00d4ff', 
+        borderRadius: '8px', 
+        padding: '1rem', 
+        background: 'rgba(0, 212, 255, 0.1)', 
+        marginBottom: '1rem' 
+      }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#00d4ff', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          🎯 Tracking Settings
+        </h3>
+        
+        {/* Pan Sensitivity */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+            Pan Sensitivity: {settings.panSensitivity.toFixed(1)}
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.panSensitivity}
+              onChange={(e) => setSettings(prev => ({ ...prev, panSensitivity: parseFloat(e.target.value) }))}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.panSensitivity.toFixed(1)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) setSettings(prev => ({ ...prev, panSensitivity: value }));
+              }}
+              style={{ width: '60px' }}
+            />
+          </div>
+        </div>
+
+        {/* Tilt Sensitivity */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+            Tilt Sensitivity: {settings.tiltSensitivity.toFixed(1)}
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.tiltSensitivity}
+              onChange={(e) => setSettings(prev => ({ ...prev, tiltSensitivity: parseFloat(e.target.value) }))}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.tiltSensitivity.toFixed(1)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) setSettings(prev => ({ ...prev, tiltSensitivity: value }));
+              }}
+              style={{ width: '60px' }}
+            />
+          </div>
+        </div>
+
+        {/* Smoothing Factor */}
+        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#00d4ff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+            🌊 Smoothing Factor: {settings.smoothingFactor.toFixed(2)}
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.smoothingFactor}
+              onChange={(e) => setSettings(prev => ({ ...prev, smoothingFactor: parseFloat(e.target.value) }))}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.smoothingFactor.toFixed(2)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) setSettings(prev => ({ ...prev, smoothingFactor: value }));
+              }}
+              style={{ width: '60px' }}
+            />
+          </div>
+        </div>
+
+        {/* Cutoff */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+            Cutoff (Dead Zone): {settings.cutoff.toFixed(2)}
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={settings.cutoff}
+              onChange={(e) => setSettings(prev => ({ ...prev, cutoff: parseFloat(e.target.value) }))}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={settings.cutoff.toFixed(2)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) setSettings(prev => ({ ...prev, cutoff: value }));
+              }}
+              style={{ width: '60px' }}
+            />
+          </div>
+        </div>
+
+        {/* Flip Pan/Tilt */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.flipPan}
+              onChange={(e) => setSettings(prev => ({ ...prev, flipPan: e.target.checked }))}
+            />
+            <span style={{ fontSize: '0.9rem' }}>Flip Pan Direction</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.flipTilt}
+              onChange={(e) => setSettings(prev => ({ ...prev, flipTilt: e.target.checked }))}
+            />
+            <span style={{ fontSize: '0.9rem' }}>Flip Tilt Direction</span>
+          </label>
+        </div>
+
+        {/* Set to Center Button */}
+        <button
+          onClick={setToCenter}
+          disabled={!state.isRunning || !state.faceDetected}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            background: (!state.isRunning || !state.faceDetected) ? '#666' : '#4caf50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (!state.isRunning || !state.faceDetected) ? 'not-allowed' : 'pointer',
+            opacity: (!state.isRunning || !state.faceDetected) ? 0.5 : 1
+          }}
+        >
+          🎯 SET TO CENTER
+        </button>
+      </div>
+
+      {/* Range Limits Section */}
+      <div style={{ 
+        border: '2px solid #9b59b6', 
+        borderRadius: '8px', 
+        padding: '1rem', 
+        background: 'rgba(155, 89, 182, 0.1)', 
+        marginBottom: '1rem' 
+      }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#9b59b6', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          📊 Range Limits
+        </h3>
+        
+        {/* Pan Min/Max */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+            Pan Range: {settings.panMin} - {settings.panMax}
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#aaa' }}>Min: {settings.panMin}</label>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={settings.panMin}
+                onChange={(e) => setSettings(prev => ({ ...prev, panMin: parseInt(e.target.value) }))}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#aaa' }}>Max: {settings.panMax}</label>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={settings.panMax}
+                onChange={(e) => setSettings(prev => ({ ...prev, panMax: parseInt(e.target.value) }))}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tilt Min/Max */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#fff', fontSize: '0.9rem' }}>
+            Tilt Range: {settings.tiltMin} - {settings.tiltMax}
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#aaa' }}>Min: {settings.tiltMin}</label>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={settings.tiltMin}
+                onChange={(e) => setSettings(prev => ({ ...prev, tiltMin: parseInt(e.target.value) }))}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#aaa' }}>Max: {settings.tiltMax}</label>
+              <input
+                type="range"
+                min="0"
+                max="255"
+                step="1"
+                value={settings.tiltMax}
+                onChange={(e) => setSettings(prev => ({ ...prev, tiltMax: parseInt(e.target.value) }))}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Controls */}
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
         <button
@@ -851,6 +1226,9 @@ export const FaceTrackerDebug: React.FC = () => {
     </div>
   );
 };
+
+// Backward compatibility export alias
+export const FaceTrackerDebug = OpenCVVisageTrackerExperimental;
 
 declare global {
   interface Window {
