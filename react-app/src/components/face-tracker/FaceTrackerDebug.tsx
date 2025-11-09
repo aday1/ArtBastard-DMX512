@@ -141,115 +141,275 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
     console.log('[DEBUG] 🔄 OpenCV params updated:', opencvParams);
   }, [opencvParams]);
 
-  // Initialize OpenCV
+  // Initialize OpenCV - COMPLETELY REBUILT
   useEffect(() => {
-    console.log('[DEBUG] 🔵 Initializing OpenCV...');
+    console.log('[DEBUG] 🔵 [REBUILD] Starting OpenCV initialization from scratch...');
     
-    const initOpenCV = async () => {
-      try {
-        // Wait for OpenCV
-        if (!window.cv) {
-          console.log('[DEBUG] ⏳ Waiting for OpenCV.js...');
-          await new Promise<void>((resolve) => {
-            let attempts = 0;
-            const check = setInterval(() => {
-              attempts++;
-              console.log(`[DEBUG] Checking for OpenCV... attempt ${attempts}`);
-              if (window.cv && window.cv.Mat) {
-                clearInterval(check);
-                console.log('[DEBUG] ✅ OpenCV found!');
-                resolve();
-              } else if (attempts > 50) {
-                clearInterval(check);
-                throw new Error('OpenCV timeout');
-              }
-            }, 100);
-          });
+    const loadOpenCV = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (window.cv && window.cv.Mat) {
+          console.log('[DEBUG] ✅ [REBUILD] OpenCV already available');
+          resolve();
+          return;
         }
 
-        opencvRef.current = window.cv;
-        console.log('[DEBUG] 📦 OpenCV loaded');
+        // Check if script is already in DOM
+        const existingScript = document.querySelector('script[src*="opencv"]');
+        if (existingScript) {
+          console.log('[DEBUG] ⏳ [REBUILD] OpenCV script already in DOM, waiting for load...');
+        } else {
+          // Dynamically load OpenCV.js
+          console.log('[DEBUG] 📥 [REBUILD] Loading OpenCV.js script...');
+          const script = document.createElement('script');
+          script.src = 'https://docs.opencv.org/4.x/opencv.js';
+          script.async = true;
+          script.type = 'text/javascript';
+          
+          script.onload = () => {
+            console.log('[DEBUG] ✅ [REBUILD] OpenCV.js script loaded, waiting for cv object...');
+            // Wait for cv to be available (it loads asynchronously)
+            const checkCv = setInterval(() => {
+              if (window.cv && window.cv.Mat) {
+                clearInterval(checkCv);
+                console.log('[DEBUG] ✅ [REBUILD] OpenCV cv object available!');
+                resolve();
+              }
+            }, 50);
+            
+            // Timeout after 30 seconds
+            setTimeout(() => {
+              clearInterval(checkCv);
+              reject(new Error('OpenCV cv object timeout after script load'));
+            }, 30000);
+          };
+          
+          script.onerror = () => {
+            console.error('[DEBUG] ❌ [REBUILD] Failed to load OpenCV.js script');
+            reject(new Error('Failed to load OpenCV.js script'));
+          };
+          
+          document.head.appendChild(script);
+        }
 
-        // Load cascade
-        console.log('[DEBUG] 📥 Loading cascade...');
+        // Poll for cv object (in case script was already loaded)
+        let attempts = 0;
+        const maxAttempts = 600; // 30 seconds at 50ms intervals
+        const checkInterval = setInterval(() => {
+          attempts++;
+          if (window.cv && window.cv.Mat) {
+            clearInterval(checkInterval);
+            console.log('[DEBUG] ✅ [REBUILD] OpenCV cv object found after', attempts, 'attempts');
+            resolve();
+          } else if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            reject(new Error(`OpenCV timeout after ${attempts} attempts (${attempts * 50}ms)`));
+          }
+        }, 50);
+      });
+    };
+
+    const initOpenCV = async () => {
+      try {
+        // Step 1: Load OpenCV.js
+        await loadOpenCV();
+        
+        // Step 2: Store reference
+        opencvRef.current = window.cv;
+        console.log('[DEBUG] 📦 [REBUILD] OpenCV reference stored');
+
+        // Step 3: Load cascade file
+        console.log('[DEBUG] 📥 [REBUILD] Loading cascade file...');
         const response = await fetch('/haarcascade_frontalface_alt.xml');
-        if (!response.ok) throw new Error('Cascade not found');
+        if (!response.ok) {
+          throw new Error(`Cascade file not found: ${response.status} ${response.statusText}`);
+        }
         
         const text = await response.text();
-        console.log('[DEBUG] 📝 Cascade file loaded, size:', text.length);
+        console.log('[DEBUG] 📝 [REBUILD] Cascade file loaded, size:', text.length, 'bytes');
         
+        // Step 4: Write to OpenCV filesystem
         opencvRef.current.FS.writeFile('haarcascade_frontalface_alt.xml', text);
-        console.log('[DEBUG] 💾 Cascade written to filesystem');
+        console.log('[DEBUG] 💾 [REBUILD] Cascade written to OpenCV filesystem');
 
+        // Step 5: Create and load classifier
         cascadeRef.current = new opencvRef.current.CascadeClassifier();
         const loaded = cascadeRef.current.load('haarcascade_frontalface_alt.xml');
-        console.log('[DEBUG] 🎯 Cascade loaded:', loaded);
+        if (!loaded) {
+          throw new Error('Failed to load cascade classifier');
+        }
+        console.log('[DEBUG] 🎯 [REBUILD] Cascade classifier loaded successfully');
 
-        setState(prev => ({ ...prev, opencvReady: true }));
-        console.log('[DEBUG] ✅ OpenCV initialization complete');
+        // Step 6: Mark as ready
+        setState(prev => ({ ...prev, opencvReady: true, error: null }));
+        console.log('[DEBUG] ✅ [REBUILD] OpenCV initialization COMPLETE');
       } catch (error: any) {
-        console.error('[DEBUG] ❌ OpenCV init error:', error);
-        setState(prev => ({ ...prev, error: error.message }));
+        console.error('[DEBUG] ❌ [REBUILD] OpenCV init error:', error);
+        setState(prev => ({ ...prev, error: error.message || 'OpenCV initialization failed' }));
       }
     };
 
     initOpenCV();
   }, []);
 
-  // Start camera
+  // Start camera - REBUILT
   const startCamera = useCallback(async () => {
-    console.log('[DEBUG] 🎥 Starting camera...');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } }
-      });
-      console.log('[DEBUG] ✅ Camera stream obtained');
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        console.log('[DEBUG] ▶️ Video playing');
-      }
-
-      setState(prev => ({ ...prev, cameraReady: true }));
-      console.log('[DEBUG] ✅ Camera ready');
-    } catch (error: any) {
-      console.error('[DEBUG] ❌ Camera error:', error);
-      setState(prev => ({ ...prev, error: error.message }));
-    }
-  }, []);
-
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    console.log('[DEBUG] 🛑 Stopping camera...');
+    console.log('[DEBUG] 🎥 [REBUILD] Starting camera...');
+    
+    // Stop existing stream if any
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      console.log('[DEBUG] 🛑 [REBUILD] Stopping existing camera stream');
+      streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    
+    try {
+      // Request camera with constraints
+      const constraints = {
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          facingMode: 'user' // Front-facing camera
+        }
+      };
+      
+      console.log('[DEBUG] 📹 [REBUILD] Requesting camera with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('[DEBUG] ✅ [REBUILD] Camera stream obtained');
+
+      // Store stream reference
+      streamRef.current = stream;
+      
+      // Set up video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        // Wait for video to be ready
+        await new Promise<void>((resolve, reject) => {
+          if (!videoRef.current) {
+            reject(new Error('Video element not available'));
+            return;
+          }
+          
+          const video = videoRef.current!;
+          
+          const onLoadedMetadata = () => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            console.log('[DEBUG] 📐 [REBUILD] Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
+            resolve();
+          };
+          
+          const onError = (e: Event) => {
+            video.removeEventListener('error', onError);
+            reject(new Error('Video playback error'));
+          };
+          
+          video.addEventListener('loadedmetadata', onLoadedMetadata);
+          video.addEventListener('error', onError);
+          
+          // Start playing
+          video.play().then(() => {
+            console.log('[DEBUG] ▶️ [REBUILD] Video playing');
+          }).catch(err => {
+            console.error('[DEBUG] ❌ [REBUILD] Video play error:', err);
+            reject(err);
+          });
+        });
+      }
+
+      setState(prev => ({ ...prev, cameraReady: true, error: null }));
+      console.log('[DEBUG] ✅ [REBUILD] Camera ready');
+    } catch (error: any) {
+      console.error('[DEBUG] ❌ [REBUILD] Camera error:', error);
+      setState(prev => ({ 
+        ...prev, 
+        cameraReady: false,
+        error: `Camera error: ${error.message || error.name || 'Unknown error'}` 
+      }));
     }
-    setState(prev => ({ ...prev, cameraReady: false }));
   }, []);
 
-  // Start/stop detection loop
-  const startDetection = useCallback(() => {
-    console.log('[DEBUG] 🚀🚀🚀 STARTING DETECTION LOOP 🚀🚀🚀', { hz: hzRef.current });
+  // Stop camera - REBUILT
+  const stopCamera = useCallback(() => {
+    console.log('[DEBUG] 🛑 [REBUILD] Stopping camera...');
+    
+    // Stop all tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[DEBUG] 🛑 [REBUILD] Stopped track:', track.kind, track.label);
+      });
+      streamRef.current = null;
+    }
+    
+    // Clear video source
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
+    }
+    
+    setState(prev => ({ ...prev, cameraReady: false }));
+    console.log('[DEBUG] ✅ [REBUILD] Camera stopped');
+  }, []);
 
+  // Start/stop detection loop - COMPLETELY REBUILT
+  const startDetection = useCallback(() => {
+    console.log('[DEBUG] 🚀 [REBUILD] Starting detection loop...', { 
+      hz: hzRef.current,
+      opencv: !!opencvRef.current,
+      cascade: !!cascadeRef.current,
+      video: !!videoRef.current,
+      canvas: !!canvasRef.current,
+      isRunning: isRunningRef.current
+    });
+
+    // Validate prerequisites
     if (!opencvRef.current || !cascadeRef.current) {
-      console.error('[DEBUG] ❌ Cannot start - OpenCV not ready');
+      console.error('[DEBUG] ❌ [REBUILD] Cannot start - OpenCV not ready', {
+        opencv: !!opencvRef.current,
+        cascade: !!cascadeRef.current
+      });
+      setState(prev => ({ ...prev, error: 'OpenCV not ready' }));
       return;
     }
 
     if (!videoRef.current || !canvasRef.current) {
-      console.error('[DEBUG] ❌ Cannot start - video/canvas not ready');
+      console.error('[DEBUG] ❌ [REBUILD] Cannot start - video/canvas not ready', {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
+      setState(prev => ({ ...prev, error: 'Video/canvas not ready' }));
       return;
     }
 
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    // Make sure video is playing
+    if (video.paused) {
+      console.log('[DEBUG] ⏸️ [REBUILD] Video paused, attempting to play...');
+      video.play().catch(err => {
+        console.error('[DEBUG] ❌ [REBUILD] Failed to play video:', err);
+        setState(prev => ({ ...prev, error: `Video play error: ${err.message}` }));
+        return;
+      });
+    }
+
+    // Cancel any existing loop
+    if (rafIdRef.current !== undefined) {
+      console.log('[DEBUG] 🛑 [REBUILD] Cancelling existing detection loop');
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = undefined;
+    }
+
+    // Reset counters
+    loopCountRef.current = 0;
+    detectionCountRef.current = 0;
+    lastDetectionTimeRef.current = 0;
+
     // Sync ref with current state
     hzRef.current = hz;
-    console.log('[DEBUG] ✅ All refs ready, defining RAF loop, Hz:', hzRef.current);
+    console.log('[DEBUG] ✅ [REBUILD] All refs ready, starting RAF loop, Hz:', hzRef.current);
 
     const detectLoop = () => {
       loopCountRef.current++;
@@ -406,9 +566,14 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
               ))
             );
             
-            console.log(`[DEBUG] ✅ Face at (${faceCenterX.toFixed(0)}, ${faceCenterY.toFixed(0)}), Pan: ${panValue}, Tilt: ${tiltValue}`);
+            console.log(`[DEBUG] ✅ Face at (${faceCenterX.toFixed(0)}, ${faceCenterY.toFixed(0)}), Pan: ${panValue}, Tilt: ${tiltValue}, Raw: pan=${panRaw.toFixed(3)}, tilt=${tiltRaw.toFixed(3)}, Smoothed: pan=${newPan.toFixed(3)}, tilt=${newTilt.toFixed(3)}`);
           } else {
             console.log(`[DEBUG] 👁️ Face detected but tracking disabled (enableFaceTracking: false)`);
+            // Still calculate pan/tilt for display even if tracking is disabled
+            const panRaw = (faceCenterX - imageCenterX) / imageCenterX;
+            const tiltRaw = -(faceCenterY - imageCenterY) / imageCenterY;
+            panValue = Math.round(Math.max(0, Math.min(255, panRaw * 127 + 128)));
+            tiltValue = Math.round(Math.max(0, Math.min(255, tiltRaw * 127 + 128)));
           }
 
 
@@ -464,10 +629,12 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
             console.log(`[DEBUG] ⚠️ Face tracking enabled but socket not connected (socket: ${!!socket}, connected: ${connected})`);
           }
         } else {
+          // No face detected - keep last pan/tilt values but mark face as not detected
           setState(prev => ({ 
             ...prev, 
             faceDetected: false,
             loopIterations: iteration
+            // Don't reset pan/tilt - keep last known values
           }));
         }
 
@@ -507,7 +674,7 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
   // Handle start/stop
   const handleToggle = async () => {
     const newRunning = !state.isRunning;
-    console.log('[DEBUG] 🔘 Toggle:', newRunning);
+    console.log('[DEBUG] 🔘 Toggle:', newRunning, 'OpenCV ready:', opencvRef.current && cascadeRef.current);
 
     isRunningRef.current = newRunning;
     setState(prev => ({ ...prev, isRunning: newRunning }));
@@ -515,25 +682,55 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
     if (newRunning) {
       // Always start camera, even if OpenCV isn't ready
       await startCamera();
-      // Start detection if OpenCV is ready, otherwise wait for it
-      if (state.opencvReady) {
-        setTimeout(() => {
-          if (isRunningRef.current) {
-            startDetection();
-          }
-        }, 500);
-      } else {
-        // Wait for OpenCV to be ready, then start detection
-        const checkOpenCV = setInterval(() => {
-          if (opencvRef.current && cascadeRef.current && isRunningRef.current) {
-            clearInterval(checkOpenCV);
-            console.log('[DEBUG] ✅ OpenCV ready, starting detection');
-            startDetection();
-          }
-        }, 100);
-        // Timeout after 10 seconds
-        setTimeout(() => clearInterval(checkOpenCV), 10000);
-      }
+      
+      // Wait a bit for camera to be ready, then start detection
+      setTimeout(() => {
+        if (!isRunningRef.current) return; // User stopped already
+        
+        // Check if OpenCV is ready
+        if (opencvRef.current && cascadeRef.current && videoRef.current && canvasRef.current) {
+          console.log('[DEBUG] ✅ All ready, starting detection immediately');
+          startDetection();
+        } else {
+          console.log('[DEBUG] ⏳ Waiting for OpenCV/camera to be ready...');
+          // Poll for readiness
+          const checkReady = setInterval(() => {
+            if (!isRunningRef.current) {
+              clearInterval(checkReady);
+              return;
+            }
+            
+            // Check both state and refs - use video readyState directly
+            const video = videoRef.current;
+            const videoReady = video && (video.readyState >= video.HAVE_METADATA || state.cameraReady);
+            
+            if (opencvRef.current && cascadeRef.current && video && canvasRef.current && videoReady) {
+              clearInterval(checkReady);
+              console.log('[DEBUG] ✅ All ready now, starting detection');
+              startDetection();
+            } else if (loopCountRef.current % 10 === 0) {
+              // Log every 10 checks to avoid spam
+              console.log('[DEBUG] ⏳ Still waiting...', {
+                opencv: !!opencvRef.current,
+                cascade: !!cascadeRef.current,
+                video: !!video,
+                canvas: !!canvasRef.current,
+                videoReady: videoReady,
+                videoReadyState: video?.readyState
+              });
+            }
+          }, 100);
+          
+          // Timeout after 15 seconds
+          setTimeout(() => {
+            clearInterval(checkReady);
+            if (isRunningRef.current && (!opencvRef.current || !cascadeRef.current)) {
+              console.error('[DEBUG] ❌ Timeout waiting for OpenCV');
+              setState(prev => ({ ...prev, error: 'OpenCV initialization timeout' }));
+            }
+          }, 15000);
+        }
+      }, 500);
     } else {
       stopDetection();
       stopCamera();
@@ -661,15 +858,25 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
         </div>
         <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
           <div style={{ fontSize: '0.8rem', color: '#888' }}>Pan</div>
-          <div style={{ fontSize: '1.2rem', color: '#fff' }}>
+          <div style={{ fontSize: '1.2rem', color: state.faceDetected ? '#4caf50' : '#888', fontWeight: 'bold' }}>
             {state.pan}
           </div>
+          {state.faceDetected && (
+            <div style={{ fontSize: '0.7rem', color: '#4caf50', marginTop: '0.25rem' }}>
+              🟢 Tracking
+            </div>
+          )}
         </div>
         <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
           <div style={{ fontSize: '0.8rem', color: '#888' }}>Tilt</div>
-          <div style={{ fontSize: '1.2rem', color: '#fff' }}>
+          <div style={{ fontSize: '1.2rem', color: state.faceDetected ? '#4caf50' : '#888', fontWeight: 'bold' }}>
             {state.tilt}
           </div>
+          {state.faceDetected && (
+            <div style={{ fontSize: '0.7rem', color: '#4caf50', marginTop: '0.25rem' }}>
+              🟢 Tracking
+            </div>
+          )}
         </div>
         <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
           <div style={{ fontSize: '0.8rem', color: '#888' }}>Socket</div>
@@ -718,6 +925,85 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Controls - Moved above camera preview */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '1rem', 
+        alignItems: 'center', 
+        marginBottom: '1rem',
+        padding: '1rem',
+        background: 'rgba(0, 212, 255, 0.1)',
+        borderRadius: '8px',
+        border: '2px solid #00d4ff'
+      }}>
+        <button
+          onClick={handleToggle}
+          style={{
+            padding: '1rem 2rem',
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            background: state.isRunning ? '#f44336' : '#4caf50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            opacity: 1
+          }}
+        >
+          {state.isRunning ? '🛑 STOP' : '▶️ START'}
+        </button>
+        {!state.opencvReady && !state.isRunning && (
+          <span style={{ color: '#ff9800', fontSize: '0.9rem' }}>
+            ⚠️ OpenCV loading... Camera will start, detection will begin when ready
+          </span>
+        )}
+        {state.isRunning && !state.faceDetected && (
+          <span style={{ color: '#ff9800', fontSize: '0.9rem' }}>
+            ⚠️ Waiting for face detection...
+          </span>
+        )}
+        {state.isRunning && state.faceDetected && (
+          <span style={{ color: '#4caf50', fontSize: '0.9rem', fontWeight: 'bold' }}>
+            ✅ Face tracking active
+          </span>
+        )}
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+          <span>Detection Rate (Hz):</span>
+          <input
+            type="range"
+            min="0.1"
+            max="120"
+            step="0.1"
+            value={hz}
+            onChange={(e) => {
+              const newHz = parseFloat(e.target.value);
+              console.log('[DEBUG] 🎛️ Hz slider changed to:', newHz);
+              hzRef.current = newHz; // Update ref immediately so loop uses new value
+              setHz(newHz);
+            }}
+            style={{ width: '200px' }}
+          />
+          <input
+            type="number"
+            min="0.1"
+            max="120"
+            step="0.1"
+            value={hz}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              if (!isNaN(value) && value >= 0.1 && value <= 120) {
+                console.log('[DEBUG] 🎛️ Hz input changed to:', value);
+                hzRef.current = value; // Update ref immediately so loop uses new value
+                setHz(value);
+              }
+            }}
+            style={{ width: '60px' }}
+          />
+          <span>{hz.toFixed(1)} Hz</span>
+        </label>
       </div>
 
       {/* Camera Preview and 3D Fixture */}
@@ -900,11 +1186,22 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
             <input
               type="checkbox"
               checked={featureFlags.enableFaceTracking}
-              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableFaceTracking: e.target.checked }))}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                console.log('[DEBUG] 🔄 Face tracking feature flag changed to:', newValue);
+                setFeatureFlags(prev => ({ ...prev, enableFaceTracking: newValue }));
+              }}
               title="Enable basic face tracking (pan/tilt). This is the core feature."
             />
-            <span>Enable Face Tracking (Pan/Tilt)</span>
+            <span style={{ fontWeight: featureFlags.enableFaceTracking ? 'bold' : 'normal', color: featureFlags.enableFaceTracking ? '#fff' : '#888' }}>
+              Enable Face Tracking (Pan/Tilt) {featureFlags.enableFaceTracking ? '✅' : '❌'}
+            </span>
           </label>
+          {!featureFlags.enableFaceTracking && (
+            <div style={{ fontSize: '0.85rem', color: '#ff9800', padding: '0.5rem', background: 'rgba(255, 152, 0, 0.1)', borderRadius: '4px' }}>
+              ⚠️ Face tracking is DISABLED. Pan/tilt values will not be calculated or sent to DMX.
+            </div>
+          )}
         </div>
       </div>
 
@@ -1160,65 +1457,6 @@ export const OpenCVVisageTrackerExperimental: React.FC = () => {
         </div>
       </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-        <button
-          onClick={handleToggle}
-          style={{
-            padding: '1rem 2rem',
-            fontSize: '1.2rem',
-            fontWeight: 'bold',
-            background: state.isRunning ? '#f44336' : '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            opacity: 1
-          }}
-        >
-          {state.isRunning ? '🛑 STOP' : '▶️ START'}
-        </button>
-        {!state.opencvReady && !state.isRunning && (
-          <span style={{ color: '#ff9800', fontSize: '0.9rem' }}>
-            ⚠️ OpenCV loading... Camera will start, detection will begin when ready
-          </span>
-        )}
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>Detection Rate (Hz):</span>
-          <input
-            type="range"
-            min="0.1"
-            max="120"
-            step="0.1"
-            value={hz}
-            onChange={(e) => {
-              const newHz = parseFloat(e.target.value);
-              console.log('[DEBUG] 🎛️ Hz slider changed to:', newHz);
-              hzRef.current = newHz; // Update ref immediately so loop uses new value
-              setHz(newHz);
-            }}
-            style={{ width: '200px' }}
-          />
-          <input
-            type="number"
-            min="0.1"
-            max="120"
-            step="0.1"
-            value={hz}
-            onChange={(e) => {
-              const value = parseFloat(e.target.value);
-              if (!isNaN(value) && value >= 0.1 && value <= 120) {
-                console.log('[DEBUG] 🎛️ Hz input changed to:', value);
-                hzRef.current = value; // Update ref immediately so loop uses new value
-                setHz(value);
-              }
-            }}
-            style={{ width: '60px' }}
-          />
-          <span>{hz.toFixed(1)} Hz</span>
-        </label>
-      </div>
 
 
       {/* Debug Info */}
