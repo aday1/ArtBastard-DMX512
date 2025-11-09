@@ -9,7 +9,7 @@ import { Sparkles } from './Sparkles'
 import { LucideIcon } from '../ui/LucideIcon'
 import { ThemeToggleButton } from './ThemeToggleButton'
 import * as Icons from 'lucide-react'
-import { ViewType } from '../router/PageRouter'
+import { ViewType } from '../../context/RouterContext'
 import { useRouter } from '../../context/RouterContext'
 
 // Updated navigation items with Lucide icon names

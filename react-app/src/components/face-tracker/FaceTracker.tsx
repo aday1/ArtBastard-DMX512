@@ -27,7 +27,7 @@ interface FaceTrackerState {
   fps: number; // Overall FPS (legacy)
   webcamFps: number; // Webcam capture FPS
   overlayFps: number; // Overlay drawing FPS
-  opencvFps: number; // OpenCV processing FPS
+  opencvHz: number; // OpenCV processing Hz (detections per second)
   error: string | null;
 }
 
@@ -111,7 +111,7 @@ interface FaceTrackerSettings {
   enableGestures: boolean; // Enable gesture detection
   gestureSensitivity: number; // How sensitive gesture detection is (0-1)
   // OpenCV detection settings
-  opencvFps: number; // OpenCV detection rate in FPS (1-60, default 15)
+  opencvHz: number; // OpenCV detection rate in Hz (0.1-10, default 1 Hz = 1 detection per second)
   // Zoom settings
   zoomSensitivity: number; // How sensitive zoom is to face size changes (0-2)
   zoomScale: number; // Scale factor for zoom (0.5-2.0)
@@ -195,10 +195,10 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   tongueSensitivity: 0.7, // Default: moderate sensitivity
   tongueThreshold: 0.3, // Default: 30% threshold for tongue detection
   // Gesture detection defaults
-  enableGestures: true, // Enable by default
+  enableGestures: false, // Disabled by default (causes performance issues in Firefox)
   gestureSensitivity: 0.7, // Default: moderate sensitivity
   // OpenCV detection defaults
-  opencvFps: 15, // Default: 15 FPS for detection
+  opencvHz: 1, // Default: 1 Hz for detection (1 detection per second)
   // Zoom settings defaults
   zoomSensitivity: 1.0, // Default: normal sensitivity
   zoomScale: 1.0, // Default: no scaling
@@ -491,10 +491,18 @@ const calculateTongueDetection = (imageData: ImageData): number => {
 };
 
 // Helper function to detect hand gestures (thumbs up, middle finger, etc.)
+// Optimized with early exits and size limits to prevent Firefox freezes
 const detectHandGesture = (imageData: ImageData, width: number, height: number): { gesture: string; confidence: number } => {
   const data = imageData.data;
   
-  if (width < 20 || height < 20) {
+  // Early exit for invalid or too large images
+  if (width < 20 || height < 20 || width > 500 || height > 500) {
+    return { gesture: '', confidence: 0 };
+  }
+  
+  // Limit processing time - early exit if image is too large
+  const maxPixels = 50000; // ~224x224 max
+  if (width * height > maxPixels) {
     return { gesture: '', confidence: 0 };
   }
   
@@ -504,8 +512,14 @@ const detectHandGesture = (imageData: ImageData, width: number, height: number):
   let totalPixels = 0;
   const handMask: boolean[][] = [];
   
-  // Create binary mask of hand region
+  // Create binary mask of hand region with timeout protection
+  const startTime = performance.now();
+  const maxTime = 15; // Maximum 15ms for mask creation
+  
   for (let y = 0; y < height; y++) {
+    if ((performance.now() - startTime) > maxTime) {
+      return { gesture: '', confidence: 0 }; // Timeout
+    }
     handMask[y] = [];
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
@@ -522,7 +536,7 @@ const detectHandGesture = (imageData: ImageData, width: number, height: number):
     return { gesture: '', confidence: 0 };
   }
   
-  // Find hand contour
+  // Find hand contour (now has timeout protection)
   const contour = findContour(handMask, width, height);
   
   if (contour.length < 10) {
@@ -561,13 +575,25 @@ const detectHandGesture = (imageData: ImageData, width: number, height: number):
 };
 
 // Helper to find contour (boundary) of hand
+// Added timeout protection and early exits to prevent Firefox freezes
 const findContour = (mask: boolean[][], width: number, height: number): Array<{ x: number; y: number }> => {
   const contour: Array<{ x: number; y: number }> = [];
   const visited = new Set<string>();
   
+  // Early exit for very large images to prevent timeouts
+  const maxPixels = 50000; // Limit to ~224x224 or smaller
+  if (width * height > maxPixels) {
+    return contour; // Return empty for large images
+  }
+  
+  // Timeout protection: limit iterations to prevent infinite loops
+  const maxIterations = 2000; // Reduced from potential infinite loop
+  let iterations = 0;
+  
   let startX = -1, startY = -1;
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
+  for (let y = 1; y < height - 1 && iterations < 100; y++) {
+    for (let x = 1; x < width - 1 && iterations < 100; x++) {
+      iterations++;
       if (mask[y][x] && !mask[y-1][x] && !mask[y][x-1]) {
         startX = x;
         startY = y;
@@ -586,11 +612,25 @@ const findContour = (mask: boolean[][], width: number, height: number): Array<{ 
     { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }
   ];
   
+  iterations = 0;
+  const startTime = performance.now();
+  const maxTime = 10; // Maximum 10ms to prevent blocking
+  
   do {
+    // Timeout protection: check time and iterations
+    if (iterations++ > maxIterations || (performance.now() - startTime) > maxTime) {
+      break; // Exit early if taking too long
+    }
+    
     const key = `${currentX},${currentY}`;
     if (!visited.has(key)) {
       contour.push({ x: currentX, y: currentY });
       visited.add(key);
+    }
+    
+    // Early exit if contour is getting too large
+    if (contour.length > 500) {
+      break; // Reduced from 1000 to prevent long processing
     }
     
     let found = false;
@@ -609,8 +649,10 @@ const findContour = (mask: boolean[][], width: number, height: number): Array<{ 
       }
     }
     
-    if (!found || contour.length > 1000) break;
-  } while (currentX !== startX || currentY !== startY || contour.length < 10);
+    // Exit conditions: found nothing, or reached start, or contour is long enough
+    if (!found) break;
+    if (contour.length >= 10 && currentX === startX && currentY === startY) break;
+  } while (contour.length < 10);
   
   return contour;
 };
@@ -758,7 +800,7 @@ export const FaceTracker: React.FC = () => {
   const detectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previewFrameRef = useRef<number | undefined>(undefined);
   const trackingStartedRef = useRef<boolean>(false);
-  const processDetectionRef = useRef<(() => void) | null>(null); // Store processDetection function for manual trigger
+  const isRunningRef = useRef<boolean>(false); // Ref for isRunning to avoid stale closures
   
   const [state, setState] = useState<FaceTrackerState>({
     isRunning: false,
@@ -778,9 +820,16 @@ export const FaceTracker: React.FC = () => {
     fps: 0,
     webcamFps: 0,
     overlayFps: 0,
-    opencvFps: 0,
+    opencvHz: 0,
     error: null,
   });
+
+  // Keep isRunningRef in sync with state.isRunning
+  useEffect(() => {
+    isRunningRef.current = state.isRunning;
+    console.log('[FaceTracker] ⚠️ isRunning STATE CHANGED:', state.isRunning);
+    console.trace('[FaceTracker] State change trace:');
+  }, [state.isRunning]);
 
   // Diagnostic state
   const [diagnostics, setDiagnostics] = useState({
@@ -804,6 +853,11 @@ export const FaceTracker: React.FC = () => {
         // Ensure oscPort defaults to 8000 if invalid
         if (!loaded.oscPort || loaded.oscPort < 1024 || loaded.oscPort > 65535) {
           loaded.oscPort = 8000;
+        }
+        // Migrate old opencvFps to opencvHz (convert FPS to Hz, capping at 10 Hz)
+        if ((parsed as any).opencvFps !== undefined && loaded.opencvHz === undefined) {
+          loaded.opencvHz = Math.min(10, Math.max(0.1, (parsed as any).opencvFps / 15)); // Convert FPS to Hz (15 FPS -> 1 Hz)
+          console.log('[FaceTracker] Migrated opencvFps to opencvHz:', loaded.opencvHz);
         }
         return loaded;
       }
@@ -848,7 +902,7 @@ export const FaceTracker: React.FC = () => {
   // Separate FPS counters for different components
   const webcamFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
   const overlayFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
-  const opencvFpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: performance.now() });
+  const opencvHzCounterRef = useRef<{ detections: number; lastTime: number }>({ detections: 0, lastTime: performance.now() });
   const lastDetectionTimeRef = useRef<number>(0);
   const canvasDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1227,9 +1281,9 @@ export const FaceTracker: React.FC = () => {
       // Reset FPS counters
       webcamFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
       overlayFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
-      opencvFpsCounterRef.current = { frames: 0, lastTime: performance.now() };
+      opencvHzCounterRef.current = { detections: 0, lastTime: performance.now() };
       
-      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0, webcamFps: 0, overlayFps: 0, opencvFps: 0 }));
+      setState(prev => ({ ...prev, isRunning: true, error: null, currentPan: settings.panOffset, currentTilt: settings.tiltOffset, fps: 0, webcamFps: 0, overlayFps: 0, opencvHz: 0 }));
       // Re-enable text overlay when starting (in case it was disabled due to crashes)
       textOverlayEnabledRef.current = true;
       textOverlayErrorCountRef.current = 0;
@@ -1261,7 +1315,7 @@ export const FaceTracker: React.FC = () => {
     }
   }, [settings.cameraIndex, settings.autoExposure, settings.cameraExposure, settings.cameraBrightness]);
 
-  const stopCamera = useCallback(() => {
+  const stopCamera = useCallback((stopTimerFn?: () => void) => {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => {
@@ -1297,7 +1351,7 @@ export const FaceTracker: React.FC = () => {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = undefined;
       }
-      // Clear detection frame
+      // Stop detection RAF loop
       if (detectionFrameRef.current) {
         cancelAnimationFrame(detectionFrameRef.current);
         detectionFrameRef.current = undefined;
@@ -1368,11 +1422,13 @@ export const FaceTracker: React.FC = () => {
     faceDetected: false
   });
 
-  // Fast preview rendering (separate from face detection)
+  // Fast preview rendering (separate from face detection) - RAF LOOP  
   const renderPreview = useCallback(() => {
-    // Stop the loop if not running (preview always enabled - toggle removed)
-    if (!state.isRunning || !videoRef.current || !canvasRef.current) {
-      previewFrameRef.current = undefined;
+    // Schedule next frame FIRST (RAF pattern - ensures continuous loop)
+    previewFrameRef.current = requestAnimationFrame(renderPreview);
+
+    // Stop the loop if not running (using ref to avoid stale closures)
+    if (!isRunningRef.current || !videoRef.current || !canvasRef.current) {
       return;
     }
 
@@ -1382,48 +1438,35 @@ export const FaceTracker: React.FC = () => {
       const canvas = canvasRef.current;
       
       // Additional safety check - ensure video is actually ready before drawing
+      // Allow HAVE_CURRENT_DATA (2) or higher for preview to start faster
       if (!video.srcObject || video.readyState < video.HAVE_CURRENT_DATA) {
-        // Video not ready yet, try again in a bit
-        if (state.isRunning) {
-          previewFrameRef.current = requestAnimationFrame(() => {
-            setTimeout(renderPreview, 100);
-          });
-        }
-        return;
+        return; // Skip this frame, loop continues
       }
       
-      const now = performance.now();
+      const now = Date.now(); // Use Date.now() to match timestamp format
+      const nowPerformance = performance.now(); // Keep performance.now() for frame timing
       
       // Skip frames to reduce rendering load (target 15 FPS to prevent Firefox freezes)
-      if (now - lastPreviewFrameRef.current < PREVIEW_FRAME_INTERVAL) {
-        // Skip this frame, continue loop
-        if (state.isRunning) {
-          previewFrameRef.current = requestAnimationFrame(renderPreview);
-        }
-        return;
+      if (nowPerformance - lastPreviewFrameRef.current < PREVIEW_FRAME_INTERVAL) {
+        return; // Skip this frame, loop already scheduled at top
       }
-      lastPreviewFrameRef.current = now;
+      lastPreviewFrameRef.current = nowPerformance;
       
       // Throttle diagnostic updates (only update max once per 1000ms to prevent Firefox freezes)
       if (video.readyState >= video.HAVE_ENOUGH_DATA && 
-          (now - lastDiagnosticUpdateRef.current) >= 1000) {
+          (nowPerformance - lastDiagnosticUpdateRef.current) >= 1000) {
         // Use setTimeout to defer state update and prevent blocking
         setTimeout(() => {
           setDiagnostics(prev => ({ ...prev, videoReady: true }));
         }, 0);
-        lastDiagnosticUpdateRef.current = now;
+        lastDiagnosticUpdateRef.current = nowPerformance;
       }
       
       const ctx = canvas.getContext('2d', { willReadFrequently: false });
       
-      if (!ctx || !video.srcObject || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        // Only continue loop if still running
-        if (state.isRunning) {
-          previewFrameRef.current = requestAnimationFrame(renderPreview);
-        } else {
-          previewFrameRef.current = undefined;
-        }
-        return;
+      // Skip if context not available
+      if (!ctx || !video.srcObject || video.readyState < video.HAVE_CURRENT_DATA) {
+        return; // Skip this frame, loop continues
       }
 
       // Only resize canvas when dimensions change (expensive operation)
@@ -1449,28 +1492,25 @@ export const FaceTracker: React.FC = () => {
         webcamFpsCounterRef.current.frames++;
       } catch (error) {
         console.warn('[FaceTracker] Error drawing video frame:', error);
-        // Continue loop even if draw fails
-        if (state.isRunning) {
-          previewFrameRef.current = requestAnimationFrame(renderPreview);
-        }
-        return;
+        return; // Loop already scheduled at top
       }
 
       // Draw persistent overlays from last detection (makes them less blinky)
       // Reuse 'now' variable from above to avoid redeclaration
-      const faceTimeout = 2000; // Keep showing face for 2 seconds after last detection (increased for better visibility)
+      const faceTimeout = 5000; // Keep showing face for 5 seconds after last detection (increased to handle slower detection rates)
       
-      // Always draw overlays when face is detected (toggles removed - always enabled)
-      // CRITICAL: Always check and draw if face position exists and is recent
-      const shouldDrawOverlays = lastFacePositionRef.current && 
-          (now - lastFacePositionRef.current.timestamp) < faceTimeout;
+      // Always draw overlays when running - show face box if detected, or "searching" indicator if not
+      // CRITICAL: Always draw something when running to show the system is active
+      const timeSinceDetection = lastFacePositionRef.current ? (now - lastFacePositionRef.current.timestamp) : Infinity;
+      const hasRecentFace = lastFacePositionRef.current && timeSinceDetection < faceTimeout;
+      const shouldDrawFaceBox = hasRecentFace && lastFacePositionRef.current;
       
       // Debug: Log overlay drawing status to diagnose static box issue
       if (Math.random() < 0.1) {
         console.log('[FaceTracker] Overlay status:', {
           hasFacePosition: !!lastFacePositionRef.current,
           timeSinceDetection: lastFacePositionRef.current ? (now - lastFacePositionRef.current.timestamp) : null,
-          shouldDraw: shouldDrawOverlays,
+          shouldDrawFaceBox: shouldDrawFaceBox,
           isRunning: state.isRunning,
           facePosition: lastFacePositionRef.current ? {
             x: lastFacePositionRef.current.x,
@@ -1482,9 +1522,10 @@ export const FaceTracker: React.FC = () => {
         });
       }
       
-      // CRITICAL: Always try to draw overlays if we have face data - don't skip frames
-      // ALWAYS redraw overlays every frame to ensure they update with face movement
-      if (shouldDrawOverlays && lastFacePositionRef.current) {
+      // Always draw overlays when running - either face box or "searching" indicator
+      if (state.isRunning) {
+        // Draw face box if we have recent face detection
+        if (shouldDrawFaceBox && lastFacePositionRef.current) {
         try {
           const face = lastFacePositionRef.current;
           // Validate face data to prevent crashes
@@ -1604,6 +1645,39 @@ export const FaceTracker: React.FC = () => {
           }
         } catch (error) {
           console.warn('[FaceTracker] Error drawing overlays:', error);
+        }
+        } else {
+          // No face detected - draw "searching" indicator to show system is active
+          try {
+            ctx.save();
+            const imageCenterX = video.videoWidth / 2;
+            const imageCenterY = video.videoHeight / 2;
+            
+            // Draw pulsing circle at center to indicate searching
+            const pulsePhase = (now % 2000) / 2000; // 2 second pulse cycle
+            const pulseRadius = 20 + Math.sin(pulsePhase * Math.PI * 2) * 10;
+            const pulseAlpha = 0.3 + Math.sin(pulsePhase * Math.PI * 2) * 0.2;
+            
+            ctx.strokeStyle = `rgba(255, 165, 0, ${pulseAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(imageCenterX, imageCenterY, pulseRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Draw crosshair at center
+            ctx.strokeStyle = `rgba(255, 165, 0, 0.5)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(imageCenterX - 30, imageCenterY);
+            ctx.lineTo(imageCenterX + 30, imageCenterY);
+            ctx.moveTo(imageCenterX, imageCenterY - 30);
+            ctx.lineTo(imageCenterX, imageCenterY + 30);
+            ctx.stroke();
+            
+            ctx.restore();
+          } catch (error) {
+            console.warn('[FaceTracker] Error drawing searching indicator:', error);
+          }
         }
       }
 
@@ -1820,13 +1894,13 @@ export const FaceTracker: React.FC = () => {
       // CRITICAL: Always schedule next frame to ensure overlay updates continuously
       if (state.isRunning) {
         try {
-          previewFrameRef.current = requestAnimationFrame(renderPreview);
+          // RAF already scheduled at top of function
         } catch (error) {
           console.error('[FaceTracker] Error scheduling preview frame:', error);
           // Fallback: use setTimeout if requestAnimationFrame fails
           setTimeout(() => {
             if (state.isRunning) {
-              previewFrameRef.current = requestAnimationFrame(renderPreview);
+              // RAF already scheduled at top of function
             }
           }, 16); // ~60fps fallback
         }
@@ -1859,7 +1933,7 @@ export const FaceTracker: React.FC = () => {
         setTimeout(() => {
           if (state.isRunning && previewFrameRef.current === undefined) {
             try {
-              previewFrameRef.current = requestAnimationFrame(renderPreview);
+              // RAF already scheduled at top of function
             } catch (rafError) {
               console.error('[FaceTracker] Failed to restart render loop:', rafError);
             }
@@ -1869,63 +1943,45 @@ export const FaceTracker: React.FC = () => {
         previewFrameRef.current = undefined;
       }
     }
-  }, [state.currentPan, state.currentTilt, state.isRunning]);
+  }, [state.currentPan, state.currentTilt]); // Removed state.isRunning - using isRunningRef
 
-  // Face detection (runs at lower rate for performance)
+  // Face detection with continuous RAF loop (WORKING PATTERN from git commit 65f692f)
+  // Uses requestAnimationFrame to create a continuous detection loop
   const detectFaces = useCallback(() => {
-    console.log('[FaceTracker] 🔍 detectFaces called', {
-      opencvReady: !!opencvRef.current,
-      cascadeReady: !!cascadeRef.current,
-      videoReady: !!videoRef.current && videoRef.current?.readyState >= 2,
-      canvasReady: !!canvasRef.current,
-      isRunning: state.isRunning,
-      videoWidth: videoRef.current?.videoWidth,
-      videoHeight: videoRef.current?.videoHeight
-    });
+    console.log('[FaceTracker] 🚀🚀🚀 detectFaces CALLED - Starting RAF loop 🚀🚀🚀');
     
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
-      console.warn('[FaceTracker] Cannot start detection: OpenCV or video not ready');
+      console.error('[FaceTracker] ❌ Cannot start detection - missing refs:', {
+        opencv: !!opencvRef.current,
+        cascade: !!cascadeRef.current,
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current
+      });
       return;
     }
 
-    let detectionCallCount = 0;
+    console.log('[FaceTracker] ✅ All refs available - defining processDetection');
+
+    let loopCount = 0;
     const processDetection = () => {
-      detectionCallCount++;
-      // Store reference for manual triggering
-      processDetectionRef.current = processDetection;
-      // Removed excessive logging to prevent Firefox crashes
-      
       try {
-        // Check if we should stop - exit early if not running
-        if (!state.isRunning) {
-          detectionFrameRef.current = undefined;
-          return;
+        loopCount++;
+        
+        // 🔑 CRITICAL: Schedule next frame FIRST (this is the working pattern!)
+        // This ensures the loop ALWAYS continues, regardless of errors or React re-renders
+        detectionFrameRef.current = requestAnimationFrame(processDetection);
+
+        // Log every 60 frames (~1 second) to verify loop is running
+        if (loopCount % 60 === 0) {
+          console.log(`[FaceTracker] 🔄 RAF loop iteration #${loopCount}, isRunning: ${isRunningRef.current}`);
         }
 
-        // Check if required refs are still available
-        if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
-          // Exit if not running
-          if (!state.isRunning) {
-            detectionFrameRef.current = undefined;
-            if (detectionTimeoutRef.current) {
-              clearTimeout(detectionTimeoutRef.current);
-              detectionTimeoutRef.current = undefined;
-            }
-            return;
+        // Now do all the checks (early returns won't break the loop)
+        // Use ref for isRunning to avoid stale closures
+        if (!isRunningRef.current || !videoRef.current || !canvasRef.current) {
+          if (loopCount % 60 === 0) {
+            console.log('[FaceTracker] ⏸️ Skipping - not running or missing refs, isRunning:', isRunningRef.current);
           }
-          // Clear any existing timeout
-          if (detectionTimeoutRef.current) {
-            clearTimeout(detectionTimeoutRef.current);
-          }
-          // Use a delay before retrying to prevent browser freeze
-          detectionTimeoutRef.current = setTimeout(() => {
-            detectionTimeoutRef.current = undefined;
-            if (state.isRunning && opencvRef.current && cascadeRef.current && videoRef.current && canvasRef.current) {
-              detectionFrameRef.current = requestAnimationFrame(processDetection);
-            } else {
-              detectionFrameRef.current = undefined;
-            }
-          }, 200); // Wait 200ms before retrying
           return;
         }
 
@@ -1933,58 +1989,45 @@ export const FaceTracker: React.FC = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
-        if (!ctx) {
-          // Canvas context not available, retry silently
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          } else {
-            detectionFrameRef.current = undefined;
-          }
-          return;
-        }
-        
-        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-          // Video not ready yet, continue loop to check again
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          } else {
-            detectionFrameRef.current = undefined;
+        if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) {
+          if (loopCount % 60 === 0) {
+            console.log('[FaceTracker] ⏸️ Skipping - video not ready, readyState:', video.readyState);
           }
           return;
         }
 
-        // Run face detection at adjustable rate
+        // Throttle detection rate based on Hz setting
         const now = Date.now();
-        const detectionInterval = 1000 / Math.max(1, Math.min(60, settings.opencvFps || 15)); // Use setting, clamp 1-60 FPS
-        
-        // Update OpenCV FPS counter - count every loop iteration, not just detection runs
-        // This gives us the actual loop FPS, which is more useful
-        opencvFpsCounterRef.current.frames++;
-        
-        // Update OpenCV FPS display every second
-        const opencvTimeSince = now - opencvFpsCounterRef.current.lastTime;
-        if (opencvTimeSince >= 1000) {
-          const opencvFps = Math.round((opencvFpsCounterRef.current.frames * 1000) / opencvTimeSince);
-          const cappedOpencvFps = Math.min(opencvFps, 60);
-          if (opencvTimeSince > 0 && opencvFpsCounterRef.current.frames > 0) {
-            setTimeout(() => {
-              setState(prev => ({ ...prev, opencvFps: cappedOpencvFps }));
-            }, 0);
-          }
-          opencvFpsCounterRef.current.frames = 0;
-          opencvFpsCounterRef.current.lastTime = now;
-        }
+        const hz = Math.max(0.1, Math.min(10, settings.opencvHz || 1));
+        const detectionInterval = 1000 / hz;
         
         if (now - lastDetectionTimeRef.current < detectionInterval) {
-          // Continue loop immediately - requestAnimationFrame will naturally throttle
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          } else {
-            detectionFrameRef.current = undefined;
+          // Throttled - skip this frame
+          if (loopCount % 300 === 0) { // Log every 5 seconds when throttling
+            console.log(`[FaceTracker] ⏱️ Throttling at ${hz} Hz - waiting for next interval`);
           }
-          return;
+          return; // Skip this frame, but loop continues
         }
         lastDetectionTimeRef.current = now;
+        
+        // We're about to run actual detection
+        console.log(`[FaceTracker] 🔍 Running detection (loop #${loopCount}, Hz: ${hz})`);
+
+        // Update Hz counter and display
+        opencvHzCounterRef.current.detections++;
+        const opencvTimeSince = now - opencvHzCounterRef.current.lastTime;
+        if (opencvTimeSince >= 1000) {
+          const actualHz = (opencvHzCounterRef.current.detections * 1000) / opencvTimeSince;
+          if (opencvTimeSince > 0 && opencvHzCounterRef.current.detections > 0) {
+            setTimeout(() => {
+              setState(prev => ({ ...prev, opencvHz: parseFloat(actualHz.toFixed(2)) }));
+            }, 0);
+            // Log current Hz rate
+            console.log(`[FaceTracker] 🔄 Detection running at ${actualHz.toFixed(1)} Hz`);
+          }
+          opencvHzCounterRef.current.detections = 0;
+          opencvHzCounterRef.current.lastTime = now;
+        }
 
         // Create smaller canvas for detection (faster processing)
         if (!detectionCanvasRef.current) {
@@ -2015,10 +2058,7 @@ export const FaceTracker: React.FC = () => {
 
         // Convert detection canvas to OpenCV Mat (smaller = faster)
         if (!opencvRef.current || !cascadeRef.current) {
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          }
-          return;
+          return; // Timer will retry later
         }
 
         const src = opencvRef.current.imread(detCanvas);
@@ -2046,28 +2086,24 @@ export const FaceTracker: React.FC = () => {
             try { if (faces) faces.delete(); } catch (e) { /* Already deleted */ }
             try { if (msize) msize.delete(); } catch (e) { /* Already deleted */ }
             try { if (maxSizeObj) maxSizeObj.delete(); } catch (e) { /* Already deleted */ }
-            if (state.isRunning) {
-              detectionFrameRef.current = requestAnimationFrame(processDetection);
-            }
-            return;
+            return; // Timer will retry later
           }
           
           // Perform face detection
           try {
             cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
-            // Log detection attempt for debugging
+            // Log detection results
             const detectedFaces = faces.size();
             if (detectedFaces > 0) {
               const face = faces.get(0);
-              console.log('[FaceTracker] ✅ Detection successful! Faces found:', detectedFaces, {
+              console.log('[FaceTracker] ✅ FACE DETECTED! Count:', detectedFaces, 'Position:', {
                 x: face.x,
                 y: face.y,
                 width: face.width,
-                height: face.height,
-                timestamp: Date.now()
+                height: face.height
               });
-            } else if (Math.random() < 0.1) {
-              console.log('[FaceTracker] 🔍 Detection attempt completed, no faces found');
+            } else {
+              console.log('[FaceTracker] ❌ No faces detected in this frame');
             }
           } catch (detectError) {
             console.error('[FaceTracker] Error in detectMultiScale:', detectError);
@@ -2085,10 +2121,7 @@ export const FaceTracker: React.FC = () => {
           } catch (cleanupError) {
             // Silent cleanup error
           }
-          if (state.isRunning) {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          }
-          return;
+          return; // Timer will retry later
         }
         
         const detectionTime = performance.now() - detectionStartTime;
@@ -2097,9 +2130,9 @@ export const FaceTracker: React.FC = () => {
         const facesCount = faces.size();
         if (facesCount > 0) {
           // Log every detection to ensure loop is running
-          console.log('[FaceTracker] ✅ Face detected! Count:', facesCount, 'at', new Date().toLocaleTimeString(), 'Loop running:', !!detectionFrameRef.current);
+          console.log('[FaceTracker] ✅ Face detected! Count:', facesCount, 'at', new Date().toLocaleTimeString());
         } else if (Math.random() < 0.05) {
-          console.log('[FaceTracker] ⚠️ No faces detected in frame, loop running:', !!detectionFrameRef.current);
+          console.log('[FaceTracker] ⚠️ No faces detected in frame');
         }
 
         let faceDetected = false;
@@ -3024,119 +3057,31 @@ export const FaceTracker: React.FC = () => {
           // Silently ignore cleanup errors to prevent console spam
         }
 
-        // Continue detection loop only if still running
-        // CRITICAL: Always schedule next frame immediately to prevent loop from stopping
-        // This ensures the loop never stops, even if there are errors
-        if (state.isRunning) {
-          // Schedule immediately - don't use setTimeout as it can cause delays
-          try {
-            detectionFrameRef.current = requestAnimationFrame(processDetection);
-          } catch (error) {
-            console.error('[FaceTracker] Error scheduling detection frame:', error);
-            // Fallback: use setTimeout if requestAnimationFrame fails
-            setTimeout(() => {
-              if (state.isRunning) {
-                try {
-                  detectionFrameRef.current = requestAnimationFrame(processDetection);
-                } catch (e) {
-                  // Last resort: try calling processDetection directly after a delay
-                  setTimeout(() => {
-                    if (state.isRunning && processDetectionRef.current) {
-                      processDetectionRef.current();
-                    }
-                  }, 16);
-                }
-              }
-            }, 16); // ~60fps fallback
-          }
-        } else {
-          detectionFrameRef.current = undefined;
-        }
-        } catch (error) {
-          // Catch any unhandled errors and log them - prevent page crash
-          console.error('[FaceTracker] Frame processing error:', error);
-          console.error('[FaceTracker] Error details:', {
-            errorType: error?.constructor?.name,
-            errorMessage: error?.message,
-            stack: error?.stack
-          });
-          
-          // Set error state but don't crash the page
-          try {
-            setState(prev => ({ 
-              ...prev, 
-              error: `Detection error: ${error instanceof Error ? error.message : 'Unknown error'}` 
-            }));
-          } catch (stateError) {
-            // Even state updates can fail, so catch that too
-            console.error('[FaceTracker] Failed to update error state:', stateError);
-          }
-          
-          // CRITICAL: Always continue the loop, even after errors
-          // This ensures the detection loop never stops
-          if (state.isRunning) {
-            try {
-              // Continue immediately - don't wait
-              detectionFrameRef.current = requestAnimationFrame(processDetection);
-            } catch (rafError) {
-              // If requestAnimationFrame fails, use setTimeout as fallback
-              setTimeout(() => {
-                if (state.isRunning) {
-                  try {
-                    detectionFrameRef.current = requestAnimationFrame(processDetection);
-                  } catch (e) {
-                    // Last resort: try calling processDetection directly
-                    setTimeout(() => {
-                      if (state.isRunning && processDetectionRef.current) {
-                        processDetectionRef.current();
-                      }
-                    }, 16);
-                  }
-                }
-              }, 16);
-            }
-          } else {
-            detectionFrameRef.current = undefined;
-          }
-        }
-      };
-
-    // Start the detection loop
-    console.log('[FaceTracker] 🚀 Starting processDetection loop', {
-      isRunning: state.isRunning,
-      opencvReady: !!opencvRef.current,
-      cascadeReady: !!cascadeRef.current,
-      alreadyRunning: !!detectionFrameRef.current
-    });
-    // Only start if running and initialized - don't recreate if already running
-    if (state.isRunning && opencvRef.current && cascadeRef.current) {
-      // Always start if not already running (even if detectionFrameRef is set, restart it)
-      if (!detectionFrameRef.current) {
-        console.log('[FaceTracker] ▶️ Calling processDetection()');
-        processDetection();
-      } else {
-        console.log('[FaceTracker] ⏸️ Detection loop already running, skipping');
+        // Detection complete - loop continues automatically via RAF
+      } catch (error) {
+        // Catch any unhandled errors and log them - prevent page crash
+        console.error('[FaceTracker] Frame processing error:', error);
+        // Loop continues even on error (RAF already scheduled at top)
       }
-    } else {
-      console.warn('[FaceTracker] ⛔ Cannot start detection:', {
-        isRunning: state.isRunning,
-        opencvReady: !!opencvRef.current,
-        cascadeReady: !!cascadeRef.current
-      });
-    }
-    
-    // Cleanup function to stop loop when dependencies change
+    };
+
+    // Start the continuous loop (called once per detectFaces call)
+    console.log('[FaceTracker] 🎬 CALLING processDetection() to start RAF loop');
+    processDetection();
+  }, [settings, socket]); // Removed state.isRunning - using isRunningRef instead
+
+  // Cleanup detection loop when component unmounts
+  useEffect(() => {
     return () => {
       if (detectionFrameRef.current) {
+        console.log('[FaceTracker] 🛑 Component unmounting - stopping detection loop');
         cancelAnimationFrame(detectionFrameRef.current);
         detectionFrameRef.current = undefined;
       }
-      if (detectionTimeoutRef.current) {
-        clearTimeout(detectionTimeoutRef.current);
-        detectionTimeoutRef.current = undefined;
-      }
     };
-  }, [state.isRunning, settings, socket]);
+  }, []);
+
+  // No more timer logic - using RAF loop instead!
 
   // Start both preview and detection loops
   const startTracking = useCallback(() => {
@@ -3164,7 +3109,7 @@ export const FaceTracker: React.FC = () => {
       return;
     }
     
-    console.log('[FaceTracker] Starting preview and detection loops');
+    console.log('[FaceTracker] Starting preview and detection');
     
     // Defer starting loops to prevent blocking - use longer delay for Firefox stability
     setTimeout(() => {
@@ -3173,59 +3118,48 @@ export const FaceTracker: React.FC = () => {
         return;
       }
       
-      // Always start preview rendering (preview always enabled - toggle removed)
-      // Add another small delay before starting preview to ensure video is ready
-      setTimeout(() => {
-        if (state.isRunning && videoRef.current && canvasRef.current) {
-          const video = videoRef.current;
-          // Only start preview if video is actually ready
-          if (video.readyState >= video.HAVE_CURRENT_DATA) {
-            renderPreview();
-          } else {
-            // Wait for video to be ready
-            const checkReady = () => {
-              if (video.readyState >= video.HAVE_CURRENT_DATA && state.isRunning) {
-                renderPreview();
-              } else if (state.isRunning) {
-                setTimeout(checkReady, 100);
-              }
-            };
-            setTimeout(checkReady, 100);
-          }
-        }
-      }, 200);
+      // Start preview RAF loop immediately
+      console.log('[FaceTracker] 🎥 Starting preview RAF loop');
+      renderPreview();
       
-      // Start face detection (runs at lower rate) - delay this even more
+      // Start detection RAF loop with small delay to ensure OpenCV is ready
       setTimeout(() => {
-        if (state.isRunning) {
+        if (state.isRunning && opencvRef.current && cascadeRef.current) {
+          console.log('[FaceTracker] 🎯 Starting detection RAF loop');
           detectFaces();
+        } else {
+          console.error('[FaceTracker] ❌ Cannot start detection - refs not ready:', {
+            isRunning: state.isRunning,
+            opencv: !!opencvRef.current,
+            cascade: !!cascadeRef.current
+          });
         }
-      }, 500); // Longer delay for detection to ensure camera is fully ready
-    }, 500); // Initial delay to let camera fully initialize
-  }, [renderPreview, detectFaces, state.isRunning]);
+      }, 500);
+    }, 100); // Small delay to let camera initialize
+  }, [renderPreview, state.isRunning, detectFaces]);
 
   useEffect(() => {
-    console.log('[FaceTracker] Effect triggered', {
+    console.log('[FaceTracker] 🔔 Main tracking effect triggered', {
       isRunning: state.isRunning,
       isInitialized: state.isInitialized,
+      trackingStarted: trackingStartedRef.current,
       opencvReady: !!opencvRef.current,
-      cascadeReady: !!cascadeRef.current,
-      videoReady: !!videoRef.current,
-      canvasReady: !!canvasRef.current
+      cascadeReady: !!cascadeRef.current
     });
     
     if (state.isRunning && state.isInitialized && !trackingStartedRef.current) {
-      console.log('[FaceTracker] Starting tracking...');
+      console.log('[FaceTracker] ✅ STARTING TRACKING...');
       trackingStartedRef.current = true;
       startTracking();
-    } else if (!state.isRunning) {
-      console.log('[FaceTracker] Stopping tracking', { isRunning: state.isRunning, isInitialized: state.isInitialized });
+    } else if (!state.isRunning && trackingStartedRef.current) {
+      console.log('[FaceTracker] 🛑 STOPPING TRACKING');
       trackingStartedRef.current = false;
       // Stop all loops when not running
       if (previewFrameRef.current) {
         cancelAnimationFrame(previewFrameRef.current);
         previewFrameRef.current = undefined;
       }
+      // Stop detection RAF loop
       if (detectionFrameRef.current) {
         cancelAnimationFrame(detectionFrameRef.current);
         detectionFrameRef.current = undefined;
@@ -3240,6 +3174,7 @@ export const FaceTracker: React.FC = () => {
         cancelAnimationFrame(previewFrameRef.current);
         previewFrameRef.current = undefined;
       }
+      // Stop detection RAF loop
       if (detectionFrameRef.current) {
         cancelAnimationFrame(detectionFrameRef.current);
         detectionFrameRef.current = undefined;
@@ -3564,19 +3499,27 @@ export const FaceTracker: React.FC = () => {
               onChange={async (e) => {
                 e.stopPropagation();
                 const shouldRun = e.target.checked;
+                console.log('[FaceTracker] 🔘 Toggle clicked:', shouldRun);
                 // Update state immediately for UI responsiveness
-                setState(prev => ({ ...prev, isRunning: shouldRun }));
+                setState(prev => {
+                  console.log('[FaceTracker] 🔘 setState called, changing isRunning from', prev.isRunning, 'to', shouldRun);
+                  return { ...prev, isRunning: shouldRun };
+                });
                 try {
                   if (shouldRun) {
-                    // Turn preview OFF by default when starting face tracker to prevent crashes
+                    console.log('[FaceTracker] 🟢 Starting camera...');
                     await startCamera();
                   } else {
+                    console.log('[FaceTracker] 🔴 Stopping camera...');
                     stopCamera();
                   }
                 } catch (error) {
                   // If camera fails, revert state
-                  console.error('[FaceTracker] Toggle error:', error);
-                  setState(prev => ({ ...prev, isRunning: !shouldRun }));
+                  console.error('[FaceTracker] ❌ Toggle error:', error);
+                  setState(prev => {
+                    console.log('[FaceTracker] ❌ Reverting isRunning due to error');
+                    return { ...prev, isRunning: !shouldRun };
+                  });
                   setDiagnostics(prev => ({ 
                     ...prev, 
                     cameraStatus: 'error', 
@@ -3793,34 +3736,17 @@ export const FaceTracker: React.FC = () => {
                     <div className={styles.fpsCounters}>
                       <span className={styles.fpsCounterItem}>Webcam: {state.webcamFps} FPS</span>
                       <span className={styles.fpsCounterItem}>Overlay: {state.overlayFps} FPS</span>
-                      <span className={styles.fpsCounterItem}>OpenCV: {state.opencvFps} FPS</span>
+                      <span className={styles.fpsCounterItem}>OpenCV: {state.opencvHz} Hz</span>
                     </div>
                   )}
                   {state.isRunning && (
                     <button
                       className={styles.refreshButton}
                       onClick={() => {
-                        console.log('[FaceTracker] 🔄 Manual OpenCV refresh triggered');
-                        // Force immediate detection by resetting last detection time
-                        // This will cause the next detection cycle to run immediately
+                        console.log('[FaceTracker] 🔄 Manual refresh triggered - resetting detection timer');
+                        // Force immediate detection by resetting the last detection time
                         lastDetectionTimeRef.current = 0;
-                        
-                        // Also ensure the detection loop is running
-                        if (opencvRef.current && cascadeRef.current && videoRef.current && canvasRef.current) {
-                          // If detection loop is not running, restart it
-                          if (!detectionFrameRef.current) {
-                            console.log('[FaceTracker] Restarting detection loop...');
-                            detectFaces();
-                          } else if (processDetectionRef.current) {
-                            // Force immediate detection by calling processDetection directly
-                            console.log('[FaceTracker] Forcing immediate detection cycle...');
-                            // Reset the interval so detection runs immediately
-                            lastDetectionTimeRef.current = 0;
-                            // The next loop iteration will run detection immediately
-                          }
-                        } else {
-                          console.warn('[FaceTracker] Cannot refresh: OpenCV or video not ready');
-                        }
+                        console.log('[FaceTracker] Next RAF cycle will run detection immediately');
                       }}
                       title="Manually refresh OpenCV detection - forces immediate face detection cycle"
                     >
@@ -3829,37 +3755,37 @@ export const FaceTracker: React.FC = () => {
                   )}
                 </div>
               </div>
-              {/* OpenCV FPS Control - Prominent placement near camera preview */}
+              {/* OpenCV Hz Control - Prominent placement near camera preview */}
               {state.isRunning && (
                 <div className={styles.opencvFpsControl}>
-                  <label className={styles.opencvFpsLabel} title="OpenCV detection rate in frames per second. Lower values (5-10 FPS) reduce CPU usage but may miss fast movements. Higher values (20-30 FPS) provide smoother tracking but use more CPU. Default: 15 FPS">
-                    <i className="fas fa-tachometer-alt"></i> OpenCV Detection FPS: {settings.opencvFps || 15}
+                  <label className={styles.opencvFpsLabel} title="How often to automatically run face detection. Low values (0.5-1 Hz) use minimal CPU. Medium (2-3 Hz) is balanced. High (5-10 Hz) provides smooth tracking but uses more CPU. Default: 1 Hz (once per second)">
+                    <i className="fas fa-tachometer-alt"></i> OpenCV Detection Rate: {settings.opencvHz || 1} Hz
                   </label>
                   <div className={styles.opencvFpsSliderWrapper}>
-                    <span className={styles.opencvFpsRangeLabel}>1</span>
+                    <span className={styles.opencvFpsRangeLabel}>0.1</span>
                     <input
                       type="range"
-                      min="1"
-                      max="60"
-                      step="1"
-                      value={settings.opencvFps || 15}
-                      onChange={(e) => updateSetting('opencvFps', parseInt(e.target.value, 10))}
+                      min="0.1"
+                      max="10"
+                      step="0.1"
+                      value={settings.opencvHz || 1}
+                      onChange={(e) => updateSetting('opencvHz', parseFloat(e.target.value))}
                       className={styles.opencvFpsSlider}
-                      title="OpenCV detection rate in frames per second (1-60 FPS)"
+                      title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
                     />
-                    <span className={styles.opencvFpsRangeLabel}>60</span>
+                    <span className={styles.opencvFpsRangeLabel}>10</span>
                     <input
                       type="number"
-                      min="1"
-                      max="60"
-                      step="1"
-                      value={settings.opencvFps || 15}
+                      min="0.1"
+                      max="10"
+                      step="0.1"
+                      value={settings.opencvHz || 1}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value, 10);
-                        if (!isNaN(value) && value >= 1 && value <= 60) updateSetting('opencvFps', value);
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= 0.1 && value <= 10) updateSetting('opencvHz', value);
                       }}
                       className={styles.opencvFpsNumberInput}
-                      title="OpenCV detection rate in frames per second (1-60 FPS)"
+                      title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
                     />
                   </div>
                 </div>
@@ -4065,37 +3991,37 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
               <div className={styles.controlGroup}>
-                <label className={styles.controlLabel} title="OpenCV detection rate in frames per second. Lower values (5-10 FPS) reduce CPU usage but may miss fast movements. Higher values (20-30 FPS) provide smoother tracking but use more CPU. Default: 15 FPS">
-                  OpenCV Detection FPS
+                <label className={styles.controlLabel} title="How often to automatically run face detection. Low values (0.5-1 Hz) use minimal CPU. Medium (2-3 Hz) is balanced. High (5-10 Hz) provides smooth tracking but uses more CPU. Default: 1 Hz (once per second)">
+                  OpenCV Detection Rate
                 </label>
                 <p className={styles.helpText}>
-                  Controls how often OpenCV runs face detection. Lower = less CPU, higher = smoother tracking. Default: 15 FPS
+                  Controls how often face detection runs automatically (Hz = times per second). Low = less CPU, high = smoother tracking. Default: 1 Hz
                 </p>
                 <div className={styles.sliderWrapper}>
-                  <span className={styles.rangeLabel}>1</span>
+                  <span className={styles.rangeLabel}>0.1</span>
                   <input
                     type="range"
-                    min="1"
-                    max="60"
-                    step="1"
-                    value={settings.opencvFps || 15}
-                    onChange={(e) => updateSetting('opencvFps', parseInt(e.target.value, 10))}
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.opencvHz || 1}
+                    onChange={(e) => updateSetting('opencvHz', parseFloat(e.target.value))}
                     className={styles.slider}
-                    title="OpenCV detection rate in frames per second (1-60 FPS)"
+                    title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
                   />
-                  <span className={styles.rangeLabel}>60</span>
+                  <span className={styles.rangeLabel}>10</span>
                   <input
                     type="number"
-                    min="1"
-                    max="60"
-                    step="1"
-                    value={settings.opencvFps || 15}
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={settings.opencvHz || 1}
                     onChange={(e) => {
-                      const value = parseInt(e.target.value, 10);
-                      if (!isNaN(value) && value >= 1 && value <= 60) updateSetting('opencvFps', value);
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value) && value >= 0.1 && value <= 10) updateSetting('opencvHz', value);
                     }}
                     className={styles.numberInput}
-                    title="OpenCV detection rate in frames per second (1-60 FPS)"
+                    title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
                   />
                 </div>
               </div>

@@ -9,8 +9,6 @@ import DmxChannelControlPage from '../pages/DmxChannelControlPage'
 import DebugPage from '../../pages/DebugPage'
 import ExperimentalPage from '../../pages/ExperimentalPage'
 
-export type ViewType = 'main' | 'midiOsc' | 'fixture' | 'scenesActs' | 'misc' | 'dmxControl' | 'debug' | 'experimental'
-
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
   const renderCurrentPage = () => {
