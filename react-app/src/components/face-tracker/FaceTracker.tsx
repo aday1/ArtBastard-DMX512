@@ -18,12 +18,7 @@ interface FaceTrackerState {
   currentX: number; // X position (0-255)
   currentY: number; // Y position (0-255)
   currentIris: number; // Iris value (0-255)
-  currentMouth: number; // Mouth openness (0-255)
   currentZoom: number; // Zoom value (0-255)
-  currentTongue: number; // Tongue detection value (0-255)
-  isBlinking: boolean; // Current blink state
-  isTongueOut: boolean; // Current tongue state
-  currentGesture: string; // Current detected gesture (e.g., "NODDING", "SHAKING", "SMILING", "SAD")
   fps: number; // Overall FPS (legacy)
   webcamFps: number; // Webcam capture FPS
   overlayFps: number; // Overlay drawing FPS
@@ -93,25 +88,11 @@ interface FaceTrackerSettings {
   xPositionMax: number;
   yPositionMin: number;
   yPositionMax: number;
-  // Blink detection
-  blinkIrisChannel: number; // DMX channel for blink-controlled iris (0 = disabled, use irisChannel if > 0)
-  blinkThreshold: number; // Eye aspect ratio threshold for blink detection (0.15-0.35)
-  blinkSensitivity: number; // How much blink affects iris (0-1)
-  // Mouth detection
-  mouthChannel: number; // DMX channel for mouth openness (0 = disabled)
-  mouthMin: number;
-  mouthMax: number;
-  mouthSensitivity: number; // How sensitive mouth detection is (0-1)
-  // Tongue detection
-  tongueChannel: number; // DMX channel for tongue detection (0 = disabled, can be toggle or value)
-  tongueToggle: boolean; // If true, tongue acts as toggle (on/off), if false, sends value
-  tongueSensitivity: number; // How sensitive tongue detection is (0-1)
-  tongueThreshold: number; // Threshold for detecting tongue (0-1)
-  // Gesture detection
-  enableGestures: boolean; // Enable gesture detection
-  gestureSensitivity: number; // How sensitive gesture detection is (0-1)
   // OpenCV detection settings
-  opencvHz: number; // OpenCV detection rate in Hz (0.1-10, default 1 Hz = 1 detection per second)
+  opencvHz: number; // OpenCV detection rate in Hz (0.1-120, default 1 Hz = 1 detection per second)
+  opencvScaleFactor: number; // OpenCV scale factor (1.05-1.5, default 1.05)
+  opencvMinNeighbors: number; // OpenCV min neighbors (1-10, default 2)
+  opencvMinSize: number; // OpenCV minimum face size (20-100, default 30)
   // Zoom settings
   zoomSensitivity: number; // How sensitive zoom is to face size changes (0-2)
   zoomScale: number; // Scale factor for zoom (0.5-2.0)
@@ -180,25 +161,11 @@ const DEFAULT_SETTINGS: FaceTrackerSettings = {
   xPositionMax: 255,
   yPositionMin: 0,
   yPositionMax: 255,
-  // Blink detection defaults
-  blinkIrisChannel: 0, // Disabled by default (use irisChannel if > 0)
-  blinkThreshold: 0.25, // Default eye aspect ratio threshold
-  blinkSensitivity: 0.5, // Default blink sensitivity
-  // Mouth detection defaults
-  mouthChannel: 0, // Disabled by default
-  mouthMin: 0,
-  mouthMax: 255,
-  mouthSensitivity: 1.0, // Default mouth sensitivity
-  // Tongue detection defaults
-  tongueChannel: 0, // Disabled by default
-  tongueToggle: true, // Default: toggle mode
-  tongueSensitivity: 0.7, // Default: moderate sensitivity
-  tongueThreshold: 0.3, // Default: 30% threshold for tongue detection
-  // Gesture detection defaults
-  enableGestures: false, // Disabled by default (causes performance issues in Firefox)
-  gestureSensitivity: 0.7, // Default: moderate sensitivity
   // OpenCV detection defaults
   opencvHz: 1, // Default: 1 Hz for detection (1 detection per second)
+  opencvScaleFactor: 1.05, // Default: 1.05 (more accurate, slower)
+  opencvMinNeighbors: 2, // Default: 2 (more detections, better for low light)
+  opencvMinSize: 30, // Default: 30 pixels minimum face size
   // Zoom settings defaults
   zoomSensitivity: 1.0, // Default: normal sensitivity
   zoomScale: 1.0, // Default: no scaling
@@ -332,461 +299,7 @@ const calculateRegionBrightness = (imageData: ImageData): number => {
   return count > 0 ? sum / count : 0;
 };
 
-// Helper function to calculate Eye Aspect Ratio (EAR) - better blink detection
-// EAR = (vertical eye distance) / (horizontal eye distance)
-// When eyes are closed, vertical distance decreases, EAR drops
-const calculateEyeAspectRatio = (imageData: ImageData): number => {
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  
-  if (width < 3 || height < 3) return 0.3; // Default to "open" if too small
-  
-  // Find eye opening by detecting the darkest horizontal line (pupil/eyelid)
-  // and brightest areas (eyeball whites)
-  const centerY = Math.floor(height / 2);
-  const centerX = Math.floor(width / 2);
-  
-  // Scan vertically through center to find eye opening height
-  let minBrightness = 255;
-  let maxBrightness = 0;
-  let topEdge = 0;
-  let bottomEdge = height;
-  
-  // Find top and bottom edges of eye opening
-  for (let y = 0; y < height; y++) {
-    const idx = (y * width + centerX) * 4;
-    const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-    
-    if (gray < minBrightness) {
-      minBrightness = gray;
-      if (topEdge === 0) topEdge = y;
-    }
-    if (gray > maxBrightness) {
-      maxBrightness = gray;
-    }
-  }
-  
-  // Find bottom edge (where brightness increases again)
-  for (let y = centerY; y < height; y++) {
-    const idx = (y * width + centerX) * 4;
-    const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-    if (gray > minBrightness + 30) {
-      bottomEdge = y;
-      break;
-    }
-  }
-  
-  const verticalDistance = bottomEdge - topEdge;
-  const horizontalDistance = width;
-  
-  // EAR = vertical / horizontal (normalized)
-  const ear = verticalDistance / horizontalDistance;
-  
-  // Normalize to 0-1 range (typical EAR is 0.15-0.35 for open eyes, <0.15 for closed)
-  return Math.max(0, Math.min(1, ear * 3)); // Scale so 0.33 = 1.0
-};
-
-// Helper function to calculate mouth openness (using vertical edge detection)
-const calculateMouthOpenness = (imageData: ImageData): number => {
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  
-  if (width < 2 || height < 2) return 0;
-  
-  let verticalEdges = 0;
-  let totalPixels = 0;
-  
-  // Detect vertical edges (mouth opening creates vertical lines)
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = (y * width + x) * 4;
-      const idxTop = ((y - 1) * width + x) * 4;
-      const idxBottom = ((y + 1) * width + x) * 4;
-      
-      // Calculate grayscale values
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-      const grayTop = 0.299 * data[idxTop] + 0.587 * data[idxTop + 1] + 0.114 * data[idxTop + 2];
-      const grayBottom = 0.299 * data[idxBottom] + 0.587 * data[idxBottom + 1] + 0.114 * data[idxBottom + 2];
-      
-      // Vertical gradient (edge detection)
-      const verticalGradient = Math.abs(grayTop - grayBottom);
-      
-      if (verticalGradient > 20) { // Threshold for edge detection
-        verticalEdges++;
-      }
-      totalPixels++;
-    }
-  }
-  
-  // Normalize to 0-1 (more edges = more open mouth)
-  const openness = Math.min(1, verticalEdges / (totalPixels * 0.1)); // Scale factor
-  
-  return openness;
-};
-
-// Helper function to calculate tongue detection
-// Detects tongue by looking for pink/reddish colors extending below the mouth
-const calculateTongueDetection = (imageData: ImageData): number => {
-  const data = imageData.data;
-  const width = imageData.width;
-  const height = imageData.height;
-  
-  if (width < 3 || height < 3) return 0;
-  
-  let pinkPixelCount = 0;
-  let totalPixels = 0;
-  
-  // Tongue is typically pink/reddish (high red, medium green, low blue)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      
-      totalPixels++;
-      
-      // Tongue color detection: high red, medium-high green, low blue
-      const isPinkish = r > 150 && g > 80 && b < 140 && r > g && r > b;
-      const isReddish = r > 180 && g > 100 && b < 120;
-      
-      if (isPinkish || isReddish) {
-        pinkPixelCount++;
-      }
-    }
-  }
-  
-  // Normalize to 0-1 (percentage of pink/red pixels)
-  const tongueRatio = totalPixels > 0 ? pinkPixelCount / totalPixels : 0;
-  
-  // Also check for vertical extension (tongue extends downward)
-  let lowerPinkCount = 0;
-  let lowerTotalPixels = 0;
-  const lowerHalfStart = Math.floor(height / 2);
-  
-  for (let y = lowerHalfStart; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      
-      lowerTotalPixels++;
-      
-      const isPinkish = r > 150 && g > 80 && b < 140 && r > g && r > b;
-      if (isPinkish) {
-        lowerPinkCount++;
-      }
-    }
-  }
-  
-  const lowerTongueRatio = lowerTotalPixels > 0 ? lowerPinkCount / lowerTotalPixels : 0;
-  
-  // Combine both ratios (tongue extends downward, so lower half is more important)
-  const combinedRatio = (tongueRatio * 0.4) + (lowerTongueRatio * 0.6);
-  
-  return Math.min(1, combinedRatio);
-};
-
-// Helper function to detect hand gestures (thumbs up, middle finger, etc.)
-// Optimized with early exits and size limits to prevent Firefox freezes
-const detectHandGesture = (imageData: ImageData, width: number, height: number): { gesture: string; confidence: number } => {
-  const data = imageData.data;
-  
-  // Early exit for invalid or too large images
-  if (width < 20 || height < 20 || width > 500 || height > 500) {
-    return { gesture: '', confidence: 0 };
-  }
-  
-  // Limit processing time - early exit if image is too large
-  const maxPixels = 50000; // ~224x224 max
-  if (width * height > maxPixels) {
-    return { gesture: '', confidence: 0 };
-  }
-  
-  // Convert to grayscale and threshold to find hand silhouette
-  const threshold = 100;
-  let handPixels = 0;
-  let totalPixels = 0;
-  const handMask: boolean[][] = [];
-  
-  // Create binary mask of hand region with timeout protection
-  const startTime = performance.now();
-  const maxTime = 15; // Maximum 15ms for mask creation
-  
-  for (let y = 0; y < height; y++) {
-    if ((performance.now() - startTime) > maxTime) {
-      return { gesture: '', confidence: 0 }; // Timeout
-    }
-    handMask[y] = [];
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-      totalPixels++;
-      
-      const isHand = gray < threshold;
-      handMask[y][x] = isHand;
-      if (isHand) handPixels++;
-    }
-  }
-  
-  if (handPixels < totalPixels * 0.1) {
-    return { gesture: '', confidence: 0 };
-  }
-  
-  // Find hand contour (now has timeout protection)
-  const contour = findContour(handMask, width, height);
-  
-  if (contour.length < 10) {
-    return { gesture: '', confidence: 0 };
-  }
-  
-  // Analyze contour to detect gestures
-  const protrusions = findProtrusions(contour, width, height);
-  const topProtrusion = protrusions.find(p => p.direction === 'up' && p.length > height * 0.15);
-  
-  // Thumbs up detection
-  if (topProtrusion && protrusions.filter(p => p.direction === 'up').length === 1) {
-    const handAspectRatio = width / height;
-    if (handAspectRatio > 1.2 && topProtrusion.length > height * 0.2) {
-      return { gesture: 'THUMBS_UP', confidence: Math.min(1, topProtrusion.length / (height * 0.3)) };
-    }
-  }
-  
-  // Middle finger detection
-  if (topProtrusion && topProtrusion.length > height * 0.25 && protrusions.filter(p => p.direction === 'up').length === 1) {
-    return { gesture: 'MIDDLE_FINGER', confidence: Math.min(1, topProtrusion.length / (height * 0.4)) };
-  }
-  
-  // Fist detection
-  if (protrusions.length <= 2 && handPixels > totalPixels * 0.3) {
-    return { gesture: 'FIST', confidence: 0.7 };
-  }
-  
-  // Open hand detection
-  const upwardProtrusions = protrusions.filter(p => p.direction === 'up');
-  if (upwardProtrusions.length >= 3) {
-    return { gesture: 'OPEN_HAND', confidence: Math.min(1, upwardProtrusions.length / 5) };
-  }
-  
-  return { gesture: '', confidence: 0 };
-};
-
-// Helper to find contour (boundary) of hand
-// Added timeout protection and early exits to prevent Firefox freezes
-const findContour = (mask: boolean[][], width: number, height: number): Array<{ x: number; y: number }> => {
-  const contour: Array<{ x: number; y: number }> = [];
-  const visited = new Set<string>();
-  
-  // Early exit for very large images to prevent timeouts
-  const maxPixels = 50000; // Limit to ~224x224 or smaller
-  if (width * height > maxPixels) {
-    return contour; // Return empty for large images
-  }
-  
-  // Timeout protection: limit iterations to prevent infinite loops
-  const maxIterations = 2000; // Reduced from potential infinite loop
-  let iterations = 0;
-  
-  let startX = -1, startY = -1;
-  for (let y = 1; y < height - 1 && iterations < 100; y++) {
-    for (let x = 1; x < width - 1 && iterations < 100; x++) {
-      iterations++;
-      if (mask[y][x] && !mask[y-1][x] && !mask[y][x-1]) {
-        startX = x;
-        startY = y;
-        break;
-      }
-    }
-    if (startX !== -1) break;
-  }
-  
-  if (startX === -1) return contour;
-  
-  let currentX = startX;
-  let currentY = startY;
-  const directions = [
-    { x: 0, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 },
-    { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }
-  ];
-  
-  iterations = 0;
-  const startTime = performance.now();
-  const maxTime = 10; // Maximum 10ms to prevent blocking
-  
-  do {
-    // Timeout protection: check time and iterations
-    if (iterations++ > maxIterations || (performance.now() - startTime) > maxTime) {
-      break; // Exit early if taking too long
-    }
-    
-    const key = `${currentX},${currentY}`;
-    if (!visited.has(key)) {
-      contour.push({ x: currentX, y: currentY });
-      visited.add(key);
-    }
-    
-    // Early exit if contour is getting too large
-    if (contour.length > 500) {
-      break; // Reduced from 1000 to prevent long processing
-    }
-    
-    let found = false;
-    for (let i = 0; i < directions.length; i++) {
-      const dir = directions[i];
-      const nextX = currentX + dir.x;
-      const nextY = currentY + dir.y;
-      
-      if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height) {
-        if (mask[nextY][nextX]) {
-          currentX = nextX;
-          currentY = nextY;
-          found = true;
-          break;
-        }
-      }
-    }
-    
-    // Exit conditions: found nothing, or reached start, or contour is long enough
-    if (!found) break;
-    if (contour.length >= 10 && currentX === startX && currentY === startY) break;
-  } while (contour.length < 10);
-  
-  return contour;
-};
-
-// Helper to find protrusions (fingers) from contour
-const findProtrusions = (contour: Array<{ x: number; y: number }>, width: number, height: number): Array<{ direction: string; length: number; angle: number }> => {
-  if (contour.length < 10) return [];
-  
-  const centerX = contour.reduce((sum, p) => sum + p.x, 0) / contour.length;
-  const centerY = contour.reduce((sum, p) => sum + p.y, 0) / contour.length;
-  
-  const protrusions: Array<{ direction: string; length: number; angle: number }> = [];
-  const minProtrusionLength = Math.min(width, height) * 0.1;
-  
-  for (let i = 0; i < contour.length; i++) {
-    const point = contour[i];
-    const dx = point.x - centerX;
-    const dy = point.y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > minProtrusionLength) {
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      let direction = '';
-      
-      if (angle > -45 && angle < 45) direction = 'right';
-      else if (angle > 45 && angle < 135) direction = 'down';
-      else if (angle > 135 || angle < -135) direction = 'left';
-      else direction = 'up';
-      
-      protrusions.push({ direction, length: distance, angle });
-    }
-  }
-  
-  const grouped: { [key: string]: Array<{ direction: string; length: number; angle: number }> } = {};
-  for (const prot of protrusions) {
-    const key = prot.direction;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(prot);
-  }
-  
-  const result: Array<{ direction: string; length: number; angle: number }> = [];
-  for (const dir in grouped) {
-    const group = grouped[dir];
-    const longest = group.reduce((max, p) => p.length > max.length ? p : max, group[0]);
-    result.push(longest);
-  }
-  
-  return result;
-};
-
-// Helper function to detect facial expressions (smile, sad, etc.)
-// Analyzes mouth curve and shape to determine emotional expression
-const detectFacialExpression = (mouthImageData: ImageData, mouthOpenness: number): string => {
-  const data = mouthImageData.data;
-  const width = mouthImageData.width;
-  const height = mouthImageData.height;
-  
-  if (width < 5 || height < 5) return '';
-  
-  // Analyze mouth curve by examining vertical intensity distribution
-  // Smile: corners of mouth are higher (upward curve)
-  // Sad: corners of mouth are lower (downward curve)
-  // Neutral: relatively flat
-  
-  const centerY = Math.floor(height / 2);
-  const leftQuarter = Math.floor(width * 0.25);
-  const rightQuarter = Math.floor(width * 0.75);
-  const centerQuarter = Math.floor(width * 0.5);
-  
-  // Calculate average brightness/intensity at different horizontal positions
-  let leftIntensity = 0;
-  let centerIntensity = 0;
-  let rightIntensity = 0;
-  let leftCount = 0;
-  let centerCount = 0;
-  let rightCount = 0;
-  
-  // Sample vertical lines at left, center, and right positions
-  for (let y = 0; y < height; y++) {
-    // Left quarter (left corner of mouth)
-    for (let x = 0; x < leftQuarter; x++) {
-      const idx = (y * width + x) * 4;
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-      leftIntensity += gray;
-      leftCount++;
-    }
-    
-    // Center
-    for (let x = leftQuarter; x < rightQuarter; x++) {
-      const idx = (y * width + x) * 4;
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-      centerIntensity += gray;
-      centerCount++;
-    }
-    
-    // Right quarter (right corner of mouth)
-    for (let x = rightQuarter; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-      rightIntensity += gray;
-      rightCount++;
-    }
-  }
-  
-  const leftAvg = leftCount > 0 ? leftIntensity / leftCount : 0;
-  const centerAvg = centerCount > 0 ? centerIntensity / centerCount : 0;
-  const rightAvg = rightCount > 0 ? rightIntensity / rightCount : 0;
-  
-  // Calculate mouth curve: positive = smile (corners higher), negative = sad (corners lower)
-  const cornerAvg = (leftAvg + rightAvg) / 2;
-  const curveValue = (cornerAvg - centerAvg) / Math.max(centerAvg, 1); // Normalize
-  
-  // Detect smile: upward curve (corners higher than center) + mouth slightly open
-  if (curveValue > 0.05 && mouthOpenness > 0.2 && mouthOpenness < 0.6) {
-    return 'SMILING';
-  }
-  
-  // Detect sad: downward curve (corners lower than center) + mouth closed or slightly open
-  if (curveValue < -0.05 && mouthOpenness < 0.4) {
-    return 'SAD';
-  }
-  
-  // Detect surprise: mouth very open
-  if (mouthOpenness > 0.7) {
-    return 'SURPRISED';
-  }
-  
-  // Detect neutral: relatively flat curve and moderate openness
-  if (Math.abs(curveValue) < 0.03 && mouthOpenness > 0.1 && mouthOpenness < 0.4) {
-    return 'NEUTRAL';
-  }
-  
-  return '';
-};
+// Removed: Eye, mouth, tongue, hand, and gesture detection functions (all removed per user request)
 
 export const FaceTracker: React.FC = () => {
   const { theme } = useTheme();
@@ -801,6 +314,7 @@ export const FaceTracker: React.FC = () => {
   const previewFrameRef = useRef<number | undefined>(undefined);
   const trackingStartedRef = useRef<boolean>(false);
   const isRunningRef = useRef<boolean>(false); // Ref for isRunning to avoid stale closures
+  const opencvHzRef = useRef<number>(1); // Ref for Hz to avoid stale closures and allow real-time updates
   
   const [state, setState] = useState<FaceTrackerState>({
     isRunning: false,
@@ -811,12 +325,7 @@ export const FaceTracker: React.FC = () => {
     currentX: 128,
     currentY: 128,
     currentIris: 128,
-    currentMouth: 0,
     currentZoom: 128,
-    currentTongue: 0,
-    isBlinking: false,
-    isTongueOut: false,
-    currentGesture: '',
     fps: 0,
     webcamFps: 0,
     overlayFps: 0,
@@ -828,7 +337,6 @@ export const FaceTracker: React.FC = () => {
   useEffect(() => {
     isRunningRef.current = state.isRunning;
     console.log('[FaceTracker] ⚠️ isRunning STATE CHANGED:', state.isRunning);
-    console.trace('[FaceTracker] State change trace:');
   }, [state.isRunning]);
 
   // Diagnostic state
@@ -868,6 +376,14 @@ export const FaceTracker: React.FC = () => {
   };
 
   const [settings, setSettings] = useState<FaceTrackerSettings>(loadSettings());
+
+  // Keep opencvHzRef in sync with settings.opencvHz (for real-time updates without restarting loop)
+  // This must be after settings is declared
+  useEffect(() => {
+    const newHz = Math.max(0.1, Math.min(120, settings.opencvHz || 1));
+    opencvHzRef.current = newHz;
+    console.log('[FaceTracker] 🔄 Hz ref synced to:', newHz);
+  }, [settings.opencvHz]);
   
   // Autosave settings with debouncing
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -920,8 +436,6 @@ export const FaceTracker: React.FC = () => {
     // Mouth position (scaled to full canvas)
     mouth?: { x: number; y: number; width: number; height: number };
     // Detection states
-    isBlinking?: boolean;
-    mouthOpenness?: number;
     // Head pose for accurate gaze projection
     yaw?: number; // Head rotation left/right (-1 to 1)
     pitch?: number; // Head rotation up/down (-1 to 1)
@@ -931,23 +445,14 @@ export const FaceTracker: React.FC = () => {
   const faceHistoryRef = useRef<Array<{ width: number; height: number; centerX: number; centerY: number; timestamp: number }>>([]);
   const baselineFaceSizeRef = useRef<{ width: number; height: number; aspectRatio: number } | null>(null);
   // Delay buffer: store pan/tilt values with timestamps for delayed application
-  const delayBufferRef = useRef<Array<{ pan: number; tilt: number; x: number; y: number; iris: number; mouth: number; tongue: number; zoom: number; timestamp: number }>>([]);
-  // Eye tracking for blink detection
-  const eyeHistoryRef = useRef<Array<{ leftEyeEAR: number; rightEyeEAR: number; timestamp: number }>>([]);
-  const lastBlinkTimeRef = useRef<number>(0);
-  const blinkStateRef = useRef<boolean>(false);
-  // Mouth tracking
-  const mouthHistoryRef = useRef<Array<{ openness: number; timestamp: number }>>([]);
+  const delayBufferRef = useRef<Array<{ pan: number; tilt: number; x: number; y: number; iris: number; zoom: number; timestamp: number }>>([]);
+  // Pan/tilt history for smoothing
   const gestureHistoryRef = useRef<{
     panHistory: number[];
     tiltHistory: number[];
-    lastGesture: string;
-    lastGestureTime: number;
   }>({
     panHistory: [],
     tiltHistory: [],
-    lastGesture: '',
-    lastGestureTime: 0
   });
 
   // Enumerate available cameras
@@ -1397,10 +902,7 @@ export const FaceTracker: React.FC = () => {
     pitchText: string | null;
     statusText: string;
     statusColor: string;
-    blinkText: string | null;
-    blinkColor: string | null;
     irisText: string | null;
-    mouthText: string | null;
     posText: string | null;
     gazeText: string | null;
     gestureText: string | null;
@@ -1412,10 +914,7 @@ export const FaceTracker: React.FC = () => {
     pitchText: null,
     statusText: 'No Face',
     statusColor: 'red',
-    blinkText: null,
-    blinkColor: null,
     irisText: null,
-    mouthText: null,
     posText: null,
     gazeText: null,
     gestureText: null,
@@ -1611,35 +1110,6 @@ export const FaceTracker: React.FC = () => {
             ctx.lineTo(imageCenterX, imageCenterY + 20);
             ctx.stroke();
             
-            // Draw eye detection boxes if available (coordinates are already scaled to full video size)
-            if (face.leftEye) {
-              ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(face.leftEye.x, face.leftEye.y, face.leftEye.width, face.leftEye.height);
-            }
-            
-            if (face.rightEye) {
-              ctx.strokeStyle = face.isBlinking ? `rgba(255, 0, 0, ${fadeAlpha})` : `rgba(0, 255, 255, ${fadeAlpha})`;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(face.rightEye.x, face.rightEye.y, face.rightEye.width, face.rightEye.height);
-            }
-            
-            // Draw mouth detection box if available (coordinates are already scaled to full video size)
-            if (face.mouth) {
-              const mouthOpenness = face.mouthOpenness || 0;
-              const mouthColor = mouthOpenness > 0.5 ? `rgba(255, 0, 255, ${fadeAlpha})` : `rgba(255, 165, 0, ${fadeAlpha})`;
-              ctx.strokeStyle = mouthColor;
-              ctx.lineWidth = 2;
-              ctx.strokeRect(face.mouth.x, face.mouth.y, face.mouth.width, face.mouth.height);
-            }
-            
-            // Draw blink indicator
-            if (face.isBlinking) {
-              ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
-              ctx.beginPath();
-              ctx.arc(face.centerX, face.y - 15, 12, 0, Math.PI * 2);
-              ctx.fill();
-            }
             
             ctx.restore();
           }
@@ -1715,35 +1185,11 @@ export const FaceTracker: React.FC = () => {
             textCacheRef.current.pitchText = null;
           }
           
-          // Gesture
-          if (state.currentGesture) {
-            textCacheRef.current.gestureText = `Gesture: ${state.currentGesture}`;
-          } else {
-            textCacheRef.current.gestureText = null;
-          }
-          
-          // Blink status
-          if (face.isBlinking !== undefined) {
-            textCacheRef.current.blinkText = face.isBlinking ? '👁️ BLINKING' : '👁️ Eyes Open';
-            textCacheRef.current.blinkColor = face.isBlinking ? 'red' : 'lime';
-          } else {
-            textCacheRef.current.blinkText = null;
-            textCacheRef.current.blinkColor = null;
-          }
-          
           // Iris value
           if (state.currentIris > 0) {
             textCacheRef.current.irisText = `Iris: ${state.currentIris}`;
           } else {
             textCacheRef.current.irisText = null;
-          }
-          
-          // Mouth status
-          if (face.mouth && face.mouthOpenness !== undefined) {
-            const mouthPercent = Math.round(face.mouthOpenness * 100);
-            textCacheRef.current.mouthText = `Mouth: ${mouthPercent}% (${state.currentMouth})`;
-          } else {
-            textCacheRef.current.mouthText = null;
           }
           
           // X/Y Position
@@ -1755,11 +1201,7 @@ export const FaceTracker: React.FC = () => {
         } else {
           textCacheRef.current.yawText = null;
           textCacheRef.current.pitchText = null;
-          textCacheRef.current.gestureText = null;
-          textCacheRef.current.blinkText = null;
-          textCacheRef.current.blinkColor = null;
           textCacheRef.current.irisText = null;
-          textCacheRef.current.mouthText = null;
           textCacheRef.current.posText = null;
         }
         
@@ -1818,24 +1260,10 @@ export const FaceTracker: React.FC = () => {
           
           // Draw additional detection info if available
           let yOffset = 180;
-          if (textCacheRef.current.blinkText) {
-            ctx.fillStyle = textCacheRef.current.blinkColor || 'lime';
-            ctx.strokeText(textCacheRef.current.blinkText, 10, yOffset);
-            ctx.fillText(textCacheRef.current.blinkText, 10, yOffset);
-            yOffset += 25;
-          }
-          
           if (textCacheRef.current.irisText) {
             ctx.fillStyle = 'cyan';
             ctx.strokeText(textCacheRef.current.irisText, 10, yOffset);
             ctx.fillText(textCacheRef.current.irisText, 10, yOffset);
-            yOffset += 25;
-          }
-          
-          if (textCacheRef.current.mouthText) {
-            ctx.fillStyle = 'magenta';
-            ctx.strokeText(textCacheRef.current.mouthText, 10, yOffset);
-            ctx.fillText(textCacheRef.current.mouthText, 10, yOffset);
             yOffset += 25;
           }
           
@@ -1945,10 +1373,12 @@ export const FaceTracker: React.FC = () => {
     }
   }, [state.currentPan, state.currentTilt]); // Removed state.isRunning - using isRunningRef
 
-  // Face detection with continuous RAF loop (WORKING PATTERN from git commit 65f692f)
+  // Face detection with continuous RAF loop (WORKING PATTERN from debug version)
   // Uses requestAnimationFrame to create a continuous detection loop
   const detectFaces = useCallback(() => {
-    console.log('[FaceTracker] 🚀🚀🚀 detectFaces CALLED - Starting RAF loop 🚀🚀🚀');
+    console.log('[FaceTracker] 🚀🚀🚀 detectFaces CALLED - Starting RAF loop 🚀🚀🚀', { 
+      hz: opencvHzRef.current 
+    });
     
     if (!opencvRef.current || !cascadeRef.current || !videoRef.current || !canvasRef.current) {
       console.error('[FaceTracker] ❌ Cannot start detection - missing refs:', {
@@ -1967,13 +1397,13 @@ export const FaceTracker: React.FC = () => {
       try {
         loopCount++;
         
-        // 🔑 CRITICAL: Schedule next frame FIRST (this is the working pattern!)
+        // 🔑 CRITICAL: Schedule next frame FIRST (this is the working pattern from debug!)
         // This ensures the loop ALWAYS continues, regardless of errors or React re-renders
         detectionFrameRef.current = requestAnimationFrame(processDetection);
 
         // Log every 60 frames (~1 second) to verify loop is running
         if (loopCount % 60 === 0) {
-          console.log(`[FaceTracker] 🔄 RAF loop iteration #${loopCount}, isRunning: ${isRunningRef.current}`);
+          console.log(`[FaceTracker] 🔄 RAF loop iteration #${loopCount}, isRunning: ${isRunningRef.current}, Hz: ${opencvHzRef.current}`);
         }
 
         // Now do all the checks (early returns won't break the loop)
@@ -1996,22 +1426,24 @@ export const FaceTracker: React.FC = () => {
           return;
         }
 
-        // Throttle detection rate based on Hz setting
+        // Throttle detection rate based on Hz setting (use ref for real-time updates)
         const now = Date.now();
-        const hz = Math.max(0.1, Math.min(10, settings.opencvHz || 1));
-        const detectionInterval = 1000 / hz;
+        const currentHz = opencvHzRef.current; // Get current Hz from ref (updates in real-time)
+        const detectionInterval = 1000 / currentHz;
         
         if (now - lastDetectionTimeRef.current < detectionInterval) {
           // Throttled - skip this frame
           if (loopCount % 300 === 0) { // Log every 5 seconds when throttling
-            console.log(`[FaceTracker] ⏱️ Throttling at ${hz} Hz - waiting for next interval`);
+            console.log(`[FaceTracker] ⏱️ Throttling at ${currentHz} Hz - waiting for next interval`);
           }
           return; // Skip this frame, but loop continues
         }
         lastDetectionTimeRef.current = now;
         
         // We're about to run actual detection
-        console.log(`[FaceTracker] 🔍 Running detection (loop #${loopCount}, Hz: ${hz})`);
+        if (loopCount % 10 === 0) { // Log every 10th detection to avoid spam
+          console.log(`[FaceTracker] 🔍 Running detection (loop #${loopCount}, Hz: ${currentHz})`);
+        }
 
         // Update Hz counter and display
         opencvHzCounterRef.current.detections++;
@@ -2091,7 +1523,9 @@ export const FaceTracker: React.FC = () => {
           
           // Perform face detection
           try {
-            cascadeRef.current.detectMultiScale(gray, faces, 1.05, 2, 0, msize, maxSizeObj);
+            const scaleFactor = settings.opencvScaleFactor || 1.05;
+            const minNeighbors = settings.opencvMinNeighbors || 2;
+            cascadeRef.current.detectMultiScale(gray, faces, scaleFactor, minNeighbors, 0, msize, maxSizeObj);
             // Log detection results
             const detectedFaces = faces.size();
             if (detectedFaces > 0) {
@@ -2206,253 +1640,7 @@ export const FaceTracker: React.FC = () => {
 
               // Blink detection: Analyze eye region brightness/contrast
               // Eye regions are approximately: left eye (20-40% from left, 25-40% from top), right eye (60-80% from left, 25-40% from top)
-              let isBlinking = false;
               let irisValue = 128; // Default center value
-              
-              // Always detect eyes/blinks for preview, even if channels aren't configured
-              {
-                try {
-                  // Extract eye regions from the face rectangle
-                  const faceX = face.x;
-                  const faceY = face.y;
-                  const faceW = face.width;
-                  const faceH = face.height;
-                  
-                  // Left eye region (20-40% from left, 25-40% from top of face)
-                  const leftEyeX = Math.round(faceX + faceW * 0.2);
-                  const leftEyeY = Math.round(faceY + faceH * 0.25);
-                  const leftEyeW = Math.round(faceW * 0.2);
-                  const leftEyeH = Math.round(faceH * 0.15);
-                  
-                  // Right eye region (60-80% from left, 25-40% from top of face)
-                  const rightEyeX = Math.round(faceX + faceW * 0.6);
-                  const rightEyeY = Math.round(faceY + faceH * 0.25);
-                  const rightEyeW = Math.round(faceW * 0.2);
-                  const rightEyeH = Math.round(faceH * 0.15);
-                  
-                  // Extract eye regions from detection canvas
-                  const leftEyeROI = detCtx.getImageData(
-                    Math.max(0, Math.min(leftEyeX, detWidth - 1)),
-                    Math.max(0, Math.min(leftEyeY, detHeight - 1)),
-                    Math.max(1, Math.min(leftEyeW, detWidth - leftEyeX)),
-                    Math.max(1, Math.min(leftEyeH, detHeight - leftEyeY))
-                  );
-                  const rightEyeROI = detCtx.getImageData(
-                    Math.max(0, Math.min(rightEyeX, detWidth - 1)),
-                    Math.max(0, Math.min(rightEyeY, detHeight - 1)),
-                    Math.max(1, Math.min(rightEyeW, detWidth - rightEyeX)),
-                    Math.max(1, Math.min(rightEyeH, detHeight - rightEyeY))
-                  );
-                  
-                  // Calculate Eye Aspect Ratio (EAR) for each eye - improved blink detection
-                  const leftEAR = calculateEyeAspectRatio(leftEyeROI);
-                  const rightEAR = calculateEyeAspectRatio(rightEyeROI);
-                  const avgEAR = (leftEAR + rightEAR) / 2;
-                  
-                  // Store EAR history for smoothing
-                  eyeHistoryRef.current.push({
-                    leftEyeEAR: leftEAR,
-                    rightEyeEAR: rightEAR,
-                    timestamp: Date.now()
-                  });
-                  
-                  // Keep only last 10 samples for blink detection
-                  if (eyeHistoryRef.current.length > 10) {
-                    eyeHistoryRef.current.shift();
-                  }
-                  
-                  // Calculate smoothed EAR (average of last few frames) to reduce false positives
-                  const recentEARs = eyeHistoryRef.current.slice(-5).map(e => (e.leftEyeEAR + e.rightEyeEAR) / 2);
-                  const smoothedEAR = recentEARs.reduce((a, b) => a + b, 0) / recentEARs.length;
-                  
-                  // Detect blink: EAR drops below threshold
-                  // Lower threshold = more sensitive (detects smaller blinks)
-                  // Typical open eye EAR: 0.2-0.4, closed eye EAR: <0.15
-                  isBlinking = smoothedEAR < settings.blinkThreshold;
-                  
-                  // Removed logging to prevent Firefox crashes
-                  
-                  // Update blink state
-                  const currentTime = Date.now();
-                  if (isBlinking && !blinkStateRef.current && (currentTime - lastBlinkTimeRef.current) > 200) {
-                    // Blink detected
-                    blinkStateRef.current = true;
-                    lastBlinkTimeRef.current = currentTime;
-                  } else if (!isBlinking && blinkStateRef.current) {
-                    // Blink ended
-                    blinkStateRef.current = false;
-                  }
-                  
-                  // Control iris based on blink (always calculate, even if channels aren't configured)
-                  let baseIrisValue: number;
-                  if (isBlinking) {
-                    // Close iris when blinking
-                    baseIrisValue = Math.round(
-                      Math.max(settings.irisMin, Math.min(settings.irisMax,
-                        settings.irisMin + (settings.irisMax - settings.irisMin) * (1 - settings.blinkSensitivity)
-                      ))
-                    );
-                  } else {
-                    // Open iris when not blinking
-                    baseIrisValue = Math.round(
-                      Math.max(settings.irisMin, Math.min(settings.irisMax,
-                        settings.irisMin + (settings.irisMax - settings.irisMin) * settings.blinkSensitivity
-                      ))
-                    );
-                  }
-                  
-                  // Apply flip if enabled (invert: closed becomes open, open becomes closed)
-                  if (settings.flipEyes) {
-                    irisValue = settings.irisMax - (baseIrisValue - settings.irisMin);
-                  } else {
-                    irisValue = baseIrisValue;
-                  }
-                  
-                  // Eye history is already stored above in the EAR calculation section
-                } catch (err) {
-                  // Silent error handling
-                }
-              }
-              
-              // Mouth detection: Analyze mouth region for openness
-              // Always detect mouth for preview, even if channel isn't configured
-              let mouthValue = 0;
-              
-              {
-                try {
-                  // Mouth region is approximately: 30-70% from left, 50-75% from top of face
-                  const faceX = face.x;
-                  const faceY = face.y;
-                  const faceW = face.width;
-                  const faceH = face.height;
-                  
-                  const mouthX = Math.round(faceX + faceW * 0.3);
-                  const mouthY = Math.round(faceY + faceH * 0.5);
-                  const mouthW = Math.round(faceW * 0.4);
-                  const mouthH = Math.round(faceH * 0.25);
-                  
-                  // Extract mouth region from detection canvas
-                  const mouthROI = detCtx.getImageData(
-                    Math.max(0, Math.min(mouthX, detWidth - 1)),
-                    Math.max(0, Math.min(mouthY, detHeight - 1)),
-                    Math.max(1, Math.min(mouthW, detWidth - mouthX)),
-                    Math.max(1, Math.min(mouthH, detHeight - mouthY))
-                  );
-                  
-                  // Calculate mouth openness using vertical edge detection
-                  // More vertical edges = mouth more open
-                  const mouthOpenness = calculateMouthOpenness(mouthROI);
-                  
-                  // Map to DMX value (0-255)
-                  const baseMouthValue = Math.round(
-                    Math.max(settings.mouthMin, Math.min(settings.mouthMax,
-                      settings.mouthMin + (settings.mouthMax - settings.mouthMin) * mouthOpenness * settings.mouthSensitivity
-                    ))
-                  );
-                  
-                  // Apply flip if enabled (invert: closed becomes open, open becomes closed)
-                  if (settings.flipMouth) {
-                    mouthValue = settings.mouthMax - (baseMouthValue - settings.mouthMin);
-                  } else {
-                    mouthValue = baseMouthValue;
-                  }
-                  
-                  // Store mouth history
-                  mouthHistoryRef.current.push({
-                    openness: mouthOpenness,
-                    timestamp: Date.now()
-                  });
-                  
-                  // Keep only last 30 samples
-                  if (mouthHistoryRef.current.length > 30) {
-                    mouthHistoryRef.current.shift();
-                  }
-                } catch (err) {
-                  // Silent error handling
-                }
-              }
-              
-              // Tongue detection: Analyze lower mouth region for tongue extension
-              let tongueValue = 0;
-              let isTongueOut = false;
-              
-              if (settings.tongueChannel > 0) {
-                try {
-                  // Tongue region is below mouth: 30-70% from left, 70-90% from top of face
-                  const faceX = face.x;
-                  const faceY = face.y;
-                  const faceW = face.width;
-                  const faceH = face.height;
-                  
-                  const tongueX = Math.round(faceX + faceW * 0.3);
-                  const tongueY = Math.round(faceY + faceH * 0.7);
-                  const tongueW = Math.round(faceW * 0.4);
-                  const tongueH = Math.round(faceH * 0.2);
-                  
-                  // Extract tongue region from detection canvas
-                  const tongueROI = detCtx.getImageData(
-                    Math.max(0, Math.min(tongueX, detWidth - 1)),
-                    Math.max(0, Math.min(tongueY, detHeight - 1)),
-                    Math.max(1, Math.min(tongueW, detWidth - tongueX)),
-                    Math.max(1, Math.min(tongueH, detHeight - tongueY))
-                  );
-                  
-                  // Calculate tongue detection: look for pink/reddish color extending downward
-                  const tongueDetection = calculateTongueDetection(tongueROI);
-                  
-                  // Check if tongue is out based on threshold
-                  isTongueOut = tongueDetection > settings.tongueThreshold;
-                  
-                  if (settings.tongueToggle) {
-                    // Toggle mode: send 255 if tongue out, 0 if not
-                    tongueValue = isTongueOut ? 255 : 0;
-                  } else {
-                    // Value mode: send proportional value based on detection strength
-                    tongueValue = Math.round(
-                      Math.max(0, Math.min(255,
-                        tongueDetection * settings.tongueSensitivity * 255
-                      ))
-                    );
-                  }
-                  
-                  // Removed logging to prevent Firefox crashes
-                } catch (err) {
-                  // Silent error handling
-                }
-              }
-              
-              // Hand gesture detection: Detect thumbs up, middle finger, etc.
-              let detectedHandGesture = '';
-              let handGestureValue = 0;
-              
-              if (settings.enableGestures) {
-                try {
-                  // Detect hands in the frame (below face region, wider search area)
-                  const handSearchX = Math.max(0, face.x - face.width);
-                  const handSearchY = Math.min(detHeight - 1, face.y + face.height);
-                  const handSearchW = Math.min(detWidth - handSearchX, face.width * 3);
-                  const handSearchH = Math.min(detHeight - handSearchY, face.height * 2);
-                  
-                  if (handSearchW > 20 && handSearchH > 20) {
-                    // Extract hand search region
-                    const handROI = detCtx.getImageData(
-                      handSearchX,
-                      handSearchY,
-                      handSearchW,
-                      handSearchH
-                    );
-                    
-                    // Detect hand gestures
-                    const gestureResult = detectHandGesture(handROI, handSearchW, handSearchH);
-                    detectedHandGesture = gestureResult.gesture;
-                    handGestureValue = gestureResult.confidence;
-                    
-                    // Update gesture state (silent)
-                  }
-                } catch (err) {
-                  // Silent error handling
-                }
-              }
 
               // Now update face position with eye and mouth detection data
               // Always store eye/mouth data for preview, even if channels aren't configured
@@ -2482,29 +1670,6 @@ export const FaceTracker: React.FC = () => {
                 const faceW = face.width * scaleX;
                 const faceH = face.height * scaleY;
                 
-                // Always calculate and store eye positions for preview
-                lastFacePositionRef.current.leftEye = {
-                  x: faceX + faceW * 0.2,
-                  y: faceY + faceH * 0.25,
-                  width: faceW * 0.2,
-                  height: faceH * 0.15
-                };
-                lastFacePositionRef.current.rightEye = {
-                  x: faceX + faceW * 0.6,
-                  y: faceY + faceH * 0.25,
-                  width: faceW * 0.2,
-                  height: faceH * 0.15
-                };
-                lastFacePositionRef.current.isBlinking = isBlinking;
-                
-                // Always calculate and store mouth position for preview
-                lastFacePositionRef.current.mouth = {
-                  x: faceX + faceW * 0.3,
-                  y: faceY + faceH * 0.5,
-                  width: faceW * 0.4,
-                  height: faceH * 0.25
-                };
-                lastFacePositionRef.current.mouthOpenness = mouthValue > 0 ? (mouthValue - settings.mouthMin) / (settings.mouthMax - settings.mouthMin) : 0;
               }
 
               // IMPROVED HEAD POSE ESTIMATION - Track head orientation, not screen position
@@ -2614,79 +1779,6 @@ export const FaceTracker: React.FC = () => {
               // This ensures the tracker responds to movement
               const targetPan = panAbs > settings.cutoff ? pan : 0;
               const targetTilt = tiltAbs > settings.cutoff ? tilt : 0;
-              
-              // Detect head movement gestures (nodding, shaking)
-              const currentTime = Date.now();
-              let detectedHeadGesture = '';
-              
-              if (history.panHistory.length >= 8 && currentTime - history.lastGestureTime > 300) {
-                // Detect shaking head (rapid horizontal movement)
-                const panVariance = calculateVariance(history.panHistory);
-                const panRange = Math.max(...history.panHistory) - Math.min(...history.panHistory);
-                
-                // Detect nodding (rapid vertical movement) - IMPROVED SENSITIVITY
-                const tiltVariance = calculateVariance(history.tiltHistory);
-                const tiltRange = Math.max(...history.tiltHistory) - Math.min(...history.tiltHistory);
-                
-                // Improved thresholds for better detection
-                const shakingThreshold = 0.008 * settings.gestureSensitivity; // Lower = more sensitive
-                const noddingThreshold = 0.008 * settings.gestureSensitivity; // Lower = more sensitive
-                const rangeThreshold = 0.12 * settings.gestureSensitivity; // Lower = more sensitive
-                
-                if (panVariance > shakingThreshold && panRange > rangeThreshold && tiltVariance < 0.004) {
-                  detectedHeadGesture = 'SHAKING HEAD';
-                } else if (tiltVariance > noddingThreshold && tiltRange > rangeThreshold && panVariance < 0.004) {
-                  detectedHeadGesture = 'NODDING';
-                } else if (panVariance < 0.001 && tiltVariance < 0.001) {
-                  detectedHeadGesture = 'STILL';
-                }
-                
-                if (detectedHeadGesture && detectedHeadGesture !== history.lastGesture) {
-                  history.lastGesture = detectedHeadGesture;
-                  history.lastGestureTime = currentTime;
-                }
-              }
-              
-              // Detect facial expressions (smile, sad, etc.) based on mouth shape
-              let detectedFacialExpression = '';
-              if (settings.enableGestures && lastFacePositionRef.current && lastFacePositionRef.current.mouth) {
-                try {
-                  const mouth = lastFacePositionRef.current.mouth;
-                  const mouthOpenness = lastFacePositionRef.current.mouthOpenness || 0;
-                  
-                  // Extract mouth region for expression analysis
-                  const mouthX = Math.round(mouth.x);
-                  const mouthY = Math.round(mouth.y);
-                  const mouthW = Math.round(mouth.width);
-                  const mouthH = Math.round(mouth.height);
-                  
-                  if (mouthW > 10 && mouthH > 10) {
-                    // Extract mouth region from detection canvas
-                    const mouthROI = detCtx.getImageData(
-                      Math.max(0, Math.min(mouthX, detWidth - 1)),
-                      Math.max(0, Math.min(mouthY, detHeight - 1)),
-                      Math.max(1, Math.min(mouthW, detWidth - mouthX)),
-                      Math.max(1, Math.min(mouthH, detHeight - mouthY))
-                    );
-                    
-                    // Analyze mouth curve to detect expressions
-                    const expression = detectFacialExpression(mouthROI, mouthOpenness);
-                    if (expression && expression !== detectedHeadGesture) {
-                      detectedFacialExpression = expression;
-                      // Update gesture if facial expression is detected
-                      if (currentTime - history.lastGestureTime > 500) {
-                        history.lastGesture = expression;
-                        history.lastGestureTime = currentTime;
-                      }
-                    }
-                  }
-                } catch (err) {
-                  // Silent error handling
-                }
-              }
-              
-              // Combine head gestures and facial expressions (facial expressions take priority)
-              const finalGesture = detectedFacialExpression || detectedHeadGesture || history.lastGesture;
 
               // Apply smoothing with exponential moving average
               const smoothingRate = 1 - settings.smoothingFactor;
@@ -2763,12 +1855,10 @@ export const FaceTracker: React.FC = () => {
                 }
               }
               
-              // X/Y, iris, mouth, tongue, and zoom values (may be modified by delay)
+              // X/Y, iris, and zoom values (may be modified by delay)
               let finalXValue = xPositionValue;
               let finalYValue = yPositionValue;
               let finalIrisValue = irisValue;
-              let finalMouthValue = mouthValue;
-              let finalTongueValue = tongueValue;
               let finalZoomValue = zoomValue;
               
               if (settings.delay > 0) {
@@ -2779,8 +1869,6 @@ export const FaceTracker: React.FC = () => {
                   x: xPositionValue,
                   y: yPositionValue,
                   iris: irisValue,
-                  mouth: mouthValue,
-                  tongue: tongueValue,
                   zoom: zoomValue,
                   timestamp: delayNow
                 });
@@ -2809,12 +1897,10 @@ export const FaceTracker: React.FC = () => {
                 if (closestEntry && closestDiff < settings.delay) {
                   panValue = closestEntry.pan;
                   tiltValue = closestEntry.tilt;
-                  // Also delay X/Y, iris, mouth, tongue, and zoom if delay is enabled
+                  // Also delay X/Y, iris, and zoom if delay is enabled
                   finalXValue = closestEntry.x;
                   finalYValue = closestEntry.y;
                   finalIrisValue = closestEntry.iris;
-                  finalMouthValue = closestEntry.mouth;
-                  finalTongueValue = closestEntry.tongue;
                   finalZoomValue = closestEntry.zoom;
                 } else {
                   // If no delayed value available yet, use current (will build up over time)
@@ -2832,11 +1918,7 @@ export const FaceTracker: React.FC = () => {
                                      prev.currentX !== finalXValue ||
                                      prev.currentY !== finalYValue ||
                                      prev.currentIris !== finalIrisValue ||
-                                     prev.currentMouth !== finalMouthValue ||
-                                     prev.currentTongue !== finalTongueValue ||
-                                     prev.currentZoom !== finalZoomValue ||
-                                     prev.isBlinking !== isBlinking ||
-                                     prev.isTongueOut !== isTongueOut;
+                                     prev.currentZoom !== finalZoomValue;
                 
                 // Log occasionally if values seem stuck (for debugging)
                 if (!valuesChanged && Math.random() < 0.01) {
@@ -2856,12 +1938,7 @@ export const FaceTracker: React.FC = () => {
                   currentX: finalXValue,
                   currentY: finalYValue,
                   currentIris: finalIrisValue,
-                  currentMouth: finalMouthValue,
-                  currentTongue: finalTongueValue,
-                  currentZoom: finalZoomValue,
-                  isBlinking: isBlinking,
-                  isTongueOut: isTongueOut,
-                  currentGesture: finalGesture || detectedHandGesture || prev.currentGesture
+                  currentZoom: finalZoomValue
                 };
               });
 
@@ -2917,18 +1994,6 @@ export const FaceTracker: React.FC = () => {
                     }
                     if (settings.zoomChannel > 0) {
                       dmxUpdates[settings.zoomChannel - 1] = finalZoomValue;
-                    }
-                    if (settings.mouthChannel > 0) {
-                      dmxUpdates[settings.mouthChannel - 1] = finalMouthValue;
-                    }
-                    if (settings.tongueChannel > 0) {
-                      dmxUpdates[settings.tongueChannel - 1] = finalTongueValue;
-                    }
-                    // Gesture channels (can be mapped to different DMX channels per gesture)
-                    if (detectedHandGesture && settings.enableGestures) {
-                      // Map gestures to DMX channels (can be configured later)
-                      // For now, use a single gesture channel if configured
-                      // TODO: Add per-gesture channel mapping
                     }
                   }
 
@@ -3066,9 +2131,9 @@ export const FaceTracker: React.FC = () => {
     };
 
     // Start the continuous loop (called once per detectFaces call)
-    console.log('[FaceTracker] 🎬 CALLING processDetection() to start RAF loop');
+    console.log('[FaceTracker] 🎬 Starting RAF loop with Hz:', opencvHzRef.current);
     processDetection();
-  }, [settings, socket]); // Removed state.isRunning - using isRunningRef instead
+  }, [socket]); // Removed state.isRunning and settings.opencvHz - using refs instead for real-time updates
 
   // Cleanup detection loop when component unmounts
   useEffect(() => {
@@ -3614,34 +2679,6 @@ export const FaceTracker: React.FC = () => {
           <div className={styles.liveControlRow}>
             <div className={styles.liveControlContainer}>
               <h4 className={styles.controlsTitle}>Live Control Output</h4>
-              {settings.enableGestures && (
-                <div className={styles.gestureIndicator}>
-                  <div className={styles.gestureLabel}>Gesture Detection</div>
-                  <div className={styles.gestureDisplay}>
-                    {state.currentGesture ? (
-                      <>
-                        <span className={styles.gestureEmoji}>
-                          {state.currentGesture === 'SMILING' && '😊'}
-                          {state.currentGesture === 'SAD' && '😢'}
-                          {state.currentGesture === 'SURPRISED' && '😲'}
-                          {state.currentGesture === 'NODDING' && '👍'}
-                          {state.currentGesture === 'SHAKING HEAD' && '👎'}
-                          {state.currentGesture === 'THUMBS_UP' && '👍'}
-                          {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
-                          {state.currentGesture === 'FIST' && '✊'}
-                          {state.currentGesture === 'OPEN_HAND' && '✋'}
-                          {state.currentGesture === 'NEUTRAL' && '😐'}
-                          {state.currentGesture === 'STILL' && '⏸️'}
-                          {!['SMILING', 'SAD', 'SURPRISED', 'NODDING', 'SHAKING HEAD', 'THUMBS_UP', 'MIDDLE_FINGER', 'FIST', 'OPEN_HAND', 'NEUTRAL', 'STILL'].includes(state.currentGesture) && '👤'}
-                        </span>
-                        <span className={styles.gestureText}>{state.currentGesture}</span>
-                      </>
-                    ) : (
-                      <span className={styles.gestureText}>No gesture detected</span>
-                    )}
-                  </div>
-                </div>
-              )}
               <div className={styles.liveControlSliders}>
                 <div className={styles.liveControlSliderItem}>
                   <label className={styles.liveControlSliderLabel}>Pan: {state.currentPan}</label>
@@ -3708,21 +2745,18 @@ export const FaceTracker: React.FC = () => {
                     className={styles.liveControlSlider}
                   />
                 </div>
-                <div className={styles.liveControlSliderItem}>
-                  <label className={styles.liveControlSliderLabel}>Mouth: {state.currentMouth}</label>
-                  <input
-                    type="range"
-                    min={settings.mouthMin}
-                    max={settings.mouthMax}
-                    step="1"
-                    value={state.currentMouth}
-                    readOnly
-                    disabled
-                    className={styles.liveControlSlider}
-                  />
-                </div>
               </div>
             </div>
+          </div>
+
+          {/* Feature Flags - Debug Section (LEFT of preview for visibility) */}
+          <div className={styles.controlGroup} style={{ border: '2px solid #ff6b6b', borderRadius: '8px', padding: '1rem', background: 'rgba(255, 107, 107, 0.1)', marginBottom: '1rem' }}>
+            <label className={styles.controlLabel} style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ff6b6b' }}>
+              🔧 Feature Flags (Debug Mode)
+            </label>
+            <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: '#ff6b6b' }}>
+              Disable features one by one to isolate crashes. Start with all disabled, then enable one at a time.
+            </p>
           </div>
 
           {/* Camera Preview and 3D Fixture - 2 columns, sticky */}
@@ -3766,26 +2800,26 @@ export const FaceTracker: React.FC = () => {
                     <input
                       type="range"
                       min="0.1"
-                      max="10"
+                      max="120"
                       step="0.1"
                       value={settings.opencvHz || 1}
                       onChange={(e) => updateSetting('opencvHz', parseFloat(e.target.value))}
                       className={styles.opencvFpsSlider}
-                      title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
+                      title="Detection rate in Hz (detections per second). Range: 0.1-120 Hz"
                     />
-                    <span className={styles.opencvFpsRangeLabel}>10</span>
+                    <span className={styles.opencvFpsRangeLabel}>120</span>
                     <input
                       type="number"
                       min="0.1"
-                      max="10"
+                      max="120"
                       step="0.1"
                       value={settings.opencvHz || 1}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
-                        if (!isNaN(value) && value >= 0.1 && value <= 10) updateSetting('opencvHz', value);
+                        if (!isNaN(value) && value >= 0.1 && value <= 120) updateSetting('opencvHz', value);
                       }}
                       className={styles.opencvFpsNumberInput}
-                      title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
+                      title="Detection rate in Hz (detections per second). Range: 0.1-120 Hz"
                     />
                   </div>
                 </div>
@@ -4001,30 +3035,31 @@ export const FaceTracker: React.FC = () => {
                   <span className={styles.rangeLabel}>0.1</span>
                   <input
                     type="range"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    value={settings.opencvHz || 1}
-                    onChange={(e) => updateSetting('opencvHz', parseFloat(e.target.value))}
-                    className={styles.slider}
-                    title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
+                      min="0.1"
+                      max="120"
+                      step="0.1"
+                      value={settings.opencvHz || 1}
+                      onChange={(e) => updateSetting('opencvHz', parseFloat(e.target.value))}
+                      className={styles.slider}
+                      title="Detection rate in Hz (detections per second). Range: 0.1-120 Hz"
                   />
-                  <span className={styles.rangeLabel}>10</span>
+                  <span className={styles.rangeLabel}>120</span>
                   <input
                     type="number"
                     min="0.1"
-                    max="10"
+                    max="120"
                     step="0.1"
                     value={settings.opencvHz || 1}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value);
-                      if (!isNaN(value) && value >= 0.1 && value <= 10) updateSetting('opencvHz', value);
+                      if (!isNaN(value) && value >= 0.1 && value <= 120) updateSetting('opencvHz', value);
                     }}
                     className={styles.numberInput}
-                    title="Detection rate in Hz (detections per second). Range: 0.1-10 Hz"
+                    title="Detection rate in Hz (detections per second). Range: 0.1-120 Hz"
                   />
                 </div>
               </div>
+
               <div className={styles.controlGroup} style={{ border: '2px solid var(--accent-color)', borderRadius: '8px', padding: '1rem', background: 'rgba(0, 212, 255, 0.1)', marginTop: '1rem' }}>
                 <label className={styles.controlLabel} style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--accent-color)' }} title="Smoothing factor for movement (0-1, higher = smoother but less responsive)">
                   🌊 SMOOTHING - Movement Smoothness
@@ -4355,161 +3390,6 @@ export const FaceTracker: React.FC = () => {
                 </div>
               </div>
               
-              {/* Blink Detection & Iris Control */}
-              <div className={styles.controlGroup} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <label className={styles.controlLabel} style={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                  👁️ Blink Detection & Iris Control
-                </label>
-                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                  Automatically control iris based on eye blinks. When you blink, the iris closes.
-                </p>
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="DMX channel for blink-controlled iris (0 = disabled, uses Iris Channel if > 0)">
-                    Blink Iris Channel
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="512"
-                    step="1"
-                    value={settings.blinkIrisChannel}
-                    onChange={(e) => updateSetting('blinkIrisChannel', parseInt(e.target.value) || 0)}
-                    className={styles.numberInput}
-                    title="DMX channel for blink-controlled iris (0 = disabled, uses Iris Channel if > 0)"
-                  />
-                  {(settings.blinkIrisChannel > 0 || settings.irisChannel > 0) && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Current Iris: {state.currentIris} | Blinking: {state.isBlinking ? 'Yes' : 'No'}
-                    </div>
-                  )}
-                </div>
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)">
-                    Blink Threshold
-                  </label>
-                  <div className={styles.sliderWrapper}>
-                    <span className={styles.rangeLabel}>0.15</span>
-                    <input
-                      type="range"
-                      min="0.15"
-                      max="0.35"
-                      step="0.01"
-                      value={settings.blinkThreshold}
-                      onChange={(e) => updateSetting('blinkThreshold', parseFloat(e.target.value))}
-                      className={styles.slider}
-                      title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)"
-                    />
-                    <span className={styles.rangeLabel}>0.35</span>
-                    <input
-                      type="number"
-                      min="0.15"
-                      max="0.35"
-                      step="0.01"
-                      value={settings.blinkThreshold.toFixed(2)}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) updateSetting('blinkThreshold', value);
-                      }}
-                      className={styles.numberInput}
-                      title="Eye aspect ratio threshold for blink detection (0.15-0.35, lower = more sensitive)"
-                    />
-                  </div>
-                </div>
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="How much blink affects iris (0-1, higher = more effect)">
-                    Blink Sensitivity
-                  </label>
-                  <div className={styles.sliderWrapper}>
-                    <span className={styles.rangeLabel}>0</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={settings.blinkSensitivity}
-                      onChange={(e) => updateSetting('blinkSensitivity', parseFloat(e.target.value))}
-                      className={styles.slider}
-                      title="How much blink affects iris (0-1, higher = more effect)"
-                    />
-                    <span className={styles.rangeLabel}>1</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={settings.blinkSensitivity.toFixed(2)}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) updateSetting('blinkSensitivity', value);
-                      }}
-                      className={styles.numberInput}
-                      title="How much blink affects iris (0-1, higher = more effect)"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Mouth Detection */}
-              <div className={styles.controlGroup} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <label className={styles.controlLabel} style={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                  👄 Mouth Detection
-                </label>
-                <p className={styles.helpText} style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                  Track mouth openness to control a DMX channel (e.g., for gobo rotation, color change, etc.).
-                </p>
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="DMX channel for mouth openness (0 = disabled)">
-                    Mouth Channel
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="512"
-                    step="1"
-                    value={settings.mouthChannel}
-                    onChange={(e) => updateSetting('mouthChannel', parseInt(e.target.value) || 0)}
-                    className={styles.numberInput}
-                    title="DMX channel for mouth openness (0 = disabled)"
-                  />
-                  {settings.mouthChannel > 0 && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Current Mouth: {state.currentMouth} (Range: {settings.mouthMin}-{settings.mouthMax})
-                    </div>
-                  )}
-                </div>
-                <div className={styles.controlGroup}>
-                  <label className={styles.controlLabel} title="How sensitive mouth detection is (0-1, higher = more sensitive)">
-                    Mouth Sensitivity
-                  </label>
-                  <div className={styles.sliderWrapper}>
-                    <span className={styles.rangeLabel}>0</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={settings.mouthSensitivity}
-                      onChange={(e) => updateSetting('mouthSensitivity', parseFloat(e.target.value))}
-                      className={styles.slider}
-                      title="How sensitive mouth detection is (0-1, higher = more sensitive)"
-                    />
-                    <span className={styles.rangeLabel}>1</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={settings.mouthSensitivity.toFixed(2)}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) updateSetting('mouthSensitivity', value);
-                      }}
-                      className={styles.numberInput}
-                      title="How sensitive mouth detection is (0-1, higher = more sensitive)"
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Range Limits Section */}

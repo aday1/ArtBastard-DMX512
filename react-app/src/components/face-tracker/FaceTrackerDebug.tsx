@@ -6,6 +6,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../../context/SocketContext';
+import { useStore } from '../../store';
+import { Fixture3DModel } from './Fixture3DModel';
 
 interface DebugState {
   isRunning: boolean;
@@ -17,10 +19,17 @@ interface DebugState {
   loopIterations: number;
   detections: number;
   error: string | null;
+  lastDmxMessage: { channel: number; value: number }[] | null;
+  lastOscMessage: string | null;
+}
+
+interface FeatureFlags {
+  enableFaceTracking: boolean; // Basic pan/tilt face tracking
 }
 
 export const FaceTrackerDebug: React.FC = () => {
   const { socket, connected } = useSocket();
+  const { fixtures } = useStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -41,17 +50,62 @@ export const FaceTrackerDebug: React.FC = () => {
     tilt: 128,
     loopIterations: 0,
     detections: 0,
-    error: null
+    error: null,
+    lastDmxMessage: null,
+    lastOscMessage: null
   });
 
   const [hz, setHz] = useState<number>(10);
   const hzRef = useRef<number>(10); // Ref to track current Hz for the loop
+
+  // OpenCV detection parameters
+  const [opencvParams, setOpencvParams] = useState({
+    scaleFactor: 1.1, // How much to scale image at each step (1.1 = 10% reduction)
+    minNeighbors: 3,  // Minimum neighbors required for detection
+    minSize: 30,      // Minimum face size in pixels
+  });
+  const opencvParamsRef = useRef(opencvParams);
+
+  // Feature flags - face tracking enabled by default (core feature)
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
+    enableFaceTracking: true, // Basic pan/tilt - ENABLED by default (core feature)
+  });
+
+  // DMX channel configuration
+  const [dmxChannels, setDmxChannels] = useState({
+    pan: 0,
+    tilt: 1,
+  });
+
+  // Ref to track feature flags for the detection loop (avoid stale closures)
+  const featureFlagsRef = useRef<FeatureFlags>(featureFlags);
+  
+  // Ref to track DMX channels for the detection loop (avoid stale closures)
+  const dmxChannelsRef = useRef(dmxChannels);
+  
+  // Keep featureFlagsRef in sync
+  useEffect(() => {
+    featureFlagsRef.current = featureFlags;
+    console.log('[DEBUG] 🔄 Feature flags updated:', featureFlags);
+  }, [featureFlags]);
+
+  // Keep dmxChannelsRef in sync
+  useEffect(() => {
+    dmxChannelsRef.current = dmxChannels;
+    console.log('[DEBUG] 🔄 DMX channels updated:', dmxChannels);
+  }, [dmxChannels]);
 
   // Keep hzRef in sync with hz state
   useEffect(() => {
     hzRef.current = hz;
     console.log('[DEBUG] 🔄 Hz ref synced to:', hz);
   }, [hz]);
+
+  // Keep opencvParamsRef in sync
+  useEffect(() => {
+    opencvParamsRef.current = opencvParams;
+    console.log('[DEBUG] 🔄 OpenCV params updated:', opencvParams);
+  }, [opencvParams]);
 
   // Initialize OpenCV
   useEffect(() => {
@@ -236,9 +290,17 @@ export const FaceTrackerDebug: React.FC = () => {
         opencvRef.current.cvtColor(src, gray, opencvRef.current.COLOR_RGBA2GRAY);
 
         const faces = new opencvRef.current.RectVector();
-        const minSize = new opencvRef.current.Size(30, 30);
+        const currentParams = opencvParamsRef.current;
+        const minSize = new opencvRef.current.Size(currentParams.minSize, currentParams.minSize);
         
-        cascadeRef.current.detectMultiScale(gray, faces, 1.1, 3, 0, minSize);
+        cascadeRef.current.detectMultiScale(
+          gray, 
+          faces, 
+          currentParams.scaleFactor, 
+          currentParams.minNeighbors, 
+          0, // flags (0 = default)
+          minSize
+        );
 
         const faceCount = faces.size();
         console.log(`[DEBUG] 👤 Faces found: ${faceCount}`);
@@ -255,13 +317,21 @@ export const FaceTrackerDebug: React.FC = () => {
           const imageCenterX = video.videoWidth / 2;
           const imageCenterY = video.videoHeight / 2;
 
-          const pan = (faceCenterX - imageCenterX) / imageCenterX;
-          const tilt = -(faceCenterY - imageCenterY) / imageCenterY;
+          // Face tracking (pan/tilt) - only if enabled (use ref to avoid stale closure)
+          let panValue = 128;
+          let tiltValue = 128;
+          const currentFlags = featureFlagsRef.current;
+          
+          if (currentFlags.enableFaceTracking) {
+            const pan = (faceCenterX - imageCenterX) / imageCenterX;
+            const tilt = -(faceCenterY - imageCenterY) / imageCenterY;
+            panValue = Math.round(Math.max(0, Math.min(255, pan * 127 + 128)));
+            tiltValue = Math.round(Math.max(0, Math.min(255, tilt * 127 + 128)));
+            console.log(`[DEBUG] ✅ Face at (${faceCenterX.toFixed(0)}, ${faceCenterY.toFixed(0)}), Pan: ${panValue}, Tilt: ${tiltValue}`);
+          } else {
+            console.log(`[DEBUG] 👁️ Face detected but tracking disabled (enableFaceTracking: false)`);
+          }
 
-          const panValue = Math.round(Math.max(0, Math.min(255, pan * 127 + 128)));
-          const tiltValue = Math.round(Math.max(0, Math.min(255, tilt * 127 + 128)));
-
-          console.log(`[DEBUG] ✅ Face at (${faceCenterX.toFixed(0)}, ${faceCenterY.toFixed(0)}), Pan: ${panValue}, Tilt: ${tiltValue}`);
 
           setState(prev => ({ 
             ...prev, 
@@ -272,7 +342,7 @@ export const FaceTrackerDebug: React.FC = () => {
             detections: detectionCountRef.current
           }));
 
-          // Draw face box
+          // Draw face box (always draw if face detected)
           ctx.strokeStyle = 'lime';
           ctx.lineWidth = 2;
           ctx.strokeRect(face.x * scaleX, face.y * scaleY, face.width * scaleX, face.height * scaleY);
@@ -281,9 +351,38 @@ export const FaceTrackerDebug: React.FC = () => {
           ctx.arc(faceCenterX, faceCenterY, 5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Send DMX
-          if (socket && connected) {
-            (socket as any).emit('dmx:batch', { 0: panValue, 1: tiltValue });
+          // Send DMX (only if face tracking enabled)
+          if (currentFlags.enableFaceTracking && socket && connected) {
+            const currentDmxChannels = dmxChannelsRef.current; // Use ref to avoid stale closure
+            const dmxData: { [key: number]: number } = {};
+            const dmxMessage: { channel: number; value: number }[] = [];
+            
+            // Pan channel
+            if (currentDmxChannels.pan >= 0 && currentDmxChannels.pan <= 511) {
+              dmxData[currentDmxChannels.pan] = panValue;
+              dmxMessage.push({ channel: currentDmxChannels.pan, value: panValue });
+            }
+            
+            // Tilt channel
+            if (currentDmxChannels.tilt >= 0 && currentDmxChannels.tilt <= 511) {
+              dmxData[currentDmxChannels.tilt] = tiltValue;
+              dmxMessage.push({ channel: currentDmxChannels.tilt, value: tiltValue });
+            }
+            
+            
+            if (Object.keys(dmxData).length > 0) {
+              (socket as any).emit('dmx:batch', dmxData);
+              
+              // Update state with last DMX message for display
+              setState(prev => ({ 
+                ...prev, 
+                lastDmxMessage: dmxMessage,
+                lastOscMessage: null // No OSC in debug version yet
+              }));
+              console.log(`[DEBUG] 📤 DMX sent:`, dmxMessage);
+            }
+          } else if (currentFlags.enableFaceTracking && (!socket || !connected)) {
+            console.log(`[DEBUG] ⚠️ Face tracking enabled but socket not connected (socket: ${!!socket}, connected: ${connected})`);
           }
         } else {
           setState(prev => ({ 
@@ -426,6 +525,289 @@ export const FaceTrackerDebug: React.FC = () => {
             {state.tilt}
           </div>
         </div>
+        <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
+          <div style={{ fontSize: '0.8rem', color: '#888' }}>Socket</div>
+          <div style={{ fontSize: '1.5rem', color: connected ? 'lime' : 'red' }}>
+            {connected ? '✅' : '❌'}
+          </div>
+        </div>
+        {state.currentGesture && (
+          <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
+            <div style={{ fontSize: '0.8rem', color: '#888' }}>Gesture</div>
+            <div style={{ fontSize: '1.2rem', color: '#fff' }}>
+              {state.currentGesture === 'THUMBS_UP' && '👍'}
+              {state.currentGesture === 'MIDDLE_FINGER' && '🖕'}
+              {state.currentGesture === 'FIST' && '✊'}
+              {state.currentGesture === 'OPEN_HAND' && '✋'}
+              {state.currentGesture}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* DMX/OSC Output Display */}
+      <div style={{ 
+        border: '2px solid #00d4ff', 
+        borderRadius: '8px', 
+        padding: '1rem', 
+        background: 'rgba(0, 212, 255, 0.1)', 
+        marginBottom: '1rem' 
+      }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#00d4ff', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          📤 DMX/OSC Output
+        </h3>
+        {state.lastDmxMessage ? (
+          <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#00d4ff', marginBottom: '0.25rem' }}>Last DMX Message:</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '4px' }}>
+              {state.lastDmxMessage.map((msg, idx) => (
+                <div key={idx} style={{ color: '#fff' }}>
+                  Channel {msg.channel}: {msg.value}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.25rem' }}>
+              Pan: {state.pan} | Tilt: {state.tilt}
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: '0.85rem', color: '#888', fontStyle: 'italic' }}>
+            No DMX messages sent yet. {!featureFlags.enableFaceTracking && '(Face tracking disabled)'}
+            {featureFlags.enableFaceTracking && !connected && ' (Socket not connected)'}
+          </div>
+        )}
+        {state.lastOscMessage && (
+          <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#00d4ff', marginBottom: '0.25rem' }}>Last OSC Message:</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '4px', color: '#fff' }}>
+              {state.lastOscMessage}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Camera Preview and 3D Fixture */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr 1fr', 
+        gap: '1rem', 
+        marginBottom: '1rem' 
+      }}>
+        {/* Camera Preview */}
+        <div style={{ 
+          border: '2px solid #00d4ff', 
+          borderRadius: '8px', 
+          padding: '0.5rem', 
+          background: 'rgba(0, 212, 255, 0.1)' 
+        }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#00d4ff' }}>
+            Camera Preview
+          </div>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', background: '#000', borderRadius: '4px', overflow: 'hidden' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+            <canvas
+              ref={canvasRef}
+              style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                width: '100%', 
+                height: '100%',
+                pointerEvents: 'none'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 3D Fixture Model */}
+        <div style={{ 
+          border: '2px solid #9b59b6', 
+          borderRadius: '8px', 
+          padding: '0.5rem', 
+          background: 'rgba(155, 89, 182, 0.1)' 
+        }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#9b59b6' }}>
+            3D Fixture Model
+          </div>
+          {state.isRunning ? (
+            <div style={{ width: '100%', aspectRatio: '1/1', minHeight: '300px' }}>
+              <Fixture3DModel
+                panValue={state.pan}
+                tiltValue={state.tilt}
+                rgbColor={{ r: 255, g: 200, b: 100 }}
+                width={400}
+                height={400}
+              />
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              width: '100%', 
+              aspectRatio: '1/1', 
+              minHeight: '300px',
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: '4px',
+              color: '#888'
+            }}>
+              <span>3D fixture model will appear when Face Tracker is enabled</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* DMX Channel Configuration */}
+      <div style={{ 
+        border: '2px solid #00d4ff', 
+        borderRadius: '8px', 
+        padding: '1rem', 
+        background: 'rgba(0, 212, 255, 0.1)', 
+        marginBottom: '1rem' 
+      }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#00d4ff', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          📡 DMX Channel Configuration
+        </h3>
+        <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#00d4ff' }}>
+          Configure which DMX channels to send values to (0-511). Uncheck to disable a channel.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+          {/* Pan Channel */}
+          <div style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={dmxChannels.pan >= 0}
+                onChange={(e) => setDmxChannels(prev => ({ ...prev, pan: e.target.checked ? prev.pan >= 0 ? prev.pan : 0 : -1 }))}
+                style={{ cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 'bold' }}>Pan Channel</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input
+                type="range"
+                min="0"
+                max="511"
+                value={dmxChannels.pan >= 0 ? dmxChannels.pan : 0}
+                onChange={(e) => setDmxChannels(prev => ({ ...prev, pan: parseInt(e.target.value) }))}
+                disabled={dmxChannels.pan < 0}
+                style={{ flex: 1, cursor: dmxChannels.pan >= 0 ? 'pointer' : 'not-allowed', opacity: dmxChannels.pan >= 0 ? 1 : 0.5 }}
+              />
+              <span style={{ 
+                fontSize: '0.9rem', 
+                color: dmxChannels.pan >= 0 ? '#00d4ff' : '#888',
+                minWidth: '45px',
+                textAlign: 'right',
+                fontFamily: 'monospace'
+              }}>
+                {dmxChannels.pan >= 0 ? dmxChannels.pan : 'OFF'}
+              </span>
+            </div>
+          </div>
+
+          {/* Tilt Channel */}
+          <div style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={dmxChannels.tilt >= 0}
+                onChange={(e) => setDmxChannels(prev => ({ ...prev, tilt: e.target.checked ? prev.tilt >= 0 ? prev.tilt : 1 : -1 }))}
+                style={{ cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 'bold' }}>Tilt Channel</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <input
+                type="range"
+                min="0"
+                max="511"
+                value={dmxChannels.tilt >= 0 ? dmxChannels.tilt : 0}
+                onChange={(e) => setDmxChannels(prev => ({ ...prev, tilt: parseInt(e.target.value) }))}
+                disabled={dmxChannels.tilt < 0}
+                style={{ flex: 1, cursor: dmxChannels.tilt >= 0 ? 'pointer' : 'not-allowed', opacity: dmxChannels.tilt >= 0 ? 1 : 0.5 }}
+              />
+              <span style={{ 
+                fontSize: '0.9rem', 
+                color: dmxChannels.tilt >= 0 ? '#00d4ff' : '#888',
+                minWidth: '45px',
+                textAlign: 'right',
+                fontFamily: 'monospace'
+              }}>
+                {dmxChannels.tilt >= 0 ? dmxChannels.tilt : 'OFF'}
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Feature Flags - Debug Section */}
+      <div style={{ 
+        border: '2px solid #ff6b6b', 
+        borderRadius: '8px', 
+        padding: '1rem', 
+        background: 'rgba(255, 107, 107, 0.1)', 
+        marginBottom: '1rem' 
+      }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', color: '#ff6b6b', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          🔧 Feature Flags (Debug Mode)
+        </h3>
+        <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#ff6b6b' }}>
+          Enable features one by one to isolate crashes. Start with all disabled, then enable one at a time.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={featureFlags.enableFaceTracking}
+              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableFaceTracking: e.target.checked }))}
+              title="Enable basic face tracking (pan/tilt). This is the core feature."
+            />
+            <span>Enable Face Tracking (Pan/Tilt)</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={featureFlags.enableEyes}
+              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableEyes: e.target.checked }))}
+              title="Enable eye/blink detection. Disable if crashes occur."
+            />
+            <span>Enable Eye/Blink Detection</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={featureFlags.enableMouth}
+              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableMouth: e.target.checked }))}
+              title="Enable mouth detection. Disable if crashes occur."
+            />
+            <span>Enable Mouth Detection</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={featureFlags.enableTongue}
+              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableTongue: e.target.checked }))}
+              title="Enable tongue detection. Detects when tongue is extended."
+            />
+            <span>Enable Tongue Detection</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={featureFlags.enableGestures}
+              onChange={(e) => setFeatureFlags(prev => ({ ...prev, enableGestures: e.target.checked }))}
+              title="Enable hand gesture detection. Disabled by default (causes performance issues)."
+            />
+            <span>Enable Hand Gesture Detection</span>
+          </label>
+        </div>
       </div>
 
       {/* Controls */}
@@ -484,33 +866,6 @@ export const FaceTrackerDebug: React.FC = () => {
         </label>
       </div>
 
-      {/* Video/Canvas */}
-      <div style={{ position: 'relative', maxWidth: '640px', marginBottom: '1rem' }}>
-        <video ref={videoRef} style={{ display: 'none' }} />
-        <canvas 
-          ref={canvasRef}
-          style={{ 
-            width: '100%', 
-            height: 'auto', 
-            border: '3px solid ' + (state.isRunning ? 'lime' : '#666'),
-            borderRadius: '8px',
-            background: '#000'
-          }} 
-        />
-        {!state.cameraReady && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
-            fontSize: '1.5rem',
-            textAlign: 'center'
-          }}>
-            {state.isRunning ? '⏳ Loading...' : '📷 Click START'}
-          </div>
-        )}
-      </div>
 
       {/* Debug Info */}
       <div style={{ 
