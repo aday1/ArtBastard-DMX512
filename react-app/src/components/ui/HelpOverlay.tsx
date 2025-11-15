@@ -7,14 +7,20 @@ import { PdfAddressSheet } from './PdfAddressSheet';
 
 type HelpTab = 'overview' | 'dmx-basics' | 'dip-simulator' | 'midi-setup' | 'osc-integration' | 'scene-management' | 'shortcuts' | 'address-sheet';
 
-export const HelpOverlay: React.FC = () => {
+interface HelpOverlayProps {
+  embedded?: boolean; // When true, renders without floating button (for settings page)
+}
+
+export const HelpOverlay: React.FC<HelpOverlayProps> = ({ embedded = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<HelpTab>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (only when not embedded)
   useEffect(() => {
+    if (embedded) return; // Skip keyboard shortcuts when embedded
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey) {
         switch (e.key) {
@@ -41,7 +47,7 @@ export const HelpOverlay: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible]);
+  }, [isVisible, embedded]);
 
   // Search functionality
   const filteredContent = (content: string) => {
@@ -498,6 +504,49 @@ export const HelpOverlay: React.FC = () => {
         return <div>Select a tab to view content</div>;
     }
   };
+
+  // When embedded, always show content (no overlay)
+  if (embedded) {
+    return (
+      <div className={styles.helpEmbedded}>
+        <div className={styles.helpContent}>
+          <div className={styles.helpHeader}>
+            <div className={styles.headerLeft}>
+              <h3>🎵 ArtBastard DMX512 Help</h3>
+              <div className={styles.searchContainer}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search help content... (Ctrl+/)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={styles.searchInput}
+                />
+                <i className="fas fa-search"></i>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.helpTabs}>
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`${styles.tab} ${activeTab === tab.id ? styles.active : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className={styles.tabIcon}>{tab.icon}</span>
+                <span className={styles.tabLabel}>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.helpBody}>
+            {renderTabContent()}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

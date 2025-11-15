@@ -12,6 +12,7 @@ import SettingsPanel from './SettingsPanel'
 import { MidiOscSetup } from '../midi/MidiOscSetup'
 import { DebugMenu } from '../debug/DebugMenu'
 import AccelerometerControl from '../experimental/AccelerometerControl'
+import { HelpOverlay } from '../ui/HelpOverlay'
 import styles from './UnifiedSettings.module.scss'
 
 interface TouchOscExportOptionsUI {
@@ -410,6 +411,7 @@ export const UnifiedSettings: React.FC = () => {
               { id: 'midiOsc', label: 'MIDI & OSC', icon: 'fas fa-sliders-h' },
               { id: 'performance', label: 'Performance', icon: 'fas fa-tachometer-alt' },
               { id: 'debug', label: 'Debug & Diagnostics', icon: 'fas fa-bug' },
+              { id: 'help', label: 'Help & Documentation', icon: 'fas fa-question-circle' },
               { id: 'experimental', label: 'Experimental', icon: 'fas fa-flask' },
               { id: 'advanced', label: 'Advanced', icon: 'fas fa-tools' },
               { id: 'state', label: 'State Management', icon: 'fas fa-database' }
@@ -630,6 +632,16 @@ export const UnifiedSettings: React.FC = () => {
                 <h3><i className="fas fa-bug"></i> Debug & Diagnostics</h3>
                 <div className={styles.debugSection}>
                   <DebugMenu position="embedded" />
+                </div>
+              </div>
+            )}
+
+            {/* Help & Documentation */}
+            {activeSection === 'help' && (
+              <div className={styles.settingsSection}>
+                <h3><i className="fas fa-question-circle"></i> Help & Documentation</h3>
+                <div className={styles.helpSection}>
+                  <HelpOverlay embedded={true} />
                 </div>
               </div>
             )}

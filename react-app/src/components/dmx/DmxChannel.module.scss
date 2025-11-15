@@ -472,6 +472,8 @@
   &.expandedSlider {
     margin-top: 15px;
     margin-bottom: 10px;
+    position: relative;
+    z-index: 10;
     
     input[type="range"] {
       height: 20px;
@@ -481,48 +483,60 @@
       border-radius: 10px;
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
       outline: none;
+      pointer-events: auto !important;
+      position: relative;
+      z-index: 100;
+      cursor: pointer;
       
       &::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
-        width: 36px;
-        height: 36px;
+        width: 50px;
+        height: 50px;
         background: #f0f0f0;
         cursor: grab;
         border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(var(--color-primary-rgb, 78, 205, 196), 0.2);
-        border: 3px solid var(--color-primary);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.25);
+        border: 4px solid var(--color-primary);
         transition: all 0.2s ease;
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 101;
         
         &:hover {
           transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.3);
+          box-shadow: 0 7px 20px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(var(--color-primary-rgb, 78, 205, 196), 0.35);
         }
         
         &:active {
           cursor: grabbing;
           transform: scale(1.05);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(var(--color-primary-rgb, 78, 205, 196), 0.45);
         }
       }
       
       &::-moz-range-thumb {
-        width: 36px;
-        height: 36px;
+        width: 50px;
+        height: 50px;
         background: #f0f0f0;
         cursor: grab;
         border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(var(--color-primary-rgb, 78, 205, 196), 0.2);
-        border: 3px solid var(--color-primary);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.25);
+        border: 4px solid var(--color-primary);
         transition: all 0.2s ease;
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 101;
         
         &:hover {
           transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.3);
+          box-shadow: 0 7px 20px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(var(--color-primary-rgb, 78, 205, 196), 0.35);
         }
         
         &:active {
           cursor: grabbing;
           transform: scale(1.05);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(var(--color-primary-rgb, 78, 205, 196), 0.45);
         }
       }
     }
@@ -532,6 +546,8 @@
     margin: 0 auto;
     width: 100%;
     max-width: 300px;
+    position: relative;
+    z-index: 10;
     
     input[type="range"] {
       width: 100%;
@@ -539,47 +555,60 @@
       background: linear-gradient(to right, #4ecdc4, #44a08d);
       border-radius: 10px;
       appearance: none;
+      pointer-events: auto !important;
+      position: relative;
+      z-index: 100;
+      cursor: pointer;
+      -webkit-appearance: none;
       
       &::-webkit-slider-thumb {
         appearance: none;
-        width: 40px;
-        height: 40px;
+        width: 55px;
+        height: 55px;
         border-radius: 50%;
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(var(--color-primary-rgb, 78, 205, 196), 0.2);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.25);
         cursor: grab;
-        border: 3px solid var(--color-primary);
+        border: 5px solid var(--color-primary);
         transition: all 0.2s ease;
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 101;
         
         &:hover {
           transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.3);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(var(--color-primary-rgb, 78, 205, 196), 0.35);
         }
         
         &:active {
           cursor: grabbing;
           transform: scale(1.05);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(var(--color-primary-rgb, 78, 205, 196), 0.45);
         }
       }
       
       &::-moz-range-thumb {
-        width: 40px;
-        height: 40px;
+        width: 55px;
+        height: 55px;
         border-radius: 50%;
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(var(--color-primary-rgb, 78, 205, 196), 0.2);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.25);
         cursor: grab;
-        border: 3px solid var(--color-primary);
+        border: 5px solid var(--color-primary);
         transition: all 0.2s ease;
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 101;
         
         &:hover {
           transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(var(--color-primary-rgb, 78, 205, 196), 0.3);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(var(--color-primary-rgb, 78, 205, 196), 0.35);
         }
         
         &:active {
           cursor: grabbing;
           transform: scale(1.05);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(var(--color-primary-rgb, 78, 205, 196), 0.45);
         }
       }
     }
@@ -1026,7 +1055,10 @@
     background: transparent;
     -webkit-appearance: none;
     appearance: none;
-    pointer-events: none;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 100;
+    cursor: pointer;
     
     &::-webkit-slider-track {
       background: var(--color-card-border);
@@ -1037,26 +1069,27 @@
     &::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 36px;
-      height: 36px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: var(--color-primary);
       cursor: grab;
-      pointer-events: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.3);
-      border: 3px solid #fff;
+      pointer-events: auto !important;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.3);
+      border: 4px solid #fff;
       position: relative;
-      z-index: 2;
+      z-index: 101;
       transition: all 0.2s ease;
       
       &:hover {
         transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.4);
+        box-shadow: 0 7px 20px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(255, 255, 255, 0.4);
       }
       
       &:active {
         cursor: grabbing;
         transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(255, 255, 255, 0.5);
       }
     }
     
@@ -1068,26 +1101,27 @@
     }
     
     &::-moz-range-thumb {
-      width: 36px;
-      height: 36px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       background: var(--color-primary);
       cursor: grab;
-      pointer-events: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.3);
-      border: 3px solid #fff;
+      pointer-events: auto !important;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.3);
+      border: 4px solid #fff;
       position: relative;
-      z-index: 2;
+      z-index: 101;
       transition: all 0.2s ease;
       
       &:hover {
         transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.4);
+        box-shadow: 0 7px 20px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(255, 255, 255, 0.4);
       }
       
       &:active {
         cursor: grabbing;
         transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7), 0 0 0 6px rgba(255, 255, 255, 0.5);
       }
     }
   }

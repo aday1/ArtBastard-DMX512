@@ -34,16 +34,6 @@ const navItems: Array<{
     }
   },
   {
-    id: 'midiOsc',
-    icon: 'Sliders',
-    title: {
-    artsnob: "🎵 MIDI & OSC Éclairée",
-      standard: 'MIDI & OSC',
-      minimal: 'I/O',
-      tooltip: "Simply input/output controls. But you wouldn't understand, mon ami."
-    }
-  },
-  {
     id: 'dmxControl',
     icon: 'Zap',
     title: {
@@ -81,16 +71,6 @@ const navItems: Array<{
       standard: 'Settings',
       minimal: 'Cfg',
       tooltip: "Configuration settings. Do try not to strain yourself understanding that, darling."
-    }
-  },
-  {
-    id: 'debug',
-    icon: 'Bug',
-    title: {
-    artsnob: "🐛 Debug & Aide Supérieure",
-      standard: 'Debug & Help',
-      minimal: 'Debug',
-      tooltip: "Debug tools and help for the truly enlightened. *adjusts monocle*"
     }
   },
   {
@@ -235,20 +215,6 @@ export const Navbar: React.FC = () => {
                       </span>
                     </div>
                   )}
-                  
-                  {/* MIDI Activity for midiOsc item */}
-                  {item.id === 'midiOsc' && (
-                    <div 
-                      className={`${styles.itemStatusIcon} ${midiActivity ? styles.statusActive : (activeBrowserInputs?.size > 0 ? styles.statusOk : styles.statusInactive)}`}
-                      title={`MIDI: ${activeBrowserInputs?.size || 0} active devices${midiActivity ? ' (activity)' : ''}`}
-                    >
-                      <LucideIcon name="Music" />
-                      <span className={styles.itemStatusLabel}>
-                        MIDI ({activeBrowserInputs?.size || 0})
-                      </span>
-                    </div>
-                  )}
-                  
                   {/* DMX Activity for dmxControl item */}
                   {item.id === 'dmxControl' && (
                     <>

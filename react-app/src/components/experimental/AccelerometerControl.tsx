@@ -55,7 +55,7 @@ const AccelerometerControl: React.FC = () => {
           lastData: null,
           smoothedData: null,
           permissionGranted: parsed.permissionGranted ?? null,
-          isSupported: 'DeviceMotionEvent' in window || 'DeviceOrientationEvent' in window,
+          isSupported: typeof window !== 'undefined' && ('DeviceMotionEvent' in window || 'DeviceOrientationEvent' in window),
         };
       } catch (e) {
         console.error('Failed to load accelerometer settings:', e);
@@ -68,7 +68,7 @@ const AccelerometerControl: React.FC = () => {
       lastData: null,
       smoothedData: null,
       permissionGranted: null,
-      isSupported: 'DeviceMotionEvent' in window || 'DeviceOrientationEvent' in window,
+      isSupported: typeof window !== 'undefined' && ('DeviceMotionEvent' in window || 'DeviceOrientationEvent' in window),
     };
   });
 

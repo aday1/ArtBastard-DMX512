@@ -1,4 +1,17 @@
 // Enhanced Help Overlay Styles
+.helpEmbedded {
+  width: 100%;
+  max-width: 100%;
+  
+  .helpContent {
+    position: relative;
+    max-width: 100%;
+    max-height: none;
+    box-shadow: none;
+    border: 1px solid var(--border-color, rgba(71, 85, 105, 0.3));
+  }
+}
+
 .helpButton {
   position: fixed;
   bottom: 20px;
