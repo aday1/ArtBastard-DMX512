@@ -1390,6 +1390,50 @@ function startLaserTime(io: Server) {
             }
         });
 
+        // Handle network info request
+        socket.on('getNetworkInfo', () => {
+            try {
+                const networkInterfaces = os.networkInterfaces();
+                const interfaces: Array<{ name: string; address: string; family: string; internal: boolean }> = [];
+                
+                Object.keys(networkInterfaces).forEach(ifaceName => {
+                    const iface = networkInterfaces[ifaceName];
+                    if (iface) {
+                        iface.forEach(details => {
+                            // Check for IPv4 (can be string 'IPv4' or number 4 depending on Node.js version)
+                            const family = details.family as string | number;
+                            const isIPv4 = family === 'IPv4' || family === 4;
+                            if (isIPv4) {
+                                interfaces.push({
+                                    name: ifaceName,
+                                    address: details.address,
+                                    family: 'IPv4',
+                                    internal: details.internal || false
+                                });
+                            }
+                        });
+                    }
+                });
+                
+                // Get server port from environment or default
+                const serverPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3030;
+                const serverHost = '0.0.0.0'; // Server listens on all interfaces
+                
+                socket.emit('networkInfo', {
+                    interfaces,
+                    serverHost,
+                    serverPort
+                });
+            } catch (error) {
+                log('Error getting network info', 'ERROR', { error });
+                socket.emit('networkInfo', {
+                    interfaces: [],
+                    serverHost: '0.0.0.0',
+                    serverPort: 3030
+                });
+            }
+        });
+
         socket.on('error', (err: Error) => {
             log('Socket error', 'ERROR', { message: err.message, socketId: socket.id });
         });

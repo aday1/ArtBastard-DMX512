@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { useStore, PlacedFixture, Group } from '../../store' // Import PlacedFixture and Group
+import { useStore, PlacedFixture, Group, FixtureTemplate } from '../../store' // Import PlacedFixture and Group
 import useStoreUtils from '../../store/storeUtils'
 import { useTheme } from '../../context/ThemeContext'
 import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
 import { LucideIcon } from '../ui/LucideIcon'; // Added for icons
 import { NodeBasedFixtureEditor } from './NodeBasedFixtureEditor'; // Import Node Editor
+import { FixtureTemplateManager } from './FixtureTemplateManager'; // Import Template Manager
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -56,218 +57,13 @@ const channelTypes = [
   { value: 'other', label: 'Other' }
 ]
 
-// Define Fixture Templates
-const fixtureTemplates: Array<{
-  templateName: string;
-  defaultNamePrefix: string;
-  channels: FixtureChannel[];
-}> = [  {
-    templateName: 'Blank Template',
-    defaultNamePrefix: 'Custom Fixture',
-    channels: [{ name: 'Channel 1', type: 'other' }],
-  },
-  {
-    templateName: 'Simple Par Can (RGB + Dimmer)',
-    defaultNamePrefix: 'RGBD Par',
-    channels: [
-      { name: 'Red', type: 'red' },
-      { name: 'Green', type: 'green' },
-      { name: 'Blue', type: 'blue' },
-      { name: 'Dimmer', type: 'dimmer' },
-    ],
-  },
-  {
-    templateName: 'Moving Head Spot (Basic)',
-    defaultNamePrefix: 'Basic Mover',
-    channels: [
-      { name: 'Pan', type: 'pan' },
-      { name: 'Tilt', type: 'tilt' },
-      { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Gobo Wheel', type: 'gobo_wheel' },
-      { name: 'Color Wheel', type: 'color_wheel' },
-    ],
-  },
-  {
-    templateName: 'Generic Dimmer',
-    defaultNamePrefix: 'Dimmer',
-    channels: [{ name: 'Intensity', type: 'dimmer' }],
-  },
-  {
-    templateName: 'RGBW Par Can',
-    defaultNamePrefix: 'RGBW Par',
-    channels: [
-      { name: 'Red', type: 'red' },
-      { name: 'Green', type: 'green' },
-      { name: 'Blue', type: 'blue' },      { name: 'White', type: 'white' }, 
-      { name: 'Dimmer', type: 'dimmer' },
-    ],  },  {
-    templateName: 'Professional Moving Head Spot',
-    defaultNamePrefix: 'Pro Spot',
-    channels: [
-      { name: 'Pan', type: 'pan' },
-      { name: 'Pan Fine', type: 'pan_fine' },
-      { name: 'Tilt', type: 'tilt' },
-      { name: 'Tilt Fine', type: 'tilt_fine' },
-      { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Shutter/Strobe', type: 'shutter' },
-      { name: 'Zoom', type: 'zoom' },
-      { name: 'Focus', type: 'focus' },
-      { name: 'Color Wheel', type: 'color_wheel' },
-      { name: 'Gobo Wheel 1', type: 'gobo_wheel' },
-      { name: 'Gobo Wheel 2', type: 'gobo_wheel' },
-      { name: 'Gobo Rotation', type: 'gobo_rotation' },
-      { name: 'Prism', type: 'prism' },
-      { name: 'Iris', type: 'iris' },
-      { name: 'Macro', type: 'macro' },
-      { name: 'Reset', type: 'reset' },
-    ],
-  },
-  {
-    templateName: 'RGBAW+UV LED Par',
-    defaultNamePrefix: 'RGBAWUV Par',
-    channels: [
-      { name: 'Red', type: 'red' },
-      { name: 'Green', type: 'green' },
-      { name: 'Blue', type: 'blue' },
-      { name: 'Amber', type: 'amber' },
-      { name: 'White', type: 'white' },
-      { name: 'UV', type: 'uv' },
-      { name: 'Master Dimmer', type: 'dimmer' },
-      { name: 'Strobe', type: 'strobe' },
-      { name: 'Speed', type: 'speed' },
-      { name: 'Sound Active', type: 'sound' },
-      { name: 'Macro Effects', type: 'effect' },
-    ],
-  },  {
-    templateName: 'Moving Head Wash',
-    defaultNamePrefix: 'Moving Wash',
-    channels: [
-      { name: 'Pan', type: 'pan' },
-      { name: 'Pan Fine', type: 'pan_fine' },
-      { name: 'Tilt', type: 'tilt' },
-      { name: 'Tilt Fine', type: 'tilt_fine' },
-      { name: 'Red', type: 'red' },
-      { name: 'Green', type: 'green' },
-      { name: 'Blue', type: 'blue' },
-      { name: 'White', type: 'white' },
-      { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Shutter', type: 'shutter' },
-      { name: 'Zoom', type: 'zoom' },
-      { name: 'Macro', type: 'macro' },
-      { name: 'Speed', type: 'speed' },
-    ],
-  },
-  {
-    templateName: 'Laser Projector',
-    defaultNamePrefix: 'Laser',
-    channels: [
-      { name: 'Mode', type: 'macro' },
-      { name: 'Pattern', type: 'gobo_wheel' },
-      { name: 'Zoom', type: 'zoom' },
-      { name: 'Y-Axis Rolling', type: 'pan' },
-      { name: 'X-Axis Rolling', type: 'tilt' },
-      { name: 'Speed', type: 'speed' },
-      { name: 'Strobe', type: 'strobe' },
-    ],
-  },
-  {
-    templateName: 'Fog Machine',
-    defaultNamePrefix: 'Fog',
-    channels: [
-      { name: 'Fog Output', type: 'dimmer' },
-      { name: 'Timer Mode', type: 'macro' },
-    ],
-  },
-  {
-    templateName: 'Strobe Light',
-    defaultNamePrefix: 'Strobe',
-    channels: [
-      { name: 'Strobe Rate', type: 'strobe' },
-      { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Sound Active', type: 'sound' },
-    ],
-  },  {
-    templateName: 'MINI BEAM - Pan/Tilt Prism Mover',
-    defaultNamePrefix: 'MINI BEAM',
-    channels: [
-      { name: 'Color Wheel', type: 'color_wheel' },
-      { name: 'Flash/Strobe', type: 'strobe' },
-      { name: 'Dimmer', type: 'dimmer' },
-      { name: 'Gobo', type: 'gobo_wheel' },
-      { name: 'Prism 1', type: 'prism' },
-      { name: 'Prism Rotation', type: 'gobo_rotation' },
-      { name: 'Prism 2', type: 'prism' },
-      { name: 'Frost', type: 'other' },
-      { name: 'Focus', type: 'focus' },
-      { name: 'Pan', type: 'pan' },
-      { name: 'Pan Fine', type: 'pan_fine' },
-      { name: 'Tilt', type: 'tilt' },
-      { name: 'Tilt Fine', type: 'tilt_fine' },
-      { name: 'Function/Speed', type: 'macro' },
-      { name: 'Reset', type: 'reset' },
-      { name: 'Lamp', type: 'other' },
-    ],
-  },
-  {
-    templateName: 'LED Spider Light - Dual Motor RGBW',
-    defaultNamePrefix: 'LED Spider',
-    channels: [
-      { name: 'Motor 1 Rotate', type: 'pan' },
-      { name: 'Motor 2 Rotate', type: 'tilt' },
-      { name: 'Master Dimmer', type: 'dimmer' },
-      { name: 'Strobe', type: 'strobe' },
-      { name: 'Motor 1 Red', type: 'red' },
-      { name: 'Motor 1 Green', type: 'green' },
-      { name: 'Motor 1 Blue', type: 'blue' },
-      { name: 'Motor 1 White', type: 'white' },
-      { name: 'Motor 2 Red', type: 'red' },
-      { name: 'Motor 2 Green', type: 'green' },
-      { name: 'Motor 2 Blue', type: 'blue' },
-      { name: 'Motor 2 White', type: 'white' },
-      { name: 'Effect Programs', type: 'macro' },
-      { name: 'Effect Speed', type: 'speed' },
-      { name: 'Reset', type: 'reset' },
-    ],
-  },
-  {
-    templateName: 'EL1000RGB Laser Projector',
-    defaultNamePrefix: 'EL1000RGB',
-    channels: [
-      { name: 'Laser On/Off', type: 'other' },
-      { name: 'Color Control', type: 'color_wheel' },
-      { name: 'Color Speed', type: 'speed' },
-      { name: 'Pattern Option', type: 'gobo_wheel' },
-      { name: 'Pattern Group', type: 'gobo_wheel' },
-      { name: 'Pattern Size', type: 'zoom' },
-      { name: 'Pattern Auto Zoom', type: 'zoom' },
-      { name: 'Center Rotation', type: 'gobo_rotation' },
-      { name: 'Horizontal Rotation', type: 'pan' },
-      { name: 'Vertical Rotation', type: 'tilt' },
-      { name: 'Horizontal Move', type: 'pan' },
-      { name: 'Vertical Move', type: 'tilt' },
-      { name: 'Wave Effect', type: 'effect' },
-      { name: 'Pattern Drawing', type: 'effect' },
-      { name: 'Inner Dynamic Effect', type: 'macro' },
-      { name: 'Inner Effect Speed', type: 'speed' },
-    ],
-  },
-  {
-    templateName: 'Laser Sparkler',
-    defaultNamePrefix: 'Laser Sparkler',
-    channels: [
-      { name: 'Mode', type: 'macro' },
-      { name: 'Running Direction', type: 'pan' },
-      { name: 'Running Speed', type: 'speed' },
-      { name: 'Twinkle Speed', type: 'speed' },
-      { name: 'Color Section', type: 'color_wheel' },
-    ],
-  },
-];
+// Templates are now managed in the store via FixtureTemplateManager
 
 export const FixtureSetup: React.FC = () => {
   const { theme } = useTheme();
   const { 
     fixtures, 
+    fixtureTemplates,
     addFixtureFlag,
     removeFixtureFlag,
     bulkAddFlag,
@@ -277,6 +73,7 @@ export const FixtureSetup: React.FC = () => {
     getFixturesByFlagCategory
   } = useStore(state => ({
     fixtures: state.fixtures,
+    fixtureTemplates: state.fixtureTemplates,
     addFixtureFlag: state.addFixtureFlag,
     removeFixtureFlag: state.removeFixtureFlag,
     bulkAddFlag: state.bulkAddFlag,
@@ -288,6 +85,7 @@ export const FixtureSetup: React.FC = () => {
   const groups = useStore(state => state.groups)
     const [showCreateFixture, setShowCreateFixture] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [showTemplateManager, setShowTemplateManager] = useState(false)
   const [editingFixtureId, setEditingFixtureId] = useState<string | null>(null)
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [fixtureForm, setFixtureForm] = useState<FixtureFormData>({
@@ -1652,15 +1450,27 @@ export const FixtureSetup: React.FC = () => {
             )}
             {!showCreateFixture && (
               <div className={styles.templateSection}>
-                <h4 className={styles.templateTitle}>
-                  {theme === 'artsnob' ? 'Or, select an archetype:' : 
-                   theme === 'standard' ? 'Create from template:' : 'Templates:'}
-                </h4>
+                <div className={styles.templateHeader}>
+                  <h4 className={styles.templateTitle}>
+                    {theme === 'artsnob' ? 'Or, select an archetype:' : 
+                     theme === 'standard' ? 'Create from template:' : 'Templates:'}
+                  </h4>
+                  <button
+                    className={styles.manageTemplatesButton}
+                    onClick={() => setShowTemplateManager(true)}
+                    title="Manage templates"
+                  >
+                    <LucideIcon name="Settings" />
+                    {theme === 'artsnob' && 'Manage Templates'}
+                    {theme === 'standard' && 'Manage Templates'}
+                    {theme === 'minimal' && 'Templates'}
+                  </button>
+                </div>
                 <div className={styles.templateButtons}>
                   {fixtureTemplates.map(template => (
                     <button
-                      key={template.templateName}
-                      className={styles.templateButton}
+                      key={template.id}
+                      className={`${styles.templateButton} ${template.isBuiltIn ? styles.builtInTemplate : ''}`}
                       onClick={() => {
                         const nextAddress = calculateNextStartAddress();
                         const existingNames = fixtures.map(f => f.name);
@@ -1682,8 +1492,10 @@ export const FixtureSetup: React.FC = () => {
                         setEditingFixtureId(null);
                         setShowCreateFixture(true);
                       }}
+                      title={`${template.channels.length} channels`}
                     >
                       {template.templateName}
+                      {template.isBuiltIn && <span className={styles.builtInBadge}>Built-in</span>}
                     </button>
                   ))}
                 </div>
@@ -1864,6 +1676,35 @@ export const FixtureSetup: React.FC = () => {
         <NodeBasedFixtureEditor
           fixtureId={nodeEditorFixtureId}
           onClose={closeNodeEditor}
+        />
+      )}
+
+      {/* Template Manager */}
+      {showTemplateManager && (
+        <FixtureTemplateManager
+          onClose={() => setShowTemplateManager(false)}
+          onSelectTemplate={(template) => {
+            const nextAddress = calculateNextStartAddress();
+            const existingNames = fixtures.map(f => f.name);
+            let suggestedName = template.defaultNamePrefix;
+            let counter = 1;
+            while (existingNames.includes(suggestedName)) {
+              suggestedName = `${template.defaultNamePrefix} ${counter++}`;
+            }
+            setFixtureForm({
+              name: suggestedName,
+              type: '',
+              manufacturer: '',
+              model: '',
+              mode: '',
+              startAddress: nextAddress,
+              channels: JSON.parse(JSON.stringify(template.channels)),
+              notes: ''
+            });
+            setEditingFixtureId(null);
+            setShowCreateFixture(true);
+            setShowTemplateManager(false);
+          }}
         />
       )}
     </div>

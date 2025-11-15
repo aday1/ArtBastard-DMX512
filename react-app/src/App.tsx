@@ -12,6 +12,7 @@ import { useGlobalBrowserMidi } from './hooks/useGlobalBrowserMidi'
 import { useActsPlaybackEngine } from './hooks/useActsPlaybackEngine'
 import { useActsOscProcessor } from './hooks/useActsOscProcessor'
 import { useActsMidiProcessor } from './hooks/useActsMidiProcessor'
+import { useTimelinePlayback } from './hooks/useTimelinePlayback'
 import { MidiDmxProcessor } from './components/midi/MidiDmxProcessor'
 import { OscDmxProcessor } from './components/midi/OscDmxProcessor'
 import { ToastContainer } from 'react-toastify'
@@ -33,6 +34,9 @@ function App() {
   // Initialize ACTS OSC and MIDI processors
   useActsOscProcessor();
   useActsMidiProcessor();
+  
+  // Initialize timeline playback engine
+  useTimelinePlayback();
   
   return (
     <ThemeProvider>

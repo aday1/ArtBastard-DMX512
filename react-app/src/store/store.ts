@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import axios from 'axios'
 import { Socket } from 'socket.io-client'
+import { TimelineSequence, interpolateValue, initialTimelineSequences } from './timeline'
 
 export interface MidiMapping {
   channel: number
@@ -30,6 +31,17 @@ export interface FixtureFlag {
   color: string
   priority?: number // Higher numbers = higher priority
   category?: string // Optional grouping
+}
+
+export interface FixtureTemplate {
+  id: string
+  templateName: string
+  defaultNamePrefix: string
+  channels: Array<{ name: string; type: string }>
+  isBuiltIn?: boolean // Built-in templates cannot be deleted
+  isCustom?: boolean // Custom templates can be edited/deleted
+  createdAt?: number
+  updatedAt?: number
 }
 
 export interface Group {
@@ -125,6 +137,38 @@ export interface ModularAutomationState {
     panTilt: number | null;
     effects: number | null;
   };
+}
+
+// Envelope Automation System
+export type WaveformType = 'sine' | 'saw' | 'square' | 'triangle' | 'custom';
+
+export interface EnvelopePoint {
+  x: number; // 0-1, position in cycle
+  y: number; // 0-1, value (will be scaled to 0-255)
+}
+
+export interface ChannelEnvelope {
+  id: string;
+  channel: number; // DMX channel index (0-511)
+  enabled: boolean;
+  waveform: WaveformType;
+  customPoints: EnvelopePoint[]; // For custom drawn envelopes
+  amplitude: number; // 0-100, percentage of full range
+  offset: number; // 0-255, base value
+  phase: number; // 0-360, phase offset in degrees
+  tempoSync: boolean; // Sync to BPM
+  tempoMultiplier: number; // Beat division (1 = whole note, 2 = half, 4 = quarter, etc.)
+  loop: boolean; // Whether to loop the envelope
+  min: number; // Minimum DMX value (0-255)
+  max: number; // Maximum DMX value (0-255)
+  speed: number; // Individual envelope speed multiplier (0.1-2.0)
+}
+
+export interface EnvelopeAutomationState {
+  envelopes: ChannelEnvelope[];
+  globalEnabled: boolean;
+  animationId: number | null;
+  speed: number; // 0.1-2.0 multiplier for animation speed
 }
 
 export interface Scene {
@@ -391,9 +435,15 @@ interface State {
   fixtures: Fixture[]
   groups: Group[]
   selectedFixtures: string[] // Array of fixture IDs for selection
+  fixtureTemplates: FixtureTemplate[] // User-managed fixture templates
   addFixture: (fixture: Fixture) => void;
   setFixtures: (fixtures: Fixture[]) => void;
   setGroups: (groups: Group[]) => void;
+  // Template management
+  addFixtureTemplate: (template: Omit<FixtureTemplate, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateFixtureTemplate: (id: string, template: Partial<FixtureTemplate>) => void;
+  deleteFixtureTemplate: (id: string) => void;
+  getFixtureTemplate: (id: string) => FixtureTemplate | undefined;
   
   // Scenes
   scenes: Scene[]
@@ -477,6 +527,9 @@ interface State {
 
   // New Modular Automation System State
   modularAutomation: ModularAutomationState;
+  
+  // Envelope Automation System
+  envelopeAutomation: EnvelopeAutomationState;
 
   // Recording and Automation System State
   recordingActive: boolean;
@@ -519,6 +572,26 @@ interface State {
   autopilotUpdateInterval: number | null;
   lastAutopilotUpdate: number;
 
+  // Timeline Playback State
+  timelineSequences: TimelineSequence[];
+  activeTimelineSequence: string | null;
+  timelinePlayback: {
+    active: boolean;
+    sequenceId: string | null;
+    startTime: number | null;
+    position: number; // 0-1
+    speed: number; // 0.1-2.0 multiplier
+    loop: boolean;
+  };
+
+  // Timeline Actions
+  playTimelineSequence: (sequenceId: string, options?: { loop?: boolean; speed?: number }) => void
+  stopTimelinePlayback: () => void
+  setTimelineSpeed: (speed: number) => void
+  loadTimelineSequence: (sequenceId: string) => void
+  updateTimelineSequence: (sequenceId: string, updates: Partial<TimelineSequence>) => void
+  deleteTimelineSequence: (sequenceId: string) => void
+
   // Actions
   fetchInitialState: () => Promise<void>
   getDmxChannelValue: (channel: number) => number
@@ -536,6 +609,7 @@ interface State {
   selectAllChannels: () => void
   deselectAllChannels: () => void
   invertChannelSelection: () => void
+  setChannelName: (channel: number, name: string) => void
 
   // Fixture Selection Actions
   selectNextFixture: () => void
@@ -699,6 +773,16 @@ interface State {
   toggleDimmerAutomation: () => void;
   togglePanTiltAutomation: () => void;
   toggleEffectsAutomation: () => void;
+  
+  // Envelope Automation Actions
+  addEnvelope: (envelope: Omit<ChannelEnvelope, 'id'>) => void;
+  updateEnvelope: (id: string, updates: Partial<ChannelEnvelope>) => void;
+  removeEnvelope: (id: string) => void;
+  toggleEnvelope: (id: string) => void;
+  toggleGlobalEnvelope: () => void;
+  startEnvelopeAnimation: () => void;
+  stopEnvelopeAnimation: () => void;
+  setEnvelopeSpeed: (speed: number) => void;
   startModularAnimation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects') => void;
   stopModularAnimation: (type: 'color' | 'dimmer' | 'panTilt' | 'effects') => void;
   stopAllModularAnimations: () => void;
@@ -769,6 +853,92 @@ const initializeUiSettings = (): { sparklesEnabled: boolean } => {
   }
 };
 
+// Helper function to initialize fixture templates
+const initializeFixtureTemplates = (): FixtureTemplate[] => {
+  // Built-in templates
+  const builtInTemplates: FixtureTemplate[] = [
+    {
+      id: 'builtin-blank',
+      templateName: 'Blank Template',
+      defaultNamePrefix: 'Custom Fixture',
+      channels: [{ name: 'Channel 1', type: 'other' }],
+      isBuiltIn: true
+    },
+    {
+      id: 'builtin-simple-par',
+      templateName: 'Simple Par Can (RGB + Dimmer)',
+      defaultNamePrefix: 'RGBD Par',
+      channels: [
+        { name: 'Red', type: 'red' },
+        { name: 'Green', type: 'green' },
+        { name: 'Blue', type: 'blue' },
+        { name: 'Dimmer', type: 'dimmer' },
+      ],
+      isBuiltIn: true
+    },
+    {
+      id: 'builtin-basic-mover',
+      templateName: 'Moving Head Spot (Basic)',
+      defaultNamePrefix: 'Basic Mover',
+      channels: [
+        { name: 'Pan', type: 'pan' },
+        { name: 'Tilt', type: 'tilt' },
+        { name: 'Dimmer', type: 'dimmer' },
+        { name: 'Red', type: 'red' },
+        { name: 'Green', type: 'green' },
+        { name: 'Blue', type: 'blue' },
+        { name: 'Gobo Wheel', type: 'gobo_wheel' },
+        { name: 'Color Wheel', type: 'color_wheel' },
+        { name: 'Strobe', type: 'strobe' },
+        { name: 'Zoom', type: 'zoom' },
+      ],
+      isBuiltIn: true
+    },
+    {
+      id: 'builtin-generic-dimmer',
+      templateName: 'Generic Dimmer',
+      defaultNamePrefix: 'Dimmer',
+      channels: [{ name: 'Intensity', type: 'dimmer' }],
+      isBuiltIn: true
+    },
+    {
+      id: 'builtin-rgbw-par',
+      templateName: 'RGBW Par Can',
+      defaultNamePrefix: 'RGBW Par',
+      channels: [
+        { name: 'Red', type: 'red' },
+        { name: 'Green', type: 'green' },
+        { name: 'Blue', type: 'blue' },
+        { name: 'White', type: 'white' },
+        { name: 'Dimmer', type: 'dimmer' },
+      ],
+      isBuiltIn: true
+    },
+  ];
+
+  // Load custom templates from localStorage
+  try {
+    const stored = localStorage.getItem('fixtureTemplates');
+    if (stored) {
+      const customTemplates: FixtureTemplate[] = JSON.parse(stored);
+      // Merge built-in with custom, ensuring built-ins are always present
+      const allTemplates = [...builtInTemplates];
+      const customIds = new Set(customTemplates.map(t => t.id));
+      // Add custom templates that aren't duplicates of built-ins
+      customTemplates.forEach(template => {
+        if (!template.isBuiltIn && !builtInTemplates.some(bt => bt.id === template.id)) {
+          allTemplates.push(template);
+        }
+      });
+      return allTemplates;
+    }
+  } catch (error) {
+    console.warn('Failed to load fixture templates from localStorage:', error);
+  }
+
+  return builtInTemplates;
+};
+
 export const useStore = create<State>()(
   devtools(
     (set, get) => ({
@@ -809,6 +979,7 @@ export const useStore = create<State>()(
       fixtures: [],
       groups: [],
       selectedFixtures: [], // Array of fixture IDs for selection
+      fixtureTemplates: initializeFixtureTemplates(), // User-managed fixture templates (initialized with built-in templates)
       
       scenes: [],
       
@@ -922,6 +1093,14 @@ export const useStore = create<State>()(
       autopilotTrackCustomPoints: [],
       autopilotTrackAnimationId: null,
 
+      // Envelope Automation System Initial State
+      envelopeAutomation: {
+        envelopes: [],
+        globalEnabled: false,
+        animationId: null,
+        speed: 1.0 // Default speed multiplier
+      },
+
       // New Modular Automation System Initial State
       modularAutomation: {
         color: {
@@ -1018,6 +1197,107 @@ export const useStore = create<State>()(
       },
       autopilotUpdateInterval: null,
       lastAutopilotUpdate: Date.now(),
+      
+      // Timeline Playback State
+      timelineSequences: initialTimelineSequences,
+      activeTimelineSequence: null,
+      timelinePlayback: {
+        active: false,
+        sequenceId: null,
+        startTime: null,
+        position: 0,
+        speed: 1.0,
+        loop: false
+      },
+      
+      // Timeline Actions
+      playTimelineSequence: (sequenceId, options = {}) => {
+        const sequence = get().timelineSequences.find(s => s.id === sequenceId);
+        if (!sequence) {
+          console.error(`Timeline sequence ${sequenceId} not found`);
+          return;
+        }
+        
+        const { loop = false, speed = 1.0 } = options;
+        const startTime = Date.now();
+        
+        set({
+          timelinePlayback: {
+            active: true,
+            sequenceId,
+            startTime,
+            position: 0,
+            speed: Math.max(0.1, Math.min(2.0, speed)),
+            loop
+          },
+          activeTimelineSequence: sequenceId
+        });
+      },
+      
+      stopTimelinePlayback: () => {
+        set({
+          timelinePlayback: {
+            ...get().timelinePlayback,
+            active: false,
+            startTime: null,
+            position: 0
+          }
+        });
+      },
+      
+      setTimelineSpeed: (speed) => {
+        const clampedSpeed = Math.max(0.1, Math.min(2.0, speed));
+        const state = get();
+        const playback = state.timelinePlayback;
+        
+        // If playback is active, adjust startTime to maintain current position
+        if (playback.active && playback.startTime) {
+          const sequence = state.timelineSequences.find(s => s.id === playback.sequenceId);
+          if (sequence) {
+            const now = Date.now();
+            const oldElapsed = (now - playback.startTime) * playback.speed;
+            const currentPosition = (oldElapsed % sequence.duration) / sequence.duration;
+            // Calculate new startTime to maintain position with new speed
+            const newElapsed = currentPosition * sequence.duration;
+            const newStartTime = now - (newElapsed / clampedSpeed);
+            
+            set({
+              timelinePlayback: {
+                ...playback,
+                speed: clampedSpeed,
+                startTime: newStartTime
+              }
+            });
+            return;
+          }
+        }
+        
+        set(state => ({
+          timelinePlayback: {
+            ...state.timelinePlayback,
+            speed: clampedSpeed
+          }
+        }));
+      },
+      
+      loadTimelineSequence: (sequenceId) => {
+        set({ activeTimelineSequence: sequenceId });
+      },
+      
+      updateTimelineSequence: (sequenceId, updates) => {
+        set(state => ({
+          timelineSequences: state.timelineSequences.map(seq =>
+            seq.id === sequenceId ? { ...seq, ...updates, modifiedAt: Date.now() } : seq
+          )
+        }));
+      },
+      
+      deleteTimelineSequence: (sequenceId) => {
+        set(state => ({
+          timelineSequences: state.timelineSequences.filter(seq => seq.id !== sequenceId),
+          activeTimelineSequence: state.activeTimelineSequence === sequenceId ? null : state.activeTimelineSequence
+        }));
+      },
       
       _recalculateDmxOutput: () => {
         const { dmxChannels, groups, fixtures, setMultipleDmxChannels } = get();
@@ -1604,6 +1884,25 @@ export const useStore = create<State>()(
         set({ placedFixtures: filteredFixtures });
       },
       
+      setChannelName: (channel, name) => {
+        const channelNames = [...get().channelNames];
+        // Ensure array is long enough
+        while (channelNames.length <= channel) {
+          channelNames.push('');
+        }
+        channelNames[channel] = name;
+        set({ channelNames });
+        // Save to backend if needed
+        try {
+          axios.post('/api/dmx/channel-name', { channelIndex: channel, name })
+            .catch(error => {
+              console.error('Failed to save channel name:', error);
+            });
+        } catch (error) {
+          // Silently fail if backend endpoint doesn't exist yet
+        }
+      },
+
       setOscAssignment: (channelIndex, address) => {
         const oscAssignments = [...get().oscAssignments];
         oscAssignments[channelIndex] = address;
@@ -1769,6 +2068,86 @@ export const useStore = create<State>()(
 
       setGroups: (groups) => {
         set({ groups });
+      },
+
+      // Template Management Actions
+      addFixtureTemplate: (template) => {
+        const newTemplate: FixtureTemplate = {
+          ...template,
+          id: `template-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          isCustom: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        set(state => {
+          const updatedTemplates = [...state.fixtureTemplates, newTemplate];
+          // Persist to localStorage
+          try {
+            // Only save custom templates to localStorage
+            const customTemplates = updatedTemplates.filter(t => !t.isBuiltIn);
+            localStorage.setItem('fixtureTemplates', JSON.stringify(customTemplates));
+          } catch (error) {
+            console.warn('Failed to save templates to localStorage:', error);
+          }
+          return { fixtureTemplates: updatedTemplates };
+        });
+        get().addNotification({
+          message: `Template "${template.templateName}" saved`,
+          type: 'success',
+          priority: 'normal'
+        });
+      },
+
+      updateFixtureTemplate: (id, updates) => {
+        set(state => {
+          const updatedTemplates = state.fixtureTemplates.map(template =>
+            template.id === id
+              ? { ...template, ...updates, updatedAt: Date.now() }
+              : template
+          );
+          // Persist to localStorage
+          try {
+            // Only save custom templates to localStorage
+            const customTemplates = updatedTemplates.filter(t => !t.isBuiltIn);
+            localStorage.setItem('fixtureTemplates', JSON.stringify(customTemplates));
+          } catch (error) {
+            console.warn('Failed to save templates to localStorage:', error);
+          }
+          return { fixtureTemplates: updatedTemplates };
+        });
+        get().addNotification({
+          message: 'Template updated',
+          type: 'success',
+          priority: 'normal'
+        });
+      },
+
+      deleteFixtureTemplate: (id) => {
+        set(state => {
+          const updatedTemplates = state.fixtureTemplates.filter(template => {
+            // Don't allow deletion of built-in templates
+            if (template.isBuiltIn) return true;
+            return template.id !== id;
+          });
+          // Persist to localStorage
+          try {
+            // Only save custom templates to localStorage
+            const customTemplates = updatedTemplates.filter(t => !t.isBuiltIn);
+            localStorage.setItem('fixtureTemplates', JSON.stringify(customTemplates));
+          } catch (error) {
+            console.warn('Failed to save templates to localStorage:', error);
+          }
+          return { fixtureTemplates: updatedTemplates };
+        });
+        get().addNotification({
+          message: 'Template deleted',
+          type: 'success',
+          priority: 'normal'
+        });
+      },
+
+      getFixtureTemplate: (id) => {
+        return get().fixtureTemplates.find(template => template.id === id);
       },
 
       // Scene Actions
@@ -3149,6 +3528,251 @@ export const useStore = create<State>()(
         }));
         
         console.log('[MODULAR AUTOMATION] All animations stopped');
+      },
+
+      // Envelope Automation Actions
+      addEnvelope: (envelope: Omit<ChannelEnvelope, 'id'>) => {
+        const newEnvelope: ChannelEnvelope = {
+          ...envelope,
+          id: `envelope-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        };
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            envelopes: [...state.envelopeAutomation.envelopes, newEnvelope]
+          }
+        }));
+        // Start animation if global is enabled
+        if (get().envelopeAutomation.globalEnabled) {
+          get().startEnvelopeAnimation();
+        }
+      },
+
+      updateEnvelope: (id: string, updates: Partial<ChannelEnvelope>) => {
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            envelopes: state.envelopeAutomation.envelopes.map(env =>
+              env.id === id ? { ...env, ...updates } : env
+            )
+          }
+        }));
+      },
+
+      removeEnvelope: (id: string) => {
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            envelopes: state.envelopeAutomation.envelopes.filter(env => env.id !== id)
+          }
+        }));
+      },
+
+      toggleEnvelope: (id: string) => {
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            envelopes: state.envelopeAutomation.envelopes.map(env =>
+              env.id === id ? { ...env, enabled: !env.enabled } : env
+            )
+          }
+        }));
+      },
+
+      toggleGlobalEnvelope: () => {
+        const { envelopeAutomation } = get();
+        const newEnabled = !envelopeAutomation.globalEnabled;
+        
+        set({ 
+          envelopeAutomation: { 
+            ...envelopeAutomation, 
+            globalEnabled: newEnabled 
+          } 
+        });
+        
+        if (newEnabled) {
+          get().startEnvelopeAnimation();
+        } else {
+          get().stopEnvelopeAnimation();
+        }
+      },
+
+      startEnvelopeAnimation: () => {
+        const { envelopeAutomation } = get();
+        
+        // Stop existing animation
+        if (envelopeAutomation.animationId) {
+          cancelAnimationFrame(envelopeAutomation.animationId);
+        }
+        
+        let startTime = Date.now();
+        let lastDmxUpdateTime = 0;
+        const dmxUpdateThrottle = 16; // Update DMX at most every 16ms (~60fps)
+        let pendingDmxUpdates: Record<number, number> = {};
+        
+        console.log('[ENVELOPE] Starting envelope animation', {
+          globalEnabled: envelopeAutomation.globalEnabled,
+          envelopeCount: envelopeAutomation.envelopes.length,
+          speed: envelopeAutomation.speed
+        });
+        
+        const animate = () => {
+          const { envelopeAutomation, bpm, setDmxChannel, setMultipleDmxChannels } = get();
+          
+          // Always schedule next frame to keep animation loop alive
+          const frameId = requestAnimationFrame(animate);
+          set(state => ({
+            envelopeAutomation: {
+              ...state.envelopeAutomation,
+              animationId: frameId
+            }
+          }));
+          
+          // Only process envelopes if globally enabled
+          if (!envelopeAutomation.globalEnabled) {
+            return;
+          }
+          
+          const now = Date.now();
+          const activeEnvelopes = envelopeAutomation.envelopes.filter(e => e.enabled);
+          
+          // If no active envelopes, just continue the loop
+          if (activeEnvelopes.length === 0) {
+            return;
+          }
+          
+          // Apply speed multiplier to time
+          const speedMultiplier = envelopeAutomation.speed || 1.0;
+          const adjustedTime = startTime + (now - startTime) * speedMultiplier;
+          
+          activeEnvelopes.forEach(envelope => {
+            let progress = 0;
+            
+            // Combine global speed with individual envelope speed
+            const envelopeSpeed = envelope.speed ?? 1.0;
+            const combinedSpeed = speedMultiplier * envelopeSpeed;
+            
+            if (envelope.tempoSync) {
+              // Calculate progress based on BPM (with combined speed multiplier)
+              const beatDuration = (60 / bpm) * 1000; // milliseconds per beat
+              const cycleDuration = beatDuration * envelope.tempoMultiplier;
+              const elapsed = adjustedTime - startTime;
+              // Apply combined speed to elapsed time
+              const speedAdjustedElapsed = elapsed * combinedSpeed;
+              progress = ((speedAdjustedElapsed % cycleDuration) / cycleDuration);
+            } else {
+              // Use time-based progress (1 second cycle, adjusted for combined speed)
+              const cycleTime = 1000 / combinedSpeed;
+              progress = ((adjustedTime % cycleTime) / cycleTime);
+            }
+            
+            // Apply phase offset
+            progress = (progress + envelope.phase / 360) % 1;
+            
+            let value = 0;
+            
+            switch (envelope.waveform) {
+              case 'sine':
+                value = Math.sin(progress * Math.PI * 2) * 0.5 + 0.5;
+                break;
+              case 'saw':
+                value = progress;
+                break;
+              case 'square':
+                value = progress < 0.5 ? 1 : 0;
+                break;
+              case 'triangle':
+                value = progress < 0.5 ? progress * 2 : 2 - (progress * 2);
+                break;
+              case 'custom':
+                // Interpolate custom points
+                if (envelope.customPoints.length > 0) {
+                  const sortedPoints = [...envelope.customPoints].sort((a, b) => a.x - b.x);
+                  let point1 = sortedPoints[0];
+                  let point2 = sortedPoints[sortedPoints.length - 1];
+                  
+                  for (let i = 0; i < sortedPoints.length - 1; i++) {
+                    if (progress >= sortedPoints[i].x && progress <= sortedPoints[i + 1].x) {
+                      point1 = sortedPoints[i];
+                      point2 = sortedPoints[i + 1];
+                      break;
+                    }
+                  }
+                  
+                  const t = (progress - point1.x) / (point2.x - point1.x || 0.001);
+                  value = point1.y + (point2.y - point1.y) * t;
+                }
+                break;
+            }
+            
+            // Get current DMX value (which may include scene values)
+            const currentDmxValue = get().getDmxChannelValue(envelope.channel);
+            
+            // Apply envelope as modulation on top of current value
+            // The envelope modulates around the current value, not replacing it
+            // This allows scenes to set base values, and envelopes to animate on top
+            // amplitude: 0-100% of how much to modulate from center
+            // offset: relative offset from current value (scaled to -127 to +127 for safety)
+            const modulationRange = (envelope.amplitude / 100) * 255; // How much to modulate
+            const modulationValue = (value - 0.5) * 2; // Convert 0-1 to -1 to +1 for modulation
+            const modulationAmount = modulationValue * modulationRange; // How much to add/subtract
+            
+            // Scale offset to be relative (-127 to +127) to avoid going out of bounds
+            // Original offset was 0-255 absolute, now treat as -127 to +127 relative
+            const relativeOffset = (envelope.offset - 127) / 2; // Convert 0-255 to -63.5 to +63.5
+            
+            // Calculate final value: current value + relative offset + modulation
+            const finalValue = Math.round(
+              currentDmxValue + relativeOffset + modulationAmount
+            );
+            // Clamp to envelope's min/max range instead of full 0-255
+            const minValue = envelope.min ?? 0;
+            const maxValue = envelope.max ?? 255;
+            const clampedValue = Math.max(minValue, Math.min(maxValue, finalValue));
+            
+            // Store in pending updates for throttled batch sending
+            pendingDmxUpdates[envelope.channel] = clampedValue;
+          });
+          
+          // Throttle DMX updates - send batch every 16ms
+          if (now - lastDmxUpdateTime >= dmxUpdateThrottle && Object.keys(pendingDmxUpdates).length > 0) {
+            // Send batch update to backend
+            setMultipleDmxChannels(pendingDmxUpdates, true);
+            pendingDmxUpdates = {};
+            lastDmxUpdateTime = now;
+          }
+        };
+        
+        const frameId = requestAnimationFrame(animate);
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            animationId: frameId
+          }
+        }));
+      },
+
+      stopEnvelopeAnimation: () => {
+        const { envelopeAutomation } = get();
+        if (envelopeAutomation.animationId) {
+          cancelAnimationFrame(envelopeAutomation.animationId);
+        }
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            animationId: null
+          }
+        }));
+      },
+      
+      setEnvelopeSpeed: (speed) => {
+        const clampedSpeed = Math.max(0.1, Math.min(2.0, speed));
+        set(state => ({
+          envelopeAutomation: {
+            ...state.envelopeAutomation,
+            speed: clampedSpeed
+          }
+        }));
       },
 
       // Helper function to apply specific automation effects

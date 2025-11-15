@@ -1,7 +1,8 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import ErrorBoundary from '../ErrorBoundary';
 import styles from './Fixture3DModel.module.scss';
 
 interface Fixture3DModelProps {
@@ -571,45 +572,122 @@ export const Fixture3DModel: React.FC<Fixture3DModelProps> = ({
   height = 400,
   className
 }) => {
+  const [webglError, setWebglError] = useState<string | null>(null);
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    const checkWebGL = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          setWebglSupported(false);
+          setWebglError('WebGL is not supported in this browser');
+          return;
+        }
+        setWebglSupported(true);
+      } catch (e) {
+        setWebglSupported(false);
+        setWebglError('WebGL check failed: ' + (e instanceof Error ? e.message : String(e)));
+      }
+    };
+    checkWebGL();
+  }, []);
+
+  // Handle WebGL context creation errors
+  const handleWebGLError = (error: Error) => {
+    console.error('WebGL Context Error:', error);
+    setWebglError(error.message || 'Failed to create WebGL context');
+    setWebglSupported(false);
+  };
+
+  // Fallback UI when WebGL is not available
+  if (webglSupported === false) {
+    return (
+      <div className={`${styles.fixture3DContainer} ${className || ''}`} style={{ width, height }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          padding: '2rem',
+          textAlign: 'center',
+          color: '#999',
+          background: '#1a1a1a'
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <div style={{ fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            WebGL Not Available
+          </div>
+          <div style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
+            {webglError || 'WebGL is required for 3D visualization'}
+          </div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+            <div>Pan: {panValue} | Tilt: {tiltValue}</div>
+            <div>RGB: ({rgbColor.r}, {rgbColor.g}, {rgbColor.b})</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`${styles.fixture3DContainer} ${className || ''}`} style={{ width, height }}>
-      <Canvas
-        shadows
-        camera={{ position: [1.8, 0.6, 1.8], fov: 50 }}
-        gl={{ antialias: true, alpha: true }}
-      >
-        {/* Professional lighting setup */}
-        <ambientLight intensity={0.9} />
-        <directionalLight position={[5, 5, 5]} intensity={2.0} castShadow />
-        <directionalLight position={[-3, 3, -3]} intensity={0.9} />
-        <pointLight position={[-5, 5, -5]} intensity={0.8} />
-        <spotLight position={[2, 3, 2]} angle={0.3} penumbra={0.5} intensity={1.2} castShadow />
+      <ErrorBoundary>
+        <Canvas
+          shadows
+          camera={{ position: [1.8, 0.6, 1.8], fov: 50 }}
+          gl={{ 
+            antialias: true, 
+            alpha: true,
+            powerPreference: 'high-performance',
+            failIfMajorPerformanceCaveat: false,
+            preserveDrawingBuffer: false
+          }}
+          onCreated={({ gl }) => {
+            // Check if WebGL renderer was created successfully
+            // If we get here, WebGL context was created successfully
+            // The pre-flight check already validated WebGL support
+            if (!gl || !gl.domElement) {
+              handleWebGLError(new Error('Canvas or WebGL renderer is null'));
+            }
+          }}
+        >
+          {/* Professional lighting setup */}
+          <ambientLight intensity={0.9} />
+          <directionalLight position={[5, 5, 5]} intensity={2.0} castShadow />
+          <directionalLight position={[-3, 3, -3]} intensity={0.9} />
+          <pointLight position={[-5, 5, -5]} intensity={0.8} />
+          <spotLight position={[2, 3, 2]} angle={0.3} penumbra={0.5} intensity={1.2} castShadow />
 
-        {/* Camera controls */}
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={1.2}
-          maxDistance={5}
-          autoRotate={false}
-        />
+          {/* Camera controls */}
+          <OrbitControls
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            minDistance={1.2}
+            maxDistance={5}
+            autoRotate={false}
+          />
 
-        {/* Fixture model */}
-        <MovingHeadFixture 
-          panValue={panValue} 
-          tiltValue={tiltValue} 
-          zoomValue={zoomValue}
-          irisValue={irisValue}
-          focusValue={focusValue}
-          shutterValue={shutterValue}
-          goboValue={goboValue}
-          rgbColor={rgbColor}
-        />
+          {/* Fixture model */}
+          <MovingHeadFixture 
+            panValue={panValue} 
+            tiltValue={tiltValue} 
+            zoomValue={zoomValue}
+            irisValue={irisValue}
+            focusValue={focusValue}
+            shutterValue={shutterValue}
+            goboValue={goboValue}
+            rgbColor={rgbColor}
+          />
 
-        {/* Grid helper - positioned below fixture */}
-        <gridHelper args={[2, 20, '#555', '#333']} position={[0, -0.8, 0]} />
-      </Canvas>
+          {/* Grid helper - positioned below fixture */}
+          <gridHelper args={[2, 20, '#555', '#333']} position={[0, -0.8, 0]} />
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 };

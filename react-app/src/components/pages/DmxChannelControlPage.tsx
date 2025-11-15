@@ -4,6 +4,8 @@ import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
 import { useTheme } from '../../context/ThemeContext';
 import { LucideIcon } from '../ui/LucideIcon';
+import { EnvelopeAutomation } from '../automation/EnvelopeAutomation';
+import { GlobalChannelNames } from '../channels/GlobalChannelNames';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -20,6 +22,8 @@ export const DmxChannelControlPage: React.FC = () => {
   const [showSceneControls, setShowSceneControls] = useState(true);
   const [showMidiControls, setShowMidiControls] = useState(true);
   const [showOscControls, setShowOscControls] = useState(false);
+  const [showEnvelopeAutomation, setShowEnvelopeAutomation] = useState(false);
+  const [showGlobalChannelNames, setShowGlobalChannelNames] = useState(false);
   const [editingChannelName, setEditingChannelName] = useState<number | null>(null);
   const [editingChannelNameValue, setEditingChannelNameValue] = useState('');
   const [highlightedChannel, setHighlightedChannel] = useState<number | null>(null);
@@ -40,6 +44,7 @@ export const DmxChannelControlPage: React.FC = () => {
     addMidiMapping,
     oscAssignments,
     setOscAssignment,
+    setChannelName,
     fixtures,
     
     // Scene Controls
@@ -185,23 +190,13 @@ export const DmxChannelControlPage: React.FC = () => {
   // Handle channel name editing
   const handleStartEditName = (channelIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    const fixtureInfo = getFixtureInfoForChannel(channelIndex);
-    // Only allow editing if no fixture name is assigned
-    if (!fixtureInfo) {
-      setEditingChannelName(channelIndex);
-      setEditingChannelNameValue(channelNames[channelIndex] || `Channel ${channelIndex + 1}`);
-    }
+    // Allow editing regardless of fixture assignment - custom names can override fixture names
+    setEditingChannelName(channelIndex);
+    setEditingChannelNameValue(channelNames[channelIndex] || `Channel ${channelIndex + 1}`);
   };
 
   const handleSaveChannelName = (channelIndex: number) => {
-    const currentState = useStore.getState();
-    const newChannelNames = [...(currentState.channelNames || [])];
-    // Ensure array is long enough
-    while (newChannelNames.length <= channelIndex) {
-      newChannelNames.push('');
-    }
-    newChannelNames[channelIndex] = editingChannelNameValue;
-    useStore.setState({ channelNames: newChannelNames });
+    setChannelName(channelIndex, editingChannelNameValue);
     setEditingChannelName(null);
     setEditingChannelNameValue('');
   };
@@ -551,9 +546,37 @@ export const DmxChannelControlPage: React.FC = () => {
               <LucideIcon name="Globe" />
               OSC Controls
             </button>
+            <button 
+              className={`${styles.toggleButton} ${showEnvelopeAutomation ? styles.active : ''}`}
+              onClick={() => setShowEnvelopeAutomation(!showEnvelopeAutomation)}
+            >
+              <LucideIcon name="Activity" />
+              Envelope Automation
+            </button>
+            <button 
+              className={`${styles.toggleButton} ${showGlobalChannelNames ? styles.active : ''}`}
+              onClick={() => setShowGlobalChannelNames(!showGlobalChannelNames)}
+            >
+              <LucideIcon name="Tag" />
+              Channel Names
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Global Channel Names */}
+      {showGlobalChannelNames && (
+        <div className={styles.globalChannelNamesSection}>
+          <GlobalChannelNames />
+        </div>
+      )}
+
+      {/* Envelope Automation */}
+      {showEnvelopeAutomation && (
+        <div className={styles.envelopeAutomationSection}>
+          <EnvelopeAutomation />
+        </div>
+      )}
 
       {/* Scene Controls */}
       {showSceneControls && (
@@ -815,10 +838,10 @@ export const DmxChannelControlPage: React.FC = () => {
                     <span 
                       className={styles.channelName}
                       onDoubleClick={(e) => handleStartEditName(channelIndex, e)}
-                      title={hasFixtureName ? `${fixtureInfo?.fixtureName} - ${fixtureInfo?.channelFunction}` : 'Double-click to edit name'}
-                      style={{ cursor: hasFixtureName ? 'default' : 'pointer' }}
+                      title={hasFixtureName ? `Fixture: ${fixtureInfo?.fixtureName} - ${fixtureInfo?.channelFunction}${channelName ? ` | Custom: ${channelName}` : ''} | Double-click to edit` : 'Double-click to edit name'}
+                      style={{ cursor: 'pointer' }}
                     >
-                      {hasFixtureName ? `${fixtureInfo.fixtureName} - ${fixtureInfo.channelFunction}` : channelName} 
+                      {channelName || (hasFixtureName ? `${fixtureInfo.fixtureName} - ${fixtureInfo.channelFunction}` : `CH ${channelIndex + 1}`)} 
                       <small>{value > 0 ? 'Active' : '(Idle)'}</small>
                     </span>
                   )}
@@ -927,3 +950,4 @@ export const DmxChannelControlPage: React.FC = () => {
 };
 
 export default DmxChannelControlPage;
+

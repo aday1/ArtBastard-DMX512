@@ -23,6 +23,17 @@ interface SystemInfo {
   performance?: any;
 }
 
+interface NetworkInfo {
+  interfaces: Array<{
+    name: string;
+    address: string;
+    family: string;
+    internal: boolean;
+  }>;
+  serverHost: string;
+  serverPort: number;
+}
+
 interface OscTestMessage {
   address: string;
   args: Array<{ type: string; value: any }>;
@@ -36,7 +47,10 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
   const [oscTestAddress, setOscTestAddress] = useState('/dmx/channel/1');
   const [oscTestValue, setOscTestValue] = useState('127');  const [dmxTestChannel, setDmxTestChannel] = useState('1');
   const [dmxTestValue, setDmxTestValue] = useState('255');
-  const [showNetworkPanel, setShowNetworkPanel] = useState(false);const { 
+  const [showNetworkPanel, setShowNetworkPanel] = useState(false);
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
+  
+  const { 
     midiMessages, 
     midiMappings, 
     midiLearnTarget,
@@ -45,7 +59,8 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     masterSliders,
     dmxChannels,
     setDmxChannel,
-    debugTools
+    debugTools,
+    oscConfig
   } = useStore(state => ({
     midiMessages: state.midiMessages,
     midiMappings: state.midiMappings,
@@ -55,10 +70,27 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
     masterSliders: state.masterSliders,
     dmxChannels: state.dmxChannels,
     setDmxChannel: state.setDmxChannel,
-    debugTools: state.debugTools
+    debugTools: state.debugTools,
+    oscConfig: state.oscConfig
   }));
 
   const { socket, connected } = useSocket();
+
+  // Fetch network information from backend
+  useEffect(() => {
+    if (socket && connected) {
+      // Request network info from backend
+      socket.emit('getNetworkInfo');
+      
+      socket.on('networkInfo', (info: NetworkInfo) => {
+        setNetworkInfo(info);
+      });
+      
+      return () => {
+        socket.off('networkInfo');
+      };
+    }
+  }, [socket, connected]);
 
   useEffect(() => {
     const updateSystemInfo = () => {
@@ -304,6 +336,51 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
           {/* OSC Tab */}
           {activeTab === 'osc' && (
             <div className={styles.oscTab}>
+              <div className={styles.section}>
+                <h4>📡 OSC Configuration</h4>
+                <div className={styles.infoGrid}>
+                  <div><strong>Receive Port:</strong> {oscConfig.port}</div>
+                  <div><strong>Receive Host:</strong> {oscConfig.host}</div>
+                  <div><strong>Send Enabled:</strong> {oscConfig.sendEnabled ? '✅ Yes' : '❌ No'}</div>
+                  {oscConfig.sendEnabled && (
+                    <>
+                      <div><strong>Send Port:</strong> {oscConfig.sendPort}</div>
+                      <div><strong>Send Host:</strong> {oscConfig.sendHost}</div>
+                    </>
+                  )}
+                </div>
+                <div className={styles.infoBox}>
+                  <strong>📋 OSC Client Configuration:</strong>
+                  <div className={styles.configBlock}>
+                    <div><strong>Send to:</strong> {oscConfig.host}:{oscConfig.port}</div>
+                    {oscConfig.sendEnabled && (
+                      <div><strong>Receive from:</strong> {oscConfig.sendHost}:{oscConfig.sendPort}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {networkInfo && (
+                <div className={styles.section}>
+                  <h4>🌐 Network Interfaces</h4>
+                  <div className={styles.infoGrid}>
+                    {networkInfo.interfaces
+                      .filter(iface => iface.family === 'IPv4' && !iface.internal)
+                      .map((iface, index) => (
+                        <div key={index}>
+                          <strong>{iface.name}:</strong> {iface.address}
+                        </div>
+                      ))}
+                    {networkInfo.interfaces.filter(iface => iface.family === 'IPv4' && !iface.internal).length === 0 && (
+                      <div>No external network interfaces found</div>
+                    )}
+                  </div>
+                  <div className={styles.infoBox}>
+                    <strong>Server:</strong> {networkInfo.serverHost}:{networkInfo.serverPort}
+                  </div>
+                </div>
+              )}
+
               <div className={styles.section}>
                 <h4>📡 OSC Test Functions</h4>
                 <div className={styles.inputGroup}>
