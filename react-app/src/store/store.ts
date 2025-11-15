@@ -393,6 +393,7 @@ interface State {
   oscAssignments: string[]
   channelNames: string[]
   channelRanges: ChannelRange[] // Min/max range for each channel (0-511)
+  channelColors: string[] // Color for each channel (0-511) - for visual identification
   selectedChannels: number[]
   
   // Navigation State
@@ -620,6 +621,8 @@ interface State {
   setChannelName: (channel: number, name: string) => void
   setChannelRange: (channel: number, min: number, max: number) => void
   getChannelRange: (channel: number) => ChannelRange
+  setChannelColor: (channel: number, color: string) => void
+  setRandomChannelColor: (channel: number) => void
 
   // Fixture Selection Actions
   selectNextFixture: () => void
@@ -974,6 +977,23 @@ export const useStore = create<State>()(
           console.error('Failed to load channel ranges from localStorage:', e);
         }
         return new Array(512).fill(null).map(() => ({ min: 0, max: 255 }));
+      })(),
+      channelColors: (() => {
+        // Load from localStorage or default to empty array
+        try {
+          const saved = localStorage.getItem('dmxChannelColors');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const colors = new Array(512);
+            for (let i = 0; i < 512; i++) {
+              colors[i] = parsed[i] || '';
+            }
+            return colors;
+          }
+        } catch (e) {
+          console.error('Failed to load channel colors from localStorage:', e);
+        }
+        return new Array(512).fill('');
       })(),
       selectedChannels: [],
       
@@ -2026,6 +2046,32 @@ export const useStore = create<State>()(
           return channelRanges[channel];
         }
         return { min: 0, max: 255 }; // Default range
+      },
+
+      setChannelColor: (channel, color) => {
+        const channelColors = [...get().channelColors];
+        // Ensure array is long enough
+        while (channelColors.length <= channel) {
+          channelColors.push('');
+        }
+        channelColors[channel] = color;
+        set({ channelColors });
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('dmxChannelColors', JSON.stringify(channelColors));
+        } catch (e) {
+          console.error('Failed to save channel colors to localStorage:', e);
+        }
+      },
+
+      setRandomChannelColor: (channel) => {
+        // Generate a random bright color
+        const hue = Math.floor(Math.random() * 360);
+        const saturation = 70 + Math.floor(Math.random() * 30); // 70-100%
+        const lightness = 50 + Math.floor(Math.random() * 20); // 50-70%
+        const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        get().setChannelColor(channel, color);
       },
 
       setOscAssignment: (channelIndex, address) => {

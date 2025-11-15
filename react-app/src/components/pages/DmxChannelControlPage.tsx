@@ -36,6 +36,7 @@ export const DmxChannelControlPage: React.FC = () => {
     selectedChannels,
     channelNames,
     channelRanges,
+    channelColors,
     setDmxChannel,
     toggleChannelSelection,
     selectAllChannels,
@@ -48,6 +49,8 @@ export const DmxChannelControlPage: React.FC = () => {
     setChannelName,
     setChannelRange,
     getChannelRange,
+    setChannelColor,
+    setRandomChannelColor,
     fixtures,
     
     // Scene Controls
@@ -758,18 +761,35 @@ export const DmxChannelControlPage: React.FC = () => {
                     const isActive = activeChannelsSet.has(i);
                     const value = dmxChannels[i] || 0;
                     const intensity = value / 255;
+                    const channelColor = channelColors[i] || '';
+                    const hasName = !!(channelNames[i] && 
+                      channelNames[i] !== `CH ${i + 1}` && 
+                      channelNames[i] !== `Channel ${i + 1}` &&
+                      channelNames[i].trim() !== '');
+                    
+                    // Use custom color if set, otherwise use default behavior
+                    const backgroundColor = channelColor 
+                      ? channelColor // Show color even when inactive
+                      : (isActive 
+                        ? `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
+                        : 'transparent');
                     
                     return (
                       <div
                         key={i}
-                        className={`${styles.channelCell} ${isActive ? styles.active : ''}`}
+                        className={`${styles.channelCell} ${isActive ? styles.active : ''} ${hasName ? styles.hasName : ''}`}
                         style={{
-                          opacity: isActive ? 0.3 + (intensity * 0.7) : 0.1,
-                          backgroundColor: isActive 
-                            ? `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
-                            : 'transparent'
+                          opacity: isActive ? 0.3 + (intensity * 0.7) : (channelColor ? 0.2 : 0.1),
+                          backgroundColor: backgroundColor,
+                          borderColor: hasName ? channelColor || '#10b981' : undefined,
+                          borderWidth: hasName ? '2px' : undefined,
                         }}
-                        title={`Channel ${i + 1}: ${value > 0 ? `${value} (${Math.round(intensity * 100)}%)` : 'Inactive'}`}
+                        title={`Channel ${i + 1}: ${value > 0 ? `${value} (${Math.round(intensity * 100)}%)` : 'Inactive'}${hasName ? ` - ${channelNames[i]}` : ''}`}
+                        onClick={() => scrollToChannel(i)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setRandomChannelColor(i);
+                        }}
                       >
                         {isActive && (
                           <span className={styles.channelNumber}>{i + 1}</span>
@@ -827,12 +847,24 @@ export const DmxChannelControlPage: React.FC = () => {
           const fixtureInfo = getFixtureInfoForChannel(channelIndex);
           const hasFixtureName = !!fixtureInfo;
           const isEditingName = editingChannelName === channelIndex;
+          
+          // Check if channel has a custom name (not default)
+          const hasCustomName = !!(channelNames[channelIndex] && 
+            channelNames[channelIndex] !== `CH ${channelIndex + 1}` && 
+            channelNames[channelIndex] !== `Channel ${channelIndex + 1}` &&
+            channelNames[channelIndex].trim() !== '');
 
           return (
             <div 
               key={channelIndex} 
               id={`dmx-channel-${channelIndex}`}
-              className={`${styles.dmxChannel} ${isSelected ? styles.selected : ''} ${value > 0 ? styles.active : ''} ${highlightedChannel === channelIndex ? styles.highlighted : ''}`}
+              className={`${styles.dmxChannel} ${isSelected ? styles.selected : ''} ${value > 0 ? styles.active : ''} ${highlightedChannel === channelIndex ? styles.highlighted : ''} ${hasCustomName ? styles.hasName : ''}`}
+              style={{
+                borderColor: hasCustomName && channelColors[channelIndex]
+                  ? channelColors[channelIndex]
+                  : (hasCustomName ? '#10b981' : undefined),
+                borderWidth: hasCustomName ? '2px' : undefined,
+              }}
             >
               <div className={styles.channelHeader}>
                 <div className={styles.channelInfo}>
@@ -972,6 +1004,14 @@ export const DmxChannelControlPage: React.FC = () => {
                   title="Select/Deselect channel"
                 >
                   <LucideIcon name={isSelected ? "CheckSquare" : "Square"} />
+                </button>
+
+                <button
+                  className={styles.colorButton}
+                  onClick={() => setRandomChannelColor(channelIndex)}
+                  title="Set random color for this channel"
+                >
+                  <LucideIcon name="Palette" />
                 </button>
 
                 <div className={styles.midiControls}>
