@@ -1292,23 +1292,241 @@
   align-items: center;
   justify-content: center;
   padding: 6px 8px;
-  background: rgba(71, 85, 105, 0.3);
-  border: 1px solid rgba(71, 85, 105, 0.5);
+  background: rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.5);
   border-radius: 6px;
-  color: #94a3b8;
+  color: #60a5fa;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(71, 85, 105, 0.5);
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #e2e8f0;
+    background: rgba(59, 130, 246, 0.5);
+    border-color: #3b82f6;
+    color: #93c5fd;
   }
   
   &.pinned {
-    background: rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.3);
     border-color: #10b981;
     color: #10b981;
+  }
+}
+
+// Mobile Optimizations
+@media (max-width: 768px) {
+  .dmxChannelControlPage {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .header {
+    padding: 12px;
+  }
+
+  .title {
+    font-size: 20px;
+    gap: 8px;
+  }
+
+  .stats {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .controlsPanel {
+    padding: 12px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .controlGroup {
+    gap: 6px;
+  }
+
+  .controlLabel {
+    font-size: 12px;
+  }
+
+  .viewModeButtons {
+    gap: 6px;
+  }
+
+  .viewModeButton {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .channelsGrid {
+    grid-template-columns: repeat(16, 1fr);
+    gap: 1px;
+    padding: 8px;
+    max-height: 300px;
+  }
+
+  .channelCell {
+    min-height: 16px;
+  }
+
+  .channelNumber {
+    font-size: 7px;
+  }
+
+  .dmxChannel {
+    padding: 12px;
+    min-height: auto;
+  }
+
+  .channelHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .channelHeaderInfo {
+    width: 100%;
+  }
+
+  .channelHeaderActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .channelSlider {
+    margin-bottom: 8px;
+    
+    .slider {
+      height: 12px;
+      
+      &::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+      }
+      
+      &::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+      }
+    }
+  }
+
+  .channelRangeControls {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .channelActions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .selectButton,
+  .colorButton,
+  .pinButton {
+    padding: 8px 10px;
+    min-height: 44px; // Touch target size
+    font-size: 12px;
+  }
+
+  .channelsContainer {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .paginationControls {
+    gap: 8px;
+  }
+
+  .pageSizeSelect {
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .pageButton {
+    padding: 10px 14px;
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 14px;
+  }
+
+  .searchField {
+    padding: 12px 12px 12px 40px;
+    font-size: 16px; // Prevents zoom on iOS
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .toggleButton {
+    padding: 10px 12px;
+    min-height: 44px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dmxChannelControlPage {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .channelsGrid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
+  .channelsContainer {
+    gap: 8px;
+  }
+
+  .dmxChannel {
+    padding: 10px;
+  }
+
+  .valueDisplay {
+    font-size: 18px;
+  }
+}
+
+// Touch device optimizations
+@media (hover: none) and (pointer: coarse) {
+  .channelCell {
+    min-height: 24px;
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  .channelSlider .slider {
+    height: 16px;
+    
+    &::-webkit-slider-thumb {
+      width: 32px;
+      height: 32px;
+    }
+    
+    &::-moz-range-thumb {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  .selectButton,
+  .colorButton,
+  .pinButton,
+  .pageButton,
+  .toggleButton {
+    min-height: 48px;
+    min-width: 48px;
   }
 }
 

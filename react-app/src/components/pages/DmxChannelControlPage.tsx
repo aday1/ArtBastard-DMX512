@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
 import { useTheme } from '../../context/ThemeContext';
+import { useMobile } from '../../hooks/useMobile';
 import { LucideIcon } from '../ui/LucideIcon';
 import { EnvelopeAutomation } from '../automation/EnvelopeAutomation';
 import { GlobalChannelNames } from '../channels/GlobalChannelNames';
@@ -11,6 +12,7 @@ import pageStyles from '../../pages/Pages.module.scss';
 
 export const DmxChannelControlPage: React.FC = () => {
   const { theme } = useTheme();
+  const { isMobile, isTablet, isTouch } = useMobile();
   
   // State management
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');

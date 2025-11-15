@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import CustomPathEditor from '../automation/CustomPathEditor';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
+import { useMobile } from '../../hooks/useMobile';
 import { TouchChannelMatrix } from './TouchChannelMatrix';
 import styles from './SuperControl.module.scss';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -23,6 +24,7 @@ interface FixtureCapability {
 }
 
 const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
+  const { isMobile, isTablet, isTouch } = useMobile();
   const { 
     fixtures, 
     groups,

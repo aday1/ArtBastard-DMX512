@@ -1095,6 +1095,151 @@
 }
 
 // Responsive design
+// Mobile Optimizations
+@media (max-width: 768px) {
+  .superControl {
+    padding: var(--space-md);
+    margin: var(--space-sm) 0;
+  }
+
+  .header {
+    margin-bottom: var(--space-md);
+    
+    h3 {
+      font-size: var(--text-xl);
+      gap: var(--space-xs);
+    }
+    
+    p {
+      font-size: var(--text-xs);
+    }
+  }
+
+  .controlGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .section {
+    padding: var(--space-md);
+    
+    h4 {
+      font-size: var(--text-base);
+      margin-bottom: var(--space-sm);
+    }
+  }
+
+  .controlRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    
+    label {
+      min-width: auto;
+      font-size: var(--text-sm);
+      margin-bottom: 4px;
+    }
+    
+    input[type="range"] {
+      height: 12px;
+      min-height: 44px; // Touch target
+      
+      &::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+      }
+      
+      &::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+      }
+    }
+  }
+
+  // Make buttons touch-friendly
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+  }
+
+  // Grid layout adjustments
+  .react-grid-layout {
+    .react-grid-item {
+      min-height: 100px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .superControl {
+    padding: var(--space-sm);
+  }
+
+  .header h3 {
+    font-size: var(--text-lg);
+  }
+
+  .section {
+    padding: var(--space-sm);
+  }
+
+  .controlRow {
+    margin-bottom: var(--space-sm);
+    
+    input[type="range"] {
+      height: 16px;
+      min-height: 48px;
+      
+      &::-webkit-slider-thumb {
+        width: 32px;
+        height: 32px;
+      }
+      
+      &::-moz-range-thumb {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  button {
+    min-height: 48px;
+    padding: var(--space-md);
+  }
+}
+
+// Touch device optimizations
+@media (hover: none) and (pointer: coarse) {
+  .controlRow {
+    input[type="range"] {
+      height: 16px;
+      min-height: 48px;
+      
+      &::-webkit-slider-thumb {
+        width: 32px;
+        height: 32px;
+      }
+      
+      &::-moz-range-thumb {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  button {
+    min-height: 48px;
+    min-width: 48px;
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
 @media (max-width: 768px) {
   .controlGrid {
     grid-template-columns: 1fr;
