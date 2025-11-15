@@ -306,7 +306,7 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
           {activeChannels.length > 0 && (
             <div className={styles.activeChannelsIndicator}>
               <div className={styles.indicatorHeader}>
-                <i className="fas fa-circle" style={{ color: '#10b981', fontSize: '8px' }}></i>
+                <div className={styles.squareIndicator}></div>
                 <span className={styles.indicatorLabel}>Active Channels</span>
                 <span className={styles.indicatorCount}>{activeChannels.length}</span>
               </div>
