@@ -332,45 +332,45 @@
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 32px; // Bigger thumb for easier grabbing
-    height: 32px; // Bigger thumb for easier grabbing
+    width: 40px; // Bigger thumb for easier grabbing
+    height: 40px; // Bigger thumb for easier grabbing
     background: var(--accent-color, #00d4ff);
     border: 3px solid var(--bg-primary);
     border-radius: 50%;
     cursor: grab;
     transition: all 0.2s ease;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(0, 212, 255, 0.4);
-    margin-top: -10px; // Center the thumb on the track
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(0, 212, 255, 0.4);
+    margin-top: -12px; // Center the thumb on the track
     
     &:hover {
       transform: scale(1.15);
-      box-shadow: 0 0 20px rgba(0, 212, 255, 1), 0 0 0 4px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 6px 20px rgba(0, 212, 255, 0.8), 0 0 0 4px rgba(0, 212, 255, 0.5);
     }
     
     &:active {
       cursor: grabbing;
-      transform: scale(1.05);
+      transform: scale(1.08);
     }
   }
   
   &::-moz-range-thumb {
-    width: 32px; // Bigger thumb for easier grabbing
-    height: 32px; // Bigger thumb for easier grabbing
+    width: 40px; // Bigger thumb for easier grabbing
+    height: 40px; // Bigger thumb for easier grabbing
     background: var(--accent-color, #00d4ff);
     border: 3px solid var(--bg-primary);
     border-radius: 50%;
     cursor: grab;
     transition: all 0.2s ease;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(0, 212, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(0, 212, 255, 0.4);
     
     &:hover {
       transform: scale(1.15);
-      box-shadow: 0 0 20px rgba(0, 212, 255, 1), 0 0 0 4px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 6px 20px rgba(0, 212, 255, 0.8), 0 0 0 4px rgba(0, 212, 255, 0.5);
     }
     
     &:active {
       cursor: grabbing;
-      transform: scale(1.05);
+      transform: scale(1.08);
     }
   }
   

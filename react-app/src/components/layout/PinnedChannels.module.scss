@@ -456,46 +456,46 @@
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     background: #10b981;
     border-radius: 50%;
     cursor: grab;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.6), 0 0 0 3px rgba(16, 185, 129, 0.2);
-    border: 3px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.7), 0 0 0 4px rgba(16, 185, 129, 0.25);
+    border: 4px solid rgba(255, 255, 255, 0.5);
     transition: all 0.2s ease;
     
     &:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.7), 0 0 0 4px rgba(16, 185, 129, 0.3);
+      transform: scale(1.15);
+      box-shadow: 0 7px 20px rgba(16, 185, 129, 0.8), 0 0 0 5px rgba(16, 185, 129, 0.35);
     }
     
     &:active {
       cursor: grabbing;
-      transform: scale(1.05);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.8), 0 0 0 5px rgba(16, 185, 129, 0.4);
+      transform: scale(1.08);
+      box-shadow: 0 5px 15px rgba(16, 185, 129, 0.9), 0 0 0 6px rgba(16, 185, 129, 0.45);
     }
   }
 
   &::-moz-range-thumb {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     background: #10b981;
     border-radius: 50%;
     cursor: grab;
-    border: 3px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.6), 0 0 0 3px rgba(16, 185, 129, 0.2);
+    border: 4px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.7), 0 0 0 4px rgba(16, 185, 129, 0.25);
     transition: all 0.2s ease;
     
     &:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.7), 0 0 0 4px rgba(16, 185, 129, 0.3);
+      transform: scale(1.15);
+      box-shadow: 0 7px 20px rgba(16, 185, 129, 0.8), 0 0 0 5px rgba(16, 185, 129, 0.35);
     }
     
     &:active {
       cursor: grabbing;
-      transform: scale(1.05);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.8), 0 0 0 5px rgba(16, 185, 129, 0.4);
+      transform: scale(1.08);
+      box-shadow: 0 5px 15px rgba(16, 185, 129, 0.9), 0 0 0 6px rgba(16, 185, 129, 0.45);
     }
   }
 }

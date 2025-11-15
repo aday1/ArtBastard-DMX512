@@ -477,6 +477,18 @@
             }
           }
 
+.setupSection,
+.debugSection,
+.experimentalSection {
+  margin-top: 16px;
+  width: 100%;
+  
+  // Ensure embedded components fit properly
+  > * {
+    width: 100%;
+  }
+}
+
           .toggleGrid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

@@ -1679,11 +1679,24 @@
   
   &::-webkit-slider-thumb {
     appearance: none;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-    cursor: pointer;
+    cursor: grab;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 212, 255, 0.6), 0 0 0 3px rgba(0, 212, 255, 0.2);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 212, 255, 0.7), 0 0 0 4px rgba(0, 212, 255, 0.3);
+    }
+    
+    &:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+    }
     border: 3px solid #ffffff;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;

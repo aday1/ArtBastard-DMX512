@@ -9,6 +9,9 @@ import { MidiLearnButton } from '../midi/MidiLearnButton'
 import { CURRENT_VERSION, getVersionDisplay, getBuildInfo } from '../../utils/version';
 import { ReleaseNotes } from './ReleaseNotes'
 import SettingsPanel from './SettingsPanel'
+import { MidiOscSetup } from '../midi/MidiOscSetup'
+import { DebugMenu } from '../debug/DebugMenu'
+import AccelerometerControl from '../experimental/AccelerometerControl'
 import styles from './UnifiedSettings.module.scss'
 
 interface TouchOscExportOptionsUI {
@@ -404,7 +407,10 @@ export const UnifiedSettings: React.FC = () => {
               { id: 'general', label: 'General', icon: 'fas fa-cogs' },
               { id: 'theme', label: 'Theme', icon: 'fas fa-palette' },
               { id: 'network', label: 'Network', icon: 'fas fa-network-wired' },
+              { id: 'midiOsc', label: 'MIDI & OSC', icon: 'fas fa-sliders-h' },
               { id: 'performance', label: 'Performance', icon: 'fas fa-tachometer-alt' },
+              { id: 'debug', label: 'Debug & Diagnostics', icon: 'fas fa-bug' },
+              { id: 'experimental', label: 'Experimental', icon: 'fas fa-flask' },
               { id: 'advanced', label: 'Advanced', icon: 'fas fa-tools' },
               { id: 'state', label: 'State Management', icon: 'fas fa-database' }
             ].map(section => (
@@ -604,6 +610,36 @@ export const UnifiedSettings: React.FC = () => {
                       <span className={styles.checkboxText}>Enable sACN Protocol</span>
                     </label>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* MIDI & OSC Setup */}
+            {activeSection === 'midiOsc' && (
+              <div className={styles.settingsSection}>
+                <h3><i className="fas fa-sliders-h"></i> MIDI & OSC Configuration</h3>
+                <div className={styles.setupSection}>
+                  <MidiOscSetup />
+                </div>
+              </div>
+            )}
+
+            {/* Debug & Diagnostics */}
+            {activeSection === 'debug' && (
+              <div className={styles.settingsSection}>
+                <h3><i className="fas fa-bug"></i> Debug & Diagnostics</h3>
+                <div className={styles.debugSection}>
+                  <DebugMenu position="embedded" />
+                </div>
+              </div>
+            )}
+
+            {/* Experimental Features */}
+            {activeSection === 'experimental' && (
+              <div className={styles.settingsSection}>
+                <h3><i className="fas fa-flask"></i> Experimental Features</h3>
+                <div className={styles.experimentalSection}>
+                  <AccelerometerControl />
                 </div>
               </div>
             )}

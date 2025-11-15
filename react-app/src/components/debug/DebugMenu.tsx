@@ -346,26 +346,34 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
             <div className={styles.oscTab}>
               <div className={styles.section}>
                 <h4>📡 OSC Configuration</h4>
-                <div className={styles.infoGrid}>
-                  <div><strong>Receive Port:</strong> {oscConfig.port}</div>
-                  <div><strong>Receive Host:</strong> {oscConfig.host}</div>
-                  <div><strong>Send Enabled:</strong> {oscConfig.sendEnabled ? '✅ Yes' : '❌ No'}</div>
-                  {oscConfig.sendEnabled && (
-                    <>
-                      <div><strong>Send Port:</strong> {oscConfig.sendPort}</div>
-                      <div><strong>Send Host:</strong> {oscConfig.sendHost}</div>
-                    </>
-                  )}
-                </div>
-                <div className={styles.infoBox}>
-                  <strong>📋 OSC Client Configuration:</strong>
-                  <div className={styles.configBlock}>
-                    <div><strong>Send to:</strong> {oscConfig.host}:{oscConfig.port}</div>
-                    {oscConfig.sendEnabled && (
-                      <div><strong>Receive from:</strong> {oscConfig.sendHost}:{oscConfig.sendPort}</div>
-                    )}
+                {oscConfig ? (
+                  <>
+                    <div className={styles.infoGrid}>
+                      <div><strong>Receive Port:</strong> {oscConfig.port || 'N/A'}</div>
+                      <div><strong>Receive Host:</strong> {oscConfig.host || 'N/A'}</div>
+                      <div><strong>Send Enabled:</strong> {oscConfig.sendEnabled ? '✅ Yes' : '❌ No'}</div>
+                      {oscConfig.sendEnabled && (
+                        <>
+                          <div><strong>Send Port:</strong> {oscConfig.sendPort || 'N/A'}</div>
+                          <div><strong>Send Host:</strong> {oscConfig.sendHost || 'N/A'}</div>
+                        </>
+                      )}
+                    </div>
+                    <div className={styles.infoBox}>
+                      <strong>📋 OSC Client Configuration:</strong>
+                      <div className={styles.configBlock}>
+                        <div><strong>Send to:</strong> {oscConfig.host || 'N/A'}:{oscConfig.port || 'N/A'}</div>
+                        {oscConfig.sendEnabled && (
+                          <div><strong>Receive from:</strong> {oscConfig.sendHost || 'N/A'}:{oscConfig.sendPort || 'N/A'}</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.infoBox}>
+                    <p>OSC configuration not available. Please check your connection.</p>
                   </div>
-                </div>
+                )}
               </div>
 
               {networkInfo && (

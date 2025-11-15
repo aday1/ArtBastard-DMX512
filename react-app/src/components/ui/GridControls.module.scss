@@ -101,29 +101,44 @@
 
   &::-webkit-slider-thumb {
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: #007acc;
-    cursor: pointer;
-    transition: transform 0.1s ease;
-
+    cursor: grab;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.6), 0 0 0 3px rgba(0, 122, 204, 0.2);
+    transition: all 0.2s ease;
+    
     &:hover {
       transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 122, 204, 0.7), 0 0 0 4px rgba(0, 122, 204, 0.3);
+    }
+    
+    &:active {
+      cursor: grabbing;
+      transform: scale(1.05);
     }
   }
 
   &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: #007acc;
-    cursor: pointer;
-    border: none;
-    transition: transform 0.1s ease;
-
+    cursor: grab;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.6), 0 0 0 3px rgba(0, 122, 204, 0.2);
+    transition: all 0.2s ease;
+    
     &:hover {
       transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 122, 204, 0.7), 0 0 0 4px rgba(0, 122, 204, 0.3);
+    }
+    
+    &:active {
+      cursor: grabbing;
+      transform: scale(1.05);
     }
   }
 }

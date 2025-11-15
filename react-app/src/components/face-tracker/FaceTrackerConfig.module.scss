@@ -104,19 +104,45 @@
         
         &::-webkit-slider-thumb {
           appearance: none;
-          width: 16px;
-          height: 16px;
+          width: 40px;
+          height: 40px;
           background: var(--accent-primary);
           border-radius: 50%;
-          cursor: pointer;
+          cursor: grab;
+          border: 3px solid rgba(255, 255, 255, 0.4);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(var(--accent-primary-rgb, 0, 212, 255), 0.2);
+          transition: all 0.2s ease;
+          
+          &:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(var(--accent-primary-rgb, 0, 212, 255), 0.3);
+          }
+          
+          &:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+          }
         }
 
         &::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
+          width: 40px;
+          height: 40px;
           background: var(--accent-primary);
           border-radius: 50%;
-          cursor: pointer;
+          cursor: grab;
+          border: 3px solid rgba(255, 255, 255, 0.4);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(var(--accent-primary-rgb, 0, 212, 255), 0.2);
+          transition: all 0.2s ease;
+          
+          &:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(var(--accent-primary-rgb, 0, 212, 255), 0.3);
+          }
+          
+          &:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+          }
           border: none;
         }
       }
