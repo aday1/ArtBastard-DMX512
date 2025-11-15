@@ -2,8 +2,8 @@
   position: fixed;
   left: 20px; /* Changed from right to left */
   bottom: 20px;
-  width: 400px;
-  max-height: 300px; /* This will be the overall max-height including header */
+  width: 500px; /* Increased width to accommodate DMX info */
+  max-height: 500px; /* Increased to show more messages with scrolling */
   background-color: #2a2a2a;
   border: 2px solid #555;
   border-radius: 6px;
@@ -97,11 +97,29 @@
 
 .content {
   padding: 10px;
-  max-height: 240px; /* Adjusted to ensure overall monitor height respects its max-height (e.g. 300px - header height) */
+  max-height: 400px; /* Increased to show more messages with scrolling */
   overflow-y: auto;
   background-color: #222; /* Slightly different background for content area */
   border-top: 1px solid #444; /* Separator line */
   flex-grow: 1; /* Allow content to take available space */
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 102, 0.3);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(0, 255, 102, 0.5);
+    }
+  }
 }
 
 .noData {
@@ -113,16 +131,24 @@
 
 .messageRow {
   display: flex;
-  margin-bottom: 6px;
-  padding: 4px;
+  flex-direction: column;
+  margin-bottom: 8px;
+  padding: 6px;
   background-color: #252525;
   border-left: 3px solid #00ff66;
   font-size: 0.9em;
   border-radius: 3px;
+  gap: 4px;
   
   &:last-child {
     margin-bottom: 0;
   }
+}
+
+.messageRowMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .type {
@@ -152,4 +178,30 @@
   color: #aaa;
   font-size: 0.8em;
   align-self: center;
+}
+
+.dmxInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid rgba(0, 255, 102, 0.2);
+  margin-top: 4px;
+}
+
+.dmxLabel {
+  color: #00ff66;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.dmxChannel {
+  background: rgba(0, 255, 102, 0.15);
+  border: 1px solid rgba(0, 255, 102, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #00ff66;
+  font-size: 0.85em;
+  font-weight: 500;
 }
