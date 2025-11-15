@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { RouterProvider } from '../../context/RouterContext'
 import { StatusBar } from './StatusBar'
@@ -15,6 +15,7 @@ import { useStore } from '../../store'
 import { ResetButton } from './ResetButton'
 import { ThemeToggleButton } from './ThemeToggleButton'
 import { GlobalMonitors } from '../monitors/GlobalMonitors'
+import { StateManager } from '../../utils/stateManager'
 import styles from './Layout.module.scss'
 import { LucideIcon } from '../ui/LucideIcon'
 
@@ -28,7 +29,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Remove automation-related imports since we're removing transport controls
   } = useStore()
   
-  
+  // Setup auto-save on exit
+  useEffect(() => {
+    StateManager.setupAutoSaveOnExit();
+  }, []);
   
   return (
     <RouterProvider>

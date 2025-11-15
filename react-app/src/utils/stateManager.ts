@@ -137,6 +137,156 @@ export class StateManager {
       return false;
     }
   }
+
+  // Export ONLY localStorage as downloadable JSON file (for cross-browser portability)
+  static exportLocalStorageAsFile(): boolean {
+    try {
+      const localStorageData: { [key: string]: any } = {};
+      
+      // Capture ALL localStorage items (not just artbastard- prefixed)
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          if (value) {
+            try {
+              localStorageData[key] = JSON.parse(value);
+            } catch {
+              localStorageData[key] = value;
+            }
+          }
+        }
+      }
+      
+      const exportData = {
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        exportType: 'localStorage-only',
+        localStorage: localStorageData
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `artbastard-localStorage-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('📥 ArtBastard localStorage exported as file');
+      return true;
+    } catch (error) {
+      console.error('Failed to export localStorage as file:', error);
+      return false;
+    }
+  }
+
+  // Import ONLY localStorage from uploaded JSON file
+  static importLocalStorageFromFile(file: File): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const importData = JSON.parse(content);
+          
+          if (!importData.localStorage || typeof importData.localStorage !== 'object') {
+            throw new Error('Invalid file format: missing localStorage data');
+          }
+          
+          // Clear existing localStorage (optional - you might want to merge instead)
+          // localStorage.clear();
+          
+          // Restore all localStorage items
+          let restoredCount = 0;
+          for (const [key, value] of Object.entries(importData.localStorage)) {
+            try {
+              if (typeof value === 'string') {
+                localStorage.setItem(key, value);
+              } else {
+                localStorage.setItem(key, JSON.stringify(value));
+              }
+              restoredCount++;
+            } catch (err) {
+              console.warn(`Failed to restore localStorage key "${key}":`, err);
+            }
+          }
+          
+          console.log(`📤 ArtBastard localStorage imported: ${restoredCount} items restored`);
+          resolve(true);
+        } catch (error) {
+          console.error('Failed to import localStorage from file:', error);
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  }
+
+  // Auto-save localStorage on exit
+  static setupAutoSaveOnExit(): void {
+    // Note: beforeunload can't reliably trigger file downloads
+    // Instead, we save to a localStorage backup key
+    // Check if already set up (using a flag in window object)
+    if ((window as any).__artbastardAutoSaveSetup) {
+      return;
+    }
+    (window as any).__artbastardAutoSaveSetup = true;
+    
+    // Save to localStorage backup on page unload
+    window.addEventListener('beforeunload', () => {
+      try {
+        const localStorageData: { [key: string]: any } = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key !== 'artbastard-localStorage-backup') {
+            const value = localStorage.getItem(key);
+            if (value) {
+              try {
+                localStorageData[key] = JSON.parse(value);
+              } catch {
+                localStorageData[key] = value;
+              }
+            }
+          }
+        }
+        localStorage.setItem('artbastard-localStorage-backup', JSON.stringify(localStorageData));
+        console.log('💾 Auto-saved localStorage backup on exit');
+      } catch (error) {
+        console.error('Auto-save on exit failed:', error);
+      }
+    });
+
+    // Also save on visibility change (tab switch, minimize)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        try {
+          // Save to localStorage backup key
+          const localStorageData: { [key: string]: any } = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key !== 'artbastard-localStorage-backup') {
+              const value = localStorage.getItem(key);
+              if (value) {
+                try {
+                  localStorageData[key] = JSON.parse(value);
+                } catch {
+                  localStorageData[key] = value;
+                }
+              }
+            }
+          }
+          localStorage.setItem('artbastard-localStorage-backup', JSON.stringify(localStorageData));
+        } catch (error) {
+          console.error('Auto-save backup failed:', error);
+        }
+      }
+    });
+  }
   
   // Import state from uploaded JSON file
   static importStateFromFile(file: File): Promise<any> {

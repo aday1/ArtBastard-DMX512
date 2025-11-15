@@ -13,6 +13,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const localStorageFileInputRef = useRef<HTMLInputElement>(null);
   const { addNotification } = useStore();
 
   const showMessage = (text: string, type: 'success' | 'error' | 'info', duration: number = 3000) => {
@@ -112,6 +113,53 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
     }
   };
 
+  const handleExportLocalStorage = async () => {
+    setIsProcessing(true);
+    try {
+      const success = StateManager.exportLocalStorageAsFile();
+      if (success) {
+        showMessage('LocalStorage exported successfully!', 'success');
+        addNotification({
+          message: '💾 LocalStorage exported as JSON file',
+          type: 'success'
+        });
+      } else {
+        showMessage('Failed to export localStorage', 'error');
+      }
+    } catch (error) {
+      showMessage(`Error exporting localStorage: ${(error as Error).message}`, 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  const handleImportLocalStorage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    try {
+      const success = await StateManager.importLocalStorageFromFile(file);
+      if (success) {
+        showMessage('LocalStorage imported successfully! Page will refresh...', 'success');
+        addNotification({
+          message: '📥 LocalStorage imported from file',
+          type: 'success'
+        });
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        showMessage('Failed to import localStorage', 'error');
+      }
+    } catch (error) {
+      showMessage(`Error importing localStorage: ${(error as Error).message}`, 'error');
+    }
+    setIsProcessing(false);
+    
+    // Reset file input
+    if (localStorageFileInputRef.current) {
+      localStorageFileInputRef.current.value = '';
+    }
+  };
+
   const handleAutoSaveToggle = () => {
     // This would toggle auto-save functionality
     // For now, we'll just enable it with default settings
@@ -207,7 +255,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
                   className={styles.primaryButton}
                 >
                   <LucideIcon name="Download" />
-                  {isProcessing ? 'Exporting...' : 'Export to File'}
+                  {isProcessing ? 'Exporting...' : 'Export Complete State'}
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -226,7 +274,40 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
                 style={{ display: 'none' }}
               />
               <p className={styles.hint}>
-                Export your settings as a JSON file for backup or sharing between devices.
+                Export your complete state as a JSON file for backup or sharing between devices.
+              </p>
+            </div>
+
+            <div className={styles.section}>
+              <h4>LocalStorage Export/Import (Cross-Browser)</h4>
+              <div className={styles.buttonGroup}>
+                <button
+                  onClick={handleExportLocalStorage}
+                  disabled={isProcessing}
+                  className={styles.primaryButton}
+                >
+                  <LucideIcon name="Download" />
+                  {isProcessing ? 'Exporting...' : 'Export LocalStorage Only'}
+                </button>
+                <button
+                  onClick={() => localStorageFileInputRef.current?.click()}
+                  disabled={isProcessing}
+                  className={styles.secondaryButton}
+                >
+                  <LucideIcon name="Upload" />
+                  {isProcessing ? 'Importing...' : 'Import LocalStorage'}
+                </button>
+              </div>
+              <input
+                type="file"
+                ref={localStorageFileInputRef}
+                onChange={handleImportLocalStorage}
+                accept=".json"
+                style={{ display: 'none' }}
+              />
+              <p className={styles.hint}>
+                Export/import only localStorage data (channel names, ranges, colors, etc.) for use in another browser.
+                Auto-saves on exit.
               </p>
             </div>
 
