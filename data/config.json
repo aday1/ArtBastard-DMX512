@@ -556,7 +556,7 @@
   },
   "channelRanges": [
     {
-      "min": 0,
+      "min": 45,
       "max": 255
     },
     {

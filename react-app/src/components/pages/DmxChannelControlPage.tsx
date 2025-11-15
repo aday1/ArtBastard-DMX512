@@ -60,6 +60,10 @@ export const DmxChannelControlPage: React.FC = () => {
     startMidiLearn,
     cancelMidiLearn,
     midiLearnTarget,
+    
+    // Envelope Automation
+    envelopeAutomation,
+    toggleEnvelope,
   } = useStore();
 
   // MIDI Learn hook
@@ -863,9 +867,32 @@ export const DmxChannelControlPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <div className={styles.channelValue}>
-                  <span className={styles.valueDisplay}>{value}</span>
-                  <span className={styles.valuePercent}>{Math.round((value / 255) * 100)}%</span>
+                <div className={styles.channelHeaderActions}>
+                  {(() => {
+                    // Find envelope for this channel
+                    const channelEnvelope = envelopeAutomation.envelopes.find(e => e.channel === channelIndex);
+                    const hasEnvelope = !!channelEnvelope;
+                    const envelopeEnabled = channelEnvelope?.enabled ?? false;
+                    
+                    if (hasEnvelope) {
+                      return (
+                        <button
+                          className={`${styles.envelopeToggleButton} ${envelopeEnabled ? styles.active : ''}`}
+                          onClick={() => channelEnvelope && toggleEnvelope(channelEnvelope.id)}
+                          title={envelopeEnabled ? 'Stop Envelope' : 'Start Envelope'}
+                          disabled={!envelopeAutomation.globalEnabled}
+                        >
+                          <LucideIcon name={envelopeEnabled ? "Square" : "Play"} size={14} />
+                          {envelopeEnabled ? 'Stop' : 'Start'}
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <div className={styles.channelValue}>
+                    <span className={styles.valueDisplay}>{value}</span>
+                    <span className={styles.valuePercent}>{Math.round((value / 255) * 100)}%</span>
+                  </div>
                 </div>
               </div>
 
