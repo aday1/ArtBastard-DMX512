@@ -351,7 +351,20 @@ const EnvelopeCard: React.FC<EnvelopeCardProps> = ({
           </div>
           
           <div className={styles.speedControl}>
-            <label>Speed: {(envelope.speed ?? 1.0).toFixed(2)}x</label>
+            <div className={styles.speedControlHeader}>
+              <label>Speed: {(envelope.speed ?? 1.0).toFixed(2)}x</label>
+              <div className={styles.speedControlActions}>
+                <button
+                  className={`${styles.toggleButton} ${envelope.enabled ? styles.active : ''}`}
+                  onClick={onToggle}
+                  title={envelope.enabled ? 'Stop' : 'Start'}
+                  disabled={!globalEnabled}
+                >
+                  <LucideIcon name={envelope.enabled ? "Square" : "Play"} />
+                  {envelope.enabled ? 'Stop' : 'Start'}
+                </button>
+              </div>
+            </div>
             <input
               type="range"
               min="0.1"

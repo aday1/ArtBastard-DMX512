@@ -10,39 +10,7 @@
   "midiMappings": {
     "0": {
       "channel": 0,
-      "controller": 93
-    },
-    "2": {
-      "channel": 0,
-      "controller": 10
-    },
-    "5": {
-      "channel": 0,
-      "controller": 7
-    },
-    "6": {
-      "channel": 0,
-      "controller": 73
-    },
-    "7": {
-      "channel": 0,
-      "controller": 71
-    },
-    "8": {
-      "channel": 0,
       "controller": 74
-    },
-    "9": {
-      "channel": 0,
-      "controller": 74
-    },
-    "36": {
-      "channel": 0,
-      "controller": 7
-    },
-    "38": {
-      "channel": 0,
-      "controller": 1
     },
     "103": {
       "channel": 1,
