@@ -15,7 +15,10 @@ export const PinnedChannels: React.FC = () => {
     unpinChannel,
     getChannelRange,
     envelopeAutomation,
-    toggleEnvelope
+    toggleEnvelope,
+    quickSceneSave,
+    quickSceneLoad,
+    scenes
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -101,6 +104,28 @@ export const PinnedChannels: React.FC = () => {
             <LucideIcon name={isCollapsed ? 'ChevronRight' : 'ChevronLeft'} />
           </button>
         </div>
+
+        {!isCollapsed && (
+          <div className={styles.quickSceneControls}>
+            <button
+              onClick={quickSceneSave}
+              className={styles.quickSaveButton}
+              title="Quick Save Scene (saves with timestamp)"
+            >
+              <LucideIcon name="Save" size={14} />
+              <span>Quick Save</span>
+            </button>
+            <button
+              onClick={quickSceneLoad}
+              className={styles.quickLoadButton}
+              title={`Quick Load Scene (loads most recent: ${scenes.length > 0 ? scenes[scenes.length - 1]?.name : 'none'})`}
+              disabled={scenes.length === 0}
+            >
+              <LucideIcon name="RotateCcw" size={14} />
+              <span>Quick Load</span>
+            </button>
+          </div>
+        )}
 
         {!isCollapsed && (
           <>
