@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { useStore } from '../store';
 
 /**
  * Hook to sync localStorage changes across all connected clients via WebSocket
@@ -89,13 +90,30 @@ export const useLocalStorageSync = () => {
     // Listen for synced updates from other clients
     const handleSyncedUpdate = (e: CustomEvent) => {
       isSyncingRef.current = true;
-      const { key } = e.detail;
+      const { key, value } = e.detail;
       
-      // Trigger store updates if needed
-      if (key === 'dmxChannelNames' || key === 'dmxChannelRanges' || key === 'dmxChannelColors') {
-        // Store will pick up the change on next render
-        window.dispatchEvent(new Event('storage'));
+      // Update the store if needed
+      const store = useStore.getState();
+      if (key === 'dmxChannelNames' && Array.isArray(value)) {
+        store.set({ channelNames: value });
+      } else if (key === 'dmxChannelRanges' && Array.isArray(value)) {
+        store.set({ channelRanges: value });
+      } else if (key === 'dmxChannelColors' && Array.isArray(value)) {
+        store.set({ channelColors: value });
+      } else if (key === 'pinnedChannels' && Array.isArray(value)) {
+        store.set({ pinnedChannels: value });
+      } else if (key === 'envelopeAutomation' && value && typeof value === 'object') {
+        store.set({ 
+          envelopeAutomation: {
+            ...value,
+            globalEnabled: false, // Don't auto-enable on sync
+            animationId: null
+          }
+        });
       }
+      
+      // Also trigger storage event for other listeners
+      window.dispatchEvent(new Event('storage'));
       
       setTimeout(() => {
         isSyncingRef.current = false;
