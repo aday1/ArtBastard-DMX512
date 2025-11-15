@@ -17,7 +17,7 @@ export const DmxChannelControlPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'selected' | 'range'>('all');
   const [range, setRange] = useState({ start: 1, end: 32 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [channelsPerPage, setChannelsPerPage] = useState(32);
+  const [channelsPerPage, setChannelsPerPage] = useState(64);
   const [currentPage, setCurrentPage] = useState(0);
   const [showSceneControls, setShowSceneControls] = useState(true);
   const [showMidiControls, setShowMidiControls] = useState(true);
@@ -741,7 +741,7 @@ export const DmxChannelControlPage: React.FC = () => {
 
       {/* Embedded MIDI Monitor section removed */}
 
-      {/* Active DMX Channels Summary */}
+      {/* Active DMX Channels Summary - Always Visible */}
       {(() => {
         const activeChannels = Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
         const activeChannelsSet = new Set(activeChannels);
@@ -753,55 +753,53 @@ export const DmxChannelControlPage: React.FC = () => {
               Active Channels
               <span className={styles.activeCount}>({activeChannels.length})</span>
             </h3>
-            {activeChannels.length === 0 ? (
-              <div className={styles.noActiveChannels}>No active channels (Idle)</div>
-            ) : (
-              <div className={styles.activeChannelsContainer}>
-                {/* Visual Grid Representation */}
-                <div className={styles.channelsGrid}>
-                  {Array.from({ length: 512 }, (_, i) => {
-                    const isActive = activeChannelsSet.has(i);
-                    const value = dmxChannels[i] || 0;
-                    const intensity = value / 255;
-                    const channelColor = channelColors[i] || '';
-                    const hasName = !!(channelNames[i] && 
-                      channelNames[i] !== `CH ${i + 1}` && 
-                      channelNames[i] !== `Channel ${i + 1}` &&
-                      channelNames[i].trim() !== '');
-                    
-                    // Use custom color if set, otherwise use default behavior
-                    const backgroundColor = channelColor 
-                      ? channelColor // Show color even when inactive
-                      : (isActive 
-                        ? `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
-                        : 'transparent');
-                    
-                    return (
-                      <div
-                        key={i}
-                        className={`${styles.channelCell} ${isActive ? styles.active : ''} ${hasName ? styles.hasName : ''}`}
-                        style={{
-                          opacity: isActive ? 0.3 + (intensity * 0.7) : (channelColor ? 0.2 : 0.1),
-                          backgroundColor: backgroundColor,
-                          borderColor: hasName ? channelColor || '#10b981' : undefined,
-                          borderWidth: hasName ? '2px' : undefined,
-                        }}
-                        title={`Channel ${i + 1}: ${value > 0 ? `${value} (${Math.round(intensity * 100)}%)` : 'Inactive'}${hasName ? ` - ${channelNames[i]}` : ''}`}
-                        onClick={() => scrollToChannel(i)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setRandomChannelColor(i);
-                        }}
-                      >
-                        {isActive && (
-                          <span className={styles.channelNumber}>{i + 1}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Compact Text List */}
+            <div className={styles.activeChannelsContainer}>
+              {/* Visual Grid Representation - Always show grid */}
+              <div className={styles.channelsGrid}>
+                {Array.from({ length: 512 }, (_, i) => {
+                  const isActive = activeChannelsSet.has(i);
+                  const value = dmxChannels[i] || 0;
+                  const intensity = value / 255;
+                  const channelColor = channelColors[i] || '';
+                  const hasName = !!(channelNames[i] && 
+                    channelNames[i] !== `CH ${i + 1}` && 
+                    channelNames[i] !== `Channel ${i + 1}` &&
+                    channelNames[i].trim() !== '');
+                  
+                  // Use custom color if set, otherwise use default behavior
+                  const backgroundColor = channelColor 
+                    ? channelColor // Show color even when inactive
+                    : (isActive 
+                      ? `hsl(${(i * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
+                      : 'transparent');
+                  
+                  return (
+                    <div
+                      key={i}
+                      className={`${styles.channelCell} ${isActive ? styles.active : ''} ${hasName ? styles.hasName : ''}`}
+                      style={{
+                        opacity: isActive ? 0.3 + (intensity * 0.7) : (channelColor ? 0.2 : 0.1),
+                        backgroundColor: backgroundColor,
+                        borderColor: hasName ? channelColor || '#10b981' : undefined,
+                        borderWidth: hasName ? '2px' : undefined,
+                      }}
+                      title={`Channel ${i + 1}: ${value > 0 ? `${value} (${Math.round(intensity * 100)}%)` : 'Inactive'}${hasName ? ` - ${channelNames[i]}` : ''}`}
+                      onClick={() => scrollToChannel(i)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setRandomChannelColor(i);
+                      }}
+                    >
+                      {isActive && (
+                        <span className={styles.channelNumber}>{i + 1}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Compact Text List - Only show if there are active channels */}
+              {activeChannels.length > 0 && (
                 <div className={styles.channelsList}>
                   <div className={styles.listHeader}>
                     <span>Active Channel Numbers:</span>
@@ -830,8 +828,11 @@ export const DmxChannelControlPage: React.FC = () => {
                     })}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+              {activeChannels.length === 0 && (
+                <div className={styles.noActiveChannels}>No active channels (Idle)</div>
+              )}
+            </div>
           </div>
         );
       })()}
