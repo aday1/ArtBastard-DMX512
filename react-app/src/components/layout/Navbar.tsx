@@ -251,11 +251,14 @@ export const Navbar: React.FC = () => {
                                   key={channelIndex}
                                   className={styles.channelDot}
                                   style={{
-                                    opacity: 0.5 + (intensity * 0.5),
-                                    backgroundColor: `hsl(${(channelIndex * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
+                                    opacity: 0.4 + (intensity * 0.6),
+                                    backgroundColor: `hsl(${(channelIndex * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`,
+                                    borderColor: `rgba(255, 255, 255, ${0.2 + (intensity * 0.3)})`
                                   }}
                                   title={`${channelName}: ${value} (${Math.round(intensity * 100)}%)`}
-                                />
+                                >
+                                  <span className={styles.channelNumber}>{channelIndex + 1}</span>
+                                </div>
                               );
                             })}
                             {activeChannels.length === 10 && (
