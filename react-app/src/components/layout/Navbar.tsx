@@ -114,8 +114,18 @@ export const Navbar: React.FC = () => {
   const { activeBrowserInputs } = useBrowserMidi()
   const midiMessages = useStore(state => state.midiMessages)
   const dmxChannels = useStore(state => state.dmxChannels)
+  const channelNames = useStore(state => state.channelNames)
   const [midiActivity, setMidiActivity] = useState(false)
   const [dmxActivity, setDmxActivity] = useState(false)
+  
+  // Get active channels (channels with value > 0)
+  const activeChannels = React.useMemo(() => {
+    if (!dmxChannels) return [];
+    return dmxChannels
+      .map((value, index) => value > 0 ? index : -1)
+      .filter(index => index !== -1)
+      .slice(0, 10); // Show max 10 active channels
+  }, [dmxChannels]);
 
   // Flash MIDI indicator on new messages
   useEffect(() => {
@@ -218,15 +228,45 @@ export const Navbar: React.FC = () => {
                   
                   {/* DMX Activity for dmxControl item */}
                   {item.id === 'dmxControl' && (
-                    <div 
-                      className={`${styles.itemStatusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
-                      title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
-                    >
-                      <LucideIcon name="Lightbulb" />
-                      <span className={styles.itemStatusLabel}>
-                        DMX {dmxActivity ? '(Active)' : '(Idle)'}
-                      </span>
-                    </div>
+                    <>
+                      <div 
+                        className={`${styles.itemStatusIcon} ${dmxActivity ? styles.statusActive : styles.statusNeutral}`}
+                        title={`DMX Output ${dmxActivity ? '(active)' : '(idle)'}`}
+                      >
+                        <LucideIcon name="Lightbulb" />
+                        <span className={styles.itemStatusLabel}>
+                          DMX {dmxActivity ? '(Active)' : '(Idle)'}
+                        </span>
+                      </div>
+                      {/* Active Channels Indicator */}
+                      {!isCollapsed && activeChannels.length > 0 && (
+                        <div className={styles.activeChannelsIndicator}>
+                          <div className={styles.channelsGrid}>
+                            {activeChannels.map(channelIndex => {
+                              const value = dmxChannels[channelIndex] || 0;
+                              const intensity = value / 255;
+                              const channelName = channelNames[channelIndex] || `CH ${channelIndex + 1}`;
+                              return (
+                                <div
+                                  key={channelIndex}
+                                  className={styles.channelDot}
+                                  style={{
+                                    opacity: 0.5 + (intensity * 0.5),
+                                    backgroundColor: `hsl(${(channelIndex * 137.5) % 360}, 70%, ${50 + (intensity * 30)}%)`
+                                  }}
+                                  title={`${channelName}: ${value} (${Math.round(intensity * 100)}%)`}
+                                />
+                              );
+                            })}
+                            {activeChannels.length === 10 && (
+                              <div className={styles.moreIndicator} title="More active channels...">
+                                +
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   
                   {/* Current View Indicator */}

@@ -395,6 +395,7 @@ interface State {
   channelRanges: ChannelRange[] // Min/max range for each channel (0-511)
   channelColors: string[] // Color for each channel (0-511) - for visual identification
   selectedChannels: number[]
+  pinnedChannels: number[] // Channels pinned to the left sidebar for quick access
   
   // Navigation State
   navVisibility: {
@@ -623,6 +624,9 @@ interface State {
   getChannelRange: (channel: number) => ChannelRange
   setChannelColor: (channel: number, color: string) => void
   setRandomChannelColor: (channel: number) => void
+  pinChannel: (channel: number) => void
+  unpinChannel: (channel: number) => void
+  togglePinChannel: (channel: number) => void
 
   // Fixture Selection Actions
   selectNextFixture: () => void
@@ -960,7 +964,23 @@ export const useStore = create<State>()(
       // Initial state
       dmxChannels: new Array(512).fill(0),
       oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
-      channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+      channelNames: (() => {
+        // Load from localStorage or default
+        try {
+          const saved = localStorage.getItem('dmxChannelNames');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const names = new Array(512);
+            for (let i = 0; i < 512; i++) {
+              names[i] = parsed[i] || `CH ${i + 1}`;
+            }
+            return names;
+          }
+        } catch (e) {
+          console.error('Failed to load channel names from localStorage:', e);
+        }
+        return new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
+      })(),
       channelRanges: (() => {
         // Load from localStorage or default to full range (0-255) for all channels
         try {
@@ -996,6 +1016,18 @@ export const useStore = create<State>()(
         return new Array(512).fill('');
       })(),
       selectedChannels: [],
+      pinnedChannels: (() => {
+        // Load from localStorage
+        try {
+          const saved = localStorage.getItem('pinnedChannels');
+          if (saved) {
+            return JSON.parse(saved);
+          }
+        } catch (e) {
+          console.error('Failed to load pinned channels from localStorage:', e);
+        }
+        return [];
+      })(),
       
       // Navigation State
       navVisibility: {
@@ -1155,12 +1187,29 @@ export const useStore = create<State>()(
       autopilotTrackAnimationId: null,
 
       // Envelope Automation System Initial State
-      envelopeAutomation: {
-        envelopes: [],
-        globalEnabled: false,
-        animationId: null,
-        speed: 1.0 // Default speed multiplier
-      },
+      envelopeAutomation: (() => {
+        // Load from localStorage or default
+        try {
+          const saved = localStorage.getItem('envelopeAutomation');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            return {
+              envelopes: parsed.envelopes || [],
+              globalEnabled: false, // Always start disabled
+              animationId: null, // Never persist animation ID
+              speed: parsed.speed || 1.0
+            };
+          }
+        } catch (e) {
+          console.error('Failed to load envelope automation from localStorage:', e);
+        }
+        return {
+          envelopes: [],
+          globalEnabled: false,
+          animationId: null,
+          speed: 1.0
+        };
+      })(),
 
       // New Modular Automation System Initial State
       modularAutomation: {
@@ -1993,6 +2042,14 @@ export const useStore = create<State>()(
         }
         channelNames[channel] = name;
         set({ channelNames });
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('dmxChannelNames', JSON.stringify(channelNames));
+        } catch (e) {
+          console.error('Failed to save channel names to localStorage:', e);
+        }
+        
         // Save to backend if needed
         try {
           axios.post('/api/dmx/channel-name', { channelIndex: channel, name })
@@ -2072,6 +2129,40 @@ export const useStore = create<State>()(
         const lightness = 50 + Math.floor(Math.random() * 20); // 50-70%
         const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         get().setChannelColor(channel, color);
+      },
+
+      pinChannel: (channel) => {
+        const pinnedChannels = [...get().pinnedChannels];
+        if (!pinnedChannels.includes(channel)) {
+          pinnedChannels.push(channel);
+          set({ pinnedChannels });
+          // Save to localStorage
+          try {
+            localStorage.setItem('pinnedChannels', JSON.stringify(pinnedChannels));
+          } catch (e) {
+            console.error('Failed to save pinned channels to localStorage:', e);
+          }
+        }
+      },
+
+      unpinChannel: (channel) => {
+        const pinnedChannels = get().pinnedChannels.filter(ch => ch !== channel);
+        set({ pinnedChannels });
+        // Save to localStorage
+        try {
+          localStorage.setItem('pinnedChannels', JSON.stringify(pinnedChannels));
+        } catch (e) {
+          console.error('Failed to save pinned channels to localStorage:', e);
+        }
+      },
+
+      togglePinChannel: (channel) => {
+        const pinnedChannels = get().pinnedChannels;
+        if (pinnedChannels.includes(channel)) {
+          get().unpinChannel(channel);
+        } else {
+          get().pinChannel(channel);
+        }
       },
 
       setOscAssignment: (channelIndex, address) => {
@@ -3780,12 +3871,24 @@ export const useStore = create<State>()(
           ...envelope,
           id: `envelope-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         };
-        set(state => ({
-          envelopeAutomation: {
-            ...state.envelopeAutomation,
-            envelopes: [...state.envelopeAutomation.envelopes, newEnvelope]
+        set(state => {
+          const updated = {
+            envelopeAutomation: {
+              ...state.envelopeAutomation,
+              envelopes: [...state.envelopeAutomation.envelopes, newEnvelope]
+            }
+          };
+          // Save to localStorage
+          try {
+            localStorage.setItem('envelopeAutomation', JSON.stringify({
+              envelopes: updated.envelopeAutomation.envelopes,
+              speed: updated.envelopeAutomation.speed
+            }));
+          } catch (e) {
+            console.error('Failed to save envelope automation to localStorage:', e);
           }
-        }));
+          return updated;
+        });
         // Start animation if global is enabled
         if (get().envelopeAutomation.globalEnabled) {
           get().startEnvelopeAnimation();

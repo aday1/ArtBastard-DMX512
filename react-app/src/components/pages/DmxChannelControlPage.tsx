@@ -51,6 +51,8 @@ export const DmxChannelControlPage: React.FC = () => {
     getChannelRange,
     setChannelColor,
     setRandomChannelColor,
+    pinnedChannels,
+    togglePinChannel,
     fixtures,
     
     // Scene Controls
@@ -1012,6 +1014,14 @@ export const DmxChannelControlPage: React.FC = () => {
                   title="Set random color for this channel"
                 >
                   <LucideIcon name="Palette" />
+                </button>
+
+                <button
+                  className={`${styles.pinButton} ${pinnedChannels.includes(channelIndex) ? styles.pinned : ''}`}
+                  onClick={() => togglePinChannel(channelIndex)}
+                  title={pinnedChannels.includes(channelIndex) ? "Unpin channel" : "Pin channel to left sidebar"}
+                >
+                  <LucideIcon name={pinnedChannels.includes(channelIndex) ? "Pin" : "PinOff"} />
                 </button>
 
                 <div className={styles.midiControls}>

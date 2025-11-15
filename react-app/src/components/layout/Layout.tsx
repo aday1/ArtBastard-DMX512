@@ -3,6 +3,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { RouterProvider } from '../../context/RouterContext'
 import { StatusBar } from './StatusBar'
 import { Navbar } from './Navbar'
+import { PinnedChannels } from './PinnedChannels'
 import { ToastContainer } from './ToastContainer'
 import { NetworkStatus } from './NetworkStatus'
 import FancyQuotes from './FancyQuotes'
@@ -38,6 +39,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* <BpmIndicator /> */}
         {/* <SignalFlashIndicator position="bottom-left" /> */}
         
+        <PinnedChannels />
         <Navbar />
         <ToastContainer /> 
         
