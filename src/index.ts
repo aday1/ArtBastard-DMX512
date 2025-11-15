@@ -1188,80 +1188,60 @@ function pingArtNetDevice(io: Server, ip?: string) {
     // If ip is provided, use it instead of the config IP
     const targetIp = ip || artNetConfig.ip;
     
-    // First try TCP connection to ArtNet port
-    const net = require('net');
-    const socket = new net.Socket();
-    const timeout = 1000; // 1 second timeout
-    
-    socket.setTimeout(timeout);
-    
-    // Create a promise that rejects on timeout
-    const connectionPromise = new Promise((resolve, reject) => {
-        socket.connect(artNetConfig.port, targetIp, () => {
-            socket.end();
-            resolve(true);
-        });
-        
-        socket.on('error', (err: Error) => {
-            socket.destroy();
-            reject(err);
-        });
-        
-        socket.on('timeout', () => {
-            socket.destroy();
-            reject(new Error('Connection timed out'));
-        });
-    });
-    
-    connectionPromise
-        .then(() => {
+    // Use ICMP ping instead of TCP connection
+    ping.promise.probe(targetIp, {
+        timeout: 1, // 1 second timeout
+        min_reply: 1
+    })
+    .then((result: any) => {
+        if (result.alive) {
             // Only log status changes from unreachable to alive
             if (lastArtNetStatus !== 'alive') {
-                log(`ArtNet device at ${targetIp} is alive`, 'ARTNET');
+                log(`ArtNet device at ${targetIp} is alive (ICMP ping reply)`, 'ARTNET');
                 lastArtNetStatus = 'alive';
                 artNetFailureCount = 0;
             }
             (global as any).artNetPingStatus = 'alive'; // Update global status
             io.emit('artnetStatus', { ip: targetIp, status: 'alive' });
-        })
-        .catch((error: Error) => {
-            let newStatus: string;
-            let logMessage: string;
-            let clientMessage: string;
-            let logLevel: 'WARN' | 'INFO' = 'WARN';
-
-            if (error.message && error.message.includes('Connection timed out')) {
-                newStatus = 'tcp_timeout';
-                logMessage = `ArtNet TCP ping to ${targetIp} timed out. UDP DMX may still be operational.`;
-                clientMessage = `ArtNet TCP ping to ${targetIp} timed out. UDP DMX communication may still be functional.`;
-                logLevel = 'INFO';
-            } else {
-                newStatus = 'unreachable';
-                logMessage = `ArtNet device at ${targetIp} is unreachable: ${error.message}`;
-                clientMessage = `ArtNet device at ${targetIp} is not responding: ${error.message}`;
-            }
-
-            (global as any).artNetPingStatus = newStatus; // Update global status
-
+        } else {
+            // Device is unreachable - suppress warnings, only log on status change
+            const newStatus = 'unreachable';
+            (global as any).artNetPingStatus = newStatus;
+            
             if (lastArtNetStatus !== newStatus) {
-                log(logMessage, logLevel, { errorDetail: error.message, previousStatus: lastArtNetStatus });
-                artNetFailureCount = 0; // Reset on any status change
-            } else if (newStatus === 'unreachable') { // Only apply MAX_CONSECUTIVE_FAILURES to 'unreachable'
-                artNetFailureCount++;
-                if (artNetFailureCount >= MAX_CONSECUTIVE_FAILURES) {
-                    log(logMessage, logLevel, { errorDetail: error.message, failureCount: artNetFailureCount, status: newStatus });
-                    artNetFailureCount = 0;
-                }
+                // Only log when status changes from alive to unreachable
+                log(`ArtNet device at ${targetIp} is unreachable (no ICMP ping reply)`, 'INFO');
+                artNetFailureCount = 0;
             }
-            // For newStatus === 'tcp_timeout' and lastArtNetStatus === 'tcp_timeout', no repeated log to avoid noise.
-
+            // Suppress repeated warnings - don't log if already unreachable
+            
             lastArtNetStatus = newStatus;
             io.emit('artnetStatus', {
                 ip: targetIp,
                 status: newStatus,
-                message: clientMessage
+                message: `ArtNet device at ${targetIp} is not responding to ping`
             });
+        }
+    })
+    .catch((error: Error) => {
+        // Suppress error logging - just update status silently
+        const newStatus = 'unreachable';
+        (global as any).artNetPingStatus = newStatus;
+        
+        if (lastArtNetStatus !== newStatus) {
+            // Only log when status changes
+            log(`ArtNet device at ${targetIp} is unreachable (ICMP ping failed)`, 'INFO');
+            artNetFailureCount = 0;
+        }
+        // Suppress repeated warnings
+        
+        lastArtNetStatus = newStatus;
+        io.emit('artnetStatus', {
+            ip: targetIp,
+            status: newStatus,
+            message: `ArtNet device at ${targetIp} is not responding to ping`
         });
+    });
 }
 
 function startLaserTime(io: Server) {

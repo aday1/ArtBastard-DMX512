@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useStore } from '../store';
 
 export const useGlobalBrowserMidi = () => {
@@ -7,6 +7,8 @@ export const useGlobalBrowserMidi = () => {
   const [error, setError] = useState<string | null>(null);
   const [inputs, setInputs] = useState<WebMidi.MIDIInput[]>([]);
   const [activeInputs, setActiveInputs] = useState<Set<string>>(new Set());
+  // Store handler references so we can remove them properly
+  const handlerRefs = useRef<Map<string, (event: WebMidi.MIDIMessageEvent) => void>>(new Map());
 
   const { addNotification } = useStore(state => ({
     addNotification: state.addNotification,
@@ -55,6 +57,21 @@ export const useGlobalBrowserMidi = () => {
     const input = midiAccess.inputs.get(inputId);
     if (!input) return;
 
+    // Remove existing listener if one exists (prevent duplicates)
+    const existingHandler = handlerRefs.current.get(inputId);
+    if (existingHandler) {
+      input.removeEventListener('midimessage', existingHandler);
+      handlerRefs.current.delete(inputId);
+      console.log('[GlobalBrowserMidi] Removed existing listener for:', input.name);
+    }
+
+    // Clear onmidimessage property to prevent conflicts with useBrowserMidi hook
+    // (useBrowserMidi uses onmidimessage property, we use addEventListener)
+    if (input.onmidimessage) {
+      console.log('[GlobalBrowserMidi] Clearing onmidimessage property to prevent conflicts');
+      input.onmidimessage = null;
+    }
+
     const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
       const [status, data1, data2] = event.data;
       const channel = status & 0x0F;
@@ -98,6 +115,8 @@ export const useGlobalBrowserMidi = () => {
       useStore.getState().addMidiMessage(messageToStore);
     };
 
+    // Store the handler reference
+    handlerRefs.current.set(inputId, handleMidiMessage);
     input.addEventListener('midimessage', handleMidiMessage);
     setActiveInputs(prev => new Set([...prev, inputId]));
 
@@ -108,15 +127,6 @@ export const useGlobalBrowserMidi = () => {
       type: 'success',
       priority: 'normal'
     });
-
-    return () => {
-      input.removeEventListener('midimessage', handleMidiMessage);
-      setActiveInputs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(inputId);
-        return newSet;
-      });
-    };
   }, [midiAccess, addNotification]);
 
   // Disconnect from a browser MIDI input
@@ -126,8 +136,19 @@ export const useGlobalBrowserMidi = () => {
     const input = midiAccess.inputs.get(inputId);
     if (!input) return;
 
-    // Remove all event listeners by cloning the input
-    const newInput = input;
+    // Remove the event listener using the stored handler reference
+    const handler = handlerRefs.current.get(inputId);
+    if (handler) {
+      input.removeEventListener('midimessage', handler);
+      handlerRefs.current.delete(inputId);
+      console.log('[GlobalBrowserMidi] Removed listener for:', input.name);
+    }
+
+    // Also clear onmidimessage property if it was set
+    if (input.onmidimessage) {
+      input.onmidimessage = null;
+    }
+
     setActiveInputs(prev => {
       const newSet = new Set(prev);
       newSet.delete(inputId);
@@ -150,6 +171,26 @@ export const useGlobalBrowserMidi = () => {
       setInputs(inputList);
       console.log('[GlobalBrowserMidi] Refreshed MIDI devices:', inputList.map(i => i.name));
     }
+  }, [midiAccess]);
+
+  // Cleanup: Remove all listeners when component unmounts
+  useEffect(() => {
+    return () => {
+      if (midiAccess) {
+        handlerRefs.current.forEach((handler, inputId) => {
+          const input = midiAccess.inputs.get(inputId);
+          if (input) {
+            input.removeEventListener('midimessage', handler);
+            // Also clear onmidimessage property
+            if (input.onmidimessage) {
+              input.onmidimessage = null;
+            }
+            console.log('[GlobalBrowserMidi] Cleaned up listener for:', inputId);
+          }
+        });
+        handlerRefs.current.clear();
+      }
+    };
   }, [midiAccess]);
 
   return {

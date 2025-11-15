@@ -251,6 +251,7 @@ export const EnvelopeAutomation: React.FC = () => {
             onCancel={handleCancel}
             selectedChannels={selectedChannels}
             bpm={bpm}
+            channelNames={channelNames}
           />
         )}
       </div>
@@ -399,6 +400,7 @@ interface EnvelopeEditorProps {
   onCancel: () => void;
   selectedChannels: number[];
   bpm: number;
+  channelNames: string[];
 }
 
 const EnvelopeEditor: React.FC<EnvelopeEditorProps> = ({
@@ -407,7 +409,8 @@ const EnvelopeEditor: React.FC<EnvelopeEditorProps> = ({
   onSave,
   onCancel,
   selectedChannels,
-  bpm
+  bpm,
+  channelNames
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -565,13 +568,23 @@ const EnvelopeEditor: React.FC<EnvelopeEditorProps> = ({
             onChange={(e) => onChange({ ...envelope, channel: parseInt(e.target.value) })}
           >
             {selectedChannels.length > 0 ? (
-              selectedChannels.map(ch => (
-                <option key={ch} value={ch}>CH {ch + 1}</option>
-              ))
+              selectedChannels.map(ch => {
+                const channelName = channelNames[ch];
+                const hasCustomName = channelName && channelName !== `CH ${ch + 1}` && channelName !== `Channel ${ch + 1}` && channelName.trim() !== '';
+                const displayName = hasCustomName ? `${channelName} (CH ${ch + 1})` : `CH ${ch + 1}`;
+                return (
+                  <option key={ch} value={ch}>{displayName}</option>
+                );
+              })
             ) : (
-              Array.from({ length: 512 }, (_, i) => (
-                <option key={i} value={i}>CH {i + 1}</option>
-              ))
+              Array.from({ length: 512 }, (_, i) => {
+                const channelName = channelNames[i];
+                const hasCustomName = channelName && channelName !== `CH ${i + 1}` && channelName !== `Channel ${i + 1}` && channelName.trim() !== '';
+                const displayName = hasCustomName ? `${channelName} (CH ${i + 1})` : `CH ${i + 1}`;
+                return (
+                  <option key={i} value={i}>{displayName}</option>
+                );
+              })
             )}
           </select>
         </div>

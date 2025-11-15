@@ -377,42 +377,34 @@ function initializeArtNet() {
 
 function pingArtNetDevice(io: Server, ip?: string) {
     const targetIp = ip || artNetConfig.ip;
-    const net = require('net');
-    const socket = new net.Socket();
-    const timeout = 1000; // 1 second timeout
-
-    socket.setTimeout(timeout);
-
-    const connectionPromise = new Promise((resolve, reject) => {
-        socket.connect(artNetConfig.port, targetIp, () => {
-            socket.end();
-            resolve(true);
-        });
-
-        socket.on('error', (err: Error) => {
-            socket.destroy();
-            reject(err);
-        });
-
-        socket.on('timeout', () => {
-            socket.destroy();
-            reject(new Error('Connection timed out'));
-        });
-    });
-
-    connectionPromise
-        .then(() => {
-            log(`ArtNet device at ${targetIp} is alive`, 'ARTNET');
+    const ping = require('ping');
+    
+    // Use ICMP ping instead of TCP connection
+    ping.promise.probe(targetIp, {
+        timeout: 1, // 1 second timeout
+        min_reply: 1
+    })
+    .then((result: any) => {
+        if (result.alive) {
+            log(`ArtNet device at ${targetIp} is alive (ICMP ping reply)`, 'ARTNET');
             io.emit('artnetStatus', { ip: targetIp, status: 'alive' });
-        })
-        .catch((error) => {
-            log(`ArtNet device at ${targetIp} is unreachable`, 'WARN', { error: error.message });
+        } else {
+            // Suppress warnings - only emit status, don't log
             io.emit('artnetStatus', {
                 ip: targetIp,
                 status: 'unreachable',
-                message: 'Device is not responding on ArtNet port'
+                message: `ArtNet device at ${targetIp} is not responding to ping`
             });
+        }
+    })
+    .catch((error: Error) => {
+        // Suppress error logging - just emit status silently
+        io.emit('artnetStatus', {
+            ip: targetIp,
+            status: 'unreachable',
+            message: `ArtNet device at ${targetIp} is not responding to ping`
         });
+    });
 }
 
 function listMidiInterfaces() {
