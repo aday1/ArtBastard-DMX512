@@ -311,19 +311,24 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
                 <span className={styles.indicatorCount}>{activeChannels.length}</span>
               </div>
               <div className={styles.channelIndicators}>
-                {activeChannels.slice(0, 64).map(ch => (
-                  <div
-                    key={ch}
-                    className={styles.channelIndicator}
-                    title={`CH ${ch + 1}: ${dmxChannels[ch] || 0} (${Math.round(((dmxChannels[ch] || 0) / 255) * 100)}%)`}
-                    style={{
-                      opacity: 0.3 + ((dmxChannels[ch] || 0) / 255) * 0.7,
-                      backgroundColor: `hsl(${(ch * 137.5) % 360}, 70%, ${50 + ((dmxChannels[ch] || 0) / 255) * 30}%)`
-                    }}
-                  >
-                    <span className={styles.channelNumber}>{ch + 1}</span>
-                  </div>
-                ))}
+                {activeChannels.slice(0, 64).map(ch => {
+                  const value = dmxChannels[ch] || 0;
+                  const opacity = 0.4 + (value / 255) * 0.6;
+                  return (
+                    <div
+                      key={ch}
+                      className={styles.channelIndicator}
+                      title={`CH ${ch + 1}: ${value} (${Math.round((value / 255) * 100)}%)`}
+                      style={{
+                        opacity: opacity,
+                        backgroundColor: `hsl(${(ch * 137.5) % 360}, 70%, ${50 + (value / 255) * 30}%)`,
+                        borderColor: `rgba(255, 255, 255, ${0.2 + (value / 255) * 0.3})`
+                      }}
+                    >
+                      <span className={styles.channelNumber}>{ch + 1}</span>
+                    </div>
+                  );
+                })}
                 {activeChannels.length > 64 && (
                   <div className={styles.moreIndicator} title={`${activeChannels.length - 64} more active channels`}>
                     +{activeChannels.length - 64}

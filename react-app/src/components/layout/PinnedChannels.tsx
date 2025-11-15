@@ -18,7 +18,8 @@ export const PinnedChannels: React.FC = () => {
     toggleEnvelope,
     quickSceneSave,
     quickSceneLoad,
-    scenes
+    scenes,
+    loadScene
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -214,6 +215,32 @@ export const PinnedChannels: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Saved Scenes List */}
+          {scenes.length > 0 && (
+            <div className={styles.scenesSection}>
+              <div className={styles.sectionHeader}>
+                <h4 className={styles.sectionTitle}>
+                  <LucideIcon name="Theater" size={14} />
+                  Saved Scenes
+                </h4>
+                <span className={styles.sceneCount}>{scenes.length}</span>
+              </div>
+              <div className={styles.scenesList}>
+                {scenes.slice().reverse().map((scene, index) => (
+                  <button
+                    key={`${scene.name}-${index}`}
+                    className={styles.sceneItem}
+                    onClick={() => loadScene(scene.name)}
+                    title={`Load scene: ${scene.name}`}
+                  >
+                    <LucideIcon name="Play" size={12} />
+                    <span className={styles.sceneName}>{scene.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </>
         )}
       </div>
