@@ -251,6 +251,51 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       });
 
+      // Listen for localStorage sync updates from other clients
+      socketInstance.on('localStorageUpdate', ({ key, value, sourceId }: { key: string; value: any; sourceId: string }) => {
+        // Don't process our own updates (avoid loops)
+        if (sourceId === socketInstance.id) return;
+        
+        console.log('[SocketContext] Received localStorage update from another client:', { key, sourceId });
+        try {
+          if (typeof value === 'string') {
+            localStorage.setItem(key, value);
+          } else {
+            localStorage.setItem(key, JSON.stringify(value));
+          }
+          
+          // Trigger a custom event so components can react to the change
+          window.dispatchEvent(new CustomEvent('localStorageSynced', { detail: { key, value } }));
+        } catch (error) {
+          console.error('[SocketContext] Failed to sync localStorage update:', error);
+        }
+      });
+
+      // Listen for bulk localStorage sync updates
+      socketInstance.on('localStorageBulkUpdate', ({ data, sourceId }: { data: { [key: string]: any }; sourceId: string }) => {
+        // Don't process our own updates
+        if (sourceId === socketInstance.id) return;
+        
+        console.log('[SocketContext] Received bulk localStorage update from another client:', { keysCount: Object.keys(data).length, sourceId });
+        try {
+          for (const [key, value] of Object.entries(data)) {
+            if (typeof value === 'string') {
+              localStorage.setItem(key, value);
+            } else {
+              localStorage.setItem(key, JSON.stringify(value));
+            }
+          }
+          
+          // Trigger a custom event for bulk update
+          window.dispatchEvent(new CustomEvent('localStorageBulkSynced', { detail: { data } }));
+          
+          // Reload the page to apply all changes
+          setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+          console.error('[SocketContext] Failed to sync bulk localStorage update:', error);
+        }
+      });
+
       // Listen for scene loaded events from backend
       socketInstance.on('sceneLoaded', ({ name, channelValues }: { name: string; channelValues: number[] }) => {
         console.log('[SocketContext] Received scene loaded:', { name, channelValues });
@@ -295,6 +340,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           socketInstance.off('quickSceneSaved');
           socketInstance.off('quickSceneLoaded');
           socketInstance.off('quickSceneLoadError');
+          socketInstance.off('localStorageUpdate');
+          socketInstance.off('localStorageBulkUpdate');
           socketInstance.disconnect();
         }
         window.removeEventListener('saveActsToBackend', handleSaveActs as EventListener);

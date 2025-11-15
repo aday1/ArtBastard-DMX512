@@ -16,6 +16,8 @@ import { ResetButton } from './ResetButton'
 import { ThemeToggleButton } from './ThemeToggleButton'
 import { GlobalMonitors } from '../monitors/GlobalMonitors'
 import { StateManager } from '../../utils/stateManager'
+import { useLocalStorageSync } from '../../hooks/useLocalStorageSync'
+import { useSocket } from '../../context/SocketContext'
 import styles from './Layout.module.scss'
 import { LucideIcon } from '../ui/LucideIcon'
 
@@ -33,6 +35,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     StateManager.setupAutoSaveOnExit();
   }, []);
+
+  // Setup WebSocket localStorage sync
+  const { syncAllLocalStorage } = useLocalStorageSync();
+  const { socket, connected } = useSocket();
+  
+  // Sync all localStorage on initial connection
+  useEffect(() => {
+    if (socket && connected) {
+      // Small delay to ensure socket is fully ready
+      const timeoutId = setTimeout(() => {
+        syncAllLocalStorage();
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [socket, connected, syncAllLocalStorage]);
   
   return (
     <RouterProvider>

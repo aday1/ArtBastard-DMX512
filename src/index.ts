@@ -1448,6 +1448,20 @@ function startLaserTime(io: Server) {
             log('Socket error', 'ERROR', { message: err.message, socketId: socket.id });
         });
 
+        // Handle localStorage sync events
+        socket.on('localStorageSync', ({ key, value, sourceId }: { key: string; value: any; sourceId: string }) => {
+            // Don't echo back to the sender, but broadcast to all other clients
+            socket.broadcast.emit('localStorageUpdate', { key, value, sourceId });
+            log('LocalStorage sync received and broadcasted', 'SYNC', { key, sourceId });
+        });
+
+        // Handle bulk localStorage sync (for initial sync or full restore)
+        socket.on('localStorageBulkSync', ({ data, sourceId }: { data: { [key: string]: any }; sourceId: string }) => {
+            // Broadcast to all other clients
+            socket.broadcast.emit('localStorageBulkUpdate', { data, sourceId });
+            log('LocalStorage bulk sync received and broadcasted', 'SYNC', { keysCount: Object.keys(data).length, sourceId });
+        });
+
         socket.on('disconnect', () => {
             log('User disconnected', 'SERVER', { socketId: socket.id });
         });
