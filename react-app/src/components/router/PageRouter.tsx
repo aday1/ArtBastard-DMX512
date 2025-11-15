@@ -7,6 +7,7 @@ import SettingsPage from '../../pages/SettingsPage'
 import DmxChannelControlPage from '../pages/DmxChannelControlPage'
 import ExperimentalPage from '../../pages/ExperimentalPage'
 import ExternalConsolePage from '../../pages/ExternalConsolePage'
+import MobilePage from '../../pages/MobilePage'
 
 const PageRouter: React.FC = () => {
   const { currentView } = useRouter()
@@ -24,6 +25,8 @@ const PageRouter: React.FC = () => {
         return <DmxChannelControlPage />
       case 'experimental':
         return <ExperimentalPage />
+      case 'mobile':
+        return <MobilePage />
       default:
         return <DmxChannelControlPage />
     }

@@ -83,6 +83,16 @@ const navItems: Array<{
       tooltip: "Experimental features for the avant-garde. Face tracking and cutting-edge controls. Not for the faint of heart, mon ami."
     }
   },
+  {
+    id: 'mobile',
+    icon: 'Smartphone',
+    title: {
+    artsnob: "📱 Version Mobile Élégante™",
+      standard: 'Mobile Version',
+      minimal: 'Mobile',
+      tooltip: "Opens the mobile-optimized interface in a new window - perfect for phones and tablets. Touch-optimized controls with large sliders."
+    }
+  },
 ]
 
 export const Navbar: React.FC = () => {
@@ -136,6 +146,27 @@ export const Navbar: React.FC = () => {
       const newWindow = window.open(
         `${window.location.origin}${window.location.pathname}#/external-console`,
         'ExternalConsole',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no`
+      );
+      
+      if (newWindow) {
+        // Focus the new window
+        newWindow.focus();
+      } else {
+        // Fallback if popup blocked
+        console.warn('Popup blocked. Please allow popups for this site.');
+        setCurrentView(view);
+      }
+    } else if (view === 'mobile') {
+      // Special handling for Mobile Version - open in new window optimized for mobile
+      const width = 480;
+      const height = 800;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+      
+      const newWindow = window.open(
+        `${window.location.origin}${window.location.pathname}#/mobile`,
+        'ArtBastardMobile',
         `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no`
       );
       

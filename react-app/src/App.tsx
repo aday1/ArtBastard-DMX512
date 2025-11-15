@@ -18,11 +18,16 @@ import { OscDmxProcessor } from './components/midi/OscDmxProcessor'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import ExternalConsolePage from './pages/ExternalConsolePage'
+import MobilePage from './pages/MobilePage'
 
 function App() {
   // Check if this is the External Console page (opened in new window)
   const isExternalConsole = window.location.hash === '#/external-console' || 
                             window.location.hash === '#external-console';
+  
+  // Check if this is the Mobile page (opened in new window)
+  const isMobilePage = window.location.hash === '#/mobile' || 
+                       window.location.hash === '#mobile';
   
   // Initialize scene transition animation
   useSceneTransitionAnimation();
@@ -57,6 +62,39 @@ function App() {
                   <ExternalConsolePage />
                   <ToastContainer 
                     position="top-right"
+                    autoClose={3000}
+                    hideProgressBar={false}
+                    newestOnTop={false}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="dark"
+                  />
+                </ChromaticEnergyManipulatorProvider>
+              </PinningProvider>
+            </DockingProvider>
+          </PanelProvider>
+        </SocketProvider>
+      </ThemeProvider>
+    );
+  }
+  
+  // If this is the Mobile page, render it standalone
+  if (isMobilePage) {
+    return (
+      <ThemeProvider>
+        <SocketProvider>
+          <PanelProvider>
+            <DockingProvider>
+              <PinningProvider>
+                <ChromaticEnergyManipulatorProvider>
+                  <MidiDmxProcessor />
+                  <OscDmxProcessor />
+                  <MobilePage />
+                  <ToastContainer 
+                    position="top-center"
                     autoClose={3000}
                     hideProgressBar={false}
                     newestOnTop={false}
