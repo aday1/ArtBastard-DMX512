@@ -885,6 +885,18 @@ export const DmxChannelControlPage: React.FC = () => {
                 <div className={styles.rangeInputGroup}>
                   <label className={styles.rangeLabel}>MIN</label>
                   <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={getChannelRange(channelIndex).min}
+                    onChange={(e) => {
+                      const newMin = parseInt(e.target.value);
+                      const currentMax = getChannelRange(channelIndex).max;
+                      setChannelRange(channelIndex, newMin, Math.max(newMin, currentMax));
+                    }}
+                    className={styles.rangeSlider}
+                  />
+                  <input
                     type="number"
                     min="0"
                     max="255"
@@ -892,13 +904,25 @@ export const DmxChannelControlPage: React.FC = () => {
                     onChange={(e) => {
                       const newMin = Math.max(0, Math.min(255, parseInt(e.target.value) || 0));
                       const currentMax = getChannelRange(channelIndex).max;
-                      setChannelRange(channelIndex, newMin, currentMax);
+                      setChannelRange(channelIndex, newMin, Math.max(newMin, currentMax));
                     }}
                     className={styles.rangeInput}
                   />
                 </div>
                 <div className={styles.rangeInputGroup}>
                   <label className={styles.rangeLabel}>MAX</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="255"
+                    value={getChannelRange(channelIndex).max}
+                    onChange={(e) => {
+                      const newMax = parseInt(e.target.value);
+                      const currentMin = getChannelRange(channelIndex).min;
+                      setChannelRange(channelIndex, Math.min(currentMin, newMax), newMax);
+                    }}
+                    className={styles.rangeSlider}
+                  />
                   <input
                     type="number"
                     min="0"
@@ -907,7 +931,7 @@ export const DmxChannelControlPage: React.FC = () => {
                     onChange={(e) => {
                       const newMax = Math.max(0, Math.min(255, parseInt(e.target.value) || 255));
                       const currentMin = getChannelRange(channelIndex).min;
-                      setChannelRange(channelIndex, currentMin, newMax);
+                      setChannelRange(channelIndex, Math.min(currentMin, newMax), newMax);
                     }}
                     className={styles.rangeInput}
                   />
