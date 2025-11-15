@@ -1,6 +1,6 @@
 import React from 'react';
 import { DmxChannelControlPage } from '../components/pages/DmxChannelControlPage';
-import { SuperControl } from '../components/dmx/SuperControl';
+import SuperControl from '../components/dmx/SuperControl';
 import { useMobile } from '../hooks/useMobile';
 import { useTheme } from '../context/ThemeContext';
 import styles from './MobilePage.module.scss';
