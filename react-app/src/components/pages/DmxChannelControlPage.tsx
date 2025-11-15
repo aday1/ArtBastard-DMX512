@@ -416,6 +416,20 @@ export const DmxChannelControlPage: React.FC = () => {
               <option value="range">Range</option>
             </select>
 
+            {/* Active Selections Quick Selector */}
+            <button
+              onClick={() => {
+                setFilter('selected');
+                setCurrentPage(0);
+              }}
+              className={`${styles.activeSelectionsButton} ${filter === 'selected' ? styles.active : ''}`}
+              disabled={selectedChannels.length === 0}
+              title={`Show ${selectedChannels.length} selected channel${selectedChannels.length !== 1 ? 's' : ''}`}
+            >
+              <LucideIcon name="CheckSquare" />
+              Active Selections ({selectedChannels.length})
+            </button>
+
             {filter === 'range' && (
               <div className={styles.rangeInputs}>
                 <input

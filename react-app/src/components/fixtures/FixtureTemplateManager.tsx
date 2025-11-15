@@ -352,6 +352,9 @@ export const FixtureTemplateManager: React.FC<FixtureTemplateManagerProps> = ({ 
               <div className={styles.channelsList}>
                 {templateForm.channels.map((channel, index) => (
                   <div key={index} className={styles.channelRow}>
+                    <div className={styles.channelNumber}>
+                      CH {index + 1}
+                    </div>
                     <input
                       type="text"
                       value={channel.name}

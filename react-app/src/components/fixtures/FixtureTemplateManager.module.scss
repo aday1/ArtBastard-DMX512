@@ -303,6 +303,21 @@
   align-items: center;
 }
 
+.channelNumber {
+  min-width: 60px;
+  padding: 0.5rem;
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: 4px;
+  color: var(--accent-color, #4a9eff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .channelName {
   flex: 1;
   padding: 0.5rem;
