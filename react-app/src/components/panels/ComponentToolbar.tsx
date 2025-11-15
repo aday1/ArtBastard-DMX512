@@ -86,6 +86,12 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Get active channels for visual indicator
+  const { dmxChannels } = useStore();
+  const activeChannels = React.useMemo(() => {
+    return Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
+  }, [dmxChannels]);
 
   const categories = getAllCategories();
   const savedLayouts = getSavedLayouts();
@@ -305,21 +311,23 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
                 <span className={styles.indicatorCount}>{activeChannels.length}</span>
               </div>
               <div className={styles.channelIndicators}>
-                {activeChannels.slice(0, 20).map(ch => (
+                {activeChannels.slice(0, 64).map(ch => (
                   <div
                     key={ch}
                     className={styles.channelIndicator}
-                    title={`CH ${ch + 1}: ${dmxChannels[ch] || 0}`}
+                    title={`CH ${ch + 1}: ${dmxChannels[ch] || 0} (${Math.round(((dmxChannels[ch] || 0) / 255) * 100)}%)`}
                     style={{
                       opacity: 0.3 + ((dmxChannels[ch] || 0) / 255) * 0.7,
                       backgroundColor: `hsl(${(ch * 137.5) % 360}, 70%, ${50 + ((dmxChannels[ch] || 0) / 255) * 30}%)`
                     }}
                   >
-                    {ch + 1}
+                    <span className={styles.channelNumber}>{ch + 1}</span>
                   </div>
                 ))}
-                {activeChannels.length > 20 && (
-                  <div className={styles.moreIndicator}>+{activeChannels.length - 20}</div>
+                {activeChannels.length > 64 && (
+                  <div className={styles.moreIndicator} title={`${activeChannels.length - 64} more active channels`}>
+                    +{activeChannels.length - 64}
+                  </div>
                 )}
               </div>
             </div>
