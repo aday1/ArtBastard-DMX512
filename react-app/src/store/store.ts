@@ -382,11 +382,17 @@ const saveCurrentAutoSceneSettings = (state: any) => {
   saveAutoSceneSettings(settings);
 };
 
+export interface ChannelRange {
+  min: number
+  max: number
+}
+
 interface State {
   // DMX State
   dmxChannels: number[]
   oscAssignments: string[]
   channelNames: string[]
+  channelRanges: ChannelRange[] // Min/max range for each channel (0-511)
   selectedChannels: number[]
   
   // Navigation State
@@ -610,6 +616,8 @@ interface State {
   deselectAllChannels: () => void
   invertChannelSelection: () => void
   setChannelName: (channel: number, name: string) => void
+  setChannelRange: (channel: number, min: number, max: number) => void
+  getChannelRange: (channel: number) => ChannelRange
 
   // Fixture Selection Actions
   selectNextFixture: () => void
@@ -946,6 +954,23 @@ export const useStore = create<State>()(
       dmxChannels: new Array(512).fill(0),
       oscAssignments: new Array(512).fill('').map((_, i) => `/1/fader${i + 1}`),
       channelNames: new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+      channelRanges: (() => {
+        // Load from localStorage or default to full range (0-255) for all channels
+        try {
+          const saved = localStorage.getItem('dmxChannelRanges');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const ranges = new Array(512);
+            for (let i = 0; i < 512; i++) {
+              ranges[i] = parsed[i] || { min: 0, max: 255 };
+            }
+            return ranges;
+          }
+        } catch (e) {
+          console.error('Failed to load channel ranges from localStorage:', e);
+        }
+        return new Array(512).fill(null).map(() => ({ min: 0, max: 255 }));
+      })(),
       selectedChannels: [],
       
       // Navigation State
@@ -1454,10 +1479,45 @@ export const useStore = create<State>()(
               groups: state.groups?.length || 0
             });
             
+            // Load channel ranges from backend or use defaults
+            const backendRanges = state.channelRanges;
+            let loadedRanges: ChannelRange[];
+            if (backendRanges && Array.isArray(backendRanges)) {
+              loadedRanges = backendRanges;
+              // Ensure array is 512 elements
+              while (loadedRanges.length < 512) {
+                loadedRanges.push({ min: 0, max: 255 });
+              }
+              // Save to localStorage for consistency
+              try {
+                localStorage.setItem('dmxChannelRanges', JSON.stringify(loadedRanges));
+              } catch (e) {
+                console.error('Failed to save channel ranges to localStorage:', e);
+              }
+            } else {
+              // Fallback to localStorage or defaults
+              try {
+                const saved = localStorage.getItem('dmxChannelRanges');
+                if (saved) {
+                  const parsed = JSON.parse(saved);
+                  loadedRanges = parsed;
+                  while (loadedRanges.length < 512) {
+                    loadedRanges.push({ min: 0, max: 255 });
+                  }
+                } else {
+                  loadedRanges = new Array(512).fill(null).map(() => ({ min: 0, max: 255 }));
+                }
+              } catch (e) {
+                console.error('Failed to load channel ranges from localStorage:', e);
+                loadedRanges = new Array(512).fill(null).map(() => ({ min: 0, max: 255 }));
+              }
+            }
+            
             set({
               dmxChannels: state.dmxChannels || new Array(512).fill(0),
               oscAssignments: state.oscAssignments || new Array(512).fill('').map((_, i) => `/fixture/DMX${i + 1}`),
               channelNames: state.channelNames || new Array(512).fill('').map((_, i) => `CH ${i + 1}`),
+              channelRanges: loadedRanges,
               fixtures: state.fixtures || [],
               groups: state.groups || [],
               midiMappings: state.midiMappings || {},
@@ -1532,8 +1592,13 @@ export const useStore = create<State>()(
       
       setDmxChannel: (channel, value, sendToBackend = true) => {
         console.log(`[STORE] setDmxChannel called: channel=${channel}, value=${value}, sendToBackend=${sendToBackend}`);
+        
+        // Get channel range and clamp value
+        const channelRange = get().getChannelRange(channel);
+        const clampedValue = Math.max(channelRange.min, Math.min(channelRange.max, value));
+        
         const dmxChannels = [...get().dmxChannels]
-        dmxChannels[channel] = value
+        dmxChannels[channel] = clampedValue
         set({ dmxChannels })
         
         if (sendToBackend) {
@@ -1901,6 +1966,50 @@ export const useStore = create<State>()(
         } catch (error) {
           // Silently fail if backend endpoint doesn't exist yet
         }
+      },
+
+      setChannelRange: (channel, min, max) => {
+        const channelRanges = [...get().channelRanges];
+        // Ensure array is long enough
+        while (channelRanges.length <= channel) {
+          channelRanges.push({ min: 0, max: 255 });
+        }
+        // Ensure min <= max and values are valid
+        const validMin = Math.max(0, Math.min(255, min));
+        const validMax = Math.max(0, Math.min(255, max));
+        channelRanges[channel] = { min: validMin, max: Math.max(validMin, validMax) };
+        set({ channelRanges });
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('dmxChannelRanges', JSON.stringify(channelRanges));
+        } catch (e) {
+          console.error('Failed to save channel ranges to localStorage:', e);
+        }
+        
+        // Save to backend
+        try {
+          axios.post('/api/dmx/channel-range', { channelIndex: channel, min: validMin, max: channelRanges[channel].max })
+            .catch(error => {
+              console.error('Failed to save channel range to backend:', error);
+            });
+        } catch (error) {
+          // Silently fail if backend endpoint doesn't exist yet
+        }
+        
+        // Clamp current DMX value if it's outside the new range
+        const currentValue = get().dmxChannels[channel] || 0;
+        if (currentValue < validMin || currentValue > channelRanges[channel].max) {
+          get().setDmxChannel(channel, currentValue, true);
+        }
+      },
+
+      getChannelRange: (channel) => {
+        const channelRanges = get().channelRanges;
+        if (channelRanges[channel]) {
+          return channelRanges[channel];
+        }
+        return { min: 0, max: 255 }; // Default range
       },
 
       setOscAssignment: (channelIndex, address) => {

@@ -35,6 +35,7 @@ export const DmxChannelControlPage: React.FC = () => {
     dmxChannels,
     selectedChannels,
     channelNames,
+    channelRanges,
     setDmxChannel,
     toggleChannelSelection,
     selectAllChannels,
@@ -45,6 +46,8 @@ export const DmxChannelControlPage: React.FC = () => {
     oscAssignments,
     setOscAssignment,
     setChannelName,
+    setChannelRange,
+    getChannelRange,
     fixtures,
     
     // Scene Controls
@@ -869,12 +872,46 @@ export const DmxChannelControlPage: React.FC = () => {
               <div className={styles.channelSlider}>
                 <input
                   type="range"
-                  min="0"
-                  max="255"
+                  min={getChannelRange(channelIndex).min}
+                  max={getChannelRange(channelIndex).max}
                   value={value}
                   onChange={(e) => setDmxChannel(channelIndex, parseInt(e.target.value))}
                   className={styles.slider}
                 />
+              </div>
+
+              {/* Channel Range Controls */}
+              <div className={styles.channelRangeControls}>
+                <div className={styles.rangeInputGroup}>
+                  <label className={styles.rangeLabel}>MIN</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    value={getChannelRange(channelIndex).min}
+                    onChange={(e) => {
+                      const newMin = Math.max(0, Math.min(255, parseInt(e.target.value) || 0));
+                      const currentMax = getChannelRange(channelIndex).max;
+                      setChannelRange(channelIndex, newMin, currentMax);
+                    }}
+                    className={styles.rangeInput}
+                  />
+                </div>
+                <div className={styles.rangeInputGroup}>
+                  <label className={styles.rangeLabel}>MAX</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="255"
+                    value={getChannelRange(channelIndex).max}
+                    onChange={(e) => {
+                      const newMax = Math.max(0, Math.min(255, parseInt(e.target.value) || 255));
+                      const currentMin = getChannelRange(channelIndex).min;
+                      setChannelRange(channelIndex, currentMin, newMax);
+                    }}
+                    className={styles.rangeInput}
+                  />
+                </div>
               </div>
 
               <div className={styles.channelActions}>

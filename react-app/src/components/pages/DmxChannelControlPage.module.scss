@@ -1103,6 +1103,54 @@
   }
 }
 
+.channelRangeControls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(71, 85, 105, 0.15);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  border-radius: 6px;
+}
+
+.rangeInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.rangeLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rangeInput {
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  
+  &:focus {
+    outline: none;
+    border-color: #10b981;
+    background: rgba(15, 23, 42, 0.8);
+  }
+  
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    opacity: 1;
+    cursor: pointer;
+  }
+}
+
 .channelActions {
   display: flex;
   justify-content: space-between;

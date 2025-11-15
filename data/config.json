@@ -8,10 +8,6 @@
     "base_refresh_interval": 1000
   },
   "midiMappings": {
-    "0": {
-      "channel": 0,
-      "controller": 10
-    },
     "2": {
       "channel": 0,
       "controller": 7

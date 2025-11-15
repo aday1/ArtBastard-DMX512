@@ -20,7 +20,9 @@ import {
   updateOscAssignment,
   updateOscConfig, // Added import
   getDmxChannels, // Added import
-  getChannelNames // Added import
+  getChannelNames, // Added import
+  getChannelRanges, // Added import
+  setChannelRange // Added import
 } from './index';
 import { FaceTrackerService } from './faceTrackerService';
 
@@ -205,6 +207,7 @@ apiRouter.get('/state', (req, res) => {
       dmxChannels: getDmxChannels(), // Use getter for actual DMX channel state
       oscAssignments: config.oscAssignments, // Use loaded OSC assignments
       channelNames: getChannelNames(), // Use getter for actual channel names
+      channelRanges: getChannelRanges(), // Use getter for channel ranges
       fixtures: fixturesData.fixtures,
       groups: fixturesData.groups,
       fixtureLayout: fixturesData.fixtureLayout,
@@ -335,6 +338,39 @@ const batchDmxHandler: RequestHandler = (req: Request, res: Response) => {
 };
 
 apiRouter.post('/dmx/batch', batchDmxHandler);
+
+// Channel range endpoint
+apiRouter.post('/dmx/channel-range', (req: Request, res: Response) => {
+  try {
+    const { channelIndex, min, max } = req.body;
+    
+    if (typeof channelIndex !== 'number' || channelIndex < 0 || channelIndex >= 512) {
+      res.status(400).json({ error: 'Invalid channel index (0-511)' });
+      return;
+    }
+    
+    if (typeof min !== 'number' || typeof max !== 'number') {
+      res.status(400).json({ error: 'Invalid min or max value' });
+      return;
+    }
+    
+    const success = setChannelRange(channelIndex, min, max);
+    
+    if (success) {
+      // Notify all clients
+      const io = global.io;
+      if (io) {
+        io.emit('channelRangeUpdated', { channelIndex, min, max });
+      }
+      res.json({ success: true, channelIndex, min, max });
+    } else {
+      res.status(500).json({ error: 'Failed to set channel range' });
+    }
+  } catch (error) {
+    log('Error setting channel range', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to set channel range: ${error instanceof Error ? error.message : String(error)}` });
+  }
+});
 
 // MIDI Learn endpoints
 const midiLearnHandler: RequestHandler = (req: Request, res: Response) => {

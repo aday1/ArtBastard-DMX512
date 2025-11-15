@@ -76,6 +76,7 @@ interface OscConfig {
 let dmxChannels: number[] = new Array(512).fill(0);
 let oscAssignments: string[] = new Array(512).fill('').map((_, i) => `/1/dmx${i + 1}`); // Factory default pattern
 let channelNames: string[] = new Array(512).fill('').map((_, i) => `CH ${i + 1}`);
+let channelRanges: Array<{ min: number; max: number }> = new Array(512).fill(null).map(() => ({ min: 0, max: 255 }));
 let fixtures: Fixture[] = [];
 let groups: Group[] = [];
 let scenes: Scene[] = [];
@@ -144,6 +145,14 @@ function loadConfig() {
         midiMappings = parsedConfig.midiMappings || {};
         oscAssignments = parsedConfig.oscAssignments || new Array(512).fill('').map((_, i) => `/1/dmx${i + 1}`); // Load OSC assignments or use default
         oscConfig = { ...oscConfig, ...parsedConfig.oscConfig }; // Load OSC config or use default
+        // Load channel ranges
+        if (parsedConfig.channelRanges && Array.isArray(parsedConfig.channelRanges)) {
+            channelRanges = parsedConfig.channelRanges;
+            // Ensure array is 512 elements
+            while (channelRanges.length < 512) {
+                channelRanges.push({ min: 0, max: 255 });
+            }
+        }
         log('Config loaded', 'INFO', { artNetConfig });
         log('MIDI mappings loaded', 'MIDI', { midiMappings });
         log('OSC assignments loaded', 'OSC', { oscAssignmentsCount: oscAssignments.length });
@@ -171,7 +180,8 @@ function saveConfig() {
         artNetConfig,
         midiMappings,
         oscAssignments, // Save OSC assignments
-        oscConfig // Save OSC config
+        oscConfig, // Save OSC config
+        channelRanges // Save channel ranges
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(configToSave, null, 2));
     log('Config saved', 'INFO', { config: configToSave });
@@ -183,6 +193,22 @@ export function getDmxChannels(): number[] {
 
 export function getChannelNames(): string[] {
   return channelNames;
+}
+
+export function getChannelRanges(): Array<{ min: number; max: number }> {
+  return channelRanges;
+}
+
+export function setChannelRange(channel: number, min: number, max: number): boolean {
+  if (channel < 0 || channel >= 512) {
+    log('Invalid channel index for range', 'ERROR', { channel });
+    return false;
+  }
+  const validMin = Math.max(0, Math.min(255, min));
+  const validMax = Math.max(0, Math.min(255, max));
+  channelRanges[channel] = { min: validMin, max: Math.max(validMin, validMax) };
+  saveConfig();
+  return true;
 }
 
 // Store active MIDI inputs
@@ -831,12 +857,16 @@ function updateScene(io: Server, originalName: string, updates: Partial<Scene>) 
 }
 
 function updateDmxChannel(channel: number, value: number, io?: Server) {
+    // Clamp value to channel range if set
+    const range = channelRanges[channel] || { min: 0, max: 255 };
+    const clampedValue = Math.max(range.min, Math.min(range.max, value));
+    
     const previousValue = dmxChannels[channel];
-    dmxChannels[channel] = value;
+    dmxChannels[channel] = clampedValue;
     
     // Send to ArtNet
     if (artnetSender) {
-        artnetSender.setChannel(channel, value);
+        artnetSender.setChannel(channel, clampedValue);
         artnetSender.transmit();
         // Only log significant changes or errors, not every channel update
         if (Math.abs(previousValue - value) > 50 || value === 0 || value === 255) {
