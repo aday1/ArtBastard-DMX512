@@ -92,18 +92,17 @@ export const useLocalStorageSync = () => {
       isSyncingRef.current = true;
       const { key, value } = e.detail;
       
-      // Update the store if needed
-      const store = useStore.getState();
+      // Update the store if needed using Zustand's setState
       if (key === 'dmxChannelNames' && Array.isArray(value)) {
-        store.set({ channelNames: value });
+        useStore.setState({ channelNames: value });
       } else if (key === 'dmxChannelRanges' && Array.isArray(value)) {
-        store.set({ channelRanges: value });
+        useStore.setState({ channelRanges: value });
       } else if (key === 'dmxChannelColors' && Array.isArray(value)) {
-        store.set({ channelColors: value });
+        useStore.setState({ channelColors: value });
       } else if (key === 'pinnedChannels' && Array.isArray(value)) {
-        store.set({ pinnedChannels: value });
+        useStore.setState({ pinnedChannels: value });
       } else if (key === 'envelopeAutomation' && value && typeof value === 'object') {
-        store.set({ 
+        useStore.setState({ 
           envelopeAutomation: {
             ...value,
             globalEnabled: false, // Don't auto-enable on sync

@@ -224,7 +224,120 @@
       opacity: 0.6;
     }
 
-    .emptyHint {
+    .dashboardRedirect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 600px;
+  z-index: 10;
+}
+
+.redirectContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.redirectIcon {
+  width: 80px;
+  height: 80px;
+  color: #10b981;
+  margin-bottom: 10px;
+  animation: redirectPulse 2s ease-in-out infinite;
+}
+
+@keyframes redirectPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+.redirectTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #f8fafc;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.redirectDescription {
+  margin: 0;
+  font-size: 16px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.redirectHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #64748b;
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.redirectActions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+}
+
+.redirectButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  color: #10b981;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: #34d399;
+    color: #34d399;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.emptyHint {
       display: flex;
       align-items: center;
       justify-content: center;

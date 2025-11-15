@@ -32,6 +32,14 @@ interface NetworkInfo {
   }>;
   serverHost: string;
   serverPort: number;
+  oscConfig?: {
+    receivePort: number;
+    receiveHost: string;
+    sendEnabled: boolean;
+    sendHost: string;
+    sendPort: number;
+    interfaceAssignment: string;
+  };
 }
 
 interface OscTestMessage {
@@ -361,24 +369,86 @@ export const DebugMenu: React.FC<DebugMenuProps> = ({ position = 'top-right' }) 
               </div>
 
               {networkInfo && (
-                <div className={styles.section}>
-                  <h4>🌐 Network Interfaces</h4>
-                  <div className={styles.infoGrid}>
-                    {networkInfo.interfaces
-                      .filter(iface => iface.family === 'IPv4' && !iface.internal)
-                      .map((iface, index) => (
-                        <div key={index}>
-                          <strong>{iface.name}:</strong> {iface.address}
+                <>
+                  <div className={styles.section}>
+                    <h4>🌐 Network Interfaces & IP Addresses</h4>
+                    <div className={styles.infoGrid}>
+                      <div className={styles.subSection}>
+                        <strong>External IP Addresses:</strong>
+                        {networkInfo.interfaces
+                          .filter(iface => iface.family === 'IPv4' && !iface.internal)
+                          .map((iface, index) => (
+                            <div key={index} className={styles.ipAddress}>
+                              <strong>{iface.name}:</strong> {iface.address}
+                            </div>
+                          ))}
+                        {networkInfo.interfaces.filter(iface => iface.family === 'IPv4' && !iface.internal).length === 0 && (
+                          <div className={styles.noData}>No external network interfaces found</div>
+                        )}
+                      </div>
+                      <div className={styles.subSection}>
+                        <strong>Internal IP Addresses:</strong>
+                        {networkInfo.interfaces
+                          .filter(iface => iface.family === 'IPv4' && iface.internal)
+                          .map((iface, index) => (
+                            <div key={index} className={styles.ipAddress}>
+                              <strong>{iface.name}:</strong> {iface.address} <span className={styles.internalLabel}>(internal)</span>
+                            </div>
+                          ))}
+                        {networkInfo.interfaces.filter(iface => iface.family === 'IPv4' && iface.internal).length === 0 && (
+                          <div className={styles.noData}>No internal network interfaces</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.infoBox}>
+                      <div className={styles.serverInfo}>
+                        <strong>🌐 Web Server:</strong>
+                        <div className={styles.serverDetails}>
+                          <div><strong>Host:</strong> {networkInfo.serverHost}</div>
+                          <div><strong>Port:</strong> {networkInfo.serverPort}</div>
+                          <div><strong>URL:</strong> {window.location.origin}</div>
                         </div>
-                      ))}
-                    {networkInfo.interfaces.filter(iface => iface.family === 'IPv4' && !iface.internal).length === 0 && (
-                      <div>No external network interfaces found</div>
-                    )}
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.infoBox}>
-                    <strong>Server:</strong> {networkInfo.serverHost}:{networkInfo.serverPort}
-                  </div>
-                </div>
+
+                  {networkInfo.oscConfig && (
+                    <div className={styles.section}>
+                      <h4>📡 OSC Configuration & Interface Assignment</h4>
+                      <div className={styles.infoGrid}>
+                        <div className={styles.subSection}>
+                          <strong>OSC Receive:</strong>
+                          <div className={styles.oscDetails}>
+                            <div><strong>Listen Address:</strong> {networkInfo.oscConfig.receiveHost}</div>
+                            <div><strong>Listen Port:</strong> {networkInfo.oscConfig.receivePort} (UDP)</div>
+                            <div><strong>Interface Assignment:</strong> {networkInfo.oscConfig.interfaceAssignment}</div>
+                          </div>
+                        </div>
+                        <div className={styles.subSection}>
+                          <strong>OSC Send:</strong>
+                          <div className={styles.oscDetails}>
+                            <div><strong>Send Enabled:</strong> {networkInfo.oscConfig.sendEnabled ? '✅ Yes' : '❌ No'}</div>
+                            {networkInfo.oscConfig.sendEnabled && (
+                              <>
+                                <div><strong>Send Host:</strong> {networkInfo.oscConfig.sendHost}</div>
+                                <div><strong>Send Port:</strong> {networkInfo.oscConfig.sendPort} (UDP)</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={styles.infoBox}>
+                        <strong>📋 OSC Connection Details:</strong>
+                        <div className={styles.configBlock}>
+                          <div><strong>To send OSC to ArtBastard:</strong> {networkInfo.interfaces.filter(i => i.family === 'IPv4' && !i.internal)[0]?.address || 'N/A'}:{networkInfo.oscConfig.receivePort}</div>
+                          {networkInfo.oscConfig.sendEnabled && (
+                            <div><strong>ArtBastard sends OSC to:</strong> {networkInfo.oscConfig.sendHost}:{networkInfo.oscConfig.sendPort}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className={styles.section}>

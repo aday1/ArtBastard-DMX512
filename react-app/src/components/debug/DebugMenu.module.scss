@@ -452,6 +452,97 @@
   }
 }
 
+.subSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  
+  > strong {
+    color: #ffff00;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    text-shadow: 0 0 6px rgba(255, 255, 0, 0.3);
+  }
+}
+
+.ipAddress {
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border-left: 2px solid rgba(0, 255, 255, 0.3);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  strong {
+    color: #00ffff;
+    font-weight: 600;
+  }
+}
+
+.internalLabel {
+  color: #888;
+  font-size: 9px;
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.noData {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  font-size: 10px;
+  padding: 6px 10px;
+}
+
+.serverInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.serverDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  
+  div {
+    color: #e0e0e0;
+    
+    strong {
+      color: #00ffff;
+      font-weight: 600;
+    }
+  }
+}
+
+.oscDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  
+  div {
+    color: #e0e0e0;
+    
+    strong {
+      color: #00ffff;
+      font-weight: 600;
+    }
+  }
+}
+
 .configBlock {
   margin-top: 8px;
   padding: 8px;

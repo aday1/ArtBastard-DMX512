@@ -16,6 +16,25 @@ import { SceneGallery } from '../scenes/SceneGallery';
 import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
 import TouchOSCDemo from '../demo/TouchOSCDemo';
+// Lazy import Dashboard to avoid circular dependency
+// Dashboard imports ComponentToolbar which imports ComponentRegistry
+// Create a wrapper component that lazy loads Dashboard
+const DashboardWrapper: React.FC<any> = (props) => {
+  const [Dashboard, setDashboard] = React.useState<React.ComponentType<any> | null>(null);
+  
+  React.useEffect(() => {
+    // Dynamic import to break circular dependency
+    import('../dashboard/Dashboard').then(module => {
+      setDashboard(() => module.default || module.Dashboard);
+    });
+  }, []);
+  
+  if (!Dashboard) {
+    return <div>Loading...</div>;
+  }
+  
+  return <Dashboard {...props} />;
+};
 
 export interface ComponentDefinition {
   type: string;
@@ -176,6 +195,18 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-mobile-alt',
     component: TouchOSCDemo,
     minSize: { width: 600, height: 400 },
+  },
+  
+  // External Console - External Window Component
+  'dashboard': {
+    type: 'dashboard',
+    title: 'External Console',
+    description: 'Component workspace and layout manager - Opens in new window (perfect for tablets and 2nd monitors)',
+    category: 'setup',
+    icon: 'fas fa-external-link-alt',
+    component: DashboardWrapper, // Wrapper that lazy loads Dashboard to break circular dependency
+    minSize: { width: 800, height: 600 },
+    defaultProps: {},
   },
 };
 

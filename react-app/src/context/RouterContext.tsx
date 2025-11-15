@@ -17,8 +17,8 @@ interface RouterProviderProps {
 }
 
 export const RouterProvider: React.FC<RouterProviderProps> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<ViewType>('main')
-  const [navigationHistory, setNavigationHistory] = useState<ViewType[]>(['main'])
+  const [currentView, setCurrentView] = useState<ViewType>('dmxControl')
+  const [navigationHistory, setNavigationHistory] = useState<ViewType[]>(['dmxControl'])
 
   // Listen for navigation events from navbar
   useEffect(() => {

@@ -27,10 +27,10 @@ const navItems: Array<{
     id: 'main',
     icon: 'Layout',
     title: {
-    artsnob: "🎭 Dashboard Magnifique™",
-      standard: 'Dashboard',
-      minimal: 'Main',
-      tooltip: "For the uninitiated: It's just a dashboard, darling."
+    artsnob: "🖥️ Console Externe Élégante™",
+      standard: 'External Console',
+      minimal: 'Console',
+      tooltip: "Opens the External Console in a new window - perfect for tablets and 2nd monitors. Click to open!"
     }
   },
   {
@@ -146,7 +146,30 @@ export const Navbar: React.FC = () => {
   }, [dmxChannels]);
 
   const handleViewChange = (view: ViewType) => {
-    setCurrentView(view)
+    // Special handling for External Console - open in new window
+    if (view === 'main') {
+      const width = 1200;
+      const height = 800;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+      
+      const newWindow = window.open(
+        `${window.location.origin}${window.location.pathname}#/external-console`,
+        'ExternalConsole',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no`
+      );
+      
+      if (newWindow) {
+        // Focus the new window
+        newWindow.focus();
+      } else {
+        // Fallback if popup blocked
+        console.warn('Popup blocked. Please allow popups for this site.');
+        setCurrentView(view);
+      }
+    } else {
+      setCurrentView(view);
+    }
   }
 
   const toggleCollapse = () => {

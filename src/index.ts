@@ -1429,17 +1429,34 @@ function startLaserTime(io: Server) {
                 const serverPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3030;
                 const serverHost = '0.0.0.0'; // Server listens on all interfaces
                 
+                // Include OSC configuration details
                 socket.emit('networkInfo', {
                     interfaces,
                     serverHost,
-                    serverPort
+                    serverPort,
+                    oscConfig: {
+                        receivePort: oscConfig.port,
+                        receiveHost: '0.0.0.0', // OSC listens on all interfaces
+                        sendEnabled: oscConfig.sendEnabled,
+                        sendHost: oscConfig.sendHost || oscConfig.host,
+                        sendPort: oscConfig.sendPort || oscConfig.port,
+                        interfaceAssignment: '0.0.0.0 (all interfaces)' // OSC listens on all interfaces
+                    }
                 });
             } catch (error) {
                 log('Error getting network info', 'ERROR', { error });
                 socket.emit('networkInfo', {
                     interfaces: [],
                     serverHost: '0.0.0.0',
-                    serverPort: 3030
+                    serverPort: 3030,
+                    oscConfig: {
+                        receivePort: oscConfig.port,
+                        receiveHost: '0.0.0.0',
+                        sendEnabled: oscConfig.sendEnabled,
+                        sendHost: oscConfig.sendHost || oscConfig.host,
+                        sendPort: oscConfig.sendPort || oscConfig.port,
+                        interfaceAssignment: '0.0.0.0 (all interfaces)'
+                    }
                 });
             }
         });

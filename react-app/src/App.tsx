@@ -17,8 +17,13 @@ import { MidiDmxProcessor } from './components/midi/MidiDmxProcessor'
 import { OscDmxProcessor } from './components/midi/OscDmxProcessor'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import ExternalConsolePage from './pages/ExternalConsolePage'
 
 function App() {
+  // Check if this is the External Console page (opened in new window)
+  const isExternalConsole = window.location.hash === '#/external-console' || 
+                            window.location.hash === '#external-console';
+  
   // Initialize scene transition animation
   useSceneTransitionAnimation();
   
@@ -38,6 +43,40 @@ function App() {
   // Initialize timeline playback engine
   useTimelinePlayback();
   
+  // If this is the External Console, render it standalone
+  if (isExternalConsole) {
+    return (
+      <ThemeProvider>
+        <SocketProvider>
+          <PanelProvider>
+            <DockingProvider>
+              <PinningProvider>
+                <ChromaticEnergyManipulatorProvider>
+                  <MidiDmxProcessor />
+                  <OscDmxProcessor />
+                  <ExternalConsolePage />
+                  <ToastContainer 
+                    position="top-right"
+                    autoClose={3000}
+                    hideProgressBar={false}
+                    newestOnTop={false}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="dark"
+                  />
+                </ChromaticEnergyManipulatorProvider>
+              </PinningProvider>
+            </DockingProvider>
+          </PanelProvider>
+        </SocketProvider>
+      </ThemeProvider>
+    );
+  }
+  
+  // Normal app layout
   return (
     <ThemeProvider>
       <SocketProvider>

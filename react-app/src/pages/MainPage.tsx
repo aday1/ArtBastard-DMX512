@@ -58,56 +58,36 @@ const MainPage: React.FC = () => {
 
   return (
     <div className={styles.mainPage} ref={containerRef}>
-      {/* Global Component Toolbar - Always accessible */}
-      <ComponentToolbar />
-
-      {/* Main Layout */}
-      <div className={styles.layoutWrapper}>
-        <EnhancedPanelLayout />
-      </div>
-
-      {/* Drag Preview Overlay */}
-      {isDragging && dragPreview && (
-        <div
-          className={styles.dragPreview}
-          style={{
-            left: `${dragPreview.x}px`,
-            top: `${dragPreview.y}px`,
-          }}
-        >
-          <LucideIcon name="Move" />
-          <span>{dragPreview.component}</span>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!hasComponents && (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyStateContent}>
-            <LucideIcon name="LayoutGrid" className={styles.emptyIcon} />
-            <h2 className={styles.emptyTitle}>
-              {theme === 'artsnob'
-                ? 'Your Canvas Awaits'
-                : 'Empty Workspace'}
-            </h2>
-            <p className={styles.emptyDescription}>
-              {theme === 'artsnob'
-                ? 'Drag components from the toolbar to begin crafting your lighting masterpiece. Each panel is a blank canvas, ready for your artistic vision.'
-                : 'Drag components from the toolbar to add them to your workspace.'}
-            </p>
-            <div className={styles.emptyHint}>
-              <LucideIcon name="ArrowRight" />
-              <span>Look for the Component Toolbar on the right side</span>
-            </div>
+      {/* Dashboard is now an external window component */}
+      <div className={styles.dashboardRedirect}>
+        <div className={styles.redirectContent}>
+          <LucideIcon name="LayoutGrid" className={styles.redirectIcon} />
+          <h2 className={styles.redirectTitle}>
+            {theme === 'artsnob'
+              ? 'Console Externe Élégante™ - Opens in New Window'
+              : 'External Console - Opens in New Window'}
+          </h2>
+          <p className={styles.redirectDescription}>
+            {theme === 'artsnob'
+              ? 'The External Console opens in a new window - perfect for tablets and 2nd monitors. Click the "Console Externe Élégante™" button in the navigation menu, or drag the "External Console" component from the Component Toolbar.'
+              : 'The External Console opens in a new window - perfect for tablets and 2nd monitors. Click "External Console" in the navigation menu, or drag it from the Component Toolbar.'}
+          </p>
+          <div className={styles.redirectHint}>
+            <LucideIcon name="ArrowRight" />
+            <span>Click "External Console" in the navigation menu to open in a new window</span>
           </div>
-        </div>
-      )}
-
-      {/* Drop Zone Indicators */}
-      <div className={styles.dropZoneHints}>
-        <div className={styles.dropHint}>
-          <LucideIcon name="Move" />
-          <span>Drop zones available</span>
+          <div className={styles.redirectActions}>
+            <button
+              className={styles.redirectButton}
+              onClick={() => {
+                // Trigger navigation to dmxControl
+                window.dispatchEvent(new CustomEvent('changeView', { detail: { view: 'dmxControl' } }));
+              }}
+            >
+              <LucideIcon name="Zap" />
+              <span>Go to DMX Control</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

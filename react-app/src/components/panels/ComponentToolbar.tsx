@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { COMPONENT_REGISTRY, ComponentDefinition, getAllCategories, getComponentsByCategory } from './ComponentRegistry';
 import { usePanels } from '../../context/PanelContext';
-import { useStore } from '../../store';
 import styles from './ComponentToolbar.module.scss';
 
 interface DraggableComponentProps {
@@ -86,12 +85,6 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  
-  // Get active channels for visual indicator
-  const { dmxChannels } = useStore();
-  const activeChannels = React.useMemo(() => {
-    return Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
-  }, [dmxChannels]);
 
   const categories = getAllCategories();
   const savedLayouts = getSavedLayouts();
@@ -302,42 +295,6 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
 
       {!isCollapsed && !isMinimized && (
         <div className={styles.toolbarContent}>
-          {/* Active Channels Indicator */}
-          {activeChannels.length > 0 && (
-            <div className={styles.activeChannelsIndicator}>
-              <div className={styles.indicatorHeader}>
-                <div className={styles.squareIndicator}></div>
-                <span className={styles.indicatorLabel}>Active Channels</span>
-                <span className={styles.indicatorCount}>{activeChannels.length}</span>
-              </div>
-              <div className={styles.channelIndicators}>
-                {activeChannels.slice(0, 64).map(ch => {
-                  const value = dmxChannels[ch] || 0;
-                  const opacity = 0.4 + (value / 255) * 0.6;
-                  return (
-                    <div
-                      key={ch}
-                      className={styles.channelIndicator}
-                      title={`CH ${ch + 1}: ${value} (${Math.round((value / 255) * 100)}%)`}
-                      style={{
-                        opacity: opacity,
-                        backgroundColor: `hsl(${(ch * 137.5) % 360}, 70%, ${50 + (value / 255) * 30}%)`,
-                        borderColor: `rgba(255, 255, 255, ${0.2 + (value / 255) * 0.3})`
-                      }}
-                    >
-                      <span className={styles.channelNumber}>{ch + 1}</span>
-                    </div>
-                  );
-                })}
-                {activeChannels.length > 64 && (
-                  <div className={styles.moreIndicator} title={`${activeChannels.length - 64} more active channels`}>
-                    +{activeChannels.length - 64}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
           {/* Layout Controls */}
           <div className={styles.layoutControls}>
             <div className={styles.controlGroup}>
