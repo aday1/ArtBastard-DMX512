@@ -13,7 +13,9 @@ export const PinnedChannels: React.FC = () => {
     channelColors,
     setDmxChannel,
     unpinChannel,
-    getChannelRange
+    getChannelRange,
+    envelopeAutomation,
+    toggleEnvelope
   } = useStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -56,6 +58,11 @@ export const PinnedChannels: React.FC = () => {
                 channelName.trim() !== '';
               const channelColor = channelColors[channelIndex] || '';
               const range = getChannelRange(channelIndex);
+              
+              // Check if this channel has an envelope
+              const channelEnvelope = envelopeAutomation.envelopes.find(e => e.channel === channelIndex);
+              const hasEnvelope = !!channelEnvelope;
+              const envelopeEnabled = channelEnvelope?.enabled ?? false;
 
               return (
                 <div
@@ -75,13 +82,25 @@ export const PinnedChannels: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <button
-                      className={styles.unpinButton}
-                      onClick={() => unpinChannel(channelIndex)}
-                      title="Unpin channel"
-                    >
-                      <LucideIcon name="X" size={14} />
-                    </button>
+                    <div className={styles.channelActions}>
+                      {hasEnvelope && (
+                        <button
+                          className={`${styles.envelopeButton} ${envelopeEnabled ? styles.active : ''}`}
+                          onClick={() => channelEnvelope && toggleEnvelope(channelEnvelope.id)}
+                          title={envelopeEnabled ? 'Stop Envelope' : 'Start Envelope'}
+                          disabled={!envelopeAutomation.globalEnabled}
+                        >
+                          <LucideIcon name={envelopeEnabled ? "Square" : "Play"} size={12} />
+                        </button>
+                      )}
+                      <button
+                        className={styles.unpinButton}
+                        onClick={() => unpinChannel(channelIndex)}
+                        title="Unpin channel"
+                      >
+                        <LucideIcon name="X" size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className={styles.valueDisplay}>

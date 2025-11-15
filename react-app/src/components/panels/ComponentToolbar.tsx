@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { COMPONENT_REGISTRY, ComponentDefinition, getAllCategories, getComponentsByCategory } from './ComponentRegistry';
 import { usePanels } from '../../context/PanelContext';
+import { useStore } from '../../store';
 import styles from './ComponentToolbar.module.scss';
 
 interface DraggableComponentProps {
@@ -295,6 +296,35 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
 
       {!isCollapsed && !isMinimized && (
         <div className={styles.toolbarContent}>
+          {/* Active Channels Indicator */}
+          {activeChannels.length > 0 && (
+            <div className={styles.activeChannelsIndicator}>
+              <div className={styles.indicatorHeader}>
+                <i className="fas fa-circle" style={{ color: '#10b981', fontSize: '8px' }}></i>
+                <span className={styles.indicatorLabel}>Active Channels</span>
+                <span className={styles.indicatorCount}>{activeChannels.length}</span>
+              </div>
+              <div className={styles.channelIndicators}>
+                {activeChannels.slice(0, 20).map(ch => (
+                  <div
+                    key={ch}
+                    className={styles.channelIndicator}
+                    title={`CH ${ch + 1}: ${dmxChannels[ch] || 0}`}
+                    style={{
+                      opacity: 0.3 + ((dmxChannels[ch] || 0) / 255) * 0.7,
+                      backgroundColor: `hsl(${(ch * 137.5) % 360}, 70%, ${50 + ((dmxChannels[ch] || 0) / 255) * 30}%)`
+                    }}
+                  >
+                    {ch + 1}
+                  </div>
+                ))}
+                {activeChannels.length > 20 && (
+                  <div className={styles.moreIndicator}>+{activeChannels.length - 20}</div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Layout Controls */}
           <div className={styles.layoutControls}>
             <div className={styles.controlGroup}>

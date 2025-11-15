@@ -166,6 +166,77 @@
     padding: 1rem;
     overflow-y: auto;
     max-height: calc(80vh - 70px);
+    
+    .activeChannelsIndicator {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 12px;
+    }
+
+    .indicatorHeader {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .indicatorLabel {
+      flex: 1;
+    }
+
+    .indicatorCount {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .channelIndicators {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .channelIndicator {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+        z-index: 10;
+      }
+    }
+
+    .moreIndicator {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(71, 85, 105, 0.3);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+    }
 
     &::-webkit-scrollbar {
       width: 6px;

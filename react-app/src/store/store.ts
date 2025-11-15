@@ -3896,23 +3896,47 @@ export const useStore = create<State>()(
       },
 
       updateEnvelope: (id: string, updates: Partial<ChannelEnvelope>) => {
-        set(state => ({
-          envelopeAutomation: {
-            ...state.envelopeAutomation,
-            envelopes: state.envelopeAutomation.envelopes.map(env =>
-              env.id === id ? { ...env, ...updates } : env
-            )
+        set(state => {
+          const updated = {
+            envelopeAutomation: {
+              ...state.envelopeAutomation,
+              envelopes: state.envelopeAutomation.envelopes.map(env =>
+                env.id === id ? { ...env, ...updates } : env
+              )
+            }
+          };
+          // Save to localStorage
+          try {
+            localStorage.setItem('envelopeAutomation', JSON.stringify({
+              envelopes: updated.envelopeAutomation.envelopes,
+              speed: updated.envelopeAutomation.speed
+            }));
+          } catch (e) {
+            console.error('Failed to save envelope automation to localStorage:', e);
           }
-        }));
+          return updated;
+        });
       },
 
       removeEnvelope: (id: string) => {
-        set(state => ({
-          envelopeAutomation: {
-            ...state.envelopeAutomation,
-            envelopes: state.envelopeAutomation.envelopes.filter(env => env.id !== id)
+        set(state => {
+          const updated = {
+            envelopeAutomation: {
+              ...state.envelopeAutomation,
+              envelopes: state.envelopeAutomation.envelopes.filter(env => env.id !== id)
+            }
+          };
+          // Save to localStorage
+          try {
+            localStorage.setItem('envelopeAutomation', JSON.stringify({
+              envelopes: updated.envelopeAutomation.envelopes,
+              speed: updated.envelopeAutomation.speed
+            }));
+          } catch (e) {
+            console.error('Failed to save envelope automation to localStorage:', e);
           }
-        }));
+          return updated;
+        });
       },
 
       toggleEnvelope: (id: string) => {
@@ -4114,12 +4138,24 @@ export const useStore = create<State>()(
       
       setEnvelopeSpeed: (speed) => {
         const clampedSpeed = Math.max(0.1, Math.min(2.0, speed));
-        set(state => ({
-          envelopeAutomation: {
-            ...state.envelopeAutomation,
-            speed: clampedSpeed
+        set(state => {
+          const updated = {
+            envelopeAutomation: {
+              ...state.envelopeAutomation,
+              speed: clampedSpeed
+            }
+          };
+          // Save to localStorage
+          try {
+            localStorage.setItem('envelopeAutomation', JSON.stringify({
+              envelopes: updated.envelopeAutomation.envelopes,
+              speed: updated.envelopeAutomation.speed
+            }));
+          } catch (e) {
+            console.error('Failed to save envelope automation to localStorage:', e);
           }
-        }));
+          return updated;
+        });
       },
 
       // Helper function to apply specific automation effects
