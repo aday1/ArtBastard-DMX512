@@ -8,13 +8,17 @@
     "base_refresh_interval": 1000
   },
   "midiMappings": {
+    "0": {
+      "channel": 0,
+      "controller": 93
+    },
     "2": {
       "channel": 0,
-      "controller": 7
+      "controller": 10
     },
     "5": {
       "channel": 0,
-      "controller": 73
+      "controller": 7
     },
     "6": {
       "channel": 0,
@@ -23,6 +27,18 @@
     "7": {
       "channel": 0,
       "controller": 71
+    },
+    "8": {
+      "channel": 0,
+      "controller": 74
+    },
+    "9": {
+      "channel": 0,
+      "controller": 74
+    },
+    "36": {
+      "channel": 0,
+      "controller": 7
     },
     "38": {
       "channel": 0,
@@ -580,8 +596,8 @@
       "max": 255
     },
     {
-      "min": 0,
-      "max": 255
+      "min": 110,
+      "max": 210
     },
     {
       "min": 0,
@@ -700,8 +716,8 @@
       "max": 255
     },
     {
-      "min": 0,
-      "max": 255
+      "min": 80,
+      "max": 200
     },
     {
       "min": 0,

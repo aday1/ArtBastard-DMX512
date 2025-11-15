@@ -16,7 +16,12 @@ export const EnvelopeAutomation: React.FC = () => {
     toggleEnvelope,
     toggleGlobalEnvelope,
     setEnvelopeSpeed,
-    channelNames
+    channelNames,
+    envelopeSpeedMidiMapping,
+    midiLearnTarget,
+    startMidiLearn,
+    cancelMidiLearn,
+    removeEnvelopeSpeedMidiMapping
   } = useStore(state => ({
     envelopeAutomation: state.envelopeAutomation,
     bpm: state.bpm,
@@ -27,7 +32,12 @@ export const EnvelopeAutomation: React.FC = () => {
     toggleEnvelope: state.toggleEnvelope,
     toggleGlobalEnvelope: state.toggleGlobalEnvelope,
     setEnvelopeSpeed: state.setEnvelopeSpeed,
-    channelNames: state.channelNames
+    channelNames: state.channelNames,
+    envelopeSpeedMidiMapping: state.envelopeSpeedMidiMapping,
+    midiLearnTarget: state.midiLearnTarget,
+    startMidiLearn: state.startMidiLearn,
+    cancelMidiLearn: state.cancelMidiLearn,
+    removeEnvelopeSpeedMidiMapping: state.removeEnvelopeSpeedMidiMapping
   }));
 
   const [editingEnvelope, setEditingEnvelope] = useState<ChannelEnvelope | null>(null);
@@ -139,10 +149,48 @@ export const EnvelopeAutomation: React.FC = () => {
       <div className={styles.content}>
         {/* Speed/Timer Control */}
         <div className={styles.speedControl}>
-          <label>
-            <LucideIcon name="Gauge" size={16} />
-            Speed: {envelopeAutomation.speed.toFixed(2)}x
-          </label>
+          <div className={styles.speedControlHeader}>
+            <label>
+              <LucideIcon name="Gauge" size={16} />
+              Speed: {envelopeAutomation.speed.toFixed(2)}x
+            </label>
+            <div className={styles.midiControls}>
+              {(() => {
+                const isLearning = midiLearnTarget?.type === 'envelopeSpeed';
+                const hasMapping = !!envelopeSpeedMidiMapping;
+                
+                return (
+                  <>
+                    <button
+                      className={`${styles.midiLearnButton} ${isLearning ? styles.learning : ''} ${hasMapping ? styles.mapped : ''}`}
+                      onClick={() => {
+                        if (isLearning) {
+                          cancelMidiLearn();
+                        } else {
+                          startMidiLearn({ type: 'envelopeSpeed' });
+                        }
+                      }}
+                      title={isLearning ? 'Cancel MIDI Learn' : hasMapping ? 'Remap MIDI' : 'Learn MIDI'}
+                    >
+                      <LucideIcon name={isLearning ? "Radio" : hasMapping ? "Unlink" : "Link"} />
+                      {isLearning ? 'Learning...' : hasMapping ? 'Mapped' : 'Learn'}
+                    </button>
+                    
+                    {hasMapping && !isLearning && (
+                      <button
+                        className={styles.midiForgetButton}
+                        onClick={removeEnvelopeSpeedMidiMapping}
+                        title="Remove MIDI mapping"
+                      >
+                        <LucideIcon name="Trash2" />
+                        Forget
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
           <input
             type="range"
             min="0.1"
@@ -152,6 +200,16 @@ export const EnvelopeAutomation: React.FC = () => {
             onChange={(e) => setEnvelopeSpeed(parseFloat(e.target.value))}
             className={styles.speedSlider}
           />
+          {envelopeSpeedMidiMapping && (
+            <div className={styles.midiMappingDisplay}>
+              <span className={styles.midiMappingText}>
+                {envelopeSpeedMidiMapping.controller !== undefined 
+                  ? `CC ${envelopeSpeedMidiMapping.controller} (Ch ${envelopeSpeedMidiMapping.channel + 1})`
+                  : `Note ${envelopeSpeedMidiMapping.note} (Ch ${envelopeSpeedMidiMapping.channel + 1})`
+                }
+              </span>
+            </div>
+          )}
         </div>
         <div className={styles.envelopeList}>
           <div className={styles.listHeader}>

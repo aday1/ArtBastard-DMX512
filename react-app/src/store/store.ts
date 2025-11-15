@@ -413,12 +413,14 @@ interface State {
   midiInterfaces: string[]
   activeInterfaces: string[]
   midiMappings: Record<number, MidiMapping | undefined>;
+  envelopeSpeedMidiMapping: MidiMapping | null; // MIDI mapping for envelope automation speed
   midiLearnTarget: 
     | { type: 'masterSlider'; id: string }
     | { type: 'dmxChannel'; channelIndex: number }
     | { type: 'placedControl'; fixtureId: string; controlId: string }
     | { type: 'group'; groupId: string }
     | { type: 'superControl'; controlName: string }
+    | { type: 'envelopeSpeed' }
     | null;
   midiLearnScene: string | null 
   midiMessages: any[]
@@ -638,12 +640,14 @@ interface State {
   reportOscActivity: (channelIndex: number, value: number) => void 
   addOscMessage: (message: OscMessage) => void; // Added for OSC Monitor
     // MIDI Actions
-  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'group', id: string } | { type: 'placedControl'; fixtureId: string; controlId: string } | { type: 'superControl'; controlName: string }) => void;
+  startMidiLearn: (target: { type: 'masterSlider', id: string } | { type: 'dmxChannel', channelIndex: number } | { type: 'group', id: string } | { type: 'placedControl'; fixtureId: string; controlId: string } | { type: 'superControl'; controlName: string } | { type: 'envelopeSpeed' }) => void;
   cancelMidiLearn: () => void
   addMidiMessage: (message: any) => void
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void 
   removeMidiMapping: (dmxChannel: number) => void
   clearAllMidiMappings: () => void
+  setEnvelopeSpeedMidiMapping: (mapping: MidiMapping | null) => void
+  removeEnvelopeSpeedMidiMapping: () => void
   setMidiInterfaces: (interfaces: string[]) => void
   setActiveInterfaces: (interfaces: string[]) => void
   
@@ -991,6 +995,18 @@ export const useStore = create<State>()(
         midiInterfaces: [],
       activeInterfaces: [],
       midiMappings: {},
+      envelopeSpeedMidiMapping: (() => {
+        // Load from localStorage
+        try {
+          const saved = localStorage.getItem('envelopeSpeedMidiMapping');
+          if (saved) {
+            return JSON.parse(saved);
+          }
+        } catch (e) {
+          console.error('Failed to load envelope speed MIDI mapping from localStorage:', e);
+        }
+        return null;
+      })(),
       midiLearnTarget: null,
       midiLearnScene: null,
       midiMessages: [],
@@ -2066,6 +2082,9 @@ export const useStore = create<State>()(
           case 'superControl':
             message += `SuperControl: ${target.controlName}`;
             break;
+          case 'envelopeSpeed':
+            message += 'Envelope Speed';
+            break;
           default:
             message += 'Unknown target';
         }
@@ -2104,6 +2123,49 @@ export const useStore = create<State>()(
         console.log('MIDI message received:', message)
         if (get().recordingActive) {
           get().addRecordingEvent({ type: 'midi', data: message });
+        }
+        
+        // Handle MIDI Learn for envelope speed
+        const { midiLearnTarget } = get();
+        if (midiLearnTarget && midiLearnTarget.type === 'envelopeSpeed') {
+          let mapping: MidiMapping | null = null;
+          if (message._type === 'cc' && message.controller !== undefined) {
+            mapping = {
+              channel: message.channel,
+              controller: message.controller
+            };
+          } else if (message._type === 'noteon' && message.note !== undefined) {
+            mapping = {
+              channel: message.channel,
+              note: message.note
+            };
+          }
+          
+          if (mapping) {
+            get().setEnvelopeSpeedMidiMapping(mapping);
+            set({ midiLearnTarget: null });
+            return; // Don't process as control message yet
+          }
+        }
+        
+        // Check if this MIDI message should control envelope speed
+        const { envelopeSpeedMidiMapping } = get();
+        if (envelopeSpeedMidiMapping) {
+          let matches = false;
+          if (message._type === 'cc' && envelopeSpeedMidiMapping.controller !== undefined) {
+            matches = envelopeSpeedMidiMapping.channel === message.channel && 
+                     envelopeSpeedMidiMapping.controller === message.controller;
+          } else if (message._type === 'noteon' && envelopeSpeedMidiMapping.note !== undefined) {
+            matches = envelopeSpeedMidiMapping.channel === message.channel && 
+                     envelopeSpeedMidiMapping.note === message.note;
+          }
+          
+          if (matches && message.value !== undefined) {
+            // Scale MIDI value (0-127) to envelope speed (0.1-2.0)
+            const normalizedValue = message.value / 127; // 0.0 to 1.0
+            const speed = 0.1 + (normalizedValue * 1.9); // Map to 0.1-2.0 range
+            get().setEnvelopeSpeed(speed);
+          }
         }
       },
       
@@ -2148,6 +2210,33 @@ export const useStore = create<State>()(
             console.error('Failed to clear all MIDI mappings:', error)
             get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' }) 
           })
+      },
+
+      setEnvelopeSpeedMidiMapping: (mapping) => {
+        set({ envelopeSpeedMidiMapping: mapping, midiLearnTarget: null });
+        // Save to localStorage
+        try {
+          if (mapping) {
+            localStorage.setItem('envelopeSpeedMidiMapping', JSON.stringify(mapping));
+          } else {
+            localStorage.removeItem('envelopeSpeedMidiMapping');
+          }
+        } catch (e) {
+          console.error('Failed to save envelope speed MIDI mapping:', e);
+        }
+        if (mapping) {
+          get().addNotification({ message: 'MIDI mapped to Envelope Speed', type: 'success' });
+        }
+      },
+
+      removeEnvelopeSpeedMidiMapping: () => {
+        set({ envelopeSpeedMidiMapping: null });
+        try {
+          localStorage.removeItem('envelopeSpeedMidiMapping');
+        } catch (e) {
+          console.error('Failed to remove envelope speed MIDI mapping:', e);
+        }
+        get().addNotification({ message: 'Envelope Speed MIDI mapping removed', type: 'success' });
       },
 
       setMidiInterfaces: (interfaces) => {
