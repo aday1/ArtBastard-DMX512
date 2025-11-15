@@ -39,9 +39,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* <BpmIndicator /> */}
         {/* <SignalFlashIndicator position="bottom-left" /> */}
         
-        <div className={styles.layoutContainer}>
-          <PinnedChannels />
-          <div className={styles.contentWrapper}>
+        <PinnedChannels />
+        <div className={styles.contentWrapper}>
           <div className={styles.mainContent}>
             <h1 className={styles.title}>
               ArtBastard DMX512FTW: 
@@ -81,7 +80,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
             
-          </div>
           </div>
         </div>
         
