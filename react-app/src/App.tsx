@@ -22,6 +22,7 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import ExternalConsolePage from './pages/ExternalConsolePage'
 import MobilePage from './pages/MobilePage'
+import { FactoryResetBanner } from './components/layout/FactoryResetBanner'
 
 function App() {
   // Check if this is the External Console page (opened in new window)
@@ -138,6 +139,7 @@ function App() {
                 <MidiDmxProcessor />
                 {/* Global OSC processor - processes OSC messages into DMX channel updates */}
                 <OscDmxProcessor />
+                <FactoryResetBanner />
                 <Layout />
                 <ToastContainer 
                   position="top-right"

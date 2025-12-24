@@ -469,9 +469,9 @@ apiRouter.get('/factory-reset-check', (req, res) => {
       const now = Math.floor(Date.now() / 1000);
       const markerAge = now - markerTimestamp;
       
-      // Keep marker for 5 minutes to allow multiple page loads/reloads to detect it
-      // After 5 minutes, delete it automatically
-      if (markerAge > 300) { // 5 minutes = 300 seconds
+      // Keep marker for 1 minute to allow multiple page loads/reloads to detect it
+      // After 1 minute, delete it automatically
+      if (markerAge > 60) { // 1 minute = 60 seconds
         fs.unlinkSync(markerPath);
         res.json({ factoryReset: false });
       } else {

@@ -126,7 +126,8 @@ if ($Reset) {
     Write-Host "⚠️  IMPORTANT: If your browser is already open, please:" -ForegroundColor Yellow
     Write-Host "   1. Close all browser tabs with the application" -ForegroundColor Yellow
     Write-Host "   2. Or manually refresh the page (F5 or Ctrl+R)" -ForegroundColor Yellow
-    Write-Host "   3. The factory reset marker will persist for 5 minutes" -ForegroundColor Yellow
+    Write-Host "   3. The factory reset marker will persist for 1 minute" -ForegroundColor Yellow
+    Write-Host "   4. A flash banner will appear confirming the reset" -ForegroundColor Yellow
     Write-Host "✨ ════════════════════════════════════════════════════════════════ ✨" -ForegroundColor Green
     Write-Host ""
 }
