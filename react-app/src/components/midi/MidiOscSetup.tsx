@@ -29,6 +29,7 @@ export const MidiOscSetup: React.FC = () => {
   const [oscReceiveStatus, setOscReceiveStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
   const [oscSendStatus, setOscSendStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [connectingInterfaces, setConnectingInterfaces] = useState<Set<string>>(new Set())
 
   const {
     midiMessages,
@@ -84,10 +85,44 @@ export const MidiOscSetup: React.FC = () => {
       const handleActiveMidiInterfaces = (interfaces: string[]) => {
         console.log('[MidiOscSetup] Received active MIDI interfaces:', interfaces)
         setActiveInterfaces(interfaces)
+        // Clear connecting state for any interfaces that are now active
+        setConnectingInterfaces(prev => {
+          const next = new Set(prev)
+          interfaces.forEach(iface => next.delete(iface))
+          return next
+        })
+      }
+
+      const handleMidiInterfaceError = (errorMessage: string) => {
+        console.error('[MidiOscSetup] MIDI interface error:', errorMessage)
+        useStore.getState().addNotification({
+          message: `MIDI Connection Error: ${errorMessage}`,
+          type: 'error',
+          priority: 'high'
+        })
+        // Clear connecting state on error
+        setConnectingInterfaces(new Set())
+      }
+
+      const handleMidiInterfaceSelected = (interfaceName: string) => {
+        console.log('[MidiOscSetup] MIDI interface selected:', interfaceName)
+        useStore.getState().addNotification({
+          message: `Connected to MIDI device: ${interfaceName}`,
+          type: 'success',
+          priority: 'normal'
+        })
+        // Clear connecting state for this interface
+        setConnectingInterfaces(prev => {
+          const next = new Set(prev)
+          next.delete(interfaceName)
+          return next
+        })
       }
 
       socket.on('midiInterfaces', handleMidiInterfaces)
       socket.on('midiInputsActive', handleActiveMidiInterfaces) // Server emits 'midiInputsActive'
+      socket.on('midiInterfaceError', handleMidiInterfaceError) // Listen for errors
+      socket.on('midiInterfaceSelected', handleMidiInterfaceSelected) // Listen for success
 
       // Request MIDI interfaces on mount
       socket.emit('getMidiInterfaces')
@@ -95,6 +130,8 @@ export const MidiOscSetup: React.FC = () => {
       return () => {
         socket.off('midiInterfaces', handleMidiInterfaces)
         socket.off('midiInputsActive', handleActiveMidiInterfaces)
+        socket.off('midiInterfaceError', handleMidiInterfaceError)
+        socket.off('midiInterfaceSelected', handleMidiInterfaceSelected)
       }
     }
   }, [socket, connected, setMidiInterfaces, setActiveInterfaces])
@@ -149,7 +186,33 @@ export const MidiOscSetup: React.FC = () => {
 
   // Connect to server MIDI interface
   const handleConnectMidi = (interfaceName: string) => {
+    if (!socket || !connected) {
+      useStore.getState().addNotification({
+        message: 'Cannot connect: Socket not connected to server',
+        type: 'error',
+        priority: 'high'
+      })
+      return
+    }
+    
+    // Set connecting state
+    setConnectingInterfaces(prev => new Set(prev).add(interfaceName))
+    
+    // Emit connection request
     connectMidiInterface(interfaceName)
+    
+    // Clear connecting state after timeout if no response (5 seconds)
+    setTimeout(() => {
+      setConnectingInterfaces(prev => {
+        const next = new Set(prev)
+        if (next.has(interfaceName) && !activeInterfaces.includes(interfaceName)) {
+          // Still connecting and not active - might be an issue
+          next.delete(interfaceName)
+          return next
+        }
+        return next
+      })
+    }, 5000)
   }
 
   // Disconnect from server MIDI interface
@@ -258,10 +321,20 @@ export const MidiOscSetup: React.FC = () => {
                           <button
                             className={`${styles.actionButton} ${styles.connectButton}`}
                             onClick={() => handleConnectMidi(interfaceName)}
+                            disabled={connectingInterfaces.has(interfaceName)}
                             title={`Connect to ${interfaceName} - Enable MIDI data flow from this device`}
                           >
-                            <i className="fas fa-link"></i>
-                            {theme !== 'minimal' && 'Connect'}
+                            {connectingInterfaces.has(interfaceName) ? (
+                              <>
+                                <i className="fas fa-spinner fa-spin"></i>
+                                {theme !== 'minimal' && 'Connecting...'}
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-link"></i>
+                                {theme !== 'minimal' && 'Connect'}
+                              </>
+                            )}
                           </button>
                         )}
                       </div>

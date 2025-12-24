@@ -312,9 +312,9 @@ try {
     // We'll emit this after the connection is established, or it will be sent when interfaces connect
 
     // Handle MIDI interface selection
-    socket.on('selectMidiInterface', (interfaceName) => {
+    socket.on('selectMidiInterface', async (interfaceName) => {
       log('Selecting MIDI interface', 'MIDI', { interfaceName, socketId: socket.id });
-      connectMidiInput(io, interfaceName);
+      await connectMidiInput(io, interfaceName);
     });
 
     // Handle MIDI interface disconnection

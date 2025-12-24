@@ -348,7 +348,7 @@ function initializeMidi(io: Server) {
     }
 }
 
-function connectMidiInput(io: Server, inputName: string, isBrowserMidi = false) {
+async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = false) {
     try {
         // Skip hardware MIDI connection if using browser MIDI
         if (isBrowserMidi) {
@@ -374,6 +374,25 @@ function connectMidiInput(io: Server, inputName: string, isBrowserMidi = false) 
                 log(errorMsg, 'ERROR');
                 io.emit('midiInterfaceError', errorMsg);
                 throw new Error(errorMsg);
+            }
+            
+            // On Windows, try to close any existing connections to this device first
+            // This can help if the device is "stuck" from a previous connection
+            try {
+                // Check if we have a stale connection
+                if (activeMidiInputs[inputName]) {
+                    log(`Closing existing connection to ${inputName} before reconnecting`, 'MIDI');
+                    try {
+                        activeMidiInputs[inputName].close();
+                    } catch (closeError) {
+                        log(`Error closing existing connection: ${closeError}`, 'WARN');
+                    }
+                    delete activeMidiInputs[inputName];
+                    // Give Windows a moment to release the port
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            } catch (cleanupError) {
+                log(`Error during connection cleanup: ${cleanupError}`, 'WARN');
             }
         }
 
@@ -422,9 +441,35 @@ function connectMidiInput(io: Server, inputName: string, isBrowserMidi = false) 
         log(`MIDI input connected: ${inputName}`, 'MIDI');
         io.emit('midiInterfaceSelected', inputName);
         io.emit('midiInputsActive', Object.keys(activeMidiInputs));
-    } catch (error) {
-        log(`Error connecting to MIDI input ${inputName}`, 'ERROR', { error });
-        io.emit('midiInterfaceError', `Failed to connect to ${inputName}: ${error}`);
+    } catch (error: any) {
+        const errorMsg = error?.message || String(error);
+        log(`Error connecting to MIDI input ${inputName}`, 'ERROR', { error: errorMsg, stack: error?.stack });
+        
+        // Provide Windows-specific troubleshooting for common errors
+        let userMessage = `Failed to connect to ${inputName}`;
+        if (process.platform === 'win32') {
+            if (errorMsg.includes('openPort') || errorMsg.includes('Windows MM')) {
+                userMessage = `Cannot open MIDI port "${inputName}". This usually means:\n` +
+                    `• The device is already in use by another application\n` +
+                    `• Windows MIDI driver issue - try unplugging and replugging the device\n` +
+                    `• Close any other applications using MIDI (DAWs, MIDI monitors, etc.)\n` +
+                    `• Try running as Administrator: .\\start.ps1 -Admin\n` +
+                    `• Check Windows Device Manager for MIDI device status`;
+            } else if (errorMsg.includes('permission') || errorMsg.includes('access')) {
+                userMessage = `Permission denied accessing "${inputName}". Try running as Administrator: .\\start.ps1 -Admin`;
+            } else {
+                userMessage = `Failed to connect to "${inputName}": ${errorMsg}\n\n` +
+                    `Troubleshooting:\n` +
+                    `• Ensure no other app is using this MIDI device\n` +
+                    `• Try unplugging and replugging the device\n` +
+                    `• Run as Administrator: .\\start.ps1 -Admin\n` +
+                    `• Check Windows Device Manager`;
+            }
+        } else {
+            userMessage = `Failed to connect to ${inputName}: ${errorMsg}`;
+        }
+        
+        io.emit('midiInterfaceError', userMessage);
     }
 }
 
