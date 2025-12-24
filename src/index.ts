@@ -397,8 +397,48 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
         }
 
         // Connect to the selected MIDI input
-        const newInput = new easymidi.Input(inputName);
-        log(`Successfully created MIDI input for ${inputName}`, 'MIDI');
+        // On Windows, this can fail silently or throw an error
+        let newInput: Input;
+        try {
+            newInput = new easymidi.Input(inputName);
+            log(`Successfully created MIDI input object for ${inputName}`, 'MIDI');
+        } catch (createError: any) {
+            const createErrorMsg = createError?.message || String(createError);
+            log(`Failed to create MIDI input object for ${inputName}`, 'ERROR', { 
+                error: createErrorMsg, 
+                stack: createError?.stack,
+                platform: process.platform 
+            });
+            
+            // Windows-specific error handling
+            if (process.platform === 'win32') {
+                let userMessage = `Cannot create MIDI connection to "${inputName}".\n\n`;
+                if (createErrorMsg.includes('openPort') || createErrorMsg.includes('Windows MM')) {
+                    userMessage += `Windows MIDI port error. Common causes:\n` +
+                        `• Device is in use by another application (close DAWs, MIDI monitors, etc.)\n` +
+                        `• Browser MIDI is using the device (disconnect Browser MIDI first)\n` +
+                        `• Windows MIDI driver issue (unplug/replug device)\n` +
+                        `• Need Administrator privileges (run: .\\start.ps1 -Admin)\n\n` +
+                        `Since Browser MIDI works, try:\n` +
+                        `1. Disconnect Browser MIDI connection first\n` +
+                        `2. Close all other MIDI applications\n` +
+                        `3. Unplug and replug the device\n` +
+                        `4. Run as Administrator`;
+                } else {
+                    userMessage += `Error: ${createErrorMsg}\n\n` +
+                        `Troubleshooting:\n` +
+                        `• Disconnect Browser MIDI first\n` +
+                        `• Close other MIDI applications\n` +
+                        `• Run as Administrator: .\\start.ps1 -Admin`;
+                }
+                
+                io.emit('midiInterfaceError', userMessage);
+                throw new Error(createErrorMsg);
+            } else {
+                io.emit('midiInterfaceError', `Failed to create MIDI input: ${createErrorMsg}`);
+                throw createError;
+            }
+        }
 
         // Set up event listeners for this input with improved error handling
         newInput.on('noteon', (msg: MidiMessage) => {
@@ -439,8 +479,22 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
         midiInput = newInput; // Keep the last one as default for backward compatibility
 
         log(`MIDI input connected: ${inputName}`, 'MIDI');
+        
+        // Verify connection is working (especially important on Windows)
+        // Note: We can't directly test if it's receiving, but we can check if the object is valid
+        if (!newInput) {
+            const errorMsg = `MIDI input object is invalid after creation for ${inputName}`;
+            log(errorMsg, 'ERROR');
+            delete activeMidiInputs[inputName];
+            io.emit('midiInterfaceError', errorMsg);
+            throw new Error(errorMsg);
+        }
+        
         io.emit('midiInterfaceSelected', inputName);
         io.emit('midiInputsActive', Object.keys(activeMidiInputs));
+        
+        // Log a helpful message about testing the connection
+        log(`MIDI connection established. Try moving a control on ${inputName} to verify it's working.`, 'MIDI');
     } catch (error: any) {
         const errorMsg = error?.message || String(error);
         log(`Error connecting to MIDI input ${inputName}`, 'ERROR', { error: errorMsg, stack: error?.stack });

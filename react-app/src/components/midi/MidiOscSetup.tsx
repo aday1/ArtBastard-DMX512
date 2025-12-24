@@ -270,9 +270,11 @@ export const MidiOscSetup: React.FC = () => {
               Server MIDI interfaces are external MIDI devices connected to the computer running ArtBastard.
               These provide stable connections for professional MIDI controllers and hardware.
               <br /><br />
-              <strong>Note:</strong> Server MIDI and Browser MIDI are separate systems. Server MIDI connects
-              hardware devices directly to the server, while Browser MIDI uses the Web MIDI API in your browser.
-              They do not automatically sync - each must be connected separately.
+              <strong>Important:</strong> Server MIDI and Browser MIDI are separate systems, but on Windows they
+              cannot use the same device simultaneously. If Browser MIDI is connected to a device, you must
+              disconnect it before connecting Server MIDI to the same device.
+              <br /><br />
+              <strong>Windows Note:</strong> If connection fails, try running as Administrator: <code>.\start.ps1 -Admin</code>
             </p>
             <div className={styles.interfaceList}>
               {midiInterfaces.length === 0 ? (
