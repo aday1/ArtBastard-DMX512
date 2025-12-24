@@ -55,7 +55,86 @@ export const MidiDmxProcessor: React.FC = () => {
   useEffect(() => {
     console.log('[MidiDmxProcessor] MIDI mappings updated in store:', midiMappings);
   }, [midiMappings]);
-    // Process MIDI messages and update DMX channels
+
+  // Listen for direct MIDI messages (bypass store for lower latency)
+  useEffect(() => {
+    const handleDirectMidi = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const message = customEvent.detail;
+      
+      // Only process CC messages directly (most frequent, need lowest latency)
+      if (message._type === 'cc' && message.source === 'browser') {
+        processMidiMessageDirect(message);
+      }
+    };
+
+    window.addEventListener('midiMessageDirect', handleDirectMidi);
+    return () => {
+      window.removeEventListener('midiMessageDirect', handleDirectMidi);
+    };
+  }, [midiMappings, masterSliders, midiLearnTarget, stableFunctions]);
+
+  // Direct processing function for low-latency CC messages (bypasses store re-render)
+  const processMidiMessageDirect = useCallback((message: any) => {
+    if (midiLearnTarget !== null) {
+      return; // Skip if in learn mode
+    }
+
+    // Process for Master Sliders first
+    let messageHandledByMasterSlider = false;
+    if (masterSliders && masterSliders.length > 0) {
+      for (const slider of masterSliders) {
+        if (slider.midiMapping && 
+            slider.midiMapping.channel === message.channel &&
+            slider.midiMapping.controller === message.controller) {
+          const scaledValue = Math.round((message.value / 127) * 255);
+          stableFunctions.updateMasterSliderValue(slider.id, scaledValue);
+          messageHandledByMasterSlider = true;
+          break;
+        }
+      }
+    }
+
+    // Process for DMX channels if not handled by master slider
+    if (!messageHandledByMasterSlider && message.controller !== undefined) {
+      Object.entries(midiMappings).forEach(([dmxChannelStr, mapping]) => {
+        if (!mapping) return;
+        const dmxChannel = parseInt(dmxChannelStr, 10);
+        if (mapping.controller !== undefined &&
+            mapping.channel === message.channel &&
+            mapping.controller === message.controller) {
+          
+          // Get the range mapping for this channel if any
+          const currentRangeMapping = channelRangeMappings[dmxChannel] || {};
+          
+          // Build scaling options with defaults
+          const scalingOptions: Partial<ScalingOptions> = {
+            inputMin: currentRangeMapping.inputMin || 0,
+            inputMax: currentRangeMapping.inputMax || 127,
+            outputMin: currentRangeMapping.outputMin || 0,
+            outputMax: currentRangeMapping.outputMax || 255,
+            curve: currentRangeMapping.curve || 1
+          };
+          
+          // Apply inversion if configured
+          let inputValue = message.value;
+          if (currentRangeMapping.inverted) {
+            inputValue = 127 - inputValue;
+          }
+          
+          // Scale the MIDI value to DMX range using the scaling function
+          const dmxValue = stableFunctions.scaleValue(inputValue, scalingOptions);
+          const roundedDmxValue = typeof dmxValue === 'number' ? Math.round(dmxValue) : 0;
+          const boundedValue = Math.max(0, Math.min(255, roundedDmxValue));
+          
+          // Update the DMX channel directly (bypasses store re-render for this update)
+          stableFunctions.setDmxChannel(dmxChannel, boundedValue);
+        }
+      });
+    }
+  }, [midiMappings, masterSliders, midiLearnTarget, stableFunctions, channelRangeMappings]);
+
+  // Process MIDI messages from store (for server MIDI and monitoring)
   useEffect(() => {
     if (!midiMessages || midiMessages.length === 0) {
       return;
@@ -68,6 +147,11 @@ export const MidiDmxProcessor: React.FC = () => {
       return;
     }
     setLastProcessedMessageSignature(currentMessageSignature); // Mark as processed early
+
+    // Skip browser MIDI CC messages - they're handled directly
+    if (latestMessage.source === 'browser' && latestMessage._type === 'cc') {
+      return;
+    }
 
     console.log(`[MidiDmxProcessor] Attempting to process MIDI message:`, latestMessage);
 

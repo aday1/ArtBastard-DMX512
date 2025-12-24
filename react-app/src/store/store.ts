@@ -3507,7 +3507,7 @@ export const useStore = create<State>()(
         // Keep last 1000 messages in store (UI will limit display based on scrollback setting)
         const messages = [...get().oscMessages, message].slice(-1000);
         set({ oscMessages: messages });
-        // console.log('OSC message received in store:', message); // Optional: for debugging
+        // Don't log OSC messages to reduce console spam (they can be frequent)
         if (get().recordingActive) {
           get().addRecordingEvent({ type: 'osc', data: message });
         }
@@ -3576,7 +3576,10 @@ export const useStore = create<State>()(
       addMidiMessage: (message) => {
         const messages = [...get().midiMessages, message].slice(-20)
         set({ midiMessages: messages })
-        console.log('MIDI message received:', message)
+        // Only log non-CC messages to reduce spam (CC messages are very frequent)
+        if (message._type !== 'cc' && message.type !== 'cc') {
+          console.log('MIDI message received:', message)
+        }
         if (get().recordingActive) {
           get().addRecordingEvent({ type: 'midi', data: message });
         }

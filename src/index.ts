@@ -1615,6 +1615,13 @@ function startLaserTime(io: Server) {
             scenes
         });
 
+        // Send available MIDI interfaces
+        const midiInterfaces = listMidiInterfaces();
+        socket.emit('midiInterfaces', midiInterfaces.inputs);
+        
+        // Send currently active MIDI interfaces
+        socket.emit('midiInputsActive', Object.keys(activeMidiInputs));
+
         socket.on('setDmxChannel', ({ channel, value }: { channel: number; value: number }) => {
             log('Setting DMX channel via socket', 'DMX', { channel, value, socketId: socket.id });
             updateDmxChannel(channel, value, io);

@@ -34,6 +34,13 @@ export const useGlobalBrowserMidi = () => {
   
   // Store handler references so we can remove them properly
   const handlerRefs = useRef<Map<string, (event: WebMidi.MIDIMessageEvent) => void>>(new Map());
+  
+  // Throttling for MIDI messages to reduce lag
+  const lastMessageTimeRef = useRef<Map<string, number>>(new Map());
+  const pendingMessageRef = useRef<Map<string, any>>(new Map());
+  const throttleTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const MIDI_THROTTLE_MS = 16; // ~60fps for store updates (monitoring only)
+  const MAX_MESSAGE_AGE_MS = 50; // Don't process messages older than 50ms
 
   const { addNotification } = useStore(state => ({
     addNotification: state.addNotification,
@@ -136,8 +143,72 @@ export const useGlobalBrowserMidi = () => {
         };
       }
 
-      // Add message to store
-      useStore.getState().addMidiMessage(messageToStore);
+      // Create a unique key for this MIDI control (channel + controller/note)
+      const controlKey = messageType === 0xB0 
+        ? `cc_${channel}_${data1}` 
+        : messageType === 0x90 || messageType === 0x80
+        ? `note_${channel}_${data1}`
+        : `other_${channel}_${data1}`;
+      
+      const now = Date.now();
+      const lastTime = lastMessageTimeRef.current.get(controlKey) || 0;
+      const timeSinceLastMessage = now - lastTime;
+
+      // Always store the latest message for this control
+      pendingMessageRef.current.set(controlKey, messageToStore);
+
+      // For CC messages (most frequent), process immediately and throttle store updates
+      if (messageType === 0xB0) {
+        const store = useStore.getState();
+        
+        // Process CC messages directly for immediate DMX updates (bypass store re-render cycle)
+        const customEvent = new CustomEvent('midiMessageDirect', {
+          detail: messageToStore
+        });
+        window.dispatchEvent(customEvent);
+        
+        // Cancel any existing timeout for this control - we only want the latest message
+        const existingTimeout = throttleTimeoutRef.current.get(controlKey);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          throttleTimeoutRef.current.delete(controlKey);
+        }
+        
+        // Throttle store updates to reduce re-renders (only for monitoring)
+        if (timeSinceLastMessage >= MIDI_THROTTLE_MS) {
+          // Time to update - add to store immediately
+          store.addMidiMessage(messageToStore);
+          lastMessageTimeRef.current.set(controlKey, now);
+          pendingMessageRef.current.delete(controlKey);
+        } else {
+          // Too soon - schedule a throttled store update (for monitoring only)
+          // Store the latest message (overwrites any previous pending)
+          pendingMessageRef.current.set(controlKey, messageToStore);
+          
+          // Schedule timeout to add to store
+          const timeout = setTimeout(() => {
+            const pending = pendingMessageRef.current.get(controlKey);
+            if (pending) {
+              // Check message age - don't process if too old (user stopped moving)
+              const messageAge = Date.now() - (pending.timestamp || 0);
+              if (messageAge < MAX_MESSAGE_AGE_MS) {
+                store.addMidiMessage(pending);
+                lastMessageTimeRef.current.set(controlKey, Date.now());
+              } else {
+                // Message too old - user stopped moving, discard it
+                console.log(`[GlobalBrowserMidi] Discarding stale message (${messageAge}ms old) for ${controlKey}`);
+              }
+              pendingMessageRef.current.delete(controlKey);
+            }
+            throttleTimeoutRef.current.delete(controlKey);
+          }, MIDI_THROTTLE_MS - timeSinceLastMessage);
+          throttleTimeoutRef.current.set(controlKey, timeout);
+        }
+      } else {
+        // For note on/off, add immediately (less frequent, no throttling needed)
+        useStore.getState().addMidiMessage(messageToStore);
+        lastMessageTimeRef.current.set(controlKey, now);
+      }
     };
 
     // Store the handler reference
@@ -203,6 +274,39 @@ export const useGlobalBrowserMidi = () => {
     }
   }, [midiAccess]);
 
+  // Periodic cleanup of stale pending messages (every 100ms)
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const staleKeys: string[] = [];
+      
+      // Check all pending messages and remove stale ones
+      pendingMessageRef.current.forEach((message, key) => {
+        const messageAge = now - (message.timestamp || 0);
+        if (messageAge > MAX_MESSAGE_AGE_MS * 2) { // 2x threshold for cleanup
+          staleKeys.push(key);
+        }
+      });
+      
+      // Remove stale messages
+      staleKeys.forEach(key => {
+        pendingMessageRef.current.delete(key);
+        // Also cancel any associated timeout
+        const timeout = throttleTimeoutRef.current.get(key);
+        if (timeout) {
+          clearTimeout(timeout);
+          throttleTimeoutRef.current.delete(key);
+        }
+      });
+      
+      if (staleKeys.length > 0) {
+        console.log(`[GlobalBrowserMidi] Cleaned up ${staleKeys.length} stale pending messages`);
+      }
+    }, 100); // Check every 100ms
+    
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   // Restore saved MIDI connections after midiAccess and connectBrowserInput are available
   const hasRestoredRef = useRef(false);
   useEffect(() => {
@@ -234,7 +338,7 @@ export const useGlobalBrowserMidi = () => {
     }
   }, [midiAccess, connectBrowserInput]); // Restore when both are ready
 
-  // Cleanup: Remove all listeners when component unmounts
+  // Cleanup: Remove all listeners and timeouts when component unmounts
   useEffect(() => {
     return () => {
       if (midiAccess) {
@@ -251,6 +355,14 @@ export const useGlobalBrowserMidi = () => {
         });
         handlerRefs.current.clear();
       }
+      
+      // Clear all pending timeouts
+      throttleTimeoutRef.current.forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+      throttleTimeoutRef.current.clear();
+      pendingMessageRef.current.clear();
+      lastMessageTimeRef.current.clear();
     };
   }, [midiAccess]);
 

@@ -38,16 +38,67 @@ export const OscMonitor: React.FC = () => {
     return () => window.removeEventListener('resetLayout', handleResetLayout);
   }, []);
 
+  // Throttling for OSC messages to reduce lag
+  const lastOscMessageTimeRef = useRef<number>(0);
+  const pendingOscMessageRef = useRef<OscMessage | null>(null);
+  const oscThrottleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const OSC_THROTTLE_MS = 16; // ~60fps for store updates
+  const MAX_OSC_MESSAGE_AGE_MS = 50; // Don't process messages older than 50ms
+
   useEffect(() => {
     if (socket && socketConnected && !isPaused) {
       const handleOscMessage = (message: OscMessage) => {
-        addOscMessageToStore(message);
-        setFlashActive(true);
-        setTimeout(() => setFlashActive(false), 200);
+        const now = Date.now();
+        const timeSinceLastMessage = now - lastOscMessageTimeRef.current;
+        
+        // Always store the latest message
+        pendingOscMessageRef.current = message;
+        
+        // Cancel any existing timeout
+        if (oscThrottleTimeoutRef.current) {
+          clearTimeout(oscThrottleTimeoutRef.current);
+          oscThrottleTimeoutRef.current = null;
+        }
+        
+        // Throttle store updates to reduce re-renders
+        if (timeSinceLastMessage >= OSC_THROTTLE_MS) {
+          // Time to update - add to store immediately
+          addOscMessageToStore(message);
+          lastOscMessageTimeRef.current = now;
+          pendingOscMessageRef.current = null;
+          setFlashActive(true);
+          setTimeout(() => setFlashActive(false), 200);
+        } else {
+          // Too soon - schedule a throttled store update
+          oscThrottleTimeoutRef.current = setTimeout(() => {
+            const pending = pendingOscMessageRef.current;
+            if (pending) {
+              // Check message age - don't process if too old
+              const messageAge = Date.now() - (pending.timestamp || 0);
+              if (messageAge < MAX_OSC_MESSAGE_AGE_MS) {
+                addOscMessageToStore(pending);
+                lastOscMessageTimeRef.current = Date.now();
+                setFlashActive(true);
+                setTimeout(() => setFlashActive(false), 200);
+              } else {
+                // Message too old - discard it
+                console.log(`[OscMonitor] Discarding stale OSC message (${messageAge}ms old)`);
+              }
+              pendingOscMessageRef.current = null;
+            }
+            oscThrottleTimeoutRef.current = null;
+          }, OSC_THROTTLE_MS - timeSinceLastMessage);
+        }
       };
       socket.on('oscMessage', handleOscMessage);
       return () => {
         socket.off('oscMessage', handleOscMessage);
+        // Cleanup timeout on unmount
+        if (oscThrottleTimeoutRef.current) {
+          clearTimeout(oscThrottleTimeoutRef.current);
+          oscThrottleTimeoutRef.current = null;
+        }
+        pendingOscMessageRef.current = null;
       };
     }
   }, [socket, socketConnected, addOscMessageToStore, isPaused]);

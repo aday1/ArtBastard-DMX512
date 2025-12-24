@@ -53,6 +53,8 @@ export const MidiOscSetup: React.FC = () => {
   // Get MIDI interfaces and active interfaces from global state
   const midiInterfaces = useStore(state => state.midiInterfaces)
   const activeInterfaces = useStore(state => state.activeInterfaces)
+  const setMidiInterfaces = useStore(state => state.setMidiInterfaces)
+  const setActiveInterfaces = useStore(state => state.setActiveInterfaces)
   const { connectMidiInterface, disconnectMidiInterface, refreshMidiInterfaces } = useStore(state => ({
     connectMidiInterface: (name: string) => {
       if (socket && connected) {
@@ -70,6 +72,32 @@ export const MidiOscSetup: React.FC = () => {
       }
     }
   }))
+
+  // Listen for server MIDI interface updates
+  useEffect(() => {
+    if (socket && connected) {
+      const handleMidiInterfaces = (interfaces: string[]) => {
+        console.log('[MidiOscSetup] Received MIDI interfaces from server:', interfaces)
+        setMidiInterfaces(interfaces)
+      }
+
+      const handleActiveMidiInterfaces = (interfaces: string[]) => {
+        console.log('[MidiOscSetup] Received active MIDI interfaces:', interfaces)
+        setActiveInterfaces(interfaces)
+      }
+
+      socket.on('midiInterfaces', handleMidiInterfaces)
+      socket.on('midiInputsActive', handleActiveMidiInterfaces) // Server emits 'midiInputsActive'
+
+      // Request MIDI interfaces on mount
+      socket.emit('getMidiInterfaces')
+
+      return () => {
+        socket.off('midiInterfaces', handleMidiInterfaces)
+        socket.off('midiInputsActive', handleActiveMidiInterfaces)
+      }
+    }
+  }, [socket, connected, setMidiInterfaces, setActiveInterfaces])
 
   // Listen for OSC status updates
   useEffect(() => {

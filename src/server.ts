@@ -306,6 +306,10 @@ try {
     const midiInterfaces = listMidiInterfaces();
     log('MIDI interfaces found', 'MIDI', { inputs: midiInterfaces.inputs, isWsl: midiInterfaces.isWsl });
     socket.emit('midiInterfaces', midiInterfaces.inputs);
+    
+    // Send currently active MIDI interfaces (if any)
+    // Note: This requires access to activeMidiInputs from the MIDI module
+    // We'll emit this after the connection is established, or it will be sent when interfaces connect
 
     // Handle MIDI interface selection
     socket.on('selectMidiInterface', (interfaceName) => {
