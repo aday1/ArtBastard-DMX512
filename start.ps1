@@ -1,8 +1,16 @@
 ﻿param(
     [switch]$Clear,
     [switch]$Reset,
-    [switch]$Help
+    [switch]$Help,
+    [switch]$Admin,
+    [int]$Port = 3030
 )
+
+# Validate port range
+if ($Port -lt 1 -or $Port -gt 65535) {
+    Write-Host "❌ Invalid port: $Port. Port must be between 1 and 65535." -ForegroundColor Red
+    exit 1
+}
 
 if ($Help) {
     Write-Host ""
@@ -12,18 +20,123 @@ if ($Help) {
     Write-Host ""
     Write-Host "📖 Usage:" -ForegroundColor Yellow
     Write-Host "  🚀 .\start.ps1           # Fast start (recommended)" -ForegroundColor Green
-    Write-Host "  🧹 .\start.ps1 -Clear    # Full clean rebuild (removes everything, reinstalls, rebuilds)" -ForegroundColor Red
+    Write-Host "  🧹 .\start.ps1 -Clear    # ⚠️  DESTRUCTIVE: Removes node_modules, cache, builds - full reinstall" -ForegroundColor Red
     Write-Host "  🔄 .\start.ps1 -Reset    # Factory reset - clears all saved state (fixtures, scenes, config)" -ForegroundColor Magenta
+    Write-Host "  🔐 .\start.ps1 -Admin    # Run as Administrator (useful for MIDI and system operations)" -ForegroundColor Yellow
+    Write-Host "  🌐 .\start.ps1 -Port 8080 # Specify web server port (default: 3030)" -ForegroundColor Cyan
     Write-Host "  ❓ .\start.ps1 -Help     # Display this help" -ForegroundColor White
     Write-Host ""
     Write-Host "🎯 Modes:" -ForegroundColor Yellow
     Write-Host "  🚀 Default: Fast start - preserves cache and dependencies, only rebuilds if needed" -ForegroundColor Green
-    Write-Host "  🧹 -Clear:  Full clean - removes node_modules, cache, and build artifacts, then rebuilds" -ForegroundColor Red
+    Write-Host "  🧹 -Clear:  ⚠️  DESTRUCTIVE - Deletes node_modules, all caches, build artifacts, then reinstalls & rebuilds" -ForegroundColor Red
     Write-Host "  🔄 -Reset:  Factory reset - deletes all saved state files (config, scenes, fixtures, etc.)" -ForegroundColor Magenta
+    Write-Host "  🔐 -Admin:  Relaunches script as Administrator (required for some MIDI operations on Windows)" -ForegroundColor Yellow
+    Write-Host "  🌐 -Port:   Specify web server port (1-65535, default: 3030)" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "✨ May your lights shine bright! ✨" -ForegroundColor Cyan
     Write-Host ""
     exit 0
+}
+
+# Check if running as Administrator
+function Test-Administrator {
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# If -Admin is specified and we're not running as admin, relaunch with elevation
+if ($Admin) {
+    if (-not (Test-Administrator)) {
+        Write-Host ""
+        Write-Host "🔐 ════════════════════════════════════════════════════════════════ 🔐" -ForegroundColor Yellow
+        Write-Host "🔐  Relaunching as Administrator..." -ForegroundColor Yellow
+        Write-Host "🔐 ════════════════════════════════════════════════════════════════ 🔐" -ForegroundColor Yellow
+        Write-Host ""
+        
+        # Build the command with all original parameters
+        $scriptPath = $MyInvocation.MyCommand.Path
+        $scriptDir = Split-Path -Parent $scriptPath
+        $currentDir = Get-Location
+        
+        # Build parameter string
+        $paramParts = @()
+        if ($Clear) { $paramParts += "-Clear" }
+        if ($Reset) { $paramParts += "-Reset" }
+        if ($Help) { $paramParts += "-Help" }
+        if ($Port -ne 3030) { $paramParts += "-Port $Port" }
+        # Don't include -Admin in the relaunch to avoid infinite loop
+        
+        $paramString = $paramParts -join " "
+        
+        # Build argument array properly for Start-Process
+        # PowerShell needs arguments as an array, not a string
+        # Change to script directory first, then run the script
+        # Use -WorkingDirectory to ensure we're in the right directory
+        $argArray = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
+        if ($paramString) {
+            # Split parameters and add them individually
+            $paramString.Split(' ', [StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object {
+                $argArray += $_
+            }
+        }
+        
+        Write-Host "  Script path: $scriptPath" -ForegroundColor Cyan
+        Write-Host "  Script directory: $scriptDir" -ForegroundColor Cyan
+        Write-Host "  Current directory: $currentDir" -ForegroundColor Cyan
+        Write-Host "  Parameters: $paramString" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  ⚠️  UAC prompt will appear - click 'Yes' to continue" -ForegroundColor Yellow
+        Write-Host "  If you click 'No', the script will exit." -ForegroundColor Yellow
+        Write-Host ""
+        
+        try {
+            # Use Start-Process with proper argument array and working directory
+            # This ensures the script runs from the correct directory
+            $process = Start-Process powershell.exe -Verb RunAs -ArgumentList $argArray -WorkingDirectory $scriptDir -Wait -PassThru
+            
+            if ($process) {
+                if ($process.ExitCode -eq 0) {
+                    Write-Host "  ✅ Script completed successfully as Administrator" -ForegroundColor Green
+                } else {
+                    Write-Host "  ⚠️  Script completed with exit code: $($process.ExitCode)" -ForegroundColor Yellow
+                    Write-Host "  This may indicate an error occurred. Check the admin PowerShell window for details." -ForegroundColor Yellow
+                }
+                exit $process.ExitCode
+            } else {
+                Write-Host "  ⚠️  Process started but no process object returned" -ForegroundColor Yellow
+                Write-Host "  This may mean the UAC prompt was cancelled or the window closed." -ForegroundColor Yellow
+                Write-Host "  Check if a new PowerShell window opened." -ForegroundColor Yellow
+                exit 1
+            }
+        } catch {
+            $errorMsg = $_.Exception.Message
+            Write-Host ""
+            Write-Host "❌ Failed to relaunch as Administrator!" -ForegroundColor Red
+            Write-Host "   Error: $errorMsg" -ForegroundColor Red
+            Write-Host "   Error Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+            if ($_.Exception.InnerException) {
+                Write-Host "   Inner Error: $($_.Exception.InnerException.Message)" -ForegroundColor Red
+            }
+            Write-Host ""
+            Write-Host "   This usually means:" -ForegroundColor Yellow
+            Write-Host "   - UAC prompt was cancelled" -ForegroundColor Yellow
+            Write-Host "   - Insufficient permissions" -ForegroundColor Yellow
+            Write-Host "   - Script path is invalid" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "   Manual alternative:" -ForegroundColor Cyan
+            Write-Host "   1. Right-click PowerShell in Start Menu" -ForegroundColor White
+            Write-Host "   2. Select 'Run as Administrator'" -ForegroundColor White
+            Write-Host "   3. Navigate to: $(Get-Location)" -ForegroundColor White
+            Write-Host "   4. Run: .\start.ps1 $paramString" -ForegroundColor White
+            Write-Host ""
+            exit 1
+        }
+    } else {
+        Write-Host ""
+        Write-Host "✅ Running as Administrator" -ForegroundColor Green
+        Write-Host ""
+    }
 }
 
 Write-Host ""
@@ -51,6 +164,13 @@ if ($Clear) {
     Write-Host "🚀 ════════════════════════════════════════════════════════════════ 🚀" -ForegroundColor Green
     Write-Host "🚀  FAST START MODE: Smart rebuild (only rebuilds if needed)" -ForegroundColor Green
     Write-Host "🚀 ════════════════════════════════════════════════════════════════ 🚀" -ForegroundColor Green
+}
+
+# Show admin status if running as administrator
+if (Test-Administrator) {
+    Write-Host "🔐 ════════════════════════════════════════════════════════════════ 🔐" -ForegroundColor Yellow
+    Write-Host "🔐  RUNNING AS ADMINISTRATOR (elevated privileges)" -ForegroundColor Yellow
+    Write-Host "🔐 ════════════════════════════════════════════════════════════════ 🔐" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -328,7 +448,7 @@ function Test-NeedsCacheClear {
 
 # Function to launch browser when server is ready
 function Start-BrowserWhenReady {
-    param([string]$Url = "http://localhost:3030", [int]$MaxAttempts = 45)
+    param([string]$Url = "http://localhost:$Port", [int]$MaxAttempts = 45)
     
     $browserJob = Start-Job -ScriptBlock {
         param($url, $maxAttempts)
@@ -364,8 +484,18 @@ function Start-BrowserWhenReady {
 # FULL CLEAN REBUILD PATH: Complete cache clear and rebuild
 if ($Clear) {
     Write-Host "🧹 ════════════════════════════════════════════════════════════════ 🧹" -ForegroundColor Red
-    Write-Host "🧹  FULL CLEAN REBUILD: Removing all artifacts and rebuilding" -ForegroundColor Red
+    Write-Host "🧹  ⚠️  DESTRUCTIVE MODE: FULL CLEAN REBUILD" -ForegroundColor Red
+    Write-Host "🧹  This will DELETE:" -ForegroundColor Red
+    Write-Host "🧹    - All node_modules directories" -ForegroundColor Yellow
+    Write-Host "🧹    - All build artifacts (dist folders)" -ForegroundColor Yellow
+    Write-Host "🧹    - All caches (npm, Vite, etc.)" -ForegroundColor Yellow
+    Write-Host "🧹  Then reinstall and rebuild everything from scratch" -ForegroundColor Red
     Write-Host "🧹 ════════════════════════════════════════════════════════════════ 🧹" -ForegroundColor Red
+    Write-Host ""
+    
+    # Give user a chance to cancel
+    Write-Host "⚠️  Press Ctrl+C within 3 seconds to cancel..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
     Write-Host ""
     
     # Kill all processes
@@ -498,10 +628,11 @@ if ($Clear) {
     
     # Start server
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green
-    Write-Host "🎭  Starting ArtBastard DMX512 Server..." -ForegroundColor Green
+    Write-Host "🎭  Starting ArtBastard DMX512 Server on port $Port..." -ForegroundColor Green
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green
     Write-Host ""
     try {
+        $env:PORT = $Port
         npm start
     } catch {
         Write-Host "❌ Server deployment encountered complications!" -ForegroundColor Red
@@ -687,7 +818,7 @@ if (-not $Clear) {
     
     Write-Host ""
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green
-    Write-Host "🎭  Initiating ArtBastard DMX512 server deployment..." -ForegroundColor Green
+    Write-Host "🎭  Initiating ArtBastard DMX512 server deployment on port $Port..." -ForegroundColor Green
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green
     Write-Host ""
     
@@ -697,6 +828,7 @@ if (-not $Clear) {
     
     # Deploy the server with sophistication
     try {
+        $env:PORT = $Port
         npm start
     } catch {
         Write-Host "❌ Server deployment encountered complications!" -ForegroundColor Red
@@ -765,19 +897,19 @@ try {
         Write-Host "  No Node.js processes detected (pristine state)" -ForegroundColor Green
     }
 
-    # Sophisticated port 3030 resolution
-    Write-Host "  Analyzing port 3030 architectural conflicts..." -ForegroundColor Red
-    $connections = Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue
+    # Sophisticated port conflict resolution
+    Write-Host "  Analyzing port $Port architectural conflicts..." -ForegroundColor Red
+    $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
     if ($connections) {
-        Write-Host "  Resolving port 3030 conflicts with architectural precision..." -ForegroundColor Yellow
+        Write-Host "  Resolving port $Port conflicts with architectural precision..." -ForegroundColor Yellow
         $processes = $connections | Select-Object -ExpandProperty OwningProcess -Unique
         foreach ($processId in $processes) {
             Write-Host "    Elegantly terminating PID: $processId" -ForegroundColor Red
             Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
         }
-        Write-Host "  Port 3030 architectural conflicts resolved" -ForegroundColor Green
+        Write-Host "  Port $Port architectural conflicts resolved" -ForegroundColor Green
     } else {
-        Write-Host "  Port 3030 architecture pristine" -ForegroundColor Green
+        Write-Host "  Port $Port architecture pristine" -ForegroundColor Green
     }
 
     # Sophisticated ArtBastard process management
@@ -1111,7 +1243,7 @@ Write-Host "Initiating ArtBastard DMX512 web server deployment with architectura
 $browserJob = Start-Job -ScriptBlock {
     $maxAttempts = 45  # Sophisticated wait time for architectural reconstruction
     $attempt = 0
-    $url = "http://localhost:3030"
+    $url = "http://localhost:$Port"
     
     Write-Host "Conducting sophisticated server readiness analysis..." -ForegroundColor Cyan
     
@@ -1138,7 +1270,7 @@ $browserJob = Start-Job -ScriptBlock {
     
     if ($attempt -eq $maxAttempts) {
         Write-Host "Server readiness timeout: Architecture took longer than expected to initialize" -ForegroundColor Yellow
-        Write-Host "   You may manually deploy browser to: http://localhost:3030" -ForegroundColor White
+        Write-Host "   You may manually deploy browser to: http://localhost:$Port" -ForegroundColor White
         Write-Host "   The server architecture may still be initializing..." -ForegroundColor White
     }
 }
@@ -1158,13 +1290,14 @@ Update-ETAMetrics $totalTime
 
 # Deploy the server with sophisticated monitoring
 try {
-    Write-Host "Initiating ArtBastard DMX512 server deployment..." -ForegroundColor Green
+    Write-Host "Initiating ArtBastard DMX512 server deployment on port $Port..." -ForegroundColor Green
+    $env:PORT = $Port
     npm start
 } catch {
     Write-Host "Server deployment encountered architectural complications!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "Sophisticated troubleshooting protocols:" -ForegroundColor Cyan
-    Write-Host "   1. Verify port 3030 architectural conflicts" -ForegroundColor White
+    Write-Host "   1. Verify port $Port architectural conflicts" -ForegroundColor White
     Write-Host "   2. Confirm Node.js and npm architectural integrity" -ForegroundColor White
     Write-Host "   3. Execute: npm run build-backend && node dist/server.js" -ForegroundColor White
     Write-Host "   4. Review architectural logs in logs/app.log for detailed analysis" -ForegroundColor White

@@ -6,7 +6,32 @@ export const useGlobalBrowserMidi = () => {
   const [browserMidiEnabled, setBrowserMidiEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputs, setInputs] = useState<WebMidi.MIDIInput[]>([]);
-  const [activeInputs, setActiveInputs] = useState<Set<string>>(new Set());
+  
+  // Load saved active inputs from localStorage on initialization
+  const loadSavedActiveInputs = (): Set<string> => {
+    try {
+      const saved = localStorage.getItem('activeBrowserMidiInputs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      }
+    } catch (e) {
+      console.error('[GlobalBrowserMidi] Failed to load saved MIDI inputs:', e);
+    }
+    return new Set();
+  };
+  
+  const [activeInputs, setActiveInputs] = useState<Set<string>>(loadSavedActiveInputs());
+  
+  // Save active inputs to localStorage whenever they change
+  const saveActiveInputs = (inputs: Set<string>) => {
+    try {
+      localStorage.setItem('activeBrowserMidiInputs', JSON.stringify(Array.from(inputs)));
+    } catch (e) {
+      console.error('[GlobalBrowserMidi] Failed to save MIDI inputs:', e);
+    }
+  };
+  
   // Store handler references so we can remove them properly
   const handlerRefs = useRef<Map<string, (event: WebMidi.MIDIMessageEvent) => void>>(new Map());
 
@@ -118,7 +143,11 @@ export const useGlobalBrowserMidi = () => {
     // Store the handler reference
     handlerRefs.current.set(inputId, handleMidiMessage);
     input.addEventListener('midimessage', handleMidiMessage);
-    setActiveInputs(prev => new Set([...prev, inputId]));
+    setActiveInputs(prev => {
+      const newSet = new Set([...prev, inputId]);
+      saveActiveInputs(newSet); // Persist to localStorage
+      return newSet;
+    });
 
     console.log('[GlobalBrowserMidi] Connected to input:', input.name);
     
@@ -152,6 +181,7 @@ export const useGlobalBrowserMidi = () => {
     setActiveInputs(prev => {
       const newSet = new Set(prev);
       newSet.delete(inputId);
+      saveActiveInputs(newSet); // Persist to localStorage
       return newSet;
     });
 
@@ -172,6 +202,37 @@ export const useGlobalBrowserMidi = () => {
       console.log('[GlobalBrowserMidi] Refreshed MIDI devices:', inputList.map(i => i.name));
     }
   }, [midiAccess]);
+
+  // Restore saved MIDI connections after midiAccess and connectBrowserInput are available
+  const hasRestoredRef = useRef(false);
+  useEffect(() => {
+    if (midiAccess && connectBrowserInput && !hasRestoredRef.current) {
+      // Only restore once on initial load
+      const savedInputs = loadSavedActiveInputs();
+      if (savedInputs.size > 0) {
+        console.log('[GlobalBrowserMidi] Restoring saved MIDI connections:', Array.from(savedInputs));
+        hasRestoredRef.current = true;
+        // Restore connections after a short delay to ensure everything is initialized
+        setTimeout(() => {
+          savedInputs.forEach(inputId => {
+            const input = midiAccess.inputs.get(inputId);
+            if (input && input.state === 'connected') {
+              // Only restore if the input is still available and connected
+              connectBrowserInput(inputId);
+            } else {
+              console.warn('[GlobalBrowserMidi] Saved MIDI input not available:', inputId);
+              // Remove from saved list if device is no longer available
+              const newSet = new Set(savedInputs);
+              newSet.delete(inputId);
+              saveActiveInputs(newSet);
+            }
+          });
+        }, 300);
+      } else {
+        hasRestoredRef.current = true; // Mark as restored even if no saved inputs
+      }
+    }
+  }, [midiAccess, connectBrowserInput]); // Restore when both are ready
 
   // Cleanup: Remove all listeners when component unmounts
   useEffect(() => {

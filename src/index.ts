@@ -248,7 +248,80 @@ function initializeMidi(io: Server) {
             }
         }
 
-        // Continue with MIDI initialization
+        // Windows-specific MIDI initialization
+        if (process.platform === 'win32') {
+            log('Windows detected - initializing MIDI with Windows API', 'MIDI');
+            
+            // On Windows, easymidi uses native bindings that may require:
+            // 1. Proper native module compilation
+            // 2. Windows MIDI drivers installed
+            // 3. Administrator privileges (sometimes)
+            
+            // Try to get inputs - this will fail if native modules aren't built
+            try {
+                const inputs = easymidi.getInputs();
+                const outputs = easymidi.getOutputs();
+                
+                log(`Windows MIDI: Found ${inputs.length} inputs, ${outputs.length} outputs`, 'MIDI', { 
+                    inputs, 
+                    outputs,
+                    platform: process.platform,
+                    arch: process.arch
+                });
+
+                io.emit('midiStatus', {
+                    status: 'ready',
+                    message: inputs.length > 0 
+                        ? `Hardware MIDI initialized (${inputs.length} device${inputs.length > 1 ? 's' : ''} found)` 
+                        : 'No hardware MIDI devices found - check Windows Device Manager',
+                    inputs,
+                    outputs,
+                    browserMidiOnly: false
+                });
+            } catch (winError: any) {
+                // Windows-specific error handling
+                const errorMsg = winError?.message || String(winError);
+                log('Windows MIDI initialization error', 'ERROR', { 
+                    error: errorMsg,
+                    stack: winError?.stack,
+                    platform: process.platform,
+                    arch: process.arch
+                });
+                
+                // Provide helpful error message for common Windows MIDI issues
+                let userMessage = 'MIDI hardware initialization failed on Windows. ';
+                if (errorMsg.includes('Cannot find module') || errorMsg.includes('native')) {
+                    userMessage += 'Native MIDI module not found. Try running: npm rebuild easymidi';
+                } else if (errorMsg.includes('permission') || errorMsg.includes('access')) {
+                    userMessage += 'Permission denied. Try running as Administrator.';
+                } else if (errorMsg.includes('device') || errorMsg.includes('driver')) {
+                    userMessage += 'MIDI device driver issue. Check Windows Device Manager for MIDI devices.';
+                } else {
+                    userMessage += `Error: ${errorMsg}. Using browser MIDI API as fallback.`;
+                }
+                
+                io.emit('midiStatus', {
+                    status: 'error',
+                    message: userMessage,
+                    error: errorMsg,
+                    browserMidiOnly: true,
+                    troubleshooting: {
+                        platform: 'windows',
+                        suggestions: [
+                            'Check Windows Device Manager for MIDI devices',
+                            'Ensure MIDI drivers are installed',
+                            'Try running as Administrator',
+                            'Run: npm rebuild easymidi',
+                            'Use browser MIDI API as fallback'
+                        ]
+                    }
+                });
+                return;
+            }
+            return; // Successfully initialized on Windows
+        }
+
+        // Continue with MIDI initialization for other platforms
         const inputs = easymidi.getInputs();
         log(`Found ${inputs.length} MIDI inputs`, 'MIDI', { inputs });
 
@@ -259,11 +332,17 @@ function initializeMidi(io: Server) {
             browserMidiOnly: false
         });
 
-    } catch (error) {
-        log('MIDI initialization error', 'ERROR', { error });
+    } catch (error: any) {
+        const errorMsg = error?.message || String(error);
+        log('MIDI initialization error', 'ERROR', { 
+            error: errorMsg,
+            stack: error?.stack,
+            platform: process.platform
+        });
         io.emit('midiStatus', {
             status: 'error',
-            message: 'MIDI hardware initialization failed - using browser MIDI API',
+            message: `MIDI hardware initialization failed: ${errorMsg}. Using browser MIDI API as fallback.`,
+            error: errorMsg,
             browserMidiOnly: true
         });
     }
@@ -285,6 +364,17 @@ function connectMidiInput(io: Server, inputName: string, isBrowserMidi = false) 
         if (activeMidiInputs[inputName]) {
             log(`Already connected to MIDI input: ${inputName}`, 'MIDI');
             return;
+        }
+
+        // Windows-specific: Verify the input exists before connecting
+        if (process.platform === 'win32') {
+            const availableInputs = easymidi.getInputs();
+            if (!availableInputs.includes(inputName)) {
+                const errorMsg = `MIDI input "${inputName}" not found. Available: ${availableInputs.join(', ') || 'none'}`;
+                log(errorMsg, 'ERROR');
+                io.emit('midiInterfaceError', errorMsg);
+                throw new Error(errorMsg);
+            }
         }
 
         // Connect to the selected MIDI input
@@ -735,17 +825,62 @@ function listMidiInterfaces() {
             };
         }
 
+        // Windows-specific error handling
+        if (process.platform === 'win32') {
+            try {
+                const inputs = easymidi.getInputs();
+                const outputs = easymidi.getOutputs();
+                log("Windows MIDI: Available Inputs", 'MIDI', { inputs, count: inputs.length });
+                log("Windows MIDI: Available Outputs", 'MIDI', { outputs, count: outputs.length });
+                return { 
+                    inputs, 
+                    outputs, 
+                    isWsl: false,
+                    platform: 'windows'
+                };
+            } catch (winError: any) {
+                const errorMsg = winError?.message || String(winError);
+                log('Windows MIDI interface listing error', 'ERROR', { 
+                    error: errorMsg,
+                    platform: process.platform,
+                    arch: process.arch
+                });
+                
+                // Provide helpful troubleshooting info
+                return {
+                    inputs: [],
+                    outputs: [],
+                    error: errorMsg,
+                    platform: 'windows',
+                    troubleshooting: {
+                        suggestions: [
+                            'Run: npm rebuild easymidi',
+                            'Check Windows Device Manager for MIDI devices',
+                            'Ensure MIDI drivers are installed',
+                            'Try running as Administrator',
+                            'Use browser MIDI API as fallback'
+                        ]
+                    }
+                };
+            }
+        }
+
         const inputs = easymidi.getInputs();
         const outputs = easymidi.getOutputs();
         log("Available MIDI Inputs", 'MIDI', { inputs });
         log("Available MIDI Outputs", 'MIDI', { outputs });
         return { inputs, outputs, isWsl: false };
-    } catch (error) {
-        log('Error listing MIDI interfaces', 'ERROR', { error });
+    } catch (error: any) {
+        const errorMsg = error?.message || String(error);
+        log('Error listing MIDI interfaces', 'ERROR', { 
+            error: errorMsg,
+            platform: process.platform
+        });
         return {
             inputs: [],
             outputs: [],
-            error: String(error)
+            error: errorMsg,
+            platform: process.platform
         };
     }
 }
