@@ -859,7 +859,8 @@ export const FixtureSetup: React.FC = () => {
         mode: data.mode || '',
         startAddress: typeof data.startAddress === 'number' ? data.startAddress : nextAddress,
         channels: mappedChannels,
-        notes: data.notes || ''
+        notes: data.notes || '',
+        tags: data.tags || []
       });
 
       setEditingFixtureId(null);
