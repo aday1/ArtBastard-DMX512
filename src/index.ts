@@ -453,10 +453,14 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
                 // Add source information to the message
                 const msgWithSource = { ...msg, source: inputName };
                 // Console output for visibility
-                console.log(`🎹 [${inputName}] Note On: Ch ${msg.channel + 1} | Note ${msg.note} | Vel ${msg.velocity}`);
+                const channel = (msg.channel !== undefined) ? msg.channel + 1 : '?';
+                const note = msg.note !== undefined ? msg.note : '?';
+                const velocity = msg.velocity !== undefined ? msg.velocity : '?';
+                console.log(`🎹 [${inputName}] Note On: Ch ${channel} | Note ${note} | Vel ${velocity}`);
                 log('MIDI', 'MIDI', { channel: msg.channel, note: msg.note, velocity: msg.velocity });
                 handleMidiMessage(io, 'noteon', msgWithSource as MidiMessage);
             } catch (error) {
+                console.error(`❌ Error handling Note On message from ${inputName}:`, error);
                 log('Error handling noteon message', 'ERROR', { error, inputName });
             }
         });
@@ -466,10 +470,13 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
                 // Also forward noteoff events with source information
                 const msgWithSource = { ...msg, source: inputName };
                 // Console output for visibility
-                console.log(`🎹 [${inputName}] Note Off: Ch ${msg.channel + 1} | Note ${msg.note}`);
+                const channel = (msg.channel !== undefined) ? msg.channel + 1 : '?';
+                const note = msg.note !== undefined ? msg.note : '?';
+                console.log(`🎹 [${inputName}] Note Off: Ch ${channel} | Note ${note}`);
                 log('Received noteoff', 'MIDI', { message: msgWithSource });
                 io.emit('midiMessage', msgWithSource);
             } catch (error) {
+                console.error(`❌ Error handling Note Off message from ${inputName}:`, error);
                 log('Error handling noteoff message', 'ERROR', { error, inputName });
             }
         });
@@ -479,10 +486,14 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
                 // Add source information to the message
                 const msgWithSource = { ...msg, source: inputName };
                 // Console output for visibility - this is the main one for knobs
-                console.log(`🎛️  [${inputName}] CC: Ch ${msg.channel + 1} | CC ${msg.controller} | Value ${msg.value}`);
+                const channel = (msg.channel !== undefined) ? msg.channel + 1 : '?';
+                const controller = msg.controller !== undefined ? msg.controller : '?';
+                const value = msg.value !== undefined ? msg.value : '?';
+                console.log(`🎛️  [${inputName}] CC: Ch ${channel} | CC ${controller} | Value ${value}`);
                 log('Received cc', 'MIDI', { message: msgWithSource });
                 handleMidiMessage(io, 'cc', msgWithSource as MidiMessage);
             } catch (error) {
+                console.error(`❌ Error handling CC message from ${inputName}:`, error);
                 log('Error handling cc message', 'ERROR', { error, inputName });
             }
         });
@@ -491,6 +502,8 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
         activeMidiInputs[inputName] = newInput;
         midiInput = newInput; // Keep the last one as default for backward compatibility
 
+        console.log(`✅ MIDI input connected and listening: ${inputName}`);
+        console.log(`   Event listeners attached. Move a knob to test!`);
         log(`MIDI input connected: ${inputName}`, 'MIDI');
         
         // Verify connection is working (especially important on Windows)
@@ -1719,18 +1732,28 @@ async function startLaserTime(io: Server) {
     const config = loadConfig();
     const autoConnectDevices = (config as any).autoConnectMidiDevices || [];
     if (Array.isArray(autoConnectDevices) && autoConnectDevices.length > 0) {
+        console.log(`\n🎹 Auto-connecting ${autoConnectDevices.length} MIDI device(s) from config:`);
+        autoConnectDevices.forEach((device, idx) => {
+            console.log(`   ${idx + 1}. ${device}`);
+        });
         log(`Auto-connecting ${autoConnectDevices.length} MIDI device(s) from config`, 'MIDI', { devices: autoConnectDevices });
         // Wait a moment for MIDI to initialize, then connect devices
         setTimeout(async () => {
             for (const deviceName of autoConnectDevices) {
                 try {
+                    console.log(`   Connecting to: ${deviceName}...`);
                     await connectMidiInput(io, deviceName);
+                    console.log(`   ✅ Successfully connected to: ${deviceName}`);
                     log(`Auto-connected MIDI device: ${deviceName}`, 'MIDI');
                 } catch (error: any) {
+                    console.log(`   ❌ Failed to connect to: ${deviceName} - ${error?.message || String(error)}`);
                     log(`Failed to auto-connect MIDI device "${deviceName}": ${error?.message || String(error)}`, 'WARN');
                 }
             }
+            console.log(`\n🎹 MIDI devices ready! Move a knob to see console output.\n`);
         }, 500); // Small delay to ensure MIDI is initialized
+    } else {
+        console.log(`\n🎹 No MIDI devices configured for auto-connect. Use the start script menu to configure.\n`);
     }
     
     initOsc(io);
