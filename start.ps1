@@ -122,6 +122,11 @@ if ($Reset) {
     Write-Host "✨  Factory reset complete! ALL saved state has been cleared." -ForegroundColor Green
     Write-Host "✨  The server will start with default settings (completely fresh)." -ForegroundColor Green
     Write-Host "✨  Browser localStorage will be automatically cleared on next load." -ForegroundColor Green
+    Write-Host "" -ForegroundColor Green
+    Write-Host "⚠️  IMPORTANT: If your browser is already open, please:" -ForegroundColor Yellow
+    Write-Host "   1. Close all browser tabs with the application" -ForegroundColor Yellow
+    Write-Host "   2. Or manually refresh the page (F5 or Ctrl+R)" -ForegroundColor Yellow
+    Write-Host "   3. The factory reset marker will persist for 5 minutes" -ForegroundColor Yellow
     Write-Host "✨ ════════════════════════════════════════════════════════════════ ✨" -ForegroundColor Green
     Write-Host ""
 }

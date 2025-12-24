@@ -465,9 +465,18 @@ apiRouter.get('/factory-reset-check', (req, res) => {
     const markerPath = path.join(DATA_DIR, '.factory-reset-marker.json');
     if (fs.existsSync(markerPath)) {
       const markerData = JSON.parse(fs.readFileSync(markerPath, 'utf-8'));
-      // Delete the marker after reading (one-time use)
-      fs.unlinkSync(markerPath);
-      res.json({ factoryReset: true, timestamp: markerData.timestamp });
+      const markerTimestamp = markerData.timestamp || 0;
+      const now = Math.floor(Date.now() / 1000);
+      const markerAge = now - markerTimestamp;
+      
+      // Keep marker for 5 minutes to allow multiple page loads/reloads to detect it
+      // After 5 minutes, delete it automatically
+      if (markerAge > 300) { // 5 minutes = 300 seconds
+        fs.unlinkSync(markerPath);
+        res.json({ factoryReset: false });
+      } else {
+        res.json({ factoryReset: true, timestamp: markerTimestamp });
+      }
     } else {
       res.json({ factoryReset: false });
     }
@@ -483,26 +492,36 @@ apiRouter.get('/state', (req, res) => {
     // Load configuration and scenes
     const config = loadConfig(); // loadConfig now also returns oscAssignments
 
-    const scenesData = fs.readFileSync(path.join(DATA_DIR, 'scenes.json'), 'utf-8');
-    const scenes = JSON.parse(scenesData);
+    // Handle missing scenes.json gracefully (e.g., after factory reset)
+    let scenes = [];
+    try {
+      const scenesPath = path.join(DATA_DIR, 'scenes.json');
+      if (fs.existsSync(scenesPath)) {
+        const scenesData = fs.readFileSync(scenesPath, 'utf-8');
+        scenes = JSON.parse(scenesData);
+      }
+    } catch (error) {
+      log('Error loading scenes.json, using empty array', 'WARN', { error });
+      scenes = [];
+    }
 
-    // Read fixtures data from file
+    // Read fixtures data from file (handles missing files gracefully)
     const fixturesData = loadFixturesData();
 
     // Return all state, using actual values from server where available
     res.json({
       artNetConfig: config.artNetConfig,
       oscConfig: config.oscConfig, // Include OSC configuration
-      midiMappings: config.midiMappings,
+      midiMappings: config.midiMappings || {},
       scenes,
       dmxChannels: getDmxChannels(), // Use getter for actual DMX channel state
-      oscAssignments: config.oscAssignments, // Use loaded OSC assignments
+      oscAssignments: config.oscAssignments || [], // Use loaded OSC assignments
       channelNames: getChannelNames(), // Use getter for actual channel names
       channelRanges: getChannelRanges(), // Use getter for channel ranges
-      fixtures: fixturesData.fixtures,
-      groups: fixturesData.groups,
-      fixtureLayout: fixturesData.fixtureLayout,
-      masterSliders: fixturesData.masterSliders,
+      fixtures: fixturesData.fixtures || [],
+      groups: fixturesData.groups || [],
+      fixtureLayout: fixturesData.fixtureLayout || [],
+      masterSliders: fixturesData.masterSliders || [],
       fixtureTemplates: loadFixtureTemplates()
     });
   } catch (error) {

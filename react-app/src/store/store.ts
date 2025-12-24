@@ -19,14 +19,22 @@ import { createAutomationSlice, AutomationState } from './slices/automationSlice
     if (xhr.status === 200) {
       const data = JSON.parse(xhr.responseText);
       if (data.factoryReset) {
-        console.log('🔄 Factory reset detected - clearing localStorage before store initialization...');
+        console.log('🔄 Factory reset detected - clearing ALL localStorage...');
+        
+        // Clear ALL localStorage items
         localStorage.clear();
-        console.log('✅ localStorage cleared - factory reset complete');
-        // Note: Page reload will happen after store initialization completes
-        // The reload ensures all components start with fresh state
+        
+        // Also clear sessionStorage to be thorough
+        sessionStorage.clear();
+        
+        console.log('✅ All browser storage cleared - factory reset complete');
+        console.log('🔄 Reloading page to ensure fresh state...');
+        
+        // Reload immediately to ensure clean state
+        // Use a small delay to ensure localStorage.clear() completes
         setTimeout(() => {
           window.location.reload();
-        }, 100);
+        }, 50);
       }
     }
   } catch (error) {
