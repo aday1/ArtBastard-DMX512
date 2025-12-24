@@ -583,7 +583,9 @@ try {
     
     // Initialize application with Socket.IO instance
     try {
-      startLaserTime(io);
+      startLaserTime(io).catch((error) => {
+        log('Error in startLaserTime', 'ERROR', { error: error?.message || String(error) });
+      });
       
       // Restore last saved state if available
       restoreLastState(io);

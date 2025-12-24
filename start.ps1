@@ -817,6 +817,55 @@ if (-not $Clear) {
     }
     
     Write-Host ""
+    
+    # MIDI Device Auto-Connect Configuration
+    Write-Host "🎹 ════════════════════════════════════════════════════════════════ 🎹" -ForegroundColor Magenta
+    Write-Host "🎹  MIDI Device Auto-Connect Configuration" -ForegroundColor Magenta
+    Write-Host "🎹 ════════════════════════════════════════════════════════════════ 🎹" -ForegroundColor Magenta
+    Write-Host ""
+    Write-Host "  Configure which MIDI devices should auto-connect on startup." -ForegroundColor Cyan
+    Write-Host "  Press Enter to skip and use current configuration." -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Check if Node.js is available
+    $nodeAvailable = $false
+    try {
+        $nodeVersion = node --version 2>$null
+        if ($nodeVersion) {
+            $nodeAvailable = $true
+        }
+    } catch {
+        $nodeAvailable = $false
+    }
+    
+    if ($nodeAvailable) {
+        # Check if the MIDI selector script exists
+        $midiSelectorScript = Join-Path $PSScriptRoot "scripts\select-midi-devices.js"
+        if (Test-Path $midiSelectorScript) {
+            Write-Host "  Running MIDI device selector..." -ForegroundColor Cyan
+            Write-Host ""
+            try {
+                node $midiSelectorScript
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host ""
+                    Write-Host "  ✅ MIDI configuration updated!" -ForegroundColor Green
+                } else {
+                    Write-Host ""
+                    Write-Host "  ⚠️  MIDI configuration cancelled or failed" -ForegroundColor Yellow
+                }
+            } catch {
+                Write-Host ""
+                Write-Host "  ⚠️  Could not run MIDI selector: $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-Host "  Continuing with current configuration..." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "  ℹ️  MIDI selector script not found, skipping configuration" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  ℹ️  Node.js not available, skipping MIDI configuration" -ForegroundColor Yellow
+    }
+    
+    Write-Host ""
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green
     Write-Host "🎭  Initiating ArtBastard DMX512 server deployment on port $Port..." -ForegroundColor Green
     Write-Host "🎭 ════════════════════════════════════════════════════════════════ 🎭" -ForegroundColor Green

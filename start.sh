@@ -366,7 +366,39 @@ if [ "$CLEAR" = true ]; then
     echo ""
     BROWSER_PID=$(start_browser_when_ready)
     
+    # MIDI Device Auto-Connect Configuration
+    echo ""
+    echo "🎹 ════════════════════════════════════════════════════════════════ 🎹"
+    echo "🎹  MIDI Device Auto-Connect Configuration"
+    echo "🎹 ════════════════════════════════════════════════════════════════ 🎹"
+    echo ""
+    echo "  Configure which MIDI devices should auto-connect on startup."
+    echo "  Press Enter to skip and use current configuration."
+    echo ""
+    
+    # Check if Node.js is available
+    if command -v node >/dev/null 2>&1; then
+        # Check if the MIDI selector script exists
+        MIDI_SELECTOR_SCRIPT="$(dirname "$0")/scripts/select-midi-devices.js"
+        if [ -f "$MIDI_SELECTOR_SCRIPT" ]; then
+            echo "  Running MIDI device selector..."
+            echo ""
+            if node "$MIDI_SELECTOR_SCRIPT"; then
+                echo ""
+                echo "  ✅ MIDI configuration updated!"
+            else
+                echo ""
+                echo "  ⚠️  MIDI configuration cancelled or failed"
+            fi
+        else
+            echo "  ℹ️  MIDI selector script not found, skipping configuration"
+        fi
+    else
+        echo "  ℹ️  Node.js not available, skipping MIDI configuration"
+    fi
+    
     # Start server
+    echo ""
     echo "🎭 ════════════════════════════════════════════════════════════════ 🎭"
     echo "🎭  Starting ArtBastard DMX512 Server on port $PORT..."
     echo "🎭 ════════════════════════════════════════════════════════════════ 🎭"
@@ -527,6 +559,36 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
     echo "✨ Intelligent rebuild completed! ✨"
 else
     echo "✨ Architectural foundation intact - no rebuild required! ✨"
+fi
+
+echo ""
+echo "🎹 ════════════════════════════════════════════════════════════════ 🎹"
+echo "🎹  MIDI Device Auto-Connect Configuration"
+echo "🎹 ════════════════════════════════════════════════════════════════ 🎹"
+echo ""
+echo "  Configure which MIDI devices should auto-connect on startup."
+echo "  Press Enter to skip and use current configuration."
+echo ""
+
+# Check if Node.js is available
+if command -v node >/dev/null 2>&1; then
+    # Check if the MIDI selector script exists
+    MIDI_SELECTOR_SCRIPT="$(dirname "$0")/scripts/select-midi-devices.js"
+    if [ -f "$MIDI_SELECTOR_SCRIPT" ]; then
+        echo "  Running MIDI device selector..."
+        echo ""
+        if node "$MIDI_SELECTOR_SCRIPT"; then
+            echo ""
+            echo "  ✅ MIDI configuration updated!"
+        else
+            echo ""
+            echo "  ⚠️  MIDI configuration cancelled or failed"
+        fi
+    else
+        echo "  ℹ️  MIDI selector script not found, skipping configuration"
+    fi
+else
+    echo "  ℹ️  Node.js not available, skipping MIDI configuration"
 fi
 
 echo ""

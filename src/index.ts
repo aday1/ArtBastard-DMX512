@@ -176,12 +176,19 @@ function loadConfig() {
 }
 
 function saveConfig() {
+    // Load existing config to preserve fields like autoConnectMidiDevices
+    const existingConfig = fs.existsSync(CONFIG_FILE) 
+        ? JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'))
+        : {};
+    
     const configToSave = {
         artNetConfig,
         midiMappings,
         oscAssignments, // Save OSC assignments
         oscConfig, // Save OSC config
-        channelRanges // Save channel ranges
+        channelRanges, // Save channel ranges
+        // Preserve autoConnectMidiDevices if it exists
+        autoConnectMidiDevices: existingConfig.autoConnectMidiDevices || []
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(configToSave, null, 2));
     log('Config saved', 'INFO', { config: configToSave });
@@ -1682,7 +1689,7 @@ function loadDmxState() {
     return false;
 }
 
-function startLaserTime(io: Server) {
+async function startLaserTime(io: Server) {
     loadConfig();
     loadScenes();
     
@@ -1696,6 +1703,25 @@ function startLaserTime(io: Server) {
     }
 
     initializeMidi(io);
+    
+    // Auto-connect MIDI devices from config
+    const config = loadConfig();
+    const autoConnectDevices = (config as any).autoConnectMidiDevices || [];
+    if (Array.isArray(autoConnectDevices) && autoConnectDevices.length > 0) {
+        log(`Auto-connecting ${autoConnectDevices.length} MIDI device(s) from config`, 'MIDI', { devices: autoConnectDevices });
+        // Wait a moment for MIDI to initialize, then connect devices
+        setTimeout(async () => {
+            for (const deviceName of autoConnectDevices) {
+                try {
+                    await connectMidiInput(io, deviceName);
+                    log(`Auto-connected MIDI device: ${deviceName}`, 'MIDI');
+                } catch (error: any) {
+                    log(`Failed to auto-connect MIDI device "${deviceName}": ${error?.message || String(error)}`, 'WARN');
+                }
+            }
+        }, 500); // Small delay to ensure MIDI is initialized
+    }
+    
     initOsc(io);
     initializeArtNet();
 
