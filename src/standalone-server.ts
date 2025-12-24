@@ -626,10 +626,13 @@ function initOsc(io: Server) {
             }
 
             // Emit raw message for general purpose client-side handling if needed
+            // Include source info for filtering by host
+            const sourceHost = info?.address || info?.host || 'unknown';
             io.emit('oscMessage', {
                 address: oscMsg.address,
                 args: oscMsg.args,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: sourceHost // Add source host for filtering
             });
 
             // Process for DMX channel activity
