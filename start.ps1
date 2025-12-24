@@ -63,25 +63,41 @@ if ($Reset) {
     Write-Host "🔄 ════════════════════════════════════════════════════════════════ 🔄" -ForegroundColor Magenta
     Write-Host ""
     
-    # Clear data directory - remove ALL files and subdirectories
+    # Clear data directory - completely remove and recreate for true factory reset
     if (Test-Path "data") {
         Write-Host "  🗑️  Removing ALL saved state files and directories..." -ForegroundColor Cyan
         
-        # Remove all files recursively
-        Get-ChildItem -Path "data" -Recurse -File | ForEach-Object {
-            Remove-Item -Force $_.FullName -ErrorAction SilentlyContinue
-            Write-Host "    ✅ Removed: $($_.FullName)" -ForegroundColor Yellow
+        # Remove the entire data directory recursively (this ensures everything is deleted)
+        try {
+            Remove-Item -Path "data" -Recurse -Force -ErrorAction Stop
+            Write-Host "    ✅ Data directory completely removed!" -ForegroundColor Green
+        } catch {
+            Write-Host "    ⚠️  Some files may be locked, attempting individual removal..." -ForegroundColor Yellow
+            # Fallback: try to remove files individually
+            Get-ChildItem -Path "data" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                try {
+                    Remove-Item -Path $_.FullName -Force -Recurse -ErrorAction Stop
+                } catch {
+                    Write-Host "      ⚠️  Could not remove: $($_.Name)" -ForegroundColor Yellow
+                }
+            }
+            # Try to remove the directory again
+            if (Test-Path "data") {
+                try {
+                    Remove-Item -Path "data" -Recurse -Force -ErrorAction Stop
+                } catch {
+                    Write-Host "      ⚠️  Data directory still exists, will be cleared on next startup" -ForegroundColor Yellow
+                }
+            }
         }
-        
-        # Remove all subdirectories
-        Get-ChildItem -Path "data" -Directory | ForEach-Object {
-            Remove-Item -Force -Recurse $_.FullName -ErrorAction SilentlyContinue
-            Write-Host "    ✅ Removed directory: $($_.Name)" -ForegroundColor Yellow
-        }
-        
-        Write-Host "  ✅ All state files cleared!" -ForegroundColor Green
     } else {
         Write-Host "  ℹ️  No data directory found (already clean)" -ForegroundColor Green
+    }
+    
+    # Ensure data directory exists (fresh and empty)
+    if (-not (Test-Path "data")) {
+        New-Item -ItemType Directory -Path "data" -Force | Out-Null
+        Write-Host "  ✅ Fresh data directory created!" -ForegroundColor Green
     }
     
     # Clear logs directory (optional but recommended for true factory reset)
@@ -94,9 +110,6 @@ if ($Reset) {
     }
     
     # Create factory reset marker so frontend can clear localStorage
-    if (-not (Test-Path "data")) {
-        New-Item -ItemType Directory -Path "data" -Force | Out-Null
-    }
     $markerContent = @{
         factoryReset = $true
         timestamp = [int][double]::Parse((Get-Date -UFormat %s))
