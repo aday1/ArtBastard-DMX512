@@ -452,6 +452,8 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
             try {
                 // Add source information to the message
                 const msgWithSource = { ...msg, source: inputName };
+                // Console output for visibility
+                console.log(`🎹 [${inputName}] Note On: Ch ${msg.channel + 1} | Note ${msg.note} | Vel ${msg.velocity}`);
                 log('MIDI', 'MIDI', { channel: msg.channel, note: msg.note, velocity: msg.velocity });
                 handleMidiMessage(io, 'noteon', msgWithSource as MidiMessage);
             } catch (error) {
@@ -463,6 +465,8 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
             try {
                 // Also forward noteoff events with source information
                 const msgWithSource = { ...msg, source: inputName };
+                // Console output for visibility
+                console.log(`🎹 [${inputName}] Note Off: Ch ${msg.channel + 1} | Note ${msg.note}`);
                 log('Received noteoff', 'MIDI', { message: msgWithSource });
                 io.emit('midiMessage', msgWithSource);
             } catch (error) {
@@ -474,6 +478,8 @@ async function connectMidiInput(io: Server, inputName: string, isBrowserMidi = f
             try {
                 // Add source information to the message
                 const msgWithSource = { ...msg, source: inputName };
+                // Console output for visibility - this is the main one for knobs
+                console.log(`🎛️  [${inputName}] CC: Ch ${msg.channel + 1} | CC ${msg.controller} | Value ${msg.value}`);
                 log('Received cc', 'MIDI', { message: msgWithSource });
                 handleMidiMessage(io, 'cc', msgWithSource as MidiMessage);
             } catch (error) {
@@ -1147,6 +1153,11 @@ function handleMidiMessage(io: Server, type: 'noteon' | 'cc', msg: MidiMessage) 
 
             // Batch update all affected channels at once
             if (Object.keys(channelUpdates).length > 0) {
+                const source = (msg as any).source || 'Unknown';
+                const affectedChannels = Object.keys(channelUpdates).map(c => parseInt(c)).sort((a, b) => a - b);
+                // Console output showing which DMX channels are being updated
+                console.log(`  → DMX: ${affectedChannels.join(', ')} = ${Object.values(channelUpdates)[0]} (from CC ${msg.controller})`);
+                
                 log('MIDI CC', 'MIDI', { channel: msg.channel, controller: msg.controller, value: msg.value, dmxChannels: Object.keys(channelUpdates).length, quiet: true });
 
                 // Update each channel and emit a single batch update
