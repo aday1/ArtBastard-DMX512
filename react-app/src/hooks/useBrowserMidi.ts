@@ -125,6 +125,8 @@ export const useBrowserMidi = () => {
           learnedMapping = { channel: channel, controller: data1 }; // Store channel as 0-15
         } else if (messageType === 0x9 && data2 > 0) { // Note On (velocity > 0)
           learnedMapping = { channel: channel, note: data1 }; // Store channel as 0-15
+        } else if (messageType === 0xE) { // Pitch Bend
+          learnedMapping = { channel: channel, pitch: true };
         }
         // Could also handle Note Off for learning if desired, e.g. for toggle or specific off actions
 
@@ -150,6 +152,9 @@ export const useBrowserMidi = () => {
         messageToStore = { _type: 'noteoff', channel: channel, note: data1, velocity: data2, source }
       } else if (messageType === 0xB) { // Control Change
         messageToStore = { _type: 'cc', channel: channel, controller: data1, value: data2, source }
+      } else if (messageType === 0xE) { // Pitch Bend
+        const rawPitch = ((data2 << 7) | data1);
+        messageToStore = { _type: 'pitch', channel: channel, value: rawPitch, source }
       }
 
       if (messageToStore) {

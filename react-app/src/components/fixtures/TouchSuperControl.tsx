@@ -245,15 +245,10 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
 
   // Get all affected fixtures based on selection mode
   const getAffectedFixtures = () => {
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[${timestamp}] [TouchSuperControl.getAffectedFixtures]`;
-    console.log(`${logPrefix} Called. selectionMode: ${selectionMode}`);
-
     let affectedFixtureObjects: Array<{ fixture: any; channels: { [key: string]: number } }> = [];
 
     switch (selectionMode) {
       case 'channels':
-        console.log(`${logPrefix} Mode: channels. Selected channels:`, selectedChannels);
         if (selectedChannels.length === 0) return [];
 
         fixtures.forEach(fixture => {
@@ -273,7 +268,7 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
         break;
 
       case 'fixtures':
-        console.log(`${logPrefix} Mode: fixtures. Global selected fixtures (store):`, globalSelectedFixtures); if (globalSelectedFixtures.length > 0) {
+        if (globalSelectedFixtures.length > 0) {
           affectedFixtureObjects = fixtures
             .filter(fixture => globalSelectedFixtures.includes(fixture.id))
             .map(fixture => {
@@ -287,7 +282,6 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
             });
         }
         break; case 'groups':
-        console.log(`${logPrefix} Mode: groups. Selected groups (local):`, selectedGroups);
         if (selectedGroups.length > 0) {
           const targetFixtureIds = selectedGroups.flatMap(groupId => {
             const group = groups.find(g => g.id === groupId);
@@ -306,7 +300,6 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
             });
         }
         break; case 'capabilities':
-        console.log(`${logPrefix} Mode: capabilities. Selected capabilities (local):`, selectedCapabilities);
         if (selectedCapabilities.length > 0) {
           const capabilitiesData = getFixtureCapabilities(); // This already returns { type, fixtures: string[] }
           const targetFixtureIds = selectedCapabilities.flatMap(capType => {
@@ -327,29 +320,19 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
         }
         break;
     }
-    console.log(`${logPrefix} Affected fixture objects count: ${affectedFixtureObjects.length}`, affectedFixtureObjects.map(fo => fo.fixture.id));
     return affectedFixtureObjects;
   };
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
-    console.log(`[TouchSuperControl] applyControl: Entered. controlType=${controlType}, value=${value}`);
     const affectedFixtures = getAffectedFixtures(); // This is Array<{ fixture: any, channels: { [key:string]: number } }>
 
-    console.log(`[TouchSuperControl] applyControl: Affected fixtures:`, affectedFixtures.map(f => ({
-      id: f.fixture.id,
-      name: f.fixture.name,
-      channels: f.channels
-    })));
-
     if (affectedFixtures.length === 0) {
-      console.log('[TouchSuperControl] applyControl: No affected fixtures. Will not call setDmxChannelValue.');
       // Optionally, add a warning or user feedback here if appropriate for a touch interface
       return;
     }
 
-    console.log(`[TouchSuperControl] applyControl: Processing ${affectedFixtures.length} affected fixtures.`); affectedFixtures.forEach((fixtObj) => { // fixtObj is { fixture: any, channels: { [key:string]: number } }
+    affectedFixtures.forEach((fixtObj) => { // fixtObj is { fixture: any, channels: { [key:string]: number } }
       const fixtureChannelsMap = fixtObj.channels;
-      const fixtureName = fixtObj.fixture.name || fixtObj.fixture.id;
       let targetChannel: number | undefined;
 
       switch (controlType) {
@@ -382,14 +365,8 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
           break;
       }
 
-      console.log(`[TouchSuperControl] applyControl: Fixture ${fixtureName}, looking for ${controlType}, found channel: ${targetChannel}`);
-      console.log(`[TouchSuperControl] applyControl: Available channels in fixture:`, Object.keys(fixtureChannelsMap));
-
       if (targetChannel !== undefined) {
-        console.log(`[TouchSuperControl] applyControl: Attempting to setDmxChannelValue for fixture ${fixtureName}, channel ${targetChannel}, value ${value}, type ${controlType}`);
         setDmxChannelValue(targetChannel, value);
-      } else {
-        console.log(`[TouchSuperControl] applyControl: No target channel found for ${controlType} in fixture ${fixtureName}`);
       }
     });
   };
@@ -650,23 +627,9 @@ const TouchSuperControl: React.FC<TouchSuperControlProps> = ({
   // Auto-select the first fixture if none are selected when in fixtures mode
   useEffect(() => {
     if (selectionMode === 'fixtures' && globalSelectedFixtures.length === 0 && fixtures.length > 0) {
-      console.log('[TouchSuperControl] Auto-selecting first fixture since none are selected');
       toggleFixtureSelection(fixtures[0].id);
     }
   }, [selectionMode, globalSelectedFixtures.length, fixtures.length, fixtures, toggleFixtureSelection]);
-
-  // Debug effect to log component state when it changes
-  useEffect(() => {
-    console.log('[TouchSuperControl] Debug State Check:', {
-      selectionMode,
-      globalSelectedFixtures,
-      selectedGroups,
-      selectedCapabilities,
-      fixturesCount: fixtures.length,
-      groupsCount: groups.length,
-      affectedFixturesCount: getAffectedFixtures().length
-    });
-  }, [selectionMode, globalSelectedFixtures, selectedGroups, selectedCapabilities, fixtures.length, groups.length]);
 
   return (
     <div

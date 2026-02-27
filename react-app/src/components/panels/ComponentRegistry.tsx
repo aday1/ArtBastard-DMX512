@@ -16,6 +16,8 @@ import { FixtureSetup } from '../fixtures/FixtureSetup';
 import { MidiOscSetup } from '../midi/MidiOscSetup';
 import { ClipLauncher } from '../clipLauncher/ClipLauncher';
 import { Stage3DVisualizer, DmxWaveformViewer, ColorTemperatureVisualizer } from '../visualization';
+import ChromaticEnergyManipulatorMini from '../fixtures/ChromaticEnergyManipulatorMini';
+import { AudioControlPanel } from '../audio/AudioControlPanel';
 // Lazy import Dashboard to avoid circular dependency
 // Dashboard imports ComponentToolbar which imports ComponentRegistry
 // Create a wrapper component that lazy loads Dashboard
@@ -144,7 +146,18 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-th',
     component: ClipLauncher,
     minSize: { width: 600, height: 400 },
-  },  // Fixture Controls
+  },
+  // Fixture Controls
+  'chromatic-energy-manipulator': {
+    type: 'chromatic-energy-manipulator',
+    title: 'Energy Manipulator',
+    description: 'Fast fixture color and movement control panel',
+    category: 'fixtures',
+    icon: 'fas fa-bolt',
+    component: ChromaticEnergyManipulatorMini,
+    defaultProps: { isDockable: false },
+    minSize: { width: 520, height: 420 },
+  },
   'professional-fixture-controller': {
     type: 'professional-fixture-controller',
     title: 'Super Control',
@@ -193,6 +206,15 @@ export const COMPONENT_REGISTRY: Record<string, ComponentDefinition> = {
     icon: 'fas fa-broadcast-tower',
     component: OscMonitor,
     minSize: { width: 300, height: 200 },
+  },
+  'audio-control-panel': {
+    type: 'audio-control-panel',
+    title: 'Audio Control Panel',
+    description: 'Audio-linked controls and monitoring panel',
+    category: 'audio',
+    icon: 'fas fa-wave-square',
+    component: AudioControlPanel,
+    minSize: { width: 360, height: 220 },
   },
   // Setup
   'midi-osc-setup': {

@@ -13,8 +13,7 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
   fixtureId,
   showFixtureSelector = true 
 }) => {
-  const socket = useSocket().socket;
-  const { connected } = useSocket();
+  const { socket, connected } = useSocket();
   
   const {
     fixtures,
@@ -24,7 +23,6 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
     setDmxChannel,
     scenes,
     loadScene,
-    getChannelInfo,
     getFixtureColor,
     colorSliderAutopilot,
     panTiltAutopilot,
@@ -34,53 +32,19 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
 
   const [showFixtureList, setShowFixtureList] = useState(false);
 
-  // Request fixtures on mount if not loaded and socket is connected
+  // Fetch fixtures/state when connection becomes available.
   useEffect(() => {
-    const loadFixtures = async () => {
-      const store = useStore.getState();
-      const currentFixtures = store.fixtures;
-      
-      // Always try to fetch initial state to ensure we have the latest fixtures
-      if (connected && socket) {
-        console.log('[MobileControlSurface] Connected, fetching fixtures...');
-        try {
-          // Fetch via HTTP first (more reliable)
-          await store.fetchInitialState();
-          console.log('[MobileControlSurface] Fetched initial state, fixtures:', store.fixtures.length);
-          
-          // Also request via socket as backup
-          if (store.fixtures.length === 0) {
-            console.log('[MobileControlSurface] Still no fixtures, requesting via socket...');
-            socket.emit('loadFixtures');
-          }
-        } catch (err) {
-          console.error('[MobileControlSurface] Failed to fetch initial state:', err);
-          // Fallback to socket request
-          if (socket) {
-            socket.emit('loadFixtures');
-          }
-        }
-      } else if (!connected) {
-        console.log('[MobileControlSurface] Not connected yet, waiting...');
-        // Try HTTP fetch anyway (might work if CORS allows)
-        try {
-          await store.fetchInitialState();
-          console.log('[MobileControlSurface] Fetched via HTTP, fixtures:', store.fixtures.length);
-        } catch (err) {
-          console.error('[MobileControlSurface] HTTP fetch failed:', err);
-        }
-      }
-    };
-
-    loadFixtures();
-  }, [connected, socket]);
+    if (!connected) return;
+    useStore.getState().fetchInitialState().catch(() => {
+      // Keep UI usable with existing store state if fetch fails.
+    });
+  }, [connected]);
 
   // Also listen for fixture updates from socket
   useEffect(() => {
     if (!socket) return;
 
     const handleFixturesUpdated = (fixturesData: any[]) => {
-      console.log('[MobileControlSurface] Received fixtures update via socket:', fixturesData.length);
       const store = useStore.getState();
       if (Array.isArray(fixturesData)) {
         store.setFixtures(fixturesData);
@@ -88,7 +52,6 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
     };
 
     const handleFixturesLoaded = (fixturesData: any[]) => {
-      console.log('[MobileControlSurface] Received fixtures loaded via socket:', fixturesData.length);
       const store = useStore.getState();
       if (Array.isArray(fixturesData)) {
         store.setFixtures(fixturesData);
@@ -106,50 +69,18 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
     };
   }, [socket]);
 
-  // Debug: Log fixture changes
-  useEffect(() => {
-    console.log('[MobileControlSurface] Fixtures updated:', fixtures.length, 'fixtures available');
-    if (fixtures.length > 0) {
-      console.log('[MobileControlSurface] Available fixtures:', fixtures.map(f => ({ 
-        id: f.id, 
-        name: f.name, 
-        startAddress: f.startAddress,
-        type: f.type,
-        channels: f.channels?.length || 0,
-        hasId: !!f.id,
-        hasType: !!f.type
-      })));
-      console.log('[MobileControlSurface] First fixture full object:', JSON.stringify(fixtures[0], null, 2));
-    } else {
-      console.log('[MobileControlSurface] No fixtures available yet');
-      console.log('[MobileControlSurface] Store fixtures state:', useStore.getState().fixtures);
-    }
-  }, [fixtures]);
-
   // Get the fixture to control (use selected or first available)
   const activeFixture = React.useMemo(() => {
-    if (fixtures.length === 0) {
-      console.log('[MobileControlSurface] No fixtures in array');
-      return null;
-    }
-    
-    console.log('[MobileControlSurface] Finding active fixture from', fixtures.length, 'fixtures');
-    console.log('[MobileControlSurface] Fixture IDs:', fixtures.map(f => f.id));
-    console.log('[MobileControlSurface] Selected fixtures:', selectedFixtures);
+    if (fixtures.length === 0) return null;
     
     if (fixtureId) {
-      const found = fixtures.find(f => f.id === fixtureId);
-      console.log('[MobileControlSurface] Looking for fixtureId:', fixtureId, 'found:', !!found);
-      return found || null;
+      return fixtures.find(f => f.id === fixtureId) || null;
     }
     
     if (selectedFixtures.length > 0) {
-      const found = fixtures.find(f => selectedFixtures.includes(f.id));
-      console.log('[MobileControlSurface] Looking for selected fixture, found:', !!found);
-      return found || null;
+      return fixtures.find(f => selectedFixtures.includes(f.id)) || null;
     }
     
-    console.log('[MobileControlSurface] Using first fixture:', fixtures[0]?.name);
     return fixtures[0] || null;
   }, [fixtureId, fixtures, selectedFixtures]);
 
@@ -383,13 +314,10 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
     };
   };
 
-  // Update DMX channel via socket
+  // Update DMX channel via store action (HTTP/API-backed)
   const updateChannel = useCallback((channel: number, value: number) => {
-    if (!socket || !connected) return;
-    
     setDmxChannel(channel, value);
-    socket.emit('setDmxChannel', { channel, value });
-  }, [socket, connected, setDmxChannel]);
+  }, [setDmxChannel]);
 
   // XY Pad handlers
   const handleXYStart = (e: React.TouchEvent | React.MouseEvent) => {
@@ -503,9 +431,6 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
   // Scene handlers
   const handleLoadScene = (sceneName: string) => {
     loadScene(sceneName);
-    if (socket && connected) {
-      socket.emit('loadScene', { name: sceneName });
-    }
   };
 
   // Get current RGB color for display
@@ -527,16 +452,9 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
               <button 
                 className={styles.refreshButton}
                 onClick={() => {
-                  console.log('[MobileControlSurface] Manually requesting fixtures...');
-                  console.log('[MobileControlSurface] Current store fixtures:', useStore.getState().fixtures.length);
-                  socket?.emit('loadFixtures');
-                  // Also try fetching via HTTP
                   const store = useStore.getState();
-                  store.fetchInitialState().then(() => {
-                    console.log('[MobileControlSurface] After fetchInitialState, fixtures:', store.fixtures.length);
-                    console.log('[MobileControlSurface] Fixture data:', store.fixtures);
-                  }).catch(err => {
-                    console.error('[MobileControlSurface] Failed to fetch initial state:', err);
+                  store.fetchInitialState().catch(() => {
+                    // Keep current UI state if refresh fails.
                   });
                 }}
               >
@@ -562,19 +480,6 @@ export const MobileControlSurface: React.FC<MobileControlSurfaceProps> = ({
     setSelectedFixtures([fixtureId]);
     setShowFixtureList(false);
   };
-
-  // If no fixtures available, show message
-  if (effectiveFixtures.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.noFixture}>
-          <LucideIcon name="AlertCircle" />
-          <p>No fixtures available</p>
-          <p className={styles.hint}>Add fixtures in the main application</p>
-        </div>
-      </div>
-    );
-  }
 
   // If no active fixture but fixtures exist, show fixture selector
   if (!activeFixture) {

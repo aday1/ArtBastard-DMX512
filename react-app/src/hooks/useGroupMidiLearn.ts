@@ -122,6 +122,12 @@ export const useGroupMidiLearn = () => {
           note: latestMessage.note
         };
         console.log(`[GroupMidiLearn] Creating Note mapping for group ${groupId}:`, mapping);
+      } else if (messageType === 'pitch' && latestMessage.value !== undefined) {
+        mapping = {
+          channel: latestMessage.channel,
+          pitch: true
+        };
+        console.log(`[GroupMidiLearn] Creating Pitch mapping for group ${groupId}:`, mapping);
       }
 
       if (mapping) {
@@ -129,9 +135,11 @@ export const useGroupMidiLearn = () => {
         
         setLearnStatus('success')
         addNotification({
-          message: mapping.controller !== undefined
-            ? `Group mapped to MIDI CC ${mapping.controller} on CH ${mapping.channel}.`
-            : `Group mapped to MIDI Note ${mapping.note} on CH ${mapping.channel}.`,
+          message: mapping.pitch
+            ? `Group mapped to MIDI Pitch on CH ${mapping.channel}.`
+            : mapping.controller !== undefined
+              ? `Group mapped to MIDI CC ${mapping.controller} on CH ${mapping.channel}.`
+              : `Group mapped to MIDI Note ${mapping.note} on CH ${mapping.channel}.`,
           type: 'success',
           priority: 'normal'
         });
@@ -144,7 +152,7 @@ export const useGroupMidiLearn = () => {
       }
     }
 
-    if ((latestMessage.type || latestMessage._type) === 'cc' || (latestMessage.type || latestMessage._type) === 'noteon') {
+    if ((latestMessage.type || latestMessage._type) === 'cc' || (latestMessage.type || latestMessage._type) === 'noteon' || (latestMessage.type || latestMessage._type) === 'pitch') {
       createMapping();
     } else {
       console.log('[GroupMidiLearn] Ignoring message:', latestMessage.type || latestMessage._type);

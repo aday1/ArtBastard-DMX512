@@ -117,6 +117,7 @@ export const useMidiLearn = () => {
       type: latestMessage.type,
       _type: latestMessage._type,
       controller: latestMessage.controller,
+      pitch: latestMessage.value,
       channel: latestMessage.channel,
       value: latestMessage.value
     });
@@ -168,6 +169,30 @@ export const useMidiLearn = () => {
       });
       console.log(`[MidiLearn] Success for DMX CH ${channel}. Status: success.`);
       
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+        setTimeoutId(null)
+      }
+    } else if (messageType === 'pitch' && latestMessage.value !== undefined) {
+      const mapping: MidiMapping = {
+        channel: latestMessage.channel,
+        pitch: true
+      }
+      console.log(`[MidiLearn] Creating Pitch mapping for DMX CH ${channel}:`, mapping);
+
+      addMidiMapping(channel, mapping)
+
+      const event = new CustomEvent('midiMappingCreated', { detail: { channel, mapping } })
+      window.dispatchEvent(event)
+
+      setLearnStatus('success')
+      addNotification({
+        message: `DMX CH ${channel + 1} mapped to Pitch on CH ${mapping.channel + 1}`,
+        type: 'success',
+        priority: 'normal'
+      });
+      console.log(`[MidiLearn] Success for DMX CH ${channel}. Status: success.`);
+
       if (timeoutId) {
         window.clearTimeout(timeoutId)
         setTimeoutId(null)

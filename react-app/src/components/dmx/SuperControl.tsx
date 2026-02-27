@@ -5,6 +5,7 @@ import CustomPathEditor from '../automation/CustomPathEditor';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import { useMobile } from '../../hooks/useMobile';
 import { TouchChannelMatrix } from './TouchChannelMatrix';
+import { captureChannelValues } from '../../utils/sceneCapture';
 import styles from './SuperControl.module.scss';
 // Removed react-grid-layout - using CSS auto-layout instead
 
@@ -1050,21 +1051,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Scene Management Functions
   const captureCurrentScene = (name?: string) => {
-    const sceneValues: Record<number, number> = {};
-
-    // Capture all current DMX values
-    for (let i = 1; i <= 512; i++) {
-      const value = getDmxChannelValue(i);
-      if (value > 0) {
-        sceneValues[i] = value;
-      }
-    }
-
-    // Convert to global scene format
-    const channelValues = new Array(512).fill(0);
-    Object.entries(sceneValues).forEach(([ch, val]) => {
-      channelValues[parseInt(ch) - 1] = val; // Convert 1-based to 0-based
-    });
+    const channelValues = captureChannelValues(getDmxChannelValue, 512);
 
     const sceneName = name || `Scene ${scenes.length + 1}`;
     const oscAddress = `/scene/${sceneName.toLowerCase().replace(/\s+/g, '_')}`;

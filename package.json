@@ -56,6 +56,10 @@
     "copy-static": "copyfiles -u 1 src/public/**/* dist",
     "watch": "npx tsc -w",
     "test": "cd react-app && npm test",
+    "test:api-contract": "npm run build-backend-fast && node scripts/api-contract-smoke.js",
+    "test:touchosc-workflow": "npm run build-backend-fast && node scripts/touchosc-workflow-smoke.js",
+    "demo:capture-screenshots": "bash scripts/capture-demo-screenshots.sh",
+    "demo:evidence": "npm run test:touchosc-workflow && npm run test:api-contract && npm run demo:capture-screenshots",
     "test:coverage": "cd react-app && npm run test:coverage"
   },
   "dependencies": {

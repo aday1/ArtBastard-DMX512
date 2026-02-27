@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
-import { generateToscLayout } from '../../utils/touchoscExporter';
-import { 
-  generate512ChannelXml, 
-  generateFixturesXml, 
-  generateScenesXml,
-  generateCompleteXml 
-} from '../../utils/touchoscXmlGenerator';
+import { generateToscLayout, type TouchOscExportOptions } from '../../utils/touchoscExporter';
 import { LucideIcon } from '../ui/LucideIcon';
 import styles from './TouchOSCExporter.module.scss';
 import { useSocket } from '../../context/SocketContext';
@@ -15,9 +9,7 @@ export const TouchOSCExporter: React.FC = () => {
   const { masterSliders, pinnedChannels, scenes, fixtures, getChannelInfo, addNotification, oscAssignments } = useStore();
   const { socket } = useSocket();
   
-  // ⚠️ WARNING: TouchOSC Export is currently BROKEN
-  // This feature is non-functional and may cause errors
-  const [resolution, setResolution] = useState<any>('phone_portrait');
+  const [resolution, setResolution] = useState<TouchOscExportOptions['resolution']>('phone_portrait');
   const [includeMasters, setIncludeMasters] = useState(true);
   const [includePinned, setIncludePinned] = useState(true);
   const [includeScenes, setIncludeScenes] = useState(true);
@@ -34,11 +26,14 @@ export const TouchOSCExporter: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<{
+    type: 'info' | 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   React.useEffect(() => {
     if (socket) {
-      socket.emit('getNetworkInfo');
-      socket.on('networkInfo', (info: any) => {
+      const handleNetworkInfo = (info: any) => {
         if (info && info.primaryHost) {
           setServerIp(info.primaryHost);
           // If targetIp isn't set yet or is default, set it to the base of serverIp
@@ -52,16 +47,34 @@ export const TouchOSCExporter: React.FC = () => {
             setServerIp(externalIps[0].address);
           }
         }
-      });
+      };
+      const handleUploadStatus = (status: { success: boolean; message: string }) => {
+        setIsUploading(false);
+        const nextFeedback = {
+          type: status.success ? 'success' as const : 'error' as const,
+          message: status.message
+        };
+        setUploadFeedback(nextFeedback);
+        addNotification({
+          message: status.message,
+          type: status.success ? 'success' : 'error'
+        });
+      };
+
+      socket.emit('getNetworkInfo');
+      socket.on('networkInfo', handleNetworkInfo);
+      socket.on('uploadStatus', handleUploadStatus);
       return () => {
-        socket.off('networkInfo');
+        socket.off('networkInfo', handleNetworkInfo);
+        socket.off('uploadStatus', handleUploadStatus);
       };
     }
-  }, [socket, targetIp]);
+  }, [socket, targetIp, addNotification]);
 
   const handleExport = async (autoUpload = false) => {
     if (autoUpload) setIsUploading(true);
     else setIsExporting(true);
+    setUploadFeedback(null);
 
     try {
       const result = await generateToscLayout({
@@ -91,6 +104,19 @@ export const TouchOSCExporter: React.FC = () => {
           message: `Attempting to push layout to ${targetIp}:${pushPort}...`,
           type: 'info',
         });
+        setUploadFeedback({
+          type: 'info',
+          message: `Uploading layout to ${targetIp}:${pushPort}...`
+        });
+      } else if (autoUpload && !socket) {
+        setUploadFeedback({
+          type: 'error',
+          message: 'Socket connection not available for auto-upload.'
+        });
+        addNotification({
+          message: 'Socket connection not available for auto-upload.',
+          type: 'error',
+        });
       } else {
         addNotification({
           message: 'TouchOSC layout exported successfully',
@@ -105,7 +131,9 @@ export const TouchOSCExporter: React.FC = () => {
       });
     } finally {
       setIsExporting(false);
-      setIsUploading(false);
+      if (!autoUpload || !socket) {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -121,6 +149,72 @@ export const TouchOSCExporter: React.FC = () => {
     }
   };
 
+  const buildCanonicalXml = async () => {
+    const result = await generateToscLayout({
+      resolution,
+      includeMasterSliders: includeMasters,
+      includePinnedChannels: includePinned,
+      includeScenes,
+      includeFixtures,
+      includeAllDmx,
+      masterSliders,
+      pinnedChannels,
+      scenes,
+      fixtures,
+      getChannelInfo,
+    });
+    return result.xml;
+  };
+
+  const handleCopyCanonicalXml = async () => {
+    try {
+      const xml = await buildCanonicalXml();
+      await navigator.clipboard.writeText(xml);
+      addNotification({
+        message: 'Layout XML copied to clipboard.',
+        type: 'success',
+      });
+    } catch (error) {
+      try {
+        const xml = await buildCanonicalXml();
+        const textarea = document.createElement('textarea');
+        textarea.value = xml;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        addNotification({
+          message: 'Layout XML copied to clipboard.',
+          type: 'success',
+        });
+      } catch {
+        addNotification({
+          message: 'Failed to copy XML to clipboard.',
+          type: 'error',
+        });
+      }
+    }
+  };
+
+  const handleDownloadCanonicalXml = async () => {
+    const xml = await buildCanonicalXml();
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'touchosc_layout.xml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addNotification({
+      message: 'Layout XML downloaded.',
+      type: 'success',
+    });
+  };
+
   return (
     <div className={styles.exporter}>
       <div className={styles.header}>
@@ -129,22 +223,46 @@ export const TouchOSCExporter: React.FC = () => {
       </div>
 
       <div className={styles.warningBox} style={{ 
-        border: '2px solid #ff4444', 
-        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+        border: '2px solid rgba(59, 130, 246, 0.6)', 
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         padding: '1rem',
         borderRadius: '8px',
         marginBottom: '1rem'
       }}>
-        <LucideIcon name="AlertTriangle" size={24} style={{ color: '#ff4444' }} />
+        <LucideIcon name="Info" size={24} style={{ color: '#60a5fa' }} />
         <div>
-          <strong style={{ color: '#ff4444', fontSize: '1.1rem' }}>⚠️ TOUCHOSC SECTION IS COMPLETELY BROKEN ⚠️</strong>
+          <strong style={{ color: '#93c5fd', fontSize: '1.1rem' }}>TouchOSC Export Workflow</strong>
           <p style={{ marginTop: '0.5rem' }}>
-            TouchOSC export functionality is non-functional and may cause errors. 
-            Generated .tosc files may crash TouchOSC. This feature is disabled until further notice.
-            Use manual XML generation below at your own risk.
+            Generate a .tosc layout file and optionally push it directly to TouchOSC Editor.
+            Use the status feedback below to confirm upload results.
           </p>
         </div>
       </div>
+
+      {uploadFeedback && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: `1px solid ${
+              uploadFeedback.type === 'success'
+                ? 'rgba(34, 197, 94, 0.6)'
+                : uploadFeedback.type === 'error'
+                  ? 'rgba(239, 68, 68, 0.6)'
+                  : 'rgba(59, 130, 246, 0.6)'
+            }`,
+            backgroundColor:
+              uploadFeedback.type === 'success'
+                ? 'rgba(34, 197, 94, 0.1)'
+                : uploadFeedback.type === 'error'
+                  ? 'rgba(239, 68, 68, 0.1)'
+                  : 'rgba(59, 130, 246, 0.1)'
+          }}
+        >
+          {uploadFeedback.message}
+        </div>
+      )}
 
       <p className={styles.description}>
         Generate a professional <code>.tosc</code> layout with auto-populated fixtures, XY pads, and scene launchers.
@@ -157,7 +275,7 @@ export const TouchOSCExporter: React.FC = () => {
           <label>Target Resolution</label>
           <select
             value={resolution}
-            onChange={(e) => setResolution(e.target.value as any)}
+            onChange={(e) => setResolution(e.target.value as TouchOscExportOptions['resolution'])}
             className={styles.select}
           >
             <option value="phone_portrait">iPhone Portrait</option>
@@ -414,364 +532,29 @@ export const TouchOSCExporter: React.FC = () => {
         </div>
       </div>
 
-      {/* XML Generators */}
+      {/* Canonical XML export helpers */}
       <div className={styles.xmlGenerators}>
         <h4>
           <LucideIcon name="Code" size={16} />
-          XML Generators (Copy to Clipboard)
+          XML Helpers
         </h4>
         <p className={styles.xmlDescription}>
-          Generate XML that you can paste directly into TouchOSC Editor. Each section is separate so you can build your layout piece by piece.
+          Generate XML from the same canonical layout engine used for .tosc exports.
         </p>
-        
         <div className={styles.xmlButtonGrid}>
           <div className={styles.xmlButtonGroup}>
             <button
               className={styles.xmlButton}
-              onClick={async () => {
-                try {
-                  // Generate full XML document (includes header and structure)
-                  const xml = generate512ChannelXml('/channel', false);
-                  await navigator.clipboard.writeText(xml);
-                  addNotification({
-                    message: '512 Channel XML copied to clipboard! Paste into TouchOSC Editor.',
-                    type: 'success',
-                  });
-                  console.log('Full XML copied (first 500 chars):', xml.substring(0, 500));
-                  console.log('Full XML length:', xml.length);
-                } catch (error) {
-                  console.error('Failed to copy to clipboard:', error);
-                  // Fallback: use execCommand
-                  const xml = generate512ChannelXml('/channel', false);
-                  const textarea = document.createElement('textarea');
-                  textarea.value = xml;
-                  textarea.style.position = 'fixed';
-                  textarea.style.opacity = '0';
-                  document.body.appendChild(textarea);
-                  textarea.select();
-                  try {
-                    document.execCommand('copy');
-                    addNotification({
-                      message: 'XML copied to clipboard (fallback method)!',
-                      type: 'success',
-                    });
-                  } catch (err) {
-                    addNotification({
-                      message: 'Failed to copy. Check browser console (F12) for XML content.',
-                      type: 'error',
-                    });
-                    console.log('Full XML content:', xml);
-                  }
-                  document.body.removeChild(textarea);
-                }
-              }}
-              title="Copy XML for all 512 DMX channels"
+              onClick={handleCopyCanonicalXml}
+              title="Copy XML from current layout settings"
             >
               <LucideIcon name="Copy" size={14} />
-              Copy 512 Channel Strip XML
+              Copy Layout XML
             </button>
             <button
               className={styles.xmlDownloadButton}
-              onClick={() => {
-                const xml = generate512ChannelXml('/channel', false);
-                const blob = new Blob([xml], { type: 'application/xml' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'touchosc_512_channels.xml';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                addNotification({
-                  message: '512 Channel XML downloaded!',
-                  type: 'success',
-                });
-              }}
-              title="Download XML file for all 512 DMX channels"
-            >
-              <LucideIcon name="Download" size={14} />
-            </button>
-          </div>
-
-          {fixtures.length > 0 && (
-            <div className={styles.xmlButtonGroup}>
-              <button
-                className={styles.xmlButton}
-                onClick={async () => {
-                  try {
-                    const fixtureInfos = fixtures.map((fixture: any) => ({
-                      id: fixture.id,
-                      name: fixture.name,
-                      startAddress: fixture.startAddress,
-                      channels: fixture.channels || [],
-                      type: fixture.type
-                    }));
-                    const xml = generateFixturesXml(fixtureInfos, '/fixture');
-                    await navigator.clipboard.writeText(xml);
-                    addNotification({
-                      message: `Fixtures XML (${fixtures.length} fixtures) copied to clipboard!`,
-                      type: 'success',
-                    });
-                    console.log('Fixtures XML copied:', xml.substring(0, 200) + '...');
-                  } catch (error) {
-                    console.error('Failed to copy to clipboard:', error);
-                    const fixtureInfos = fixtures.map((fixture: any) => ({
-                      id: fixture.id,
-                      name: fixture.name,
-                      startAddress: fixture.startAddress,
-                      channels: fixture.channels || [],
-                      type: fixture.type
-                    }));
-                    const xml = generateFixturesXml(fixtureInfos, '/fixture');
-                    const textarea = document.createElement('textarea');
-                    textarea.value = xml;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    try {
-                      document.execCommand('copy');
-                      addNotification({
-                        message: 'Fixtures XML copied to clipboard (fallback method)!',
-                        type: 'success',
-                      });
-                    } catch (err) {
-                      addNotification({
-                        message: 'Failed to copy. Check console for XML.',
-                        type: 'error',
-                      });
-                      console.log('Fixtures XML content:', xml);
-                    }
-                    document.body.removeChild(textarea);
-                  }
-                }}
-                title="Copy XML for all fixtures with XY pads"
-              >
-                <LucideIcon name="Copy" size={14} />
-                Copy Fixtures XML ({fixtures.length} fixtures)
-              </button>
-              <button
-                className={styles.xmlDownloadButton}
-                onClick={() => {
-                  const fixtureInfos = fixtures.map((fixture: any) => ({
-                    id: fixture.id,
-                    name: fixture.name,
-                    startAddress: fixture.startAddress,
-                    channels: fixture.channels || [],
-                    type: fixture.type
-                  }));
-                  const xml = generateFixturesXml(fixtureInfos, '/fixture');
-                  const blob = new Blob([xml], { type: 'application/xml' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `touchosc_fixtures_${fixtures.length}.xml`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  addNotification({
-                    message: 'Fixtures XML downloaded!',
-                    type: 'success',
-                  });
-                }}
-                title="Download XML file for all fixtures"
-              >
-                <LucideIcon name="Download" size={14} />
-              </button>
-            </div>
-          )}
-
-          {scenes.length > 0 && (
-            <div className={styles.xmlButtonGroup}>
-              <button
-                className={styles.xmlButton}
-                onClick={async () => {
-                  try {
-                    const sceneInfos = scenes.map((scene: any) => ({
-                      name: scene.name || 'Unnamed Scene',
-                      oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                    }));
-                    const xml = generateScenesXml(sceneInfos, '/scene');
-                    await navigator.clipboard.writeText(xml);
-                    addNotification({
-                      message: `Scenes XML (${scenes.length} scenes) copied to clipboard!`,
-                      type: 'success',
-                    });
-                    console.log('Scenes XML copied:', xml.substring(0, 200) + '...');
-                  } catch (error) {
-                    console.error('Failed to copy to clipboard:', error);
-                    const sceneInfos = scenes.map((scene: any) => ({
-                      name: scene.name || 'Unnamed Scene',
-                      oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                    }));
-                    const xml = generateScenesXml(sceneInfos, '/scene');
-                    const textarea = document.createElement('textarea');
-                    textarea.value = xml;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    try {
-                      document.execCommand('copy');
-                      addNotification({
-                        message: 'Scenes XML copied to clipboard (fallback method)!',
-                        type: 'success',
-                      });
-                    } catch (err) {
-                      addNotification({
-                        message: 'Failed to copy. Check console for XML.',
-                        type: 'error',
-                      });
-                      console.log('Scenes XML content:', xml);
-                    }
-                    document.body.removeChild(textarea);
-                  }
-                }}
-                title="Copy XML for scene launcher buttons"
-              >
-                <LucideIcon name="Copy" size={14} />
-                Copy Scenes XML ({scenes.length} scenes)
-              </button>
-              <button
-                className={styles.xmlDownloadButton}
-                onClick={() => {
-                  const sceneInfos = scenes.map((scene: any) => ({
-                    name: scene.name || 'Unnamed Scene',
-                    oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                  }));
-                  const xml = generateScenesXml(sceneInfos, '/scene');
-                  const blob = new Blob([xml], { type: 'application/xml' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `touchosc_scenes_${scenes.length}.xml`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  addNotification({
-                    message: 'Scenes XML downloaded!',
-                    type: 'success',
-                  });
-                }}
-                title="Download XML file for scenes"
-              >
-                <LucideIcon name="Download" size={14} />
-              </button>
-            </div>
-          )}
-
-          <div className={styles.xmlButtonGroup}>
-            <button
-              className={styles.xmlButton}
-              onClick={async () => {
-                try {
-                  const fixtureInfos = fixtures.map((fixture: any) => ({
-                    id: fixture.id,
-                    name: fixture.name,
-                    startAddress: fixture.startAddress,
-                    channels: fixture.channels || [],
-                    type: fixture.type
-                  }));
-                  const sceneInfos = scenes.map((scene: any) => ({
-                    name: scene.name || 'Unnamed Scene',
-                    oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                  }));
-                  const xml = generateCompleteXml({
-                    fixtures: fixtureInfos,
-                    scenes: sceneInfos,
-                    pinnedChannels: pinnedChannels || [],
-                    oscBasePath: '',
-                  });
-                  await navigator.clipboard.writeText(xml);
-                  addNotification({
-                    message: 'Complete layout XML copied to clipboard!',
-                    type: 'success',
-                  });
-                  console.log('Complete XML copied:', xml.substring(0, 200) + '...');
-                } catch (error) {
-                  console.error('Failed to copy to clipboard:', error);
-                  const fixtureInfos = fixtures.map((fixture: any) => ({
-                    id: fixture.id,
-                    name: fixture.name,
-                    startAddress: fixture.startAddress,
-                    channels: fixture.channels || [],
-                    type: fixture.type
-                  }));
-                  const sceneInfos = scenes.map((scene: any) => ({
-                    name: scene.name || 'Unnamed Scene',
-                    oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                  }));
-                  const xml = generateCompleteXml({
-                    fixtures: fixtureInfos,
-                    scenes: sceneInfos,
-                    pinnedChannels: pinnedChannels || [],
-                    oscBasePath: '',
-                  });
-                  const textarea = document.createElement('textarea');
-                  textarea.value = xml;
-                  textarea.style.position = 'fixed';
-                  textarea.style.opacity = '0';
-                  document.body.appendChild(textarea);
-                  textarea.select();
-                  try {
-                    document.execCommand('copy');
-                    addNotification({
-                      message: 'Complete XML copied to clipboard (fallback method)!',
-                      type: 'success',
-                    });
-                  } catch (err) {
-                    addNotification({
-                      message: 'Failed to copy. Check console for XML.',
-                      type: 'error',
-                    });
-                    console.log('Complete XML content:', xml);
-                  }
-                  document.body.removeChild(textarea);
-                }
-              }}
-              title="Copy complete XML with all sections"
-            >
-              <LucideIcon name="Copy" size={14} />
-              Copy Complete Layout XML
-            </button>
-            <button
-              className={styles.xmlDownloadButton}
-              onClick={() => {
-                const fixtureInfos = fixtures.map((fixture: any) => ({
-                  id: fixture.id,
-                  name: fixture.name,
-                  startAddress: fixture.startAddress,
-                  channels: fixture.channels || [],
-                  type: fixture.type
-                }));
-                const sceneInfos = scenes.map((scene: any) => ({
-                  name: scene.name || 'Unnamed Scene',
-                  oscAddress: scene.oscAddress || `/scene/${(scene.name || 'scene').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}/load`
-                }));
-                const xml = generateCompleteXml({
-                  fixtures: fixtureInfos,
-                  scenes: sceneInfos,
-                  pinnedChannels: pinnedChannels || [],
-                  oscBasePath: '',
-                });
-                const blob = new Blob([xml], { type: 'application/xml' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'touchosc_complete_layout.xml';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                addNotification({
-                  message: 'Complete layout XML downloaded!',
-                  type: 'success',
-                });
-              }}
-              title="Download complete XML file"
+              onClick={handleDownloadCanonicalXml}
+              title="Download XML from current layout settings"
             >
               <LucideIcon name="Download" size={14} />
             </button>
@@ -781,7 +564,7 @@ export const TouchOSCExporter: React.FC = () => {
         <div className={styles.xmlInstructions}>
           <h5>How to use in TouchOSC Editor:</h5>
           <ol>
-            <li><strong>Click any "Copy" button above</strong> to copy XML to clipboard</li>
+            <li><strong>Click "Copy Layout XML"</strong> to copy XML to clipboard</li>
             <li><strong>Open TouchOSC Editor</strong> (standalone app, not the mobile app)</li>
             <li><strong>Create a new layout</strong> or open an existing one</li>
             <li><strong>Important:</strong> In TouchOSC Editor, you need to paste the XML in a specific way:
@@ -805,7 +588,7 @@ export const TouchOSCExporter: React.FC = () => {
           </ol>
           <div className={styles.xmlNote}>
             <LucideIcon name="Info" size={14} />
-            <span><strong>Note:</strong> The XML includes the full document structure. If TouchOSC Editor doesn't accept it, you may need to paste just the node content (between &lt;children&gt; tags) into an existing group.</span>
+            <span><strong>Note:</strong> XML and .tosc exports now share the same canonical generator settings.</span>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import {
   loadActs,
   saveActs,
   pingArtNetDevice,
+  applyMidiControllerTemplate,
   updateArtNetConfig,
   updateOscAssignment,
   updateOscConfig, // Added import
@@ -31,17 +32,43 @@ import {
   getChannelNames, // Added import
   getChannelRanges, // Added import
   setChannelRange, // Added import
-  saveFixtures, // Added import to sync server fixtures
-  loadFixtures // Added import to reload fixtures
+  saveFixtures // Added import to sync server fixtures
 } from './index';
 import { FaceTrackerService } from './faceTrackerService';
+import {
+  loadFixturesData,
+  saveFixturesData,
+  saveFixtureFile,
+  deleteFixtureFile,
+  loadFixtureFile
+} from './fixturesPersistence';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const EXPORT_FILE = path.join(DATA_DIR, 'all_settings.json');
+const FACTORY_RESET_MARKER = path.join(DATA_DIR, '.factory-reset-marker.json');
 
 // Cache for last generated TouchOSC layout
 let lastTouchOscLayout: Buffer | null = null;
 let lastTouchOscXml: string | null = null;
+
+const writeFactoryResetMarker = (source: string) => {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(
+      FACTORY_RESET_MARKER,
+      JSON.stringify(
+        {
+          timestamp: Math.floor(Date.now() / 1000),
+          source
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    log('Failed to write factory reset marker', 'WARN', { error, source });
+  }
+};
 
 // Add type definitions for global variables
 declare global {
@@ -198,233 +225,6 @@ apiRouter.post('/logs/clear', (req, res) => {
   }
 });
 
-// Helper functions for fixtures data
-// New format: Each fixture in its own file in data/fixtures/ directory
-const FIXTURES_DIR = path.join(DATA_DIR, 'fixtures');
-const FIXTURE_DATA_FILE = path.join(DATA_DIR, 'fixture-data.json'); // For groups, layout, masterSliders
-
-// Ensure fixtures directory exists
-const ensureFixturesDir = () => {
-  if (!fs.existsSync(FIXTURES_DIR)) {
-    fs.mkdirSync(FIXTURES_DIR, { recursive: true });
-  }
-};
-
-// Save a single fixture to its own file
-const saveFixtureFile = (fixture: any) => {
-  try {
-    ensureFixturesDir();
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixture.id}.json`);
-    fs.writeFileSync(fixtureFile, JSON.stringify(fixture, null, 2));
-    return true;
-  } catch (error) {
-    log('Error saving fixture file', 'ERROR', { error, fixtureId: fixture?.id });
-    return false;
-  }
-};
-
-// Delete a fixture file
-const deleteFixtureFile = (fixtureId: string) => {
-  try {
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixtureId}.json`);
-    if (fs.existsSync(fixtureFile)) {
-      fs.unlinkSync(fixtureFile);
-      return true;
-    }
-    return true; // File doesn't exist, consider it deleted
-  } catch (error) {
-    log('Error deleting fixture file', 'ERROR', { error, fixtureId });
-    return false;
-  }
-};
-
-// Load a single fixture from file
-const loadFixtureFile = (fixtureId: string) => {
-  try {
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixtureId}.json`);
-    if (fs.existsSync(fixtureFile)) {
-      const data = fs.readFileSync(fixtureFile, 'utf-8');
-      return JSON.parse(data);
-    }
-    return null;
-  } catch (error) {
-    log('Error loading fixture file', 'ERROR', { error, fixtureId });
-    return null;
-  }
-};
-
-// Load all fixtures from individual files
-const loadAllFixtures = (): any[] => {
-  try {
-    ensureFixturesDir();
-    const fixtures: any[] = [];
-    
-    if (!fs.existsSync(FIXTURES_DIR)) {
-      return fixtures;
-    }
-    
-    const files = fs.readdirSync(FIXTURES_DIR);
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        try {
-          const filePath = path.join(FIXTURES_DIR, file);
-          const data = fs.readFileSync(filePath, 'utf-8');
-          const fixture = JSON.parse(data);
-          if (fixture && fixture.id) {
-            fixtures.push(fixture);
-          }
-        } catch (error) {
-          log('Error loading fixture file', 'WARN', { error, file });
-        }
-      }
-    }
-    
-    return fixtures;
-  } catch (error) {
-    log('Error loading fixtures directory', 'ERROR', { error });
-    return [];
-  }
-};
-
-// Migrate from old fixtures.json format to individual files
-const migrateOldFixturesFormat = () => {
-  try {
-    const oldFixturesPath = path.join(DATA_DIR, 'fixtures.json');
-    if (!fs.existsSync(oldFixturesPath)) {
-      return; // No old file to migrate
-    }
-    
-    const data = fs.readFileSync(oldFixturesPath, 'utf-8');
-    const parsed = JSON.parse(data);
-    
-    // Check if it's the old format with fixtures array
-    if (parsed && Array.isArray(parsed.fixtures) && parsed.fixtures.length > 0) {
-      log('Migrating fixtures from old format to individual files', 'INFO', { count: parsed.fixtures.length });
-      ensureFixturesDir();
-      
-      // Save each fixture to its own file
-      for (const fixture of parsed.fixtures) {
-        if (fixture && fixture.id) {
-          saveFixtureFile(fixture);
-        }
-      }
-      
-      // Save groups, layout, and masterSliders to fixture-data.json
-      const fixtureData = {
-        groups: parsed.groups || [],
-        fixtureLayout: parsed.fixtureLayout || [],
-        masterSliders: parsed.masterSliders || []
-      };
-      fs.writeFileSync(FIXTURE_DATA_FILE, JSON.stringify(fixtureData, null, 2));
-      
-      // Rename old file as backup
-      const backupPath = path.join(DATA_DIR, 'fixtures.json.backup');
-      if (!fs.existsSync(backupPath)) {
-        fs.renameSync(oldFixturesPath, backupPath);
-        log('Old fixtures.json backed up', 'INFO');
-      }
-    }
-  } catch (error) {
-    log('Error migrating fixtures format', 'ERROR', { error });
-  }
-};
-
-// Load fixture data (groups, layout, masterSliders)
-const loadFixtureData = () => {
-  try {
-    if (fs.existsSync(FIXTURE_DATA_FILE)) {
-      const data = fs.readFileSync(FIXTURE_DATA_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-    return {
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  } catch (error) {
-    log('Error loading fixture data', 'ERROR', { error });
-    return {
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  }
-};
-
-// Save fixture data (groups, layout, masterSliders)
-const saveFixtureData = (data: { groups?: any[], fixtureLayout?: any[], masterSliders?: any[] }) => {
-  try {
-    const fixtureData = {
-      groups: data.groups || [],
-      fixtureLayout: data.fixtureLayout || [],
-      masterSliders: data.masterSliders || []
-    };
-    fs.writeFileSync(FIXTURE_DATA_FILE, JSON.stringify(fixtureData, null, 2));
-    return true;
-  } catch (error) {
-    log('Error saving fixture data', 'ERROR', { error });
-    return false;
-  }
-};
-
-export const loadFixturesData = () => {
-  try {
-    // Migrate from old format if needed (only once)
-    migrateOldFixturesFormat();
-    
-    // Load fixtures from individual files
-    const fixtures = loadAllFixtures();
-    
-    // Load groups, layout, and masterSliders
-    const fixtureData = loadFixtureData();
-    
-    return {
-      fixtures,
-      groups: fixtureData.groups || [],
-      fixtureLayout: fixtureData.fixtureLayout || [],
-      masterSliders: fixtureData.masterSliders || []
-    };
-  } catch (error) {
-    log('Error loading fixtures data', 'ERROR', { error });
-    return {
-      fixtures: [],
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  }
-};
-
-const saveFixturesData = (data: any) => {
-  try {
-    // Save each fixture to its own file
-    if (Array.isArray(data.fixtures)) {
-      ensureFixturesDir();
-      for (const fixture of data.fixtures) {
-        if (fixture && fixture.id) {
-          saveFixtureFile(fixture);
-        }
-      }
-    }
-    
-    // Save groups, layout, and masterSliders
-    saveFixtureData({
-      groups: data.groups,
-      fixtureLayout: data.fixtureLayout,
-      masterSliders: data.masterSliders
-    });
-    
-    log('Fixtures data saved successfully', 'INFO', { 
-      fixtures: data.fixtures?.length || 0,
-      groups: data.groups?.length || 0
-    });
-    return true;
-  } catch (error) {
-    log('Error saving fixtures data', 'ERROR', { error });
-    return false;
-  }
-};
-
 // Helper functions for fixture templates
 export const loadFixtureTemplates = () => {
   try {
@@ -462,9 +262,8 @@ const saveFixtureTemplates = (templates: any[]) => {
 // Check for factory reset marker
 apiRouter.get('/factory-reset-check', (req, res) => {
   try {
-    const markerPath = path.join(DATA_DIR, '.factory-reset-marker.json');
-    if (fs.existsSync(markerPath)) {
-      const markerData = JSON.parse(fs.readFileSync(markerPath, 'utf-8'));
+    if (fs.existsSync(FACTORY_RESET_MARKER)) {
+      const markerData = JSON.parse(fs.readFileSync(FACTORY_RESET_MARKER, 'utf-8'));
       const markerTimestamp = markerData.timestamp || 0;
       const now = Math.floor(Date.now() / 1000);
       const markerAge = now - markerTimestamp;
@@ -472,7 +271,7 @@ apiRouter.get('/factory-reset-check', (req, res) => {
       // Keep marker for 1 minute to allow multiple page loads/reloads to detect it
       // After 1 minute, delete it automatically
       if (markerAge > 60) { // 1 minute = 60 seconds
-        fs.unlinkSync(markerPath);
+        fs.unlinkSync(FACTORY_RESET_MARKER);
         res.json({ factoryReset: false });
       } else {
         res.json({ factoryReset: true, timestamp: markerTimestamp });
@@ -764,6 +563,27 @@ apiRouter.delete('/midi/mappings', (req, res) => {
   }
 });
 
+apiRouter.post('/midi/controller-template', (req, res) => {
+  try {
+    const { templateId, deviceName } = req.body || {};
+    if (templateId !== 'x_touch_mackie' && templateId !== 'apc40_mk1') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid templateId. Expected x_touch_mackie or apc40_mk1'
+      });
+    }
+
+    const result = applyMidiControllerTemplate(global.io, templateId, typeof deviceName === 'string' ? deviceName : undefined);
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    log('Error applying MIDI controller template', 'ERROR', { error, body: req.body });
+    res.status(500).json({ success: false, error: `Failed to apply MIDI controller template: ${error}` });
+  }
+});
+
 // OSC Assignment Endpoint
 apiRouter.post('/osc/assign', (req, res) => {
   try {
@@ -823,16 +643,40 @@ apiRouter.post('/osc/assignment', (req, res) => {
 });
 
 // Scene endpoints
+apiRouter.get('/scenes', (req, res) => {
+  try {
+    const scenes = loadScenes();
+    res.json(Array.isArray(scenes) ? scenes : []);
+  } catch (error) {
+    log('Error loading scenes list', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to load scenes: ${error}` });
+  }
+});
+
 apiRouter.post('/scenes', (req, res) => {
   try {
+    // Support both single-scene saves and full-scene imports.
+    if (Array.isArray(req.body)) {
+      saveScenes(req.body);
+      global.io.emit('sceneList', req.body);
+      return res.json({
+        success: true,
+        message: 'Scenes imported successfully',
+        scenesCount: req.body.length
+      });
+    }
+
     const { name, oscAddress, channelValues } = req.body;
+    if (!name || !channelValues) {
+      return res.status(400).json({ error: 'Scene name and channel values are required' });
+    }
 
     saveScene(global.io, name, oscAddress, channelValues);
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error) {
     log('Error saving scene', 'ERROR', { error, body: req.body });
-    res.status(500).json({ error: `Failed to save scene: ${error}` });
+    return res.status(500).json({ error: `Failed to save scene: ${error}` });
   }
 });
 
@@ -891,12 +735,128 @@ apiRouter.delete('/scenes', (req, res) => {
 
     // Notify all clients that scenes have been cleared
     global.io.emit('sceneList', []);
+    writeFactoryResetMarker('scenes-reset');
 
     log('All scenes cleared via factory reset', 'INFO');
     res.json({ success: true, message: 'All scenes cleared' });
   } catch (error) {
     log('Error clearing all scenes', 'ERROR', { error });
     res.status(500).json({ error: `Failed to clear all scenes: ${error}` });
+  }
+});
+
+// Config endpoints for export/import/reset flows
+apiRouter.get('/config', (req, res) => {
+  try {
+    const config = loadConfig();
+    res.json(config || {});
+  } catch (error) {
+    log('Error loading config', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to load config: ${error}` });
+  }
+});
+
+apiRouter.post('/config', (req, res) => {
+  try {
+    const configData = req.body;
+    if (!configData || typeof configData !== 'object') {
+      return res.status(400).json({
+        error: 'Invalid config data - object expected',
+        success: false
+      });
+    }
+
+    const configPath = path.join(DATA_DIR, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
+    const reloadedConfig = loadConfig();
+
+    global.io.emit('configUpdated', reloadedConfig);
+    return res.json({
+      success: true,
+      message: 'Config imported successfully'
+    });
+  } catch (error) {
+    log('Error importing config', 'ERROR', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({
+      error: `Failed to import config: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.delete('/config', (req, res) => {
+  try {
+    const configPath = path.join(DATA_DIR, 'config.json');
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+    const resetConfig = loadConfig();
+    clearMidiMappings();
+    writeFactoryResetMarker('config-reset');
+    global.io.emit('configUpdated', resetConfig);
+
+    res.json({ success: true, message: 'Configuration reset to defaults' });
+  } catch (error) {
+    log('Error resetting config', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to reset config: ${error}` });
+  }
+});
+
+apiRouter.post('/state', (req, res) => {
+  try {
+    const stateData = req.body;
+
+    if (!stateData || !Array.isArray(stateData.dmxChannels)) {
+      return res.status(400).json({
+        error: 'Invalid state data - dmxChannels array required',
+        success: false
+      });
+    }
+
+    setDmxChannels(stateData.dmxChannels);
+
+    const statePath = path.join(DATA_DIR, 'last-state.json');
+    const stateToSave = {
+      timestamp: new Date().toISOString(),
+      dmxChannels: stateData.dmxChannels,
+      savedOn: 'imported-state'
+    };
+    fs.writeFileSync(statePath, JSON.stringify(stateToSave, null, 2));
+
+    global.io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
+
+    res.json({
+      success: true,
+      message: 'State imported successfully',
+      channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
+    });
+  } catch (error) {
+    log('Error importing state', 'ERROR', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+    res.status(500).json({
+      error: `Failed to import state: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.delete('/state', (req, res) => {
+  try {
+    const emptyState = new Array(512).fill(0);
+    setDmxChannels(emptyState);
+    const statePath = path.join(DATA_DIR, 'last-state.json');
+    if (fs.existsSync(statePath)) {
+      fs.unlinkSync(statePath);
+    }
+    writeFactoryResetMarker('state-reset');
+    global.io.emit('dmxStateRestored', { dmxChannels: emptyState });
+    res.json({ success: true, message: 'DMX state reset' });
+  } catch (error) {
+    log('Error resetting state', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to reset state: ${error}` });
   }
 });
 
@@ -934,24 +894,10 @@ apiRouter.post('/fixtures', (req, res) => {
     const addedCount = newCount > previousCount ? newCount - previousCount : 0;
     const removedCount = previousCount > newCount ? previousCount - newCount : 0;
 
-    // Get list of current fixture IDs
-    const currentIds = new Set(currentData.fixtures.map((f: any) => f.id));
-    const newIds = new Set(fixtures.map((f: any) => f.id));
-
-    // Delete fixtures that are no longer in the list
-    for (const id of currentIds) {
-      if (!newIds.has(id)) {
-        deleteFixtureFile(id);
-      }
-    }
-
-    // Save each fixture to its own file
-    ensureFixturesDir();
-    for (const fixture of fixtures) {
-      if (fixture && fixture.id) {
-        saveFixtureFile(fixture);
-      }
-    }
+    saveFixturesData({
+      ...currentData,
+      fixtures
+    });
 
     // Update server's in-memory fixtures to keep them in sync
     try {
@@ -1080,12 +1026,10 @@ apiRouter.post('/groups', (req, res) => {
   try {
     const { groups } = req.body;
 
-    // Load current fixture data (groups, layout, masterSliders)
-    const fixtureData = loadFixtureData();
+    // Load current fixtures data and update only groups
+    const fixtureData = loadFixturesData();
     fixtureData.groups = groups;
-
-    // Save updated fixture data
-    const success = saveFixtureData(fixtureData);
+    const success = saveFixturesData(fixtureData);
 
     if (success) {
       // Notify all clients of the groups update
@@ -1241,51 +1185,38 @@ apiRouter.post('/ping-artnet', (req, res) => {
   }
 });
 
-// Socket.IO handler setup
-function setupSocketHandlers(io: Server) {
-  // Store the io instance globally for use in API routes
-  global.io = io;
-
-  // Load fixtures on startup to ensure they're available
-  try {
-    loadFixtures();
-    log('Fixtures loaded on server startup', 'INFO', { fixtures: loadFixturesData().fixtures.length });
-  } catch (error) {
-    log('Error loading fixtures on startup', 'ERROR', { error });
-  }
-
-  io.on('connection', (socket) => {
-    // Send initial state including fixtures
-    const fixturesData = loadFixturesData();
-    const config = loadConfig();
-    const scenes = loadScenes();
-    const acts = loadActs();
-    
-    socket.emit('initialState', {
-      fixtures: fixturesData.fixtures,
-      groups: fixturesData.groups,
-      scenes,
-      acts,
-      midiMappings: config.midiMappings || {},
-      artNetConfig: config.artNetConfig,
-      oscConfig: config.oscConfig,
-      dmxChannels: getDmxChannels(),
-      oscAssignments: [], // Will be populated from config if needed
-      channelNames: getChannelNames ? getChannelNames() : [],
-      fixtureTemplates: loadFixtureTemplates()
-    });
-    
-    // Also send fixtures separately for compatibility
-    socket.emit('fixturesLoaded', fixturesData.fixtures);
-    socket.emit('fixturesUpdate', fixturesData.fixtures);
-    socket.emit('fixturesUpdated', fixturesData.fixtures);
-    
-    log('Sent initial state to client', 'INFO', { 
-      socketId: socket.id, 
-      fixtures: fixturesData.fixtures.length,
-      groups: fixturesData.groups.length,
-      scenes: scenes.length
-    });
+function registerApiSocketHandlers(io: Server, socket: any) {
+  // Send initial state including fixtures
+  const fixturesData = loadFixturesData();
+  const config = loadConfig();
+  const scenes = loadScenes();
+  const acts = loadActs();
+  
+  socket.emit('initialState', {
+    fixtures: fixturesData.fixtures,
+    groups: fixturesData.groups,
+    scenes,
+    acts,
+    midiMappings: config.midiMappings || {},
+    artNetConfig: config.artNetConfig,
+    oscConfig: config.oscConfig,
+    dmxChannels: getDmxChannels(),
+    oscAssignments: [], // Will be populated from config if needed
+    channelNames: getChannelNames ? getChannelNames() : [],
+    fixtureTemplates: loadFixtureTemplates()
+  });
+  
+  // Also send fixtures separately for compatibility
+  socket.emit('fixturesLoaded', fixturesData.fixtures);
+  socket.emit('fixturesUpdate', fixturesData.fixtures);
+  socket.emit('fixturesUpdated', fixturesData.fixtures);
+  
+  log('Sent initial state to client', 'INFO', { 
+    socketId: socket.id, 
+    fixtures: fixturesData.fixtures.length,
+    groups: fixturesData.groups.length,
+    scenes: scenes.length
+  });
     // Handle settings export
     socket.on('exportSettings', () => {
       try {
@@ -1463,150 +1394,10 @@ function setupSocketHandlers(io: Server) {
     socket.on('getTouchOscXml', () => {
       socket.emit('touchOscXml', lastTouchOscXml);
     });
-  });
 }
 
 // Import sendOscMessage from index.ts
 import { sendOscMessage } from './index';
-
-// Add missing API endpoints for state import/export
-apiRouter.post('/api/state', (req, res) => {
-  try {
-    const stateData = req.body;
-
-    if (!stateData || !stateData.dmxChannels) {
-      return res.status(400).json({
-        error: 'Invalid state data - dmxChannels required',
-        success: false
-      });
-    }
-
-    // Import setDmxChannels function
-    const { setDmxChannels } = require('./core');
-
-    if (typeof setDmxChannels === 'function') {
-      setDmxChannels(stateData.dmxChannels);
-
-      // Save the state to last-state.json
-      const statePath = path.join(DATA_DIR, 'last-state.json');
-      const stateToSave = {
-        timestamp: new Date().toISOString(),
-        dmxChannels: stateData.dmxChannels,
-        savedOn: 'imported-state'
-      };
-
-      fs.writeFileSync(statePath, JSON.stringify(stateToSave, null, 2));
-
-      log('State imported and saved successfully', 'SYSTEM', {
-        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
-      });
-
-      // Notify all clients about the imported state
-      const io = global.io;
-      if (io) {
-        io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
-      }
-
-      res.json({
-        success: true,
-        message: 'State imported successfully',
-        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
-      });
-    } else {
-      res.status(500).json({
-        error: 'setDmxChannels function not available',
-        success: false
-      });
-    }
-  } catch (error) {
-    log('Error importing state', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import state: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
-
-apiRouter.post('/api/scenes', (req, res) => {
-  try {
-    const scenesData = req.body;
-
-    if (!Array.isArray(scenesData)) {
-      return res.status(400).json({
-        error: 'Invalid scenes data - array expected',
-        success: false
-      });
-    }
-
-    // Save scenes to file
-    const scenesPath = path.join(DATA_DIR, 'scenes.json');
-    fs.writeFileSync(scenesPath, JSON.stringify(scenesData, null, 2));
-
-    // Reload scenes in memory
-    const { loadScenes } = require('./core');
-    if (typeof loadScenes === 'function') {
-      loadScenes();
-    }
-
-    log('Scenes imported successfully', 'SYSTEM', {
-      scenesCount: scenesData.length
-    });
-
-    res.json({
-      success: true,
-      message: 'Scenes imported successfully',
-      scenesCount: scenesData.length
-    });
-  } catch (error) {
-    log('Error importing scenes', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import scenes: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
-
-apiRouter.post('/api/config', (req, res) => {
-  try {
-    const configData = req.body;
-
-    if (!configData || typeof configData !== 'object') {
-      return res.status(400).json({
-        error: 'Invalid config data - object expected',
-        success: false
-      });
-    }
-
-    // Save config to file
-    const configPath = path.join(DATA_DIR, 'config.json');
-    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
-
-    // Reload config in memory
-    const { loadConfig } = require('./core');
-    if (typeof loadConfig === 'function') {
-      loadConfig();
-    }
-
-    log('Config imported successfully', 'SYSTEM');
-
-    res.json({
-      success: true,
-      message: 'Config imported successfully'
-    });
-  } catch (error) {
-    log('Error importing config', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import config: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
 
 // Face Tracker Configuration endpoints
 const FACE_TRACKER_CONFIG_PATH = path.join(__dirname, '..', 'face-tracker', 'face-tracker-config.json');
@@ -1824,4 +1615,4 @@ apiRouter.get('/test-network-interface', async (req, res) => {
   }
 });
 
-export { apiRouter, setupSocketHandlers };
+export { apiRouter, registerApiSocketHandlers, loadFixturesData };

@@ -93,11 +93,14 @@ export const ComponentToolbar: React.FC<ComponentToolbarProps> = ({
   const priorityComponents = [
     'master-fader',
     'dmx-control-panel',
-    'dmx-channels',
     'dmx-visualizer',
-    'face-tracker',
     'scene-quick-launch',
-    'chromatic-energy-manipulator'
+    'chromatic-energy-manipulator',
+    'professional-fixture-controller',
+    'touch-fixture-controller',
+    'clip-launcher',
+    'midi-osc-setup',
+    'audio-control-panel'
   ];
 
   const getCategoryDisplayName = (category: string): string => {

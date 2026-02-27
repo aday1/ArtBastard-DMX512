@@ -141,11 +141,22 @@ export const useGlobalBrowserMidi = () => {
           source: 'browser',
           timestamp: Date.now()
         };
+      } else if (messageType === 0xE0) { // Pitch Bend
+        const rawPitch = ((data2 << 7) | data1);
+        messageToStore = {
+          _type: 'pitch',
+          channel,
+          value: rawPitch,
+          source: 'browser',
+          timestamp: Date.now()
+        };
       }
 
       // Create a unique key for this MIDI control (channel + controller/note)
       const controlKey = messageType === 0xB0 
         ? `cc_${channel}_${data1}` 
+        : messageType === 0xE0
+        ? `pitch_${channel}`
         : messageType === 0x90 || messageType === 0x80
         ? `note_${channel}_${data1}`
         : `other_${channel}_${data1}`;
@@ -157,8 +168,8 @@ export const useGlobalBrowserMidi = () => {
       // Always store the latest message for this control
       pendingMessageRef.current.set(controlKey, messageToStore);
 
-      // For CC messages (most frequent), process immediately and throttle store updates
-      if (messageType === 0xB0) {
+      // For CC and Pitch messages, process immediately and throttle store updates
+      if (messageType === 0xB0 || messageType === 0xE0) {
         const store = useStore.getState();
         
         // Process CC messages directly for immediate DMX updates (bypass store re-render cycle)

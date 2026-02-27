@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useStore } from '../store'; // Import Zustand store
+import { handleActTriggerAction } from './actTriggerHandler';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -154,35 +155,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socketInstance.on('actTrigger', ({ actId, action, triggerId }: { actId: string; action: string; triggerId: string }) => {
         console.log('[SocketContext] Received ACT trigger:', { actId, action, triggerId });
         const store = useStore.getState();
-
-        // Execute the ACT action based on the trigger
-        switch (action) {
-          case 'play':
-            store.playAct(actId);
-            break;
-          case 'pause':
-            store.pauseAct();
-            break;
-          case 'stop':
-            store.stopAct();
-            break;
-          case 'toggle':
-            if (store.actPlaybackState.isPlaying && store.actPlaybackState.currentActId === actId) {
-              store.pauseAct();
-            } else {
-              store.playAct(actId);
-            }
-            break;
-          case 'next':
-            // TODO: Implement next step functionality
-            console.log('[SocketContext] Next step not yet implemented');
-            break;
-          case 'previous':
-            // TODO: Implement previous step functionality
-            console.log('[SocketContext] Previous step not yet implemented');
-            break;
-          default:
-            console.warn('[SocketContext] Unknown ACT trigger action:', action);
+        const handled = handleActTriggerAction(store, actId, action);
+        if (!handled) {
+          console.warn('[SocketContext] Unknown ACT trigger action:', action);
         }
       });
 

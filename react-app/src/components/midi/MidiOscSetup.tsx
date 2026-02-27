@@ -3,6 +3,7 @@ import { useStore } from '../../store'
 import { useSocket } from '../../context/SocketContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi'
+import { MIDI_CONTROLLER_TEMPLATES, detectTemplateForMidiInterface, MidiControllerTemplateId } from './midiControllerTemplates'
 import styles from './MidiOscSetup.module.scss'
 
 export const MidiOscSetup: React.FC = () => {
@@ -30,6 +31,7 @@ export const MidiOscSetup: React.FC = () => {
   const [oscSendStatus, setOscSendStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [connectingInterfaces, setConnectingInterfaces] = useState<Set<string>>(new Set())
+  const [applyingTemplateId, setApplyingTemplateId] = useState<MidiControllerTemplateId | null>(null)
 
   const {
     midiMessages,
@@ -39,7 +41,8 @@ export const MidiOscSetup: React.FC = () => {
     superControlOscAddresses,
     removeMidiMapping,
     setOscAssignment,
-    setSuperControlOscAddress
+    setSuperControlOscAddress,
+    applyMidiControllerTemplate
   } = useStore(state => ({
     midiMessages: state.midiMessages,
     clearAllMidiMappings: state.clearAllMidiMappings,
@@ -48,7 +51,8 @@ export const MidiOscSetup: React.FC = () => {
     superControlOscAddresses: state.superControlOscAddresses,
     removeMidiMapping: state.removeMidiMapping,
     setOscAssignment: state.setOscAssignment,
-    setSuperControlOscAddress: state.setSuperControlOscAddress
+    setSuperControlOscAddress: state.setSuperControlOscAddress,
+    applyMidiControllerTemplate: state.applyMidiControllerTemplate
   }))
 
   // Get MIDI interfaces and active interfaces from global state
@@ -170,6 +174,35 @@ export const MidiOscSetup: React.FC = () => {
     }
   }, [socket, connected])
 
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    const handleTemplateApplied = (payload: any) => {
+      if (payload?.midiMappings && typeof payload.midiMappings === 'object') {
+        useStore.setState({ midiMappings: payload.midiMappings });
+      }
+      useStore.getState().addNotification({
+        message: `MIDI template applied: ${payload?.templateId || 'unknown'}`,
+        type: 'info',
+        priority: 'normal'
+      });
+    };
+
+    const handleMidiMappingUpdate = (mappings: any) => {
+      if (mappings && typeof mappings === 'object') {
+        useStore.setState({ midiMappings: mappings });
+      }
+    };
+
+    socket.on('midiControllerTemplateApplied', handleTemplateApplied);
+    socket.on('midiMappingUpdate', handleMidiMappingUpdate);
+
+    return () => {
+      socket.off('midiControllerTemplateApplied', handleTemplateApplied);
+      socket.off('midiMappingUpdate', handleMidiMappingUpdate);
+    };
+  }, [socket, connected]);
+
   // Refresh all MIDI interfaces
   const handleRefreshMidi = () => {
     setIsRefreshing(true)
@@ -240,6 +273,21 @@ export const MidiOscSetup: React.FC = () => {
   const handleForgetAllMappings = () => {
     if (window.confirm('Are you sure you want to forget all MIDI mappings? This cannot be undone.')) {
       clearAllMidiMappings()
+    }
+  }
+
+  const getPreferredTemplateDevice = (templateId: MidiControllerTemplateId): string | undefined => {
+    const detected = activeInterfaces.find((interfaceName) => detectTemplateForMidiInterface(interfaceName) === templateId)
+    return detected
+  }
+
+  const handleApplyControllerTemplate = async (templateId: MidiControllerTemplateId) => {
+    setApplyingTemplateId(templateId)
+    try {
+      const preferredDevice = getPreferredTemplateDevice(templateId)
+      await applyMidiControllerTemplate(templateId, preferredDevice)
+    } finally {
+      setApplyingTemplateId(null)
     }
   }
 
@@ -682,6 +730,37 @@ export const MidiOscSetup: React.FC = () => {
             </h3>
           </div>
           <div className={styles.cardBody}>
+            <div className={styles.controllerTemplatesSection}>
+              <h4>Controller Templates</h4>
+              <p className={styles.mappingInstructions}>
+                Apply prebuilt mappings for supported controllers to get immediate DMX control.
+              </p>
+              <div className={styles.templateButtons}>
+                {MIDI_CONTROLLER_TEMPLATES.map((template) => {
+                  const preferredDevice = getPreferredTemplateDevice(template.id)
+                  return (
+                    <button
+                      key={template.id}
+                      className={`${styles.actionButton} ${styles.connectButton} ${styles.templateApplyButton}`}
+                      onClick={() => handleApplyControllerTemplate(template.id)}
+                      disabled={applyingTemplateId === template.id}
+                      title={template.details}
+                    >
+                      <span className={styles.templateTitle}>{template.title}</span>
+                      <span className={styles.templateDescription}>{template.description}</span>
+                      <span className={styles.templateDetails}>{template.details}</span>
+                      {preferredDevice && (
+                        <span className={styles.templateDevice}>Detected Device: {preferredDevice}</span>
+                      )}
+                      {applyingTemplateId === template.id && (
+                        <span className={styles.templateApplying}>Applying template...</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <button
               className={styles.forgetAllButton}
               onClick={handleForgetAllMappings}
@@ -729,11 +808,13 @@ export const MidiOscSetup: React.FC = () => {
                       <div key={target} className={styles.mappingRow}>
                         <span className={styles.mappingTarget}>{targetName}</span>
                         <span className={styles.mappingType}>
-                          {mapping.controller !== undefined ? 'CC' : 'Note'}
+                          {mapping.pitch ? 'Pitch' : mapping.controller !== undefined ? 'CC' : 'Note'}
                         </span>
                         <span className={styles.mappingChannel}>CH {mapping.channel + 1}</span>
                         <span className={styles.mappingValue}>
-                          {mapping.controller !== undefined 
+                          {mapping.pitch
+                            ? 'Pitch Bend'
+                            : mapping.controller !== undefined
                             ? `CC ${mapping.controller}` 
                             : `Note ${mapping.note}`}
                         </span>

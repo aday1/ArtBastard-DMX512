@@ -35,6 +35,17 @@ export const MidiDebugHelper: React.FC = () => {
             
             console.log(`[MidiDebugHelper] Simulating CC message for DMX channel ${dmxChannelStr}:`, testCCMessage);
             addMidiMessage(testCCMessage);
+          } else if (mapping.pitch) {
+            const testPitchMessage = {
+              type: 'pitch',
+              _type: 'pitch',
+              channel: mapping.channel,
+              value: Math.floor((testValue / 127) * 16383),
+              source: 'Debug Simulator'
+            };
+
+            console.log(`[MidiDebugHelper] Simulating Pitch message for DMX channel ${dmxChannelStr}:`, testPitchMessage);
+            addMidiMessage(testPitchMessage);
           } else if (mapping.note !== undefined) {
             // Simulate a Note On message
             const testNoteMessage = {

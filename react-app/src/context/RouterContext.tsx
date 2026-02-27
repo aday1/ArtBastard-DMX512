@@ -16,9 +16,56 @@ interface RouterProviderProps {
   children: ReactNode
 }
 
+const viewToHash: Record<ViewType, string> = {
+  main: '#/main',
+  fixture: '#/fixture',
+  planner: '#/planner',
+  scenesActs: '#/scenes-acts',
+  misc: '#/settings',
+  state: '#/state',
+  dmxControl: '#/dmx-control',
+  experimental: '#/experimental',
+  mobile: '#/mobile'
+}
+
+const hashToView = (hashValue: string): ViewType | null => {
+  const normalized = hashValue.replace(/^#/, '').replace(/^\//, '').toLowerCase()
+  const pathOnly = normalized.split('?')[0]
+
+  if (!pathOnly) return null
+
+  switch (pathOnly) {
+    case 'main':
+      return 'main'
+    case 'fixture':
+      return 'fixture'
+    case 'planner':
+      return 'planner'
+    case 'scenes-acts':
+    case 'scenesacts':
+      return 'scenesActs'
+    case 'settings':
+    case 'misc':
+      return 'misc'
+    case 'state':
+      return 'state'
+    case 'dmx-control':
+    case 'dmxcontrol':
+      return 'dmxControl'
+    case 'experimental':
+      return 'experimental'
+    case 'mobile':
+      return 'mobile'
+    default:
+      return null
+  }
+}
+
 export const RouterProvider: React.FC<RouterProviderProps> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<ViewType>('dmxControl')
-  const [navigationHistory, setNavigationHistory] = useState<ViewType[]>(['dmxControl'])
+  const initialHashView = hashToView(window.location.hash)
+  const initialView: ViewType = initialHashView || 'dmxControl'
+  const [currentView, setCurrentView] = useState<ViewType>(initialView)
+  const [navigationHistory, setNavigationHistory] = useState<ViewType[]>([initialView])
 
   // Listen for navigation events from navbar
   useEffect(() => {
@@ -33,6 +80,30 @@ export const RouterProvider: React.FC<RouterProviderProps> = ({ children }) => {
       window.removeEventListener('changeView', handleViewChange as EventListener)
     }
   }, [])
+
+  // Listen for hash-based route changes
+  useEffect(() => {
+    const handleHashRouteChange = () => {
+      const routeView = hashToView(window.location.hash)
+      if (!routeView || routeView === currentView) return
+
+      setCurrentView(routeView)
+      setNavigationHistory(prev => [...prev, routeView])
+    }
+
+    window.addEventListener('hashchange', handleHashRouteChange)
+    return () => {
+      window.removeEventListener('hashchange', handleHashRouteChange)
+    }
+  }, [currentView])
+
+  // Keep URL hash synchronized with current view
+  useEffect(() => {
+    const targetHash = viewToHash[currentView]
+    if (window.location.hash !== targetHash) {
+      window.history.replaceState(null, '', targetHash)
+    }
+  }, [currentView])
 
   const handleSetCurrentView = (view: ViewType) => {
     setCurrentView(view)

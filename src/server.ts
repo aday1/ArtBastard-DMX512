@@ -6,9 +6,10 @@ import fs from 'fs';
 import cors from 'cors';
 import { json } from 'body-parser';
 import { log } from './logger'; // Import from logger instead of index
-import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice } from './core';
-import { apiRouter, setupSocketHandlers } from './api';
+import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice, addSocketHandlers } from './core';
+import { apiRouter, registerApiSocketHandlers } from './api';
 import { clockManager, MasterClockSourceId, ClockState } from './clockManager';
+import { loadFixturesData } from './fixturesPersistence';
 
 // Declare global io instance for use in API routes
 declare global {
@@ -196,27 +197,9 @@ try {
       const currentDmxState = getDmxChannels();
       const activeDmxChannels = currentDmxState ? currentDmxState.filter((v: number) => v > 0).length : 0;
       
-      // Load current state to get counts - use bundle format loader
-      // Try to load from API module first (bundle format), fallback to core
-      let currentFixtures: any[] = [];
-      let currentGroups: any[] = [];
-      
-      try {
-        // Try using the API module's loadFixturesData which uses bundle format
-        const apiModule = require('./api');
-        if (apiModule.loadFixturesData) {
-          const fixturesData = apiModule.loadFixturesData();
-          currentFixtures = fixturesData.fixtures || [];
-          currentGroups = fixturesData.groups || [];
-        } else {
-          throw new Error('loadFixturesData not found in api module');
-        }
-      } catch (err) {
-        // Fallback to core module
-        const core = require('./core');
-        currentFixtures = core.loadFixtures() || [];
-        currentGroups = core.loadGroups() || [];
-      }
+      const fixturesData = loadFixturesData();
+      const currentFixtures = fixturesData.fixtures || [];
+      const currentGroups = fixturesData.groups || [];
       
       // Load other state
       const core = require('./core');
@@ -298,14 +281,12 @@ try {
   io.on('connection', (socket) => {
     log('A user connected', 'SERVER', { socketId: socket.id, transport: socket.conn.transport.name });
 
+    addSocketHandlers(io, socket);
+    registerApiSocketHandlers(io, socket);
+
     // Send initial clock state and available sources
     socket.emit('masterClockUpdate', clockManager.getState());
     socket.emit('availableClockSources', clockManager.getAvailableSources());
-
-    // Send available MIDI interfaces to the client
-    const midiInterfaces = listMidiInterfaces();
-    log('MIDI interfaces found', 'MIDI', { inputs: midiInterfaces.inputs, isWsl: midiInterfaces.isWsl });
-    socket.emit('midiInterfaces', midiInterfaces.inputs);
     
     // Send currently active MIDI interfaces (if any)
     // Note: This requires access to activeMidiInputs from the MIDI module
@@ -549,8 +530,6 @@ try {
     }
   });
 
-  // Set up additional Socket.IO handlers from API
-  setupSocketHandlers(io);
   // Start the server with automatic port fallback
   const basePortEnv = process.env.PORT;
   const basePort = basePortEnv ? parseInt(basePortEnv, 10) : 3030;
@@ -583,6 +562,7 @@ try {
     
     // Initialize application with Socket.IO instance
     try {
+      (global as any).__serverOwnsSocketLifecycle = true;
       startLaserTime(io).catch((error) => {
         log('Error in startLaserTime', 'ERROR', { error: error?.message || String(error) });
       });
