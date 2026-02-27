@@ -39,6 +39,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      'framer-motion': resolve(__dirname, 'node_modules/framer-motion/dist/es/index.mjs'),
     },
   },  css: {
     preprocessorOptions: {

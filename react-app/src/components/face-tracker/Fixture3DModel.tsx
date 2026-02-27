@@ -180,7 +180,7 @@ function MovingHeadFixture({
     }
     
     const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
+    (texture as { needsUpdate?: boolean }).needsUpdate = true;
     return texture;
   }, [goboPattern, goboValue]);
 
