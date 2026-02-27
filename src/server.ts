@@ -6,7 +6,7 @@ import fs from 'fs';
 import cors from 'cors';
 import { json } from 'body-parser';
 import { log } from './logger'; // Import from logger instead of index
-import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice } from './core';
+import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice, addSocketHandlers } from './core';
 import { apiRouter, setupSocketHandlers, registerApiSocketHandlers } from './api';
 import { clockManager, MasterClockSourceId, ClockState } from './clockManager';
 
@@ -298,16 +298,12 @@ try {
   io.on('connection', (socket) => {
     log('A user connected', 'SERVER', { socketId: socket.id, transport: socket.conn.transport.name });
 
+    addSocketHandlers(io, socket);
     registerApiSocketHandlers(io, socket);
 
     // Send initial clock state and available sources
     socket.emit('masterClockUpdate', clockManager.getState());
     socket.emit('availableClockSources', clockManager.getAvailableSources());
-
-    // Send available MIDI interfaces to the client
-    const midiInterfaces = listMidiInterfaces();
-    log('MIDI interfaces found', 'MIDI', { inputs: midiInterfaces.inputs, isWsl: midiInterfaces.isWsl });
-    socket.emit('midiInterfaces', midiInterfaces.inputs);
     
     // Send currently active MIDI interfaces (if any)
     // Note: This requires access to activeMidiInputs from the MIDI module
@@ -585,6 +581,7 @@ try {
     
     // Initialize application with Socket.IO instance
     try {
+      (global as any).__serverOwnsSocketLifecycle = true;
       startLaserTime(io).catch((error) => {
         log('Error in startLaserTime', 'ERROR', { error: error?.message || String(error) });
       });

@@ -1762,20 +1762,8 @@ async function startLaserTime(io: Server) {
     // Start pinging ArtNet device every 5 seconds
     setInterval(() => pingArtNetDevice(io), 5000);
 
-    io.on('connection', (socket: Socket) => {
+    const registerCoreSocketHandlers = (socket: Socket) => {
         log('A user connected', 'SERVER', { socketId: socket.id });
-
-        // Send initial state to the client
-        socket.emit('initialState', {
-            dmxChannels,
-            oscAssignments,
-            channelNames,
-            fixtures,
-            groups,
-            midiMappings,
-            artNetConfig,
-            scenes
-        });
 
         // Send available MIDI interfaces
         const midiInterfaces = listMidiInterfaces();
@@ -2021,13 +2009,30 @@ async function startLaserTime(io: Server) {
         socket.on('disconnect', () => {
             log('User disconnected', 'SERVER', { socketId: socket.id });
         });
-    });
+    };
+
+    (global as any).__registerCoreSocketHandlers = registerCoreSocketHandlers;
+    const serverOwnsSocketLifecycle = (global as any).__serverOwnsSocketLifecycle === true;
+    if (!serverOwnsSocketLifecycle) {
+        io.on('connection', registerCoreSocketHandlers);
+    } else {
+        log('Core socket handlers ready for server-managed lifecycle', 'SERVER');
+    }
 }
 
 // Add these missing function declarations
-function addSocketHandlers(io: Server) {
-    log('Socket handlers being initialized (via addSocketHandlers)', 'SERVER');
-    // This is just a placeholder - all handlers are set up in startLaserTime
+function addSocketHandlers(io: Server, socket?: Socket) {
+    const registerCoreSocketHandlers = (global as any).__registerCoreSocketHandlers;
+    if (typeof registerCoreSocketHandlers !== 'function') {
+        log('Core socket handlers are not initialized yet', 'WARN');
+        return;
+    }
+
+    if (socket) {
+        registerCoreSocketHandlers(socket);
+    } else {
+        io.on('connection', registerCoreSocketHandlers);
+    }
 }
 
 // Create a clearMidiMappings function
