@@ -9,6 +9,7 @@ import { EnvelopeAutomation } from '../automation/EnvelopeAutomation';
 import { GlobalChannelNames } from '../channels/GlobalChannelNames';
 import { DmxControlsPanel } from '../dmx/DmxControlsPanel';
 import { DmxFixtureSelector } from '../dmx/DmxFixtureSelector';
+import { DmxSceneControls } from '../dmx/DmxSceneControls';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -615,43 +616,11 @@ export const DmxChannelControlPage: React.FC = () => {
 
           {/* Scene Controls */}
           {showSceneControls && (
-            <div className={styles.sceneControls}>
-              <div className={styles.sceneSection}>
-                <h3 className={styles.sectionTitle}>
-                  <LucideIcon name="Camera" />
-                  Scene Management
-                </h3>
-                <div className={styles.sceneActions}>
-                  <button
-                    className={styles.sceneButton}
-                    onClick={handleSaveScene}
-                    title="Save current DMX state as a scene"
-                  >
-                    <LucideIcon name="Save" />
-                    Save Scene
-                  </button>
-
-                  {scenes.length > 0 && (
-                    <div className={styles.sceneList}>
-                      <label className={styles.sceneListLabel}>Load Scene:</label>
-                      <div className={styles.sceneButtons}>
-                        {scenes.map((scene, index) => (
-                          <button
-                            key={index}
-                            className={styles.loadSceneButton}
-                            onClick={() => handleLoadScene(scene.name)}
-                            title={`Load scene: ${scene.name}`}
-                          >
-                            <LucideIcon name="Play" />
-                            {scene.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <DmxSceneControls
+              scenes={scenes}
+              onSaveScene={handleSaveScene}
+              onLoadScene={handleLoadScene}
+            />
           )}
 
           {/* MIDI Connection Controls */}
