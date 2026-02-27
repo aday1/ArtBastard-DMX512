@@ -31,8 +31,7 @@ import {
   getChannelNames, // Added import
   getChannelRanges, // Added import
   setChannelRange, // Added import
-  saveFixtures, // Added import to sync server fixtures
-  loadFixtures // Added import to reload fixtures
+  saveFixtures // Added import to sync server fixtures
 } from './index';
 import { FaceTrackerService } from './faceTrackerService';
 import {
@@ -1164,20 +1163,6 @@ apiRouter.post('/ping-artnet', (req, res) => {
   }
 });
 
-// Socket.IO handler setup
-function setupSocketHandlers(io: Server) {
-  // Store the io instance globally for use in API routes
-  global.io = io;
-
-  // Load fixtures on startup to ensure they're available
-  try {
-    loadFixtures();
-    log('Fixtures loaded on server startup', 'INFO', { fixtures: loadFixturesData().fixtures.length });
-  } catch (error) {
-    log('Error loading fixtures on startup', 'ERROR', { error });
-  }
-}
-
 function registerApiSocketHandlers(io: Server, socket: any) {
   // Send initial state including fixtures
   const fixturesData = loadFixturesData();
@@ -1608,4 +1593,4 @@ apiRouter.get('/test-network-interface', async (req, res) => {
   }
 });
 
-export { apiRouter, setupSocketHandlers, registerApiSocketHandlers, loadFixturesData };
+export { apiRouter, registerApiSocketHandlers, loadFixturesData };

@@ -7,7 +7,7 @@ import cors from 'cors';
 import { json } from 'body-parser';
 import { log } from './logger'; // Import from logger instead of index
 import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice, addSocketHandlers } from './core';
-import { apiRouter, setupSocketHandlers, registerApiSocketHandlers } from './api';
+import { apiRouter, registerApiSocketHandlers } from './api';
 import { clockManager, MasterClockSourceId, ClockState } from './clockManager';
 import { loadFixturesData } from './fixturesPersistence';
 
@@ -530,8 +530,6 @@ try {
     }
   });
 
-  // Set up additional Socket.IO handlers from API
-  setupSocketHandlers(io);
   // Start the server with automatic port fallback
   const basePortEnv = process.env.PORT;
   const basePort = basePortEnv ? parseInt(basePortEnv, 10) : 3030;
