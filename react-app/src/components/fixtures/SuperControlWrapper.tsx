@@ -1,13 +1,13 @@
 import React from 'react';
-import SuperControlTidyClean from './SuperControlTidyClean';
+import SuperControl from '../dmx/SuperControl';
 import SuperControlFallback from './SuperControlFallback';
 
 interface SuperControlProps {
   isDockable?: boolean;
 }
 
-// Use the cleaner implementation as the primary component
-const SuperControlMain = SuperControlTidyClean;
+// Canonical implementation shared across fixture/mobile/external entry points.
+const SuperControlMain = SuperControl;
 const hasMainComponentError = false;
 
 const SuperControlWrapper: React.FC<SuperControlProps> = (props) => {

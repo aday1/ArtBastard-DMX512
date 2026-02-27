@@ -1050,21 +1050,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Scene Management Functions
   const captureCurrentScene = (name?: string) => {
-    const sceneValues: Record<number, number> = {};
+    const channelValues = new Array(512).fill(0);
 
-    // Capture all current DMX values
-    for (let i = 1; i <= 512; i++) {
+    // Capture all current DMX values using 0-based channel indexing.
+    for (let i = 0; i < 512; i++) {
       const value = getDmxChannelValue(i);
       if (value > 0) {
-        sceneValues[i] = value;
+        channelValues[i] = value;
       }
     }
-
-    // Convert to global scene format
-    const channelValues = new Array(512).fill(0);
-    Object.entries(sceneValues).forEach(([ch, val]) => {
-      channelValues[parseInt(ch) - 1] = val; // Convert 1-based to 0-based
-    });
 
     const sceneName = name || `Scene ${scenes.length + 1}`;
     const oscAddress = `/scene/${sceneName.toLowerCase().replace(/\s+/g, '_')}`;
