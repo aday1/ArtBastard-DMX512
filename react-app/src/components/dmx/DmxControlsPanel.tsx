@@ -1,0 +1,269 @@
+import React from 'react';
+import { LucideIcon } from '../ui/LucideIcon';
+import styles from '../pages/DmxChannelControlPage.module.scss';
+
+type ViewMode = 'grid' | 'list' | 'compact';
+type ChannelFilter = 'all' | 'active' | 'selected' | 'range' | 'selectedFixtures';
+
+interface DmxControlsPanelProps {
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  filter: ChannelFilter;
+  onFilterChange: (filter: ChannelFilter) => void;
+  selectedFixturesCount: number;
+  selectedChannelsCount: number;
+  range: { start: number; end: number };
+  onRangeChange: (range: { start: number; end: number }) => void;
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
+  onShowSelectedOnly: () => void;
+  onSelectAllChannels: () => void;
+  onDeselectAllChannels: () => void;
+  channelsPerPage: number;
+  onChannelsPerPageChange: (value: number) => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (direction: 'first' | 'prev' | 'next' | 'last') => void;
+  showSceneControls: boolean;
+  onToggleSceneControls: () => void;
+  showMidiControls: boolean;
+  onToggleMidiControls: () => void;
+  showOscControls: boolean;
+  onToggleOscControls: () => void;
+  showEnvelopeAutomation: boolean;
+  onToggleEnvelopeAutomation: () => void;
+  showGlobalChannelNames: boolean;
+  onToggleGlobalChannelNames: () => void;
+}
+
+export const DmxControlsPanel: React.FC<DmxControlsPanelProps> = ({
+  viewMode,
+  onViewModeChange,
+  filter,
+  onFilterChange,
+  selectedFixturesCount,
+  selectedChannelsCount,
+  range,
+  onRangeChange,
+  searchTerm,
+  onSearchTermChange,
+  onShowSelectedOnly,
+  onSelectAllChannels,
+  onDeselectAllChannels,
+  channelsPerPage,
+  onChannelsPerPageChange,
+  currentPage,
+  totalPages,
+  onPageChange,
+  showSceneControls,
+  onToggleSceneControls,
+  showMidiControls,
+  onToggleMidiControls,
+  showOscControls,
+  onToggleOscControls,
+  showEnvelopeAutomation,
+  onToggleEnvelopeAutomation,
+  showGlobalChannelNames,
+  onToggleGlobalChannelNames,
+}) => {
+  return (
+    <div className={styles.controlsPanel}>
+      <div className={styles.controlGroup}>
+        <label className={styles.controlLabel}>View Mode</label>
+        <div className={styles.viewModeButtons}>
+          <button
+            className={`${styles.viewModeButton} ${viewMode === 'grid' ? styles.active : ''}`}
+            onClick={() => onViewModeChange('grid')}
+          >
+            <LucideIcon name="Grid3X3" />
+            Grid
+          </button>
+          <button
+            className={`${styles.viewModeButton} ${viewMode === 'list' ? styles.active : ''}`}
+            onClick={() => onViewModeChange('list')}
+          >
+            <LucideIcon name="List" />
+            List
+          </button>
+          <button
+            className={`${styles.viewModeButton} ${viewMode === 'compact' ? styles.active : ''}`}
+            onClick={() => onViewModeChange('compact')}
+          >
+            <LucideIcon name="Minimize2" />
+            Compact
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.controlGroup}>
+        <label className={styles.controlLabel}>Filter</label>
+        <div className={styles.filterControls}>
+          <select
+            value={filter}
+            onChange={(e) => onFilterChange(e.target.value as ChannelFilter)}
+            className={styles.filterSelect}
+          >
+            <option value="all">All Channels</option>
+            <option value="active">Active Only</option>
+            <option value="selected">Selected Channels Only</option>
+            <option value="selectedFixtures" disabled={selectedFixturesCount === 0}>
+              {selectedFixturesCount > 0
+                ? `Selected Fixtures (${selectedFixturesCount})`
+                : 'Selected Fixtures (none selected)'}
+            </option>
+            <option value="range">Range</option>
+          </select>
+
+          <button
+            onClick={onShowSelectedOnly}
+            className={`${styles.activeSelectionsButton} ${filter === 'selected' ? styles.active : ''}`}
+            disabled={selectedChannelsCount === 0}
+            title={`Show ${selectedChannelsCount} selected channel${selectedChannelsCount !== 1 ? 's' : ''}`}
+          >
+            <LucideIcon name="CheckSquare" />
+            Active Selections ({selectedChannelsCount})
+          </button>
+
+          {filter === 'range' && (
+            <div className={styles.rangeInputs}>
+              <input
+                type="number"
+                min="1"
+                max="512"
+                value={range.start}
+                onChange={(e) => onRangeChange({ ...range, start: parseInt(e.target.value, 10) || 1 })}
+                className={styles.rangeInput}
+              />
+              <span>-</span>
+              <input
+                type="number"
+                min="1"
+                max="512"
+                value={range.end}
+                onChange={(e) => onRangeChange({ ...range, end: parseInt(e.target.value, 10) || 512 })}
+                className={styles.rangeInput}
+              />
+            </div>
+          )}
+
+          <div className={styles.searchInput}>
+            <LucideIcon name="Search" />
+            <input
+              type="text"
+              placeholder="Search channels..."
+              value={searchTerm}
+              onChange={(e) => onSearchTermChange(e.target.value)}
+              className={styles.searchField}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.controlGroup}>
+        <label className={styles.controlLabel}>Selection</label>
+        <div className={styles.selectionControls}>
+          <button onClick={onSelectAllChannels} className={styles.selectionButton}>
+            <LucideIcon name="CheckSquare" />
+            Select All
+          </button>
+          <button onClick={onDeselectAllChannels} className={styles.selectionButton}>
+            <LucideIcon name="Square" />
+            Deselect All
+          </button>
+          <span className={styles.selectionCount}>{selectedChannelsCount} selected</span>
+        </div>
+      </div>
+
+      <div className={styles.controlGroup}>
+        <label className={styles.controlLabel}>Pagination</label>
+        <div className={styles.paginationControls}>
+          <select
+            value={channelsPerPage}
+            onChange={(e) => onChannelsPerPageChange(parseInt(e.target.value, 10))}
+            className={styles.pageSizeSelect}
+          >
+            <option value={16}>16 per page</option>
+            <option value={32}>32 per page</option>
+            <option value={64}>64 per page</option>
+            <option value={128}>128 per page</option>
+          </select>
+
+          <div className={styles.pageNavigation}>
+            <button
+              onClick={() => onPageChange('first')}
+              disabled={currentPage === 0}
+              className={styles.pageButton}
+            >
+              <LucideIcon name="ChevronsLeft" />
+            </button>
+            <button
+              onClick={() => onPageChange('prev')}
+              disabled={currentPage === 0}
+              className={styles.pageButton}
+            >
+              <LucideIcon name="ChevronLeft" />
+            </button>
+            <span className={styles.pageInfo}>
+              {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange('next')}
+              disabled={currentPage >= totalPages - 1}
+              className={styles.pageButton}
+            >
+              <LucideIcon name="ChevronRight" />
+            </button>
+            <button
+              onClick={() => onPageChange('last')}
+              disabled={currentPage >= totalPages - 1}
+              className={styles.pageButton}
+            >
+              <LucideIcon name="ChevronsRight" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.controlGroup}>
+        <label className={styles.controlLabel}>Display Options</label>
+        <div className={styles.toggleControls}>
+          <button
+            className={`${styles.toggleButton} ${showSceneControls ? styles.active : ''}`}
+            onClick={onToggleSceneControls}
+          >
+            <LucideIcon name="Camera" />
+            Scene Controls
+          </button>
+          <button
+            className={`${styles.toggleButton} ${showMidiControls ? styles.active : ''}`}
+            onClick={onToggleMidiControls}
+          >
+            <LucideIcon name="Music" />
+            MIDI Controls
+          </button>
+          <button
+            className={`${styles.toggleButton} ${showOscControls ? styles.active : ''}`}
+            onClick={onToggleOscControls}
+          >
+            <LucideIcon name="Globe" />
+            OSC Controls
+          </button>
+          <button
+            className={`${styles.toggleButton} ${showEnvelopeAutomation ? styles.active : ''}`}
+            onClick={onToggleEnvelopeAutomation}
+          >
+            <LucideIcon name="Activity" />
+            Envelope Automation
+          </button>
+          <button
+            className={`${styles.toggleButton} ${showGlobalChannelNames ? styles.active : ''}`}
+            onClick={onToggleGlobalChannelNames}
+          >
+            <LucideIcon name="Tag" />
+            Channel Names
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

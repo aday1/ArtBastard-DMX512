@@ -7,6 +7,7 @@ import { useMobile } from '../../hooks/useMobile';
 import { LucideIcon } from '../ui/LucideIcon';
 import { EnvelopeAutomation } from '../automation/EnvelopeAutomation';
 import { GlobalChannelNames } from '../channels/GlobalChannelNames';
+import { DmxControlsPanel } from '../dmx/DmxControlsPanel';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -838,217 +839,39 @@ export const DmxChannelControlPage: React.FC = () => {
             )}
           </div>
 
-          {/* Controls Panel */}
-          <div className={styles.controlsPanel}>
-            {/* View Mode Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>View Mode</label>
-              <div className={styles.viewModeButtons}>
-                <button
-                  className={`${styles.viewModeButton} ${viewMode === 'grid' ? styles.active : ''}`}
-                  onClick={() => setViewMode('grid')}
-                >
-                  <LucideIcon name="Grid3X3" />
-                  Grid
-                </button>
-                <button
-                  className={`${styles.viewModeButton} ${viewMode === 'list' ? styles.active : ''}`}
-                  onClick={() => setViewMode('list')}
-                >
-                  <LucideIcon name="List" />
-                  List
-                </button>
-                <button
-                  className={`${styles.viewModeButton} ${viewMode === 'compact' ? styles.active : ''}`}
-                  onClick={() => setViewMode('compact')}
-                >
-                  <LucideIcon name="Minimize2" />
-                  Compact
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Filter</label>
-              <div className={styles.filterControls}>
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
-                  className={styles.filterSelect}
-                >
-                  <option value="all">All Channels</option>
-                  <option value="active">Active Only</option>
-                  <option value="selected">Selected Channels Only</option>
-                  <option value="selectedFixtures" disabled={selectedFixtures.length === 0}>
-                    {selectedFixtures.length > 0 
-                      ? `Selected Fixtures (${selectedFixtures.length})` 
-                      : 'Selected Fixtures (none selected)'}
-                  </option>
-                  <option value="range">Range</option>
-                </select>
-
-                {/* Active Selections Quick Selector */}
-                <button
-                  onClick={() => {
-                    setFilter('selected');
-                    setCurrentPage(0);
-                  }}
-                  className={`${styles.activeSelectionsButton} ${filter === 'selected' ? styles.active : ''}`}
-                  disabled={selectedChannels.length === 0}
-                  title={`Show ${selectedChannels.length} selected channel${selectedChannels.length !== 1 ? 's' : ''}`}
-                >
-                  <LucideIcon name="CheckSquare" />
-                  Active Selections ({selectedChannels.length})
-                </button>
-
-                {filter === 'range' && (
-                  <div className={styles.rangeInputs}>
-                    <input
-                      type="number"
-                      min="1"
-                      max="512"
-                      value={range.start}
-                      onChange={(e) => setRange(prev => ({ ...prev, start: parseInt(e.target.value) || 1 }))}
-                      className={styles.rangeInput}
-                    />
-                    <span>-</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="512"
-                      value={range.end}
-                      onChange={(e) => setRange(prev => ({ ...prev, end: parseInt(e.target.value) || 512 }))}
-                      className={styles.rangeInput}
-                    />
-                  </div>
-                )}
-
-                <div className={styles.searchInput}>
-                  <LucideIcon name="Search" />
-                  <input
-                    type="text"
-                    placeholder="Search channels..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={styles.searchField}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Selection Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Selection</label>
-              <div className={styles.selectionControls}>
-                <button onClick={selectAllChannels} className={styles.selectionButton}>
-                  <LucideIcon name="CheckSquare" />
-                  Select All
-                </button>
-                <button onClick={deselectAllChannels} className={styles.selectionButton}>
-                  <LucideIcon name="Square" />
-                  Deselect All
-                </button>
-                <span className={styles.selectionCount}>
-                  {selectedChannels.length} selected
-                </span>
-              </div>
-            </div>
-
-            {/* Pagination Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Pagination</label>
-              <div className={styles.paginationControls}>
-                <select
-                  value={channelsPerPage}
-                  onChange={(e) => setChannelsPerPage(parseInt(e.target.value))}
-                  className={styles.pageSizeSelect}
-                >
-                  <option value={16}>16 per page</option>
-                  <option value={32}>32 per page</option>
-                  <option value={64}>64 per page</option>
-                  <option value={128}>128 per page</option>
-                </select>
-
-                <div className={styles.pageNavigation}>
-                  <button
-                    onClick={() => handlePageChange('first')}
-                    disabled={currentPage === 0}
-                    className={styles.pageButton}
-                  >
-                    <LucideIcon name="ChevronsLeft" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange('prev')}
-                    disabled={currentPage === 0}
-                    className={styles.pageButton}
-                  >
-                    <LucideIcon name="ChevronLeft" />
-                  </button>
-                  <span className={styles.pageInfo}>
-                    {currentPage + 1} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange('next')}
-                    disabled={currentPage >= totalPages - 1}
-                    className={styles.pageButton}
-                  >
-                    <LucideIcon name="ChevronRight" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange('last')}
-                    disabled={currentPage >= totalPages - 1}
-                    className={styles.pageButton}
-                  >
-                    <LucideIcon name="ChevronsRight" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Display Options</label>
-              <div className={styles.toggleControls}>
-                <button
-                  className={`${styles.toggleButton} ${showSceneControls ? styles.active : ''}`}
-                  onClick={() => setShowSceneControls(!showSceneControls)}
-                >
-                  <LucideIcon name="Camera" />
-                  Scene Controls
-                </button>
-                <button
-                  className={`${styles.toggleButton} ${showMidiControls ? styles.active : ''}`}
-                  onClick={() => setShowMidiControls(!showMidiControls)}
-                >
-                  <LucideIcon name="Music" />
-                  MIDI Controls
-                </button>
-                {/* Embedded MIDI Monitor toggle removed (floating monitor remains) */}
-                <button
-                  className={`${styles.toggleButton} ${showOscControls ? styles.active : ''}`}
-                  onClick={() => setShowOscControls(!showOscControls)}
-                >
-                  <LucideIcon name="Globe" />
-                  OSC Controls
-                </button>
-                <button
-                  className={`${styles.toggleButton} ${showEnvelopeAutomation ? styles.active : ''}`}
-                  onClick={() => setShowEnvelopeAutomation(!showEnvelopeAutomation)}
-                >
-                  <LucideIcon name="Activity" />
-                  Envelope Automation
-                </button>
-                <button
-                  className={`${styles.toggleButton} ${showGlobalChannelNames ? styles.active : ''}`}
-                  onClick={() => setShowGlobalChannelNames(!showGlobalChannelNames)}
-                >
-                  <LucideIcon name="Tag" />
-                  Channel Names
-                </button>
-              </div>
-            </div>
-          </div>
+          <DmxControlsPanel
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            filter={filter}
+            onFilterChange={(nextFilter) => setFilter(nextFilter)}
+            selectedFixturesCount={selectedFixtures.length}
+            selectedChannelsCount={selectedChannels.length}
+            range={range}
+            onRangeChange={setRange}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            onShowSelectedOnly={() => {
+              setFilter('selected');
+              setCurrentPage(0);
+            }}
+            onSelectAllChannels={selectAllChannels}
+            onDeselectAllChannels={deselectAllChannels}
+            channelsPerPage={channelsPerPage}
+            onChannelsPerPageChange={setChannelsPerPage}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            showSceneControls={showSceneControls}
+            onToggleSceneControls={() => setShowSceneControls(!showSceneControls)}
+            showMidiControls={showMidiControls}
+            onToggleMidiControls={() => setShowMidiControls(!showMidiControls)}
+            showOscControls={showOscControls}
+            onToggleOscControls={() => setShowOscControls(!showOscControls)}
+            showEnvelopeAutomation={showEnvelopeAutomation}
+            onToggleEnvelopeAutomation={() => setShowEnvelopeAutomation(!showEnvelopeAutomation)}
+            showGlobalChannelNames={showGlobalChannelNames}
+            onToggleGlobalChannelNames={() => setShowGlobalChannelNames(!showGlobalChannelNames)}
+          />
 
           {/* Global Channel Names */}
           {showGlobalChannelNames && (
