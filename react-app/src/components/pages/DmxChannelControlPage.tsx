@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../../store';
 import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
@@ -15,6 +15,7 @@ import { DmxMidiConnections } from '../dmx/DmxMidiConnections';
 import { DmxPinnedChannels } from '../dmx/DmxPinnedChannels';
 import { DmxActiveChannelsSummary } from '../dmx/DmxActiveChannelsSummary';
 import { DmxChannelsViewport } from '../dmx/DmxChannelsViewport';
+import { filterDmxChannels, filterFixtures, isFixtureActive } from '../dmx/dmxFiltering';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -142,80 +143,16 @@ export const DmxChannelControlPage: React.FC = () => {
   } = useGlobalBrowserMidi();
 
 
-  // Get filtered channels
-  const getFilteredChannels = () => {
-    let channels: number[] = [];
-
-    switch (filter) {
-      case 'all':
-        channels = Array.from({ length: 512 }, (_, i) => i);
-        break;
-      case 'active':
-        channels = Array.from({ length: 512 }, (_, i) => i).filter(i => (dmxChannels[i] || 0) > 0);
-        break;
-      case 'selected':
-        channels = selectedChannels;
-        break;
-      case 'range':
-        channels = Array.from({ length: range.end - range.start + 1 }, (_, i) => range.start - 1 + i);
-        break;
-      case 'selectedFixtures':
-        // Filter by selected fixtures
-        if (selectedFixtures.length > 0) {
-          const fixtureChannels = new Set<number>();
-          selectedFixtures.forEach(fixtureId => {
-            const fixture = fixtures.find(f => f.id === fixtureId);
-            if (fixture) {
-              const startAddress = fixture.startAddress;
-              const channelCount = fixture.channels?.length || 0;
-              for (let i = 0; i < channelCount; i++) {
-                const channelIndex = startAddress - 1 + i; // Convert to 0-based index
-                if (channelIndex >= 0 && channelIndex < 512) {
-                  fixtureChannels.add(channelIndex);
-                }
-              }
-            }
-          });
-          channels = Array.from(fixtureChannels).sort((a, b) => a - b);
-        } else {
-          // If no fixtures selected, show all channels
-          channels = Array.from({ length: 512 }, (_, i) => i);
-        }
-        break;
-    }
-
-    // Filter by selected fixtures if any are selected AND filter is not already 'selectedFixtures'
-    if (selectedFixtures.length > 0 && filter !== 'selectedFixtures') {
-      const fixtureChannels = new Set<number>();
-      selectedFixtures.forEach(fixtureId => {
-        const fixture = fixtures.find(f => f.id === fixtureId);
-        if (fixture) {
-          const startAddress = fixture.startAddress;
-          const channelCount = fixture.channels?.length || 0;
-          for (let i = 0; i < channelCount; i++) {
-            const channelIndex = startAddress - 1 + i; // Convert to 0-based index
-            if (channelIndex >= 0 && channelIndex < 512) {
-              fixtureChannels.add(channelIndex);
-            }
-          }
-        }
-      });
-      channels = channels.filter(channel => fixtureChannels.has(channel));
-    }
-
-    // Apply search filter
-    if (searchTerm) {
-      channels = channels.filter(channel => {
-        const channelName = channelNames[channel] || `Channel ${channel + 1}`;
-        return channelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (channel + 1).toString().includes(searchTerm);
-      });
-    }
-
-    return channels;
-  };
-
-  const filteredChannels = getFilteredChannels();
+  const filteredChannels = useMemo(() => filterDmxChannels({
+    filter,
+    dmxChannels,
+    selectedChannels,
+    selectedFixtures,
+    fixtures,
+    range,
+    searchTerm,
+    channelNames,
+  }), [filter, dmxChannels, selectedChannels, selectedFixtures, fixtures, range, searchTerm, channelNames]);
   const totalPages = Math.ceil(filteredChannels.length / channelsPerPage);
   const startIndex = currentPage * channelsPerPage;
   const endIndex = Math.min(startIndex + channelsPerPage, filteredChannels.length);
@@ -226,72 +163,16 @@ export const DmxChannelControlPage: React.FC = () => {
     setCurrentPage(0);
   }, [filter, range, searchTerm, selectedFixtures]);
 
-  // Helper: Get filtered fixtures based on search and filters
-  const getFilteredFixtures = () => {
-    let filtered = [...fixtures];
+  const filteredFixtures = useMemo(() => filterFixtures({
+    fixtures,
+    dmxChannels,
+    fixtureSearchTerm,
+    fixtureFilter,
+    fixtureTypeFilter,
+    fixtureAddressRange,
+  }), [fixtures, dmxChannels, fixtureSearchTerm, fixtureFilter, fixtureTypeFilter, fixtureAddressRange]);
 
-    // Apply search filter
-    if (fixtureSearchTerm) {
-      const searchLower = fixtureSearchTerm.toLowerCase();
-      filtered = filtered.filter(fixture => 
-        fixture.name.toLowerCase().includes(searchLower) ||
-        fixture.startAddress.toString().includes(fixtureSearchTerm) ||
-        fixture.type?.toLowerCase().includes(searchLower) ||
-        fixture.manufacturer?.toLowerCase().includes(searchLower) ||
-        fixture.model?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply active filter (fixtures with non-zero DMX values)
-    if (fixtureFilter === 'active') {
-      filtered = filtered.filter(fixture => {
-        const startAddress = fixture.startAddress;
-        const channelCount = fixture.channels?.length || 0;
-        for (let i = 0; i < channelCount; i++) {
-          const channelIndex = startAddress - 1 + i;
-          if (channelIndex >= 0 && channelIndex < 512 && (dmxChannels[channelIndex] || 0) > 0) {
-            return true;
-          }
-        }
-        return false;
-      });
-    }
-
-    // Apply type filter
-    if (fixtureFilter === 'byType' && fixtureTypeFilter) {
-      filtered = filtered.filter(fixture => 
-        fixture.type?.toLowerCase() === fixtureTypeFilter.toLowerCase()
-      );
-    }
-
-    // Apply address range filter
-    if (fixtureFilter === 'byRange') {
-      filtered = filtered.filter(fixture => 
-        fixture.startAddress >= fixtureAddressRange.start && 
-        fixture.startAddress <= fixtureAddressRange.end
-      );
-    }
-
-    return filtered;
-  };
-
-  const filteredFixtures = getFilteredFixtures();
-
-  // Get unique fixture types
-  const fixtureTypes = Array.from(new Set(fixtures.map(f => f.type).filter(Boolean))).sort();
-
-  // Helper: Check if fixture is active
-  const isFixtureActive = (fixture: any) => {
-    const startAddress = fixture.startAddress;
-    const channelCount = fixture.channels?.length || 0;
-    for (let i = 0; i < channelCount; i++) {
-      const channelIndex = startAddress - 1 + i;
-      if (channelIndex >= 0 && channelIndex < 512 && (dmxChannels[channelIndex] || 0) > 0) {
-        return true;
-      }
-    }
-    return false;
-  };
+  const fixtureTypes = useMemo(() => Array.from(new Set(fixtures.map(f => f.type).filter(Boolean))).sort(), [fixtures]);
 
   // Close fixture selector when clicking outside
   useEffect(() => {
@@ -506,7 +387,7 @@ export const DmxChannelControlPage: React.FC = () => {
               setFixtureAddressRange={setFixtureAddressRange}
               fixtureTypes={fixtureTypes}
               filteredFixtures={filteredFixtures}
-              isFixtureActive={isFixtureActive}
+              isFixtureActive={(fixture) => isFixtureActive(fixture, dmxChannels)}
               getFixtureColor={getFixtureColor}
             />
           </div>
