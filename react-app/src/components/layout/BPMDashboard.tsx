@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
+import { LucideIcon } from '../ui/LucideIcon';
 import styles from './BPMDashboard.module.scss';
 
 interface BPMDashboardProps {
@@ -224,13 +225,13 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
           </div>
           <div className={`${styles.quickStatus} ${isPlaying ? styles.playing : ''}`}>
             <span className={`${styles.playStatus} ${isPlaying ? styles.playing : styles.stopped}`}>
-              {isPlaying ? '▶️' : '⏸️'}
+              <LucideIcon name={isPlaying ? "Play" : "Pause"} size={12} />
             </span>
             <span className={styles.bpmValue}>{currentBpm}</span>
           </div>
         </div>
         <button className={styles.expandButton} onClick={toggleExpanded}>
-          {isExpanded ? '▲' : '▼'}
+          <LucideIcon name={isExpanded ? "ChevronUp" : "ChevronDown"} size={14} />
         </button>
       </div>
 
@@ -309,7 +310,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 }}
                 title={autopilotTrackEnabled ? 'Disable Pan/Tilt Track Autopilot' : 'Enable Pan/Tilt Track Autopilot'}
               >
-                <span className={styles.autopilotIcon}>🤖</span>
+                <span className={styles.autopilotIcon}><LucideIcon name="Bot" size={14} /></span>
                 Track {autopilotTrackEnabled ? 'ON' : 'OFF'}
               </button>
               <div className={styles.midiLearnContainer}>
@@ -333,7 +334,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 onClick={togglePanTiltAutopilot}
                 title={panTiltAutopilot.enabled ? 'Disable General Autopilot' : 'Enable General Autopilot'}
               >
-                <span className={styles.autopilotIcon}>⚡</span>
+                <span className={styles.autopilotIcon}><LucideIcon name="Zap" size={14} /></span>
                 General {panTiltAutopilot.enabled ? 'ON' : 'OFF'}
               </button>
               
@@ -342,7 +343,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 onClick={toggleColorSliderAutopilot}
                 title={colorSliderAutopilot.enabled ? 'Disable Color Autopilot' : 'Enable Color Autopilot'}
               >
-                <span className={styles.autopilotIcon}>🎨</span>
+                <span className={styles.autopilotIcon}><LucideIcon name="Palette" size={14} /></span>
                 Color {colorSliderAutopilot.enabled ? 'ON' : 'OFF'}
               </button>
             </div>
@@ -395,7 +396,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 <button 
                   className={styles.debugButton}
                   onClick={() => {
-                    console.log('🔍 AUTOPILOT DEBUG INFO:');
+                    console.log('[AUTOPILOT DEBUG]');
                     console.log('Track Autopilot Enabled:', autopilotTrackEnabled);
                     console.log('Track Auto-Play Enabled:', autopilotTrackAutoPlay);
                     console.log('General Autopilot Enabled:', panTiltAutopilot.enabled);
@@ -410,7 +411,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                   }}
                   title="Debug autopilot status to console"
                 >
-                  🐛 Debug
+                  <LucideIcon name="Bug" size={12} /> Debug
                 </button>
               </div>
             )}
@@ -424,7 +425,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 onClick={quickSceneSave}
                 title="Save current DMX state as a quick scene"
               >
-                <span className={styles.sceneIcon}>📸</span>
+                <span className={styles.sceneIcon}><LucideIcon name="Camera" size={14} /></span>
                 Quick Save
               </button>
               
@@ -434,7 +435,7 @@ export const BPMDashboard: React.FC<BPMDashboardProps> = ({ className }) => {
                 title="Load the most recently saved scene"
                 disabled={scenes.length === 0}
               >
-                <span className={styles.sceneIcon}>⚡</span>
+                <span className={styles.sceneIcon}><LucideIcon name="Download" size={14} /></span>
                 Quick Load
               </button>
               
