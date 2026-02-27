@@ -1,10 +1,51 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import { useSocket } from '../../context/SocketContext';
 import ModularAutomation from '../automation/ModularAutomation';
 import styles from './SuperControl.module.scss';
+
+const CollapsibleSection: React.FC<{
+  title: string;
+  icon?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ title, icon, defaultOpen = true, children }) => {
+  const [isOpen, setIsOpen] = useState(() => {
+    try {
+      const key = `sc_collapse_${title.replace(/\s+/g, '_').toLowerCase()}`;
+      const saved = localStorage.getItem(key);
+      return saved !== null ? saved === 'true' : defaultOpen;
+    } catch {
+      return defaultOpen;
+    }
+  });
+
+  const toggle = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    try {
+      const key = `sc_collapse_${title.replace(/\s+/g, '_').toLowerCase()}`;
+      localStorage.setItem(key, String(next));
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div className={styles.collapsibleSection}>
+      <div className={styles.collapsibleHeader} onClick={toggle}>
+        <h4>
+          {icon && <LucideIcon name={icon as any} />}
+          {title}
+        </h4>
+        <span className={`${styles.collapseIcon} ${isOpen ? styles.expanded : ''}`}>
+          <LucideIcon name="ChevronDown" />
+        </span>
+      </div>
+      {isOpen && <div className={styles.collapsibleBody}>{children}</div>}
+    </div>
+  );
+};
 
 interface SuperControlProps {
   isDockable?: boolean;
@@ -89,29 +130,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     processMidiForControl
   } = useSuperControlMidiLearn();
 
-  // Log fixtures prop changes
-  useEffect(() => {
-    console.log('[SuperControl] Fixtures updated:', fixtures.map(f => f.id));
-  }, [fixtures]);
-
-  // Log selectedFixtures state changes
-  useEffect(() => {
-    console.log('[SuperControl] selectedFixtures state updated:', selectedFixtures);
-  }, [selectedFixtures]);
+  const SC_DEBUG = false;
   // Auto-select first fixture if none are selected in fixtures mode
   useEffect(() => {
     if (selectionMode === 'fixtures' && fixtures.length > 0 && selectedFixtures.length === 0) {
-      console.log('[SuperControl] Auto-selecting first fixture:', fixtures[0].id);
       setSelectedFixtures([fixtures[0].id]);
     }
   }, [selectionMode, fixtures, selectedFixtures, setSelectedFixtures]);
 
-  // Debug selection mode changes
-  useEffect(() => {
-    console.log('[SuperControl] Selection mode changed to:', selectionMode);
-    console.log('[SuperControl] Current selectedFixtures:', selectedFixtures);
-    console.log('[SuperControl] Available fixtures:', fixtures.map(f => ({ id: f.id, name: f.name })));
-  }, [selectionMode, selectedFixtures, fixtures]);
+  
 
   // Group Navigation Functions
   const selectNextGroup = () => {
@@ -144,8 +171,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
 
   // Fixture Selection Action Handlers for MIDI Learn
   const handleFixtureSelectionAction = (actionType: string, param?: string) => {
-    console.log(`[SuperControl] Fixture selection action: ${actionType}`, param);
-    
     switch (actionType) {
       case 'next':
         selectNextFixture();
@@ -186,7 +211,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         selectPreviousGroup();
         break;
       default:
-        console.warn(`Unknown fixture selection action: ${actionType}`);
+        break;
     }
   };
 
@@ -297,8 +322,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       
       // Normalize value from 0.0-1.0 to 0-255 for DMX
       const dmxValue = Math.round(Math.max(0, Math.min(1, value)) * 255);
-      
-      console.log(`[SuperControl] OSC received: ${controlName} = ${value} (${dmxValue} DMX) from ${data.address}`);
       
       // Map OSC control names to SuperControl handlers
       const controlHandlers: Record<string, (value: number) => void> = {
@@ -780,16 +803,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   };
 
   const getAffectedFixtures = () => {
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[${timestamp}] [getAffectedFixtures]`;
-
-    console.log(`${logPrefix} Called. selectionMode: ${selectionMode}`);
-    console.log(`${logPrefix} All fixtures in store:`, fixtures.map(f => f.id));
-
     let affectedFixtures: any[] = [];
 
     if (selectionMode === 'channels') {
-      console.log(`${logPrefix} Mode: channels. Selected channels:`, selectedChannels);
       if (selectedChannels.length > 0) {
         affectedFixtures = fixtures.filter(fixture =>
           fixture.channels.some(channel =>
@@ -799,15 +815,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       }
     } else if (selectionMode === 'fixtures') {
       const storeSelectedFixtures = useStore.getState().selectedFixtures;
-      console.log(`${logPrefix} Mode: fixtures. Selected fixtures (prop):`, selectedFixtures);
-      console.log(`${logPrefix} Mode: fixtures. Selected fixtures (store):`, storeSelectedFixtures);
       if (storeSelectedFixtures.length > 0) {
         affectedFixtures = fixtures.filter(fixture =>
           storeSelectedFixtures.includes(fixture.id) // Use fixture.id
         );
       }
     } else if (selectionMode === 'groups') {
-      console.log(`${logPrefix} Mode: groups. Selected groups:`, selectedGroups);
       if (selectedGroups.length > 0) {
         const groupFixturesNames = groups
           .filter(group => selectedGroups.includes(group.name))
@@ -817,7 +830,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         );
       }
     } else if (selectionMode === 'capabilities') {
-      console.log(`${logPrefix} Mode: capabilities. Selected capabilities:`, selectedCapabilities);
       if (selectedCapabilities.length > 0) {
         affectedFixtures = fixtures.filter(fixture =>
           fixture.channels.some(channel =>
@@ -827,42 +839,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       }
     }
 
-    console.log(`${logPrefix} Affected fixtures before return:`, affectedFixtures.map(f => f.id));
-    if (affectedFixtures.length === 0) {
-      console.log(`${logPrefix} No fixtures affected - no valid selection or empty selection.`);
-    }
     return affectedFixtures;
   };
 
   const applyControl = (controlType: string, value: number) => {
-    console.log(`[SuperControl] applyControl: Entered. controlType=${controlType}, value=${value}`);
     const affectedFixtures = getAffectedFixtures();
-    console.log(`[SuperControl] 🎛️ applyControl: Affected fixtures length from getAffectedFixtures(): ${affectedFixtures.length}`);
-    // The existing log above is slightly different from the one requested to be here, 
-    // but it serves a similar purpose of logging type, value, and count. I'll keep it and add the new ones.
-
-    console.log(`[SuperControl] Selection mode: ${selectionMode}`);
-    
-    if (selectionMode === 'channels') {
-      console.log(`[SuperControl] Selected channels:`, selectedChannels);
-    } else if (selectionMode === 'fixtures') {
-      console.log(`[SuperControl] Selected fixtures (prop):`, selectedFixtures); // Note: SuperControl uses prop selectedFixtures here
-    } else if (selectionMode === 'groups') {
-      console.log(`[SuperControl] Selected groups:`, selectedGroups);
-    } else if (selectionMode === 'capabilities') {
-      console.log(`[SuperControl] Selected capabilities:`, selectedCapabilities);
-    }
     
     if (affectedFixtures.length === 0) {
-      console.warn('[SuperControl] ❌ No fixtures to apply control to - please select fixtures first!');
-      console.warn('[SuperControl] 💡 Try clicking "Select All" or choose specific fixtures to control');
-      console.log('[SuperControl] applyControl: No affected fixtures. Will not call setDmxChannelValue.');
       return;
     }
-    
-    console.log(`[SuperControl] applyControl: Processing ${affectedFixtures.length} affected fixtures.`);
-    console.log(`[SuperControl] ✅ Applying ${controlType}=${value} to ${affectedFixtures.length} fixtures:`);
-    affectedFixtures.forEach(fixture => console.log(`  - ${fixture.name} (channels: ${fixture.startAddress}-${fixture.startAddress + fixture.channels.length - 1})`));
     
     let updateCount = 0;
     let errorCount = 0;
@@ -951,52 +936,22 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       let targetChannel = -1;
       
       if (foundChannel) {
-        // Calculate DMX address if missing
         if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null && foundChannel.dmxAddress >= 1) {
-          // Use explicit dmxAddress if provided (1-based), convert to 0-based
           targetChannel = foundChannel.dmxAddress - 1;
-          console.log(`[SuperControl] Using explicit DMX address for ${fixture.name} channel ${foundChannel.type}: ${targetChannel + 1} (0-based: ${targetChannel})`);
         } else {
-          // Calculate DMX address: startAddress + channel index
           const channelIndex = channels.indexOf(foundChannel);
-          // startAddress is 1-based, channelIndex is 0-based, so we need to convert
-          targetChannel = (fixture.startAddress || 1) + channelIndex - 1; // Convert to 0-based
-          console.log(`[SuperControl] Calculated DMX address for ${fixture.name} channel ${foundChannel.type}: ${targetChannel + 1} (0-based: ${targetChannel}, startAddress: ${fixture.startAddress}, index: ${channelIndex})`);
+          targetChannel = (fixture.startAddress || 1) + channelIndex - 1;
         }
       }
       
       if (targetChannel >= 0 && targetChannel < 512) {
-        // Clamp value to valid DMX range
         const clampedValue = Math.max(0, Math.min(255, Math.round(value)));
-        console.log(`[DMX] 📡 Setting channel ${targetChannel + 1} (0-based: ${targetChannel}) to ${clampedValue} for ${controlType} on fixture "${fixture.name}"`);
         setDmxChannelValue(targetChannel, clampedValue);
         updateCount++;
-        
-        // Verification with more detailed logging
-        setTimeout(() => {
-          const actualValue = getDmxChannelValue(targetChannel);
-          if (actualValue === clampedValue) {
-            console.log(`[DMX] ✅ Verification SUCCESS: Channel ${targetChannel + 1} = ${actualValue} (${controlType})`);
-          } else {
-            console.error(`[DMX] ❌ Verification FAILED: Channel ${targetChannel + 1} = ${actualValue}, expected ${clampedValue} (${controlType})`);
-          }
-        }, 50);
       } else {
-        console.error(`[DMX] ❌ ERROR: No valid target channel found for ${controlType} in fixture "${fixture.name}"`, {
-          fixtureChannels: channels.map(c => ({ type: c.type, dmxAddress: c.dmxAddress, name: c.name })),
-          requestedControlType: controlType,
-          calculatedTargetChannel: targetChannel
-        });
         errorCount++;
       }
     });
-    
-    // Summary logging
-    console.log(`[SuperControl] 📊 Control application summary: ${updateCount} successful updates, ${errorCount} errors`);
-    
-    if (errorCount > 0) {
-      console.warn(`[SuperControl] ⚠️ Some controls failed to apply. Check fixture definitions and channel mappings.`);
-    }
   };
   // OSC Address Management (now using global store)
 
@@ -1084,25 +1039,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   };
 
   const getDmxChannelForControl = (controlType: string): string => {
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[${timestamp}] [getDmxChannelForControl]`;
-
-    console.log(`${logPrefix} Called for controlType: ${controlType}`);
-
     const affectedFixtures = getAffectedFixtures();
-    console.log(`${logPrefix} Affected fixtures count: ${affectedFixtures.length}`, affectedFixtures.map(f => ({ id: f.id, name: f.name })));
 
     if (affectedFixtures.length === 0) {
-      const returnMsg = 'No fixtures selected';
-      console.log(`${logPrefix} Returning: "${returnMsg}"`);
-      return returnMsg;
+      return 'No fixtures selected';
     }
     
     const channels: number[] = [];
-    affectedFixtures.forEach(fixture => {      console.log(`${logPrefix} Processing fixture - ID: ${fixture.id}, Name: ${fixture.name}`);
-      console.log(`${logPrefix} Fixture channels for ${fixture.name}:`, fixture.channels.map((ch: any) => ({ type: ch.type, dmxAddress: ch.dmxAddress })));
-      
-      // Find the channel by type first
+    affectedFixtures.forEach(fixture => {
       let foundChannel: any = null;
       const controlTypeLower = controlType.toLowerCase();
       
@@ -1185,47 +1129,27 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       let targetChannel = -1;
       
       if (foundChannel) {
-        // Calculate DMX address if missing
         if (foundChannel.dmxAddress !== undefined && foundChannel.dmxAddress !== null) {
           targetChannel = foundChannel.dmxAddress;
         } else {
-          // Calculate DMX address: startAddress + channel index
           const channelIndex = fixture.channels.indexOf(foundChannel);
-          targetChannel = (fixture.startAddress || 1) + channelIndex - 1; // 0-based calculation
-          console.log(`${logPrefix} Calculated DMX address for ${fixture.name} channel ${foundChannel.type}: ${targetChannel} (startAddress: ${fixture.startAddress}, index: ${channelIndex})`);
+          targetChannel = (fixture.startAddress || 1) + channelIndex - 1;
         }
       }
-      
-      console.log(`${logPrefix} Target channel for ${fixture.name} (type: ${controlType}, searched as: ${controlTypeLower}): ${targetChannel}`);
       
       if (targetChannel >= 0) {
         channels.push(targetChannel + 1); // Convert to 1-based for display
       }
     });
     
-    console.log(`${logPrefix} Collected DMX channels (1-based, before processing):`, channels);
-
-    if (channels.length === 0) {
-      const returnMsg = 'No channels';
-      console.log(`${logPrefix} Returning: "${returnMsg}"`);
-      return returnMsg;
-    }
-    if (channels.length === 1) {
-      const returnMsg = `Ch ${channels[0]}`;
-      console.log(`${logPrefix} Returning: "${returnMsg}"`);
-      return returnMsg;
-    }
+    if (channels.length === 0) return 'No channels';
+    if (channels.length === 1) return `Ch ${channels[0]}`;
     
-    // Group consecutive channels for better display
     const sortedChannels = [...new Set(channels)].sort((a, b) => a - b);
-    let finalStr;
     if (sortedChannels.length <= 3) {
-      finalStr = `Ch ${sortedChannels.join(', ')}`;
-    } else {
-      finalStr = `Ch ${sortedChannels[0]}-${sortedChannels[sortedChannels.length - 1]} (${sortedChannels.length})`;
+      return `Ch ${sortedChannels.join(', ')}`;
     }
-    console.log(`${logPrefix} Returning: "${finalStr}"`);
-    return finalStr;
+    return `Ch ${sortedChannels[0]}-${sortedChannels[sortedChannels.length - 1]} (${sortedChannels.length})`;
   };
 
   // XY Pad handlers
@@ -1595,12 +1519,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
   // MIDI Learn functionality
   const startMidiLearn = (controlType: string, minValue: number = 0, maxValue: number = 255) => {
     setMidiLearnTarget(controlType);
-    console.log(`Starting MIDI learn for ${controlType} (range: ${minValue}-${maxValue})`);
   };
 
   const stopMidiLearn = () => {
     setMidiLearnTarget(null);
-    console.log('Stopped MIDI learn');
   };
 
   const clearMidiMapping = (controlType: string) => {
@@ -1609,13 +1531,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       delete updated[controlType];
       return updated;
     });
-    console.log(`Cleared MIDI mapping for ${controlType}`);
   };
 
   const startFixtureSelectionMidiLearn = (actionType: string, param?: string) => {
     const midiKey = param ? `fixture_${actionType}_${param}` : `fixture_${actionType}`;
     setMidiLearnTarget(midiKey);
-    console.log(`Starting MIDI learn for fixture selection: ${actionType}`, param);
   };
 
   const clearFixtureSelectionMidiMapping = (actionType: string, param?: string) => {
@@ -1625,7 +1545,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       delete updated[midiKey];
       return updated;
     });
-    console.log(`Cleared MIDI mapping for fixture selection: ${actionType}`, param);
   };
 
   // Fixture Selection MIDI Learn Button Component
@@ -1766,9 +1685,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         autopilotTrackCenterY
       );
       
-      console.log(`[AUTOPILOT UI] Calculated position: pan=${pan}, tilt=${tilt}`);
       
-      // Update the Pan/Tilt slider values and XY pad to reflect track position
       setPanValue(pan);
       setTiltValue(tilt);
       
@@ -1776,8 +1693,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
       const xPercent = (pan / 255) * 100;
       const yPercent = ((255 - tilt) / 255) * 100; // Invert Y for display
       setPanTiltXY({ x: xPercent, y: yPercent });
-        // Also ensure DMX channels are updated with the calculated values
-      console.log('[AUTOPILOT UI] Applying calculated Pan/Tilt values to fixtures');
       applyControl('pan', pan);
       applyControl('tilt', tilt);
     }
@@ -1909,8 +1824,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     const maxRadius = Math.min(maxRadiusX, maxRadiusY, 45); // Max 45% to leave some padding
     const size = Math.min(baseSize, maxRadius);
     
-    console.log(`[TRACK_PATH] Center: (${cx.toFixed(1)}, ${cy.toFixed(1)}), Base size: ${baseSize}, Constrained size: ${size.toFixed(1)}`);
-    
     switch (autopilotTrackType) {
       case 'circle':
         return `M ${cx + size} ${cy} A ${size} ${size} 0 1 1 ${cx + size - 0.01} ${cy}`;
@@ -2012,14 +1925,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
     }
   };
   
-  // Expose debug function to window for console access
   useEffect(() => {
     (window as any).debugDmxControls = debugDmxControls;
-    console.log('🔧 Debug function available: window.debugDmxControls()');
-    
-    return () => {
-      delete (window as any).debugDmxControls;
-    };
+    return () => { delete (window as any).debugDmxControls; };
   }, [fixtures, selectedFixtures, selectedChannels, selectedGroups, selectionMode]);
   return (
     <div className={styles.superControl}>
@@ -2028,51 +1936,18 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
           <h3>
             <LucideIcon name="Settings" />
             Super Control
-            {/* Column Layout Selection */}
-            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
+            <div className={styles.layoutToggleGroup}>
               <button
-                onClick={() => {
-                  setColumnLayout('2');
-                  localStorage.setItem('superControlColumnLayout', '2');
-                }}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: columnLayout === '2' ? '#10b981' : 'rgba(71, 85, 105, 0.5)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
+                onClick={() => { setColumnLayout('2'); localStorage.setItem('superControlColumnLayout', '2'); }}
+                className={`${styles.layoutToggleBtn} ${columnLayout === '2' ? styles.active : ''}`}
                 title="2 Column Layout"
               >
                 <LucideIcon name="Columns" size={14} />
                 2 Col
               </button>
               <button
-                onClick={() => {
-                  setColumnLayout('3');
-                  localStorage.setItem('superControlColumnLayout', '3');
-                }}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: columnLayout === '3' ? '#10b981' : 'rgba(71, 85, 105, 0.5)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
+                onClick={() => { setColumnLayout('3'); localStorage.setItem('superControlColumnLayout', '3'); }}
+                className={`${styles.layoutToggleBtn} ${columnLayout === '3' ? styles.active : ''}`}
                 title="3 Column Layout"
               >
                 <LucideIcon name="LayoutGrid" size={14} />
@@ -2102,26 +1977,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         </div>
         <div className={styles.headerActions}>
           <button
-            className={`${styles.filterBtn} ${showOnlyAssignedChannels ? styles.active : ''}`}
+            className={`${styles.filterToggleBtn} ${showOnlyAssignedChannels ? styles.active : ''}`}
             onClick={() => setShowOnlyAssignedChannels(!showOnlyAssignedChannels)}
             title={showOnlyAssignedChannels ? "Show all controls" : "Show only controls available for selected fixtures"}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: showOnlyAssignedChannels ? '#10b981' : '#475569',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              boxShadow: showOnlyAssignedChannels ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
-            }}
           >
-            <LucideIcon name={showOnlyAssignedChannels ? "Filter" : "Filter"} size={14} />
+            <LucideIcon name="Filter" size={14} />
             {showOnlyAssignedChannels ? 'Assigned Only' : 'Show All'}
           </button>
           <button
@@ -2183,14 +2043,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   } ${
                     (!fixture.startAddress || fixture.startAddress === 0 || fixture.channels.length === 0) ? styles.noDmxFixture : ''
                   }`}
-                  onClick={() => {
-                    console.log('[SuperControl] Clicking fixture ID:', fixture.id, 'Current name:', fixture.name);
-                    console.log('[SuperControl] Current selectedFixtures (before toggle):', useStore.getState().selectedFixtures);
-                    toggleFixtureSelection(fixture.id);
-                    const newSelected = useStore.getState().selectedFixtures;
-                    console.log('[SuperControl] selectedFixtures from store AFTER toggle:', newSelected);
-                    console.log(`[SuperControl] Does new selection include ${fixture.id}? : ${newSelected.includes(fixture.id)}`);
-                  }}
+                  onClick={() => toggleFixtureSelection(fixture.id)}
                 >                  <div className={styles.fixtureInfo}>
                     <span className={styles.fixtureName}>{fixture.name}</span>
                     <span className={styles.fixtureType}>{fixture.type || 'Generic'}</span>
@@ -2449,10 +2302,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
         <div className={styles.selectionControls}>          <div className={styles.selectionButtonGrid}>
             <button 
               className={styles.selectionButton}
-              onClick={() => {
-                console.log('[SuperControl] "Next Fixture" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
-                selectNextFixture();
-              }}
+              onClick={() => selectNextFixture()}
               title="Select Next Fixture"
               disabled={fixtures.length < 2}
             >
@@ -2466,10 +2316,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             </button>
               <button 
               className={styles.selectionButton}
-              onClick={() => {
-                console.log('[SuperControl] "Previous Fixture" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
-                selectPreviousFixture();
-              }}
+              onClick={() => selectPreviousFixture()}
               title="Select Previous Fixture"
               disabled={fixtures.length < 2}
             >
@@ -2484,10 +2331,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             
             <button 
               className={styles.selectionButton}
-              onClick={() => {
-                console.log('[SuperControl] "Select All" clicked. Current fixtures count from store:', useStore.getState().fixtures.length);
-                selectAllFixtures();
-              }}
+              onClick={() => selectAllFixtures()}
               title="Select All Fixtures"
               disabled={fixtures.length === 0 || selectedFixtures.length === fixtures.length}
             >
@@ -3027,12 +2871,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       value={autopilotTrackType}
                       onChange={(e) => {
                         setAutopilotTrackType(e.target.value as any);
-                        // Trigger immediate update when track type changes
-                        console.log('[AUTOPILOT] Track type changed to:', e.target.value);
-                        setTimeout(() => {
-                          console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after track type change');
-                          updatePanTiltFromTrack();
-                        }, 50);
+                        setTimeout(() => updatePanTiltFromTrack(), 50);
                       }}
                       className={styles.autopilotSelect}
                     >
@@ -3056,21 +2895,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       max="100"
                       value={autopilotTrackPosition}
                       onChange={(e) => {
-                        const newPosition = parseInt(e.target.value);
-                        console.log('[AUTOPILOT] Position slider changed from', autopilotTrackPosition, 'to', newPosition);
-                        setAutopilotTrackPosition(newPosition);
-                        console.log('[AUTOPILOT] Position changed to:', newPosition);
-                        
-                        // Debug: Check autopilot state
-                        if (!autopilotTrackEnabled) {
-                          console.warn('[AUTOPILOT] WARNING: Autopilot not enabled - DMX update will be skipped');
-                        }
-                        
-                        if (selectedFixtures.length === 0 && fixtures.length > 0) {
-                          console.warn('[AUTOPILOT] WARNING: No fixtures selected - consider selecting fixtures for targeted control');
-                        }
-                        
-                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackPosition in store
+                        setAutopilotTrackPosition(parseInt(e.target.value));
                       }}
                       className={styles.slider}
                     />
@@ -3104,11 +2929,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       min="10"
                       max="100"
                       value={autopilotTrackSize}
-                      onChange={(e) => {
-                        setAutopilotTrackSize(parseInt(e.target.value));
-                        console.log('[AUTOPILOT] Size changed to:', e.target.value);
-                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackSize in store
-                      }}
+                      onChange={(e) => setAutopilotTrackSize(parseInt(e.target.value))}
                       className={styles.slider}
                     />
                     <span className={styles.valueDisplay}>{autopilotTrackSize}%</span>
@@ -3124,11 +2945,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       max="100"
                       value={(autopilotTrackCenterX / 255) * 100}
                       onChange={(e) => {
-                        const percentValue = parseInt(e.target.value);
-                        const dmxValue = Math.round((percentValue / 100) * 255);
+                        const dmxValue = Math.round((parseInt(e.target.value) / 100) * 255);
                         setAutopilotTrackCenter(dmxValue, autopilotTrackCenterY);
-                        console.log('[AUTOPILOT] Center X changed to:', percentValue, '% (DMX:', dmxValue, ')');
-                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackCenter in store
                       }}
                       className={styles.slider}
                     />
@@ -3146,11 +2964,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                       max="100"
                       value={(autopilotTrackCenterY / 255) * 100}
                       onChange={(e) => {
-                        const percentValue = parseInt(e.target.value);
-                        const dmxValue = Math.round((percentValue / 100) * 255);
+                        const dmxValue = Math.round((parseInt(e.target.value) / 100) * 255);
                         setAutopilotTrackCenter(autopilotTrackCenterX, dmxValue);
-                        console.log('[AUTOPILOT] Center Y changed to:', percentValue, '% (DMX:', dmxValue, ')');
-                        // Note: updatePanTiltFromTrack() is automatically called by setAutopilotTrackCenter in store
                       }}
                       className={styles.slider}
                     />
@@ -3173,16 +2988,11 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                   </button>                  <button
                     className={styles.actionBtn}
                     onClick={() => {
-                      setAutopilotTrackCenter(127, 127); // DMX center values
+                      setAutopilotTrackCenter(127, 127);
                       setAutopilotTrackSize(50);
                       setAutopilotTrackSpeed(1);
                       setAutopilotTrackPosition(0);
-                      // Trigger immediate update after reset
-                      console.log('[AUTOPILOT] Reset button clicked');
-                      setTimeout(() => {
-                        console.log('[AUTOPILOT] Triggering updatePanTiltFromTrack after reset');
-                        updatePanTiltFromTrack();
-                      }, 50);
+                      setTimeout(() => updatePanTiltFromTrack(), 50);
                     }}
                     title="Reset to default values"
                   >
@@ -3407,22 +3217,13 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: '15px', fontSize: '0.9rem', justifyContent: 'center', marginTop: '10px', alignItems: 'center' }}>
-              <span style={{ color: '#ff6b6b' }}>R: {red} <small>({getDmxChannelForControl('red')})</small></span>
-              <span style={{ color: '#51cf66' }}>G: {green} <small>({getDmxChannelForControl('green')})</small></span>
-              <span style={{ color: '#339af0' }}>B: {blue} <small>({getDmxChannelForControl('blue')})</small></span>
+            <div className={styles.rgbValueDisplay}>
+              <span className={styles.rgbValue} style={{ color: '#ff6b6b' }}>R: {red} <small>({getDmxChannelForControl('red')})</small></span>
+              <span className={styles.rgbValue} style={{ color: '#51cf66' }}>G: {green} <small>({getDmxChannelForControl('green')})</small></span>
+              <span className={styles.rgbValue} style={{ color: '#339af0' }}>B: {blue} <small>({getDmxChannelForControl('blue')})</small></span>
               {colorSliderAutopilot?.enabled && (
-                <span style={{ 
-                  fontSize: '0.75rem', 
-                  color: '#8b5cf6', 
-                  backgroundColor: 'rgba(139, 92, 246, 0.2)', 
-                  padding: '2px 6px', 
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }} title={`Auto Color Active: ${colorSliderAutopilot.type} pattern at ${colorSliderAutopilot.speed.toFixed(1)}x speed`}>
-                  <span>🎨</span> Auto Color
+                <span className={styles.autoColorBadge} title={`Auto Color Active: ${colorSliderAutopilot.type} pattern at ${colorSliderAutopilot.speed.toFixed(1)}x speed`}>
+                  Auto Color
                 </span>
               )}
             </div>
@@ -3432,12 +3233,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               {/* Red Control */}
               {(!showOnlyAssignedChannels || hasControlType('red')) && (
               <div className={`${styles.controlWithChannel} ${hasActiveDmxChannel('red') ? styles.hasActiveChannel : ''} ${colorSliderAutopilot?.enabled ? styles.autoColorActive : ''}`}>
-                <label style={{ color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Red
-                  {colorSliderAutopilot?.enabled && (
-                    <span style={{ fontSize: '0.7rem', color: '#8b5cf6', opacity: 0.8 }} title="Auto Color is updating this channel">🎨</span>
-                  )}
-                </label>
+                <label style={{ color: '#ff6b6b' }}>Red</label>
                 <div className={styles.controlInputs}>
                   <input 
                     type="range" 
@@ -3474,12 +3270,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               {/* Green Control */}
               {(!showOnlyAssignedChannels || hasControlType('green')) && (
               <div className={`${styles.controlWithChannel} ${hasActiveDmxChannel('green') ? styles.hasActiveChannel : ''} ${colorSliderAutopilot?.enabled ? styles.autoColorActive : ''}`}>
-                <label style={{ color: '#51cf66', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Green
-                  {colorSliderAutopilot?.enabled && (
-                    <span style={{ fontSize: '0.7rem', color: '#8b5cf6', opacity: 0.8 }} title="Auto Color is updating this channel">🎨</span>
-                  )}
-                </label>
+                <label style={{ color: '#51cf66' }}>Green</label>
                 <div className={styles.controlInputs}>
                   <input 
                     type="range" 
@@ -3516,12 +3307,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
               {/* Blue Control */}
               {(!showOnlyAssignedChannels || hasControlType('blue')) && (
               <div className={`${styles.controlWithChannel} ${hasActiveDmxChannel('blue') ? styles.hasActiveChannel : ''} ${colorSliderAutopilot?.enabled ? styles.autoColorActive : ''}`}>
-                <label style={{ color: '#339af0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Blue
-                  {colorSliderAutopilot?.enabled && (
-                    <span style={{ fontSize: '0.7rem', color: '#8b5cf6', opacity: 0.8 }} title="Auto Color is updating this channel">🎨</span>
-                  )}
-                </label>
+                <label style={{ color: '#339af0' }}>Blue</label>
                 <div className={styles.controlInputs}>
                   <input 
                     type="range" 
@@ -3746,13 +3532,9 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             )}
           </div>
         </div>
-      </div>      {/* Additional Controls */}
-      <div className={styles.controlsSection}>
-        <div className={styles.sectionHeader}>
-          <h4>Additional Controls</h4>
-        </div>
-          <div className={styles.controlGrid}>
-          {/* Enhanced GOBO Control with Presets */}
+      </div>      {/* GOBO Presets & Effects */}
+      <CollapsibleSection title="GOBO Presets & Effects" icon="Disc" defaultOpen={false}>
+        <div className={styles.controlGrid}>
           {(!showOnlyAssignedChannels || hasControlType('gobo')) && (
           <div className={styles.goboSection}>
             <label>GOBO Selection</label>
@@ -3772,512 +3554,154 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
                 </button>
               ))}
             </div>
-            
-            {/* GOBO Fine Control */}
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={gobo}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setGobo(val);
-                  applyControl('gobo', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={gobo}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setGobo(val);
-                  applyControl('gobo', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.gobo}</span>
+              <input type="range" min="0" max="255" value={gobo}
+                onChange={(e) => { const val = parseInt(e.target.value); setGobo(val); applyControl('gobo', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={gobo}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setGobo(val); applyControl('gobo', val); }}
+                className={styles.valueInput} />
             </div>
           </div>
           )}
 
-          {/* GOBO Rotation Control */}
           {(!showOnlyAssignedChannels || hasControlType('goboRotation')) && (
           <div className={styles.controlRow}>
             <label>GOBO Rotation</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={goboRotation}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setGoboRotation(val);
-                  applyControl('goboRotation', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={goboRotation}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setGoboRotation(val);
-                  applyControl('goboRotation', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.goboRotation}</span>
+              <input type="range" min="0" max="255" value={goboRotation}
+                onChange={(e) => { const val = parseInt(e.target.value); setGoboRotation(val); applyControl('goboRotation', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={goboRotation}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setGoboRotation(val); applyControl('goboRotation', val); }}
+                className={styles.valueInput} />
             </div>
             <div className={styles.channelDisplay}>{getDmxChannelForControl('goboRotation')}</div>
             {renderMidiButtons('goboRotation')}
           </div>
           )}
-          <div className={styles.actionButtons}>
-            <div className={styles.controlWithChannel}>
-              <button
-                className={`${styles.actionBtn} ${styles.flashBtn} ${isFlashing ? styles.active : ''}`}
-                onClick={handleFlash}
-                disabled={isFlashing}
-                title="Flash (Quick Bright Pulse)"
-              >
-                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-                Flash
-              </button>
-              {renderMidiButtons('flash')}
-            </div>
+        </div>
+      </CollapsibleSection>
 
-            <div className={styles.controlWithChannel}>
-              <button
-                className={`${styles.actionBtn} ${styles.strobeBtn} ${isStrobing ? styles.active : ''}`}
-                onClick={handleStrobe}
-                title={isStrobing ? "Stop Strobing" : "Start Strobing"}
-              >
-                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="m21.17 8.17-2.83-2.83" />
-                  <path d="m6.66 8.17 2.83-2.83" />
-                  <path d="m21.17 15.83-2.83 2.83" />
-                  <path d="m6.66 15.83 2.83 2.83" />
-                  <path d="M8.17 21.17 8.17 18.34" />
-                  <path d="M15.83 21.17 15.83 18.34" />
-                  <path d="M8.17 6.66 8.17 2.83" />
-                  <path d="M15.83 6.66 15.83 2.83" />
-                </svg>
-                {isStrobing ? 'Stop' : 'Strobing'}
-              </button>
-              {renderMidiButtons('strobeToggle')}
-            </div>
-
-            <div className={styles.controlWithChannel}>
-              <button
-                className={`${styles.actionBtn} ${styles.resetBtn}`}
-                onClick={handleResetAll}
-                title="Reset All Controls to Default"
-              >
-                <svg className={styles.actionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                  <path d="M21 3v5h-5" />
-                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                  <path d="M3 21v-5h5" />
-                </svg>
-                Reset All
-              </button>
-              {renderMidiButtons('resetAll')}
-            </div>
+      {/* Quick Actions: Flash, Strobe, Reset */}
+      <CollapsibleSection title="Quick Actions" icon="Zap" defaultOpen={true}>
+        <div className={styles.actionButtons}>
+          <div className={styles.controlWithChannel}>
+            <button className={`${styles.actionBtn} ${styles.flashBtn} ${isFlashing ? styles.active : ''}`}
+              onClick={handleFlash} disabled={isFlashing} title="Flash (Quick Bright Pulse)">
+              <LucideIcon name="Zap" />
+              Flash
+            </button>
+            {renderMidiButtons('flash')}
           </div>
-
-          {/* Flash/Strobe Speed Controls */}
-          <div className={styles.speedControls}>
-            <div className={styles.controlWithChannel}>
-              <label>Flash Speed (ms)</label>
-              <div className={styles.controlInputs}>
-                <input 
-                  type="range" 
-                  min="50" 
-                  max="500" 
-                  value={flashSpeed}
-                  onChange={(e) => setFlashSpeed(parseInt(e.target.value))}
-                  className={styles.slider}
-                />
-                <input 
-                  type="number" 
-                  min="50" 
-                  max="500" 
-                  value={flashSpeed}
-                  onChange={(e) => setFlashSpeed(parseInt(e.target.value) || 100)}
-                  className={styles.valueInput}
-                />
-              </div>
-              {renderMidiButtons('flashSpeed')}
-            </div>
-
-            <div className={styles.controlWithChannel}>
-              <label>Strobe Speed</label>
-              <div className={styles.controlInputs}>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="20" 
-                  value={strobeSpeed}
-                  onChange={(e) => setStrobeSpeed(parseInt(e.target.value))}
-                  className={styles.slider}
-                />
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="20" 
-                  value={strobeSpeed}
-                  onChange={(e) => setStrobeSpeed(parseInt(e.target.value) || 10)}
-                  className={styles.valueInput}
-                />
-              </div>
-              {renderMidiButtons('strobeSpeed')}
-            </div>
+          <div className={styles.controlWithChannel}>
+            <button className={`${styles.actionBtn} ${styles.strobeBtn} ${isStrobing ? styles.active : ''}`}
+              onClick={handleStrobe} title={isStrobing ? "Stop Strobing" : "Start Strobing"}>
+              <LucideIcon name="Sun" />
+              {isStrobing ? 'Stop' : 'Strobe'}
+            </button>
+            {renderMidiButtons('strobeToggle')}
           </div>
-
-          {/* Shutter Control */}
-          <div className={styles.controlRow}>
-            <label>Shutter</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={shutter}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setShutter(val);
-                  applyControl('shutter', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={shutter}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setShutter(val);
-                  applyControl('shutter', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.shutter}</span>
-            </div>
-          </div>
-
-          {/* Strobe Control */}
-          <div className={styles.controlRow}>
-            <label>Strobe</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={strobe}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setStrobe(val);
-                  applyControl('strobe', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={strobe}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setStrobe(val);
-                  applyControl('strobe', val);
-                }}
-                className={styles.valueInput}
-              />              <span className={styles.oscAddress}>{superControlOscAddresses.strobe}</span>
-            </div>
+          <div className={styles.controlWithChannel}>
+            <button className={`${styles.actionBtn} ${styles.resetBtn}`}
+              onClick={handleResetAll} title="Reset All Controls to Default">
+              <LucideIcon name="RotateCcw" />
+              Reset All
+            </button>
+            {renderMidiButtons('resetAll')}
           </div>
         </div>
-
-        {/* Enhanced Movement Controls Section */}
-        <div className={styles.controlSection}>
-          <h3>Enhanced Movement Controls</h3>
-          
-          {/* Focus Control */}
-          <div className={styles.controlRow}>
-            <label>Focus</label>
+        <div className={styles.speedControls}>
+          <div className={styles.controlWithChannel}>
+            <label>Flash Speed (ms)</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={focus}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setFocus(val);
-                  applyControl('focus', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={focus}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setFocus(val);
-                  applyControl('focus', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.focus}</span>
+              <input type="range" min="50" max="500" value={flashSpeed}
+                onChange={(e) => setFlashSpeed(parseInt(e.target.value))} className={styles.slider} />
+              <input type="number" min="50" max="500" value={flashSpeed}
+                onChange={(e) => setFlashSpeed(parseInt(e.target.value) || 100)} className={styles.valueInput} />
             </div>
-            <div className={styles.channelDisplay}>{getDmxChannelForControl('focus')}</div>
-            {renderMidiButtons('focus')}
+            {renderMidiButtons('flashSpeed')}
           </div>
-
-          {/* Zoom Control */}
-          <div className={styles.controlRow}>
-            <label>Zoom</label>
+          <div className={styles.controlWithChannel}>
+            <label>Strobe Speed</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={zoom}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setZoom(val);
-                  applyControl('zoom', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={zoom}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setZoom(val);
-                  applyControl('zoom', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.zoom}</span>
+              <input type="range" min="1" max="20" value={strobeSpeed}
+                onChange={(e) => setStrobeSpeed(parseInt(e.target.value))} className={styles.slider} />
+              <input type="number" min="1" max="20" value={strobeSpeed}
+                onChange={(e) => setStrobeSpeed(parseInt(e.target.value) || 10)} className={styles.valueInput} />
             </div>
-          </div>          {/* Iris Control */}
-          <div className={styles.controlRow}>
-            <label>Iris</label>
-            <div className={styles.controlInputs}>
-              <input
-                type="range"
-                min="0"
-                max="255"
-                value={iris}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setIris(val);
-                  applyControl('iris', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={iris}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setIris(val);
-                  applyControl('iris', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.iris}</span>
-            </div>
-            <div className={styles.channelDisplay}>{getDmxChannelForControl('iris')}</div>
-            {renderMidiButtons('iris')}
+            {renderMidiButtons('strobeSpeed')}
           </div>
+        </div>
+      </CollapsibleSection>
 
-          {/* Macro Control */}
-          <div className={styles.controlRow}>
-
-          {/* Prism Control */}
+      {/* Extended Controls (Prism, Frost, Macro, Speed, Gobo2) */}
+      <CollapsibleSection title="Extended Controls" icon="Sliders" defaultOpen={false}>
+        <div className={styles.controlGrid}>
+          {(!showOnlyAssignedChannels || hasControlType('prism')) && (
           <div className={styles.controlRow}>
             <label>Prism</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={prism}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setPrism(val);
-                  applyControl('prism', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={prism}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setPrism(val);
-                  applyControl('prism', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.prism}</span>
+              <input type="range" min="0" max="255" value={prism}
+                onChange={(e) => { const val = parseInt(e.target.value); setPrism(val); applyControl('prism', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={prism}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setPrism(val); applyControl('prism', val); }}
+                className={styles.valueInput} />
             </div>
             <div className={styles.channelDisplay}>{getDmxChannelForControl('prism')}</div>
             {renderMidiButtons('prism')}
           </div>
+          )}
 
-          {/* Color Wheel Control */}
-          <div className={styles.controlRow}>
-            <label>Color Wheel</label>
-            <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={colorWheel}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setColorWheel(val);
-                  applyControl('colorWheel', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={colorWheel}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setColorWheel(val);
-                  applyControl('colorWheel', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.colorWheel}</span>
-            </div>
-            <div className={styles.channelDisplay}>{getDmxChannelForControl('colorWheel')}</div>
-            {renderMidiButtons('colorWheel')}
-          </div>
-
-          {/* Frost Control */}
+          {(!showOnlyAssignedChannels || hasControlType('frost')) && (
           <div className={styles.controlRow}>
             <label>Frost</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={frost}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setFrost(val);
-                  applyControl('frost', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={frost}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setFrost(val);
-                  applyControl('frost', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.frost}</span>
+              <input type="range" min="0" max="255" value={frost}
+                onChange={(e) => { const val = parseInt(e.target.value); setFrost(val); applyControl('frost', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={frost}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setFrost(val); applyControl('frost', val); }}
+                className={styles.valueInput} />
             </div>
-          </div>          {/* Macro Control */}
+            {renderMidiButtons('frost')}
+          </div>
+          )}
+
+          {(!showOnlyAssignedChannels || hasControlType('macro')) && (
           <div className={styles.controlRow}>
             <label>Macro</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={macro}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setMacro(val);
-                  applyControl('macro', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={macro}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setMacro(val);
-                  applyControl('macro', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.macro}</span>
+              <input type="range" min="0" max="255" value={macro}
+                onChange={(e) => { const val = parseInt(e.target.value); setMacro(val); applyControl('macro', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={macro}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setMacro(val); applyControl('macro', val); }}
+                className={styles.valueInput} />
             </div>
             <div className={styles.channelDisplay}>{getDmxChannelForControl('macro')}</div>
             {renderMidiButtons('macro')}
-          </div>          {/* Speed Control */}
+          </div>
+          )}
+
+          {(!showOnlyAssignedChannels || hasControlType('speed')) && (
           <div className={styles.controlRow}>
             <label>Speed</label>
             <div className={styles.controlInputs}>
-              <input 
-                type="range" 
-                min="0" 
-                max="255" 
-                value={speed}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setSpeed(val);
-                  applyControl('speed', val);
-                }}
-                className={styles.slider}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                max="255" 
-                value={speed}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setSpeed(val);
-                  applyControl('speed', val);
-                }}
-                className={styles.valueInput}
-              />
-              <span className={styles.oscAddress}>{superControlOscAddresses.speed}</span>
+              <input type="range" min="0" max="255" value={speed}
+                onChange={(e) => { const val = parseInt(e.target.value); setSpeed(val); applyControl('speed', val); }}
+                className={styles.slider} />
+              <input type="number" min="0" max="255" value={speed}
+                onChange={(e) => { const val = parseInt(e.target.value) || 0; setSpeed(val); applyControl('speed', val); }}
+                className={styles.valueInput} />
             </div>
             <div className={styles.channelDisplay}>{getDmxChannelForControl('speed')}</div>
             {renderMidiButtons('speed')}
           </div>
+          )}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* OSC Help Modal */}
       {showOscHelp && (
@@ -4502,7 +3926,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => { 
             </div>
           </div>
         )}
-        </div>
       </div>
     
     </div>
