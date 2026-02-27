@@ -57,6 +57,7 @@
     "watch": "npx tsc -w",
     "test": "cd react-app && npm test",
     "test:api-contract": "npm run build-backend-fast && node scripts/api-contract-smoke.js",
+    "demo:capture-screenshots": "bash scripts/capture-demo-screenshots.sh",
     "test:coverage": "cd react-app && npm run test:coverage"
   },
   "dependencies": {
