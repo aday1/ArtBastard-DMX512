@@ -35,6 +35,13 @@ import {
   loadFixtures // Added import to reload fixtures
 } from './index';
 import { FaceTrackerService } from './faceTrackerService';
+import {
+  loadFixturesData,
+  saveFixturesData,
+  saveFixtureFile,
+  deleteFixtureFile,
+  loadFixtureFile
+} from './fixturesPersistence';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const EXPORT_FILE = path.join(DATA_DIR, 'all_settings.json');
@@ -217,233 +224,6 @@ apiRouter.post('/logs/clear', (req, res) => {
     res.status(500).json({ error: 'Failed to clear logs' });
   }
 });
-
-// Helper functions for fixtures data
-// New format: Each fixture in its own file in data/fixtures/ directory
-const FIXTURES_DIR = path.join(DATA_DIR, 'fixtures');
-const FIXTURE_DATA_FILE = path.join(DATA_DIR, 'fixture-data.json'); // For groups, layout, masterSliders
-
-// Ensure fixtures directory exists
-const ensureFixturesDir = () => {
-  if (!fs.existsSync(FIXTURES_DIR)) {
-    fs.mkdirSync(FIXTURES_DIR, { recursive: true });
-  }
-};
-
-// Save a single fixture to its own file
-const saveFixtureFile = (fixture: any) => {
-  try {
-    ensureFixturesDir();
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixture.id}.json`);
-    fs.writeFileSync(fixtureFile, JSON.stringify(fixture, null, 2));
-    return true;
-  } catch (error) {
-    log('Error saving fixture file', 'ERROR', { error, fixtureId: fixture?.id });
-    return false;
-  }
-};
-
-// Delete a fixture file
-const deleteFixtureFile = (fixtureId: string) => {
-  try {
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixtureId}.json`);
-    if (fs.existsSync(fixtureFile)) {
-      fs.unlinkSync(fixtureFile);
-      return true;
-    }
-    return true; // File doesn't exist, consider it deleted
-  } catch (error) {
-    log('Error deleting fixture file', 'ERROR', { error, fixtureId });
-    return false;
-  }
-};
-
-// Load a single fixture from file
-const loadFixtureFile = (fixtureId: string) => {
-  try {
-    const fixtureFile = path.join(FIXTURES_DIR, `${fixtureId}.json`);
-    if (fs.existsSync(fixtureFile)) {
-      const data = fs.readFileSync(fixtureFile, 'utf-8');
-      return JSON.parse(data);
-    }
-    return null;
-  } catch (error) {
-    log('Error loading fixture file', 'ERROR', { error, fixtureId });
-    return null;
-  }
-};
-
-// Load all fixtures from individual files
-const loadAllFixtures = (): any[] => {
-  try {
-    ensureFixturesDir();
-    const fixtures: any[] = [];
-    
-    if (!fs.existsSync(FIXTURES_DIR)) {
-      return fixtures;
-    }
-    
-    const files = fs.readdirSync(FIXTURES_DIR);
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        try {
-          const filePath = path.join(FIXTURES_DIR, file);
-          const data = fs.readFileSync(filePath, 'utf-8');
-          const fixture = JSON.parse(data);
-          if (fixture && fixture.id) {
-            fixtures.push(fixture);
-          }
-        } catch (error) {
-          log('Error loading fixture file', 'WARN', { error, file });
-        }
-      }
-    }
-    
-    return fixtures;
-  } catch (error) {
-    log('Error loading fixtures directory', 'ERROR', { error });
-    return [];
-  }
-};
-
-// Migrate from old fixtures.json format to individual files
-const migrateOldFixturesFormat = () => {
-  try {
-    const oldFixturesPath = path.join(DATA_DIR, 'fixtures.json');
-    if (!fs.existsSync(oldFixturesPath)) {
-      return; // No old file to migrate
-    }
-    
-    const data = fs.readFileSync(oldFixturesPath, 'utf-8');
-    const parsed = JSON.parse(data);
-    
-    // Check if it's the old format with fixtures array
-    if (parsed && Array.isArray(parsed.fixtures) && parsed.fixtures.length > 0) {
-      log('Migrating fixtures from old format to individual files', 'INFO', { count: parsed.fixtures.length });
-      ensureFixturesDir();
-      
-      // Save each fixture to its own file
-      for (const fixture of parsed.fixtures) {
-        if (fixture && fixture.id) {
-          saveFixtureFile(fixture);
-        }
-      }
-      
-      // Save groups, layout, and masterSliders to fixture-data.json
-      const fixtureData = {
-        groups: parsed.groups || [],
-        fixtureLayout: parsed.fixtureLayout || [],
-        masterSliders: parsed.masterSliders || []
-      };
-      fs.writeFileSync(FIXTURE_DATA_FILE, JSON.stringify(fixtureData, null, 2));
-      
-      // Rename old file as backup
-      const backupPath = path.join(DATA_DIR, 'fixtures.json.backup');
-      if (!fs.existsSync(backupPath)) {
-        fs.renameSync(oldFixturesPath, backupPath);
-        log('Old fixtures.json backed up', 'INFO');
-      }
-    }
-  } catch (error) {
-    log('Error migrating fixtures format', 'ERROR', { error });
-  }
-};
-
-// Load fixture data (groups, layout, masterSliders)
-const loadFixtureData = () => {
-  try {
-    if (fs.existsSync(FIXTURE_DATA_FILE)) {
-      const data = fs.readFileSync(FIXTURE_DATA_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-    return {
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  } catch (error) {
-    log('Error loading fixture data', 'ERROR', { error });
-    return {
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  }
-};
-
-// Save fixture data (groups, layout, masterSliders)
-const saveFixtureData = (data: { groups?: any[], fixtureLayout?: any[], masterSliders?: any[] }) => {
-  try {
-    const fixtureData = {
-      groups: data.groups || [],
-      fixtureLayout: data.fixtureLayout || [],
-      masterSliders: data.masterSliders || []
-    };
-    fs.writeFileSync(FIXTURE_DATA_FILE, JSON.stringify(fixtureData, null, 2));
-    return true;
-  } catch (error) {
-    log('Error saving fixture data', 'ERROR', { error });
-    return false;
-  }
-};
-
-export const loadFixturesData = () => {
-  try {
-    // Migrate from old format if needed (only once)
-    migrateOldFixturesFormat();
-    
-    // Load fixtures from individual files
-    const fixtures = loadAllFixtures();
-    
-    // Load groups, layout, and masterSliders
-    const fixtureData = loadFixtureData();
-    
-    return {
-      fixtures,
-      groups: fixtureData.groups || [],
-      fixtureLayout: fixtureData.fixtureLayout || [],
-      masterSliders: fixtureData.masterSliders || []
-    };
-  } catch (error) {
-    log('Error loading fixtures data', 'ERROR', { error });
-    return {
-      fixtures: [],
-      groups: [],
-      fixtureLayout: [],
-      masterSliders: []
-    };
-  }
-};
-
-const saveFixturesData = (data: any) => {
-  try {
-    // Save each fixture to its own file
-    if (Array.isArray(data.fixtures)) {
-      ensureFixturesDir();
-      for (const fixture of data.fixtures) {
-        if (fixture && fixture.id) {
-          saveFixtureFile(fixture);
-        }
-      }
-    }
-    
-    // Save groups, layout, and masterSliders
-    saveFixtureData({
-      groups: data.groups,
-      fixtureLayout: data.fixtureLayout,
-      masterSliders: data.masterSliders
-    });
-    
-    log('Fixtures data saved successfully', 'INFO', { 
-      fixtures: data.fixtures?.length || 0,
-      groups: data.groups?.length || 0
-    });
-    return true;
-  } catch (error) {
-    log('Error saving fixtures data', 'ERROR', { error });
-    return false;
-  }
-};
 
 // Helper functions for fixture templates
 export const loadFixtureTemplates = () => {
@@ -1093,24 +873,10 @@ apiRouter.post('/fixtures', (req, res) => {
     const addedCount = newCount > previousCount ? newCount - previousCount : 0;
     const removedCount = previousCount > newCount ? previousCount - newCount : 0;
 
-    // Get list of current fixture IDs
-    const currentIds = new Set(currentData.fixtures.map((f: any) => f.id));
-    const newIds = new Set(fixtures.map((f: any) => f.id));
-
-    // Delete fixtures that are no longer in the list
-    for (const id of currentIds) {
-      if (!newIds.has(id)) {
-        deleteFixtureFile(id);
-      }
-    }
-
-    // Save each fixture to its own file
-    ensureFixturesDir();
-    for (const fixture of fixtures) {
-      if (fixture && fixture.id) {
-        saveFixtureFile(fixture);
-      }
-    }
+    saveFixturesData({
+      ...currentData,
+      fixtures
+    });
 
     // Update server's in-memory fixtures to keep them in sync
     try {
@@ -1239,12 +1005,10 @@ apiRouter.post('/groups', (req, res) => {
   try {
     const { groups } = req.body;
 
-    // Load current fixture data (groups, layout, masterSliders)
-    const fixtureData = loadFixtureData();
+    // Load current fixtures data and update only groups
+    const fixtureData = loadFixturesData();
     fixtureData.groups = groups;
-
-    // Save updated fixture data
-    const success = saveFixtureData(fixtureData);
+    const success = saveFixturesData(fixtureData);
 
     if (success) {
       // Notify all clients of the groups update
@@ -1844,4 +1608,4 @@ apiRouter.get('/test-network-interface', async (req, res) => {
   }
 });
 
-export { apiRouter, setupSocketHandlers, registerApiSocketHandlers };
+export { apiRouter, setupSocketHandlers, registerApiSocketHandlers, loadFixturesData };

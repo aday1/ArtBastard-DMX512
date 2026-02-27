@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import EffectsEngine from './effects';
 import ping from 'ping';
+import { loadFixturesData, saveFixturesData } from './fixturesPersistence';
 
 // Import our separate logger to avoid circular dependencies
 import { log } from './logger';
@@ -1553,67 +1554,21 @@ function loadActs() {
         return acts;
     }
 }
-function getFixturesFilePath() {
-    return path.join(DATA_DIR, 'fixtures.json');
-}
-
-function loadFixturesBundle() {
-    const filePath = getFixturesFilePath();
-    if (fs.existsSync(filePath)) {
-        try {
-            const data = fs.readFileSync(filePath, 'utf-8');
-            const bundle = JSON.parse(data);
-            // If it's the old array format, convert it
-            if (Array.isArray(bundle)) {
-                return {
-                    fixtures: bundle,
-                    groups: [],
-                    fixtureLayout: [],
-                    masterSliders: []
-                };
-            }
-            return {
-                fixtures: bundle.fixtures || [],
-                groups: bundle.groups || [],
-                fixtureLayout: bundle.fixtureLayout || [],
-                masterSliders: bundle.masterSliders || []
-            };
-        } catch (error) {
-            log('Error loading fixtures bundle', 'ERROR', { error });
-        }
-    }
-    return { fixtures: [], groups: [], fixtureLayout: [], masterSliders: [] };
-}
-
-function saveFixturesBundle(bundle: { fixtures: any[], groups: any[], fixtureLayout: any[], masterSliders: any[] }) {
-    try {
-        const filePath = getFixturesFilePath();
-        fs.writeFileSync(filePath, JSON.stringify(bundle, null, 2));
-        log('Fixtures saved', 'INFO', {
-            fixtures: bundle.fixtures.length,
-            groups: bundle.groups.length,
-            quiet: true
-        });
-        return true;
-    } catch (error) {
-        log('Error saving fixtures bundle', 'ERROR', { error });
-        return false;
-    }
-}
-
 function saveFixtures(fixturesToSave?: Fixture[]) {
     if (fixturesToSave) {
         fixtures = fixturesToSave;
     }
-    const bundle = loadFixturesBundle();
-    bundle.fixtures = fixtures;
-    saveFixturesBundle(bundle);
+    const currentData = loadFixturesData();
+    saveFixturesData({
+        ...currentData,
+        fixtures
+    });
 }
 
 function loadFixtures() {
-    const bundle = loadFixturesBundle();
-    fixtures = bundle.fixtures;
-    log('Fixtures loaded from bundle', 'INFO', { numFixtures: fixtures.length });
+    const bundle = loadFixturesData();
+    fixtures = bundle.fixtures as Fixture[];
+    log('Fixtures loaded from fixture data', 'INFO', { numFixtures: fixtures.length });
     return fixtures;
 }
 
@@ -1621,15 +1576,17 @@ function saveGroups(groupsToSave?: Group[]) {
     if (groupsToSave) {
         groups = groupsToSave;
     }
-    const bundle = loadFixturesBundle();
-    bundle.groups = groups;
-    saveFixturesBundle(bundle);
+    const currentData = loadFixturesData();
+    saveFixturesData({
+        ...currentData,
+        groups
+    });
 }
 
 function loadGroups() {
-    const bundle = loadFixturesBundle();
-    groups = bundle.groups;
-    log('Groups loaded from bundle', 'INFO', { numGroups: groups.length });
+    const bundle = loadFixturesData();
+    groups = bundle.groups as Group[];
+    log('Groups loaded from fixture data', 'INFO', { numGroups: groups.length });
     return groups;
 }
 
