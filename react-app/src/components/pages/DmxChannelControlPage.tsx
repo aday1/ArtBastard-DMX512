@@ -87,7 +87,6 @@ export const DmxChannelControlPage: React.FC = () => {
     deselectAllChannels,
     midiMappings,
     removeMidiMapping,
-    addMidiMapping,
     oscAssignments,
     setOscAssignment,
     setChannelName,
@@ -115,11 +114,6 @@ export const DmxChannelControlPage: React.FC = () => {
     loadScene,
     addNotification,
 
-    // MIDI Learn
-    startMidiLearn,
-    cancelMidiLearn,
-    midiLearnTarget,
-
     // Envelope Automation
     envelopeAutomation,
     toggleEnvelope,
@@ -129,7 +123,6 @@ export const DmxChannelControlPage: React.FC = () => {
   // Listen for channel jump requests (e.g. from PinnedChannels sidebar)
   useEffect(() => {
     if (channelJumpTarget !== null) {
-      console.log(`[DMXChannelControl] Scrolling to channel ${channelJumpTarget + 1} requested by jump target state`);
       scrollToChannel(channelJumpTarget);
     }
   }, [channelJumpTarget]);
@@ -322,46 +315,6 @@ export const DmxChannelControlPage: React.FC = () => {
 
   // Embedded MIDI monitor removed; floating monitor remains available globally
 
-  // Debug MIDI mappings changes
-  useEffect(() => {
-    console.log(`[DMXChannelControl] MIDI mappings updated:`, midiMappings);
-    console.log(`[DMXChannelControl] MIDI mappings count:`, Object.keys(midiMappings).length);
-
-    // Test: Add a debug mapping to channel 0 to test Forget button visibility
-    if (Object.keys(midiMappings).length === 0) {
-      console.log(`[DMXChannelControl] No MIDI mappings found. Testing with debug mapping...`);
-      // Uncomment the line below to test Forget button visibility
-      // addMidiMapping(0, { channel: 0, controller: 1 });
-    }
-  }, [midiMappings]);
-
-  // Helper function to get fixture info for a channel
-  const getFixtureInfoForChannel = (channelIndex: number) => {
-    const dmxAddress = channelIndex + 1; // Convert 0-based index to 1-based address
-
-    for (const fixture of fixtures || []) {
-      const fixtureStartAddress = fixture.startAddress;
-      const fixtureEndAddress = fixtureStartAddress + (fixture.channels?.length || 0) - 1;
-
-      if (dmxAddress >= fixtureStartAddress && dmxAddress <= fixtureEndAddress) {
-        const channelOffset = dmxAddress - fixtureStartAddress;
-        const channel = fixture.channels?.[channelOffset];
-
-        if (channel) {
-          return {
-            fixtureName: fixture.name,
-            channelFunction: channel.name || `${channel.type} Channel`,
-            channelType: channel.type,
-          };
-        }
-      }
-    }
-
-    return null;
-  };
-
-
-
   // Handle channel name editing
   const handleStartEditName = (channelIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -385,27 +338,14 @@ export const DmxChannelControlPage: React.FC = () => {
   const handleMidiLearn = (channelIndex: number) => {
     // Scroll to channel when Learn is clicked
     scrollToChannel(channelIndex);
-    console.log(`[DMXChannelControl] MIDI Learn clicked for channel ${channelIndex}`);
-    console.log(`[DMXChannelControl] Current state:`, {
-      isLearning,
-      currentLearningChannel,
-      midiLearnTarget,
-      midiMappings: Object.keys(midiMappings).length
-    });
-
     if (isLearning && currentLearningChannel === channelIndex) {
-      console.log(`[DMXChannelControl] Cancelling MIDI Learn for channel ${channelIndex}`);
       cancelLearn();
     } else {
-      console.log(`[DMXChannelControl] Starting MIDI Learn for channel ${channelIndex}`);
       startLearn(channelIndex);
     }
   };
 
   const handleMidiForget = (channelIndex: number) => {
-    console.log(`[DMXChannelControl] MIDI Forget clicked for channel ${channelIndex}`);
-    console.log(`[DMXChannelControl] Current mapping:`, midiMappings[channelIndex]);
-
     removeMidiMapping(channelIndex);
     addNotification({
       message: `MIDI mapping removed for DMX CH ${channelIndex + 1}`,
