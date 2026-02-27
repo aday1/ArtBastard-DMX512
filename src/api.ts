@@ -38,10 +38,30 @@ import { FaceTrackerService } from './faceTrackerService';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const EXPORT_FILE = path.join(DATA_DIR, 'all_settings.json');
+const FACTORY_RESET_MARKER = path.join(DATA_DIR, '.factory-reset-marker.json');
 
 // Cache for last generated TouchOSC layout
 let lastTouchOscLayout: Buffer | null = null;
 let lastTouchOscXml: string | null = null;
+
+const writeFactoryResetMarker = (source: string) => {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(
+      FACTORY_RESET_MARKER,
+      JSON.stringify(
+        {
+          timestamp: Math.floor(Date.now() / 1000),
+          source
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    log('Failed to write factory reset marker', 'WARN', { error, source });
+  }
+};
 
 // Add type definitions for global variables
 declare global {
@@ -462,9 +482,8 @@ const saveFixtureTemplates = (templates: any[]) => {
 // Check for factory reset marker
 apiRouter.get('/factory-reset-check', (req, res) => {
   try {
-    const markerPath = path.join(DATA_DIR, '.factory-reset-marker.json');
-    if (fs.existsSync(markerPath)) {
-      const markerData = JSON.parse(fs.readFileSync(markerPath, 'utf-8'));
+    if (fs.existsSync(FACTORY_RESET_MARKER)) {
+      const markerData = JSON.parse(fs.readFileSync(FACTORY_RESET_MARKER, 'utf-8'));
       const markerTimestamp = markerData.timestamp || 0;
       const now = Math.floor(Date.now() / 1000);
       const markerAge = now - markerTimestamp;
@@ -472,7 +491,7 @@ apiRouter.get('/factory-reset-check', (req, res) => {
       // Keep marker for 1 minute to allow multiple page loads/reloads to detect it
       // After 1 minute, delete it automatically
       if (markerAge > 60) { // 1 minute = 60 seconds
-        fs.unlinkSync(markerPath);
+        fs.unlinkSync(FACTORY_RESET_MARKER);
         res.json({ factoryReset: false });
       } else {
         res.json({ factoryReset: true, timestamp: markerTimestamp });
@@ -823,16 +842,40 @@ apiRouter.post('/osc/assignment', (req, res) => {
 });
 
 // Scene endpoints
+apiRouter.get('/scenes', (req, res) => {
+  try {
+    const scenes = loadScenes();
+    res.json(Array.isArray(scenes) ? scenes : []);
+  } catch (error) {
+    log('Error loading scenes list', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to load scenes: ${error}` });
+  }
+});
+
 apiRouter.post('/scenes', (req, res) => {
   try {
+    // Support both single-scene saves and full-scene imports.
+    if (Array.isArray(req.body)) {
+      saveScenes(req.body);
+      global.io.emit('sceneList', req.body);
+      return res.json({
+        success: true,
+        message: 'Scenes imported successfully',
+        scenesCount: req.body.length
+      });
+    }
+
     const { name, oscAddress, channelValues } = req.body;
+    if (!name || !channelValues) {
+      return res.status(400).json({ error: 'Scene name and channel values are required' });
+    }
 
     saveScene(global.io, name, oscAddress, channelValues);
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error) {
     log('Error saving scene', 'ERROR', { error, body: req.body });
-    res.status(500).json({ error: `Failed to save scene: ${error}` });
+    return res.status(500).json({ error: `Failed to save scene: ${error}` });
   }
 });
 
@@ -891,12 +934,128 @@ apiRouter.delete('/scenes', (req, res) => {
 
     // Notify all clients that scenes have been cleared
     global.io.emit('sceneList', []);
+    writeFactoryResetMarker('scenes-reset');
 
     log('All scenes cleared via factory reset', 'INFO');
     res.json({ success: true, message: 'All scenes cleared' });
   } catch (error) {
     log('Error clearing all scenes', 'ERROR', { error });
     res.status(500).json({ error: `Failed to clear all scenes: ${error}` });
+  }
+});
+
+// Config endpoints for export/import/reset flows
+apiRouter.get('/config', (req, res) => {
+  try {
+    const config = loadConfig();
+    res.json(config || {});
+  } catch (error) {
+    log('Error loading config', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to load config: ${error}` });
+  }
+});
+
+apiRouter.post('/config', (req, res) => {
+  try {
+    const configData = req.body;
+    if (!configData || typeof configData !== 'object') {
+      return res.status(400).json({
+        error: 'Invalid config data - object expected',
+        success: false
+      });
+    }
+
+    const configPath = path.join(DATA_DIR, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
+    const reloadedConfig = loadConfig();
+
+    global.io.emit('configUpdated', reloadedConfig);
+    return res.json({
+      success: true,
+      message: 'Config imported successfully'
+    });
+  } catch (error) {
+    log('Error importing config', 'ERROR', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({
+      error: `Failed to import config: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.delete('/config', (req, res) => {
+  try {
+    const configPath = path.join(DATA_DIR, 'config.json');
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+    const resetConfig = loadConfig();
+    clearMidiMappings();
+    writeFactoryResetMarker('config-reset');
+    global.io.emit('configUpdated', resetConfig);
+
+    res.json({ success: true, message: 'Configuration reset to defaults' });
+  } catch (error) {
+    log('Error resetting config', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to reset config: ${error}` });
+  }
+});
+
+apiRouter.post('/state', (req, res) => {
+  try {
+    const stateData = req.body;
+
+    if (!stateData || !Array.isArray(stateData.dmxChannels)) {
+      return res.status(400).json({
+        error: 'Invalid state data - dmxChannels array required',
+        success: false
+      });
+    }
+
+    setDmxChannels(stateData.dmxChannels);
+
+    const statePath = path.join(DATA_DIR, 'last-state.json');
+    const stateToSave = {
+      timestamp: new Date().toISOString(),
+      dmxChannels: stateData.dmxChannels,
+      savedOn: 'imported-state'
+    };
+    fs.writeFileSync(statePath, JSON.stringify(stateToSave, null, 2));
+
+    global.io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
+
+    res.json({
+      success: true,
+      message: 'State imported successfully',
+      channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
+    });
+  } catch (error) {
+    log('Error importing state', 'ERROR', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+    res.status(500).json({
+      error: `Failed to import state: ${error instanceof Error ? error.message : String(error)}`,
+      success: false
+    });
+  }
+});
+
+apiRouter.delete('/state', (req, res) => {
+  try {
+    const emptyState = new Array(512).fill(0);
+    setDmxChannels(emptyState);
+    const statePath = path.join(DATA_DIR, 'last-state.json');
+    if (fs.existsSync(statePath)) {
+      fs.unlinkSync(statePath);
+    }
+    writeFactoryResetMarker('state-reset');
+    global.io.emit('dmxStateRestored', { dmxChannels: emptyState });
+    res.json({ success: true, message: 'DMX state reset' });
+  } catch (error) {
+    log('Error resetting state', 'ERROR', { error });
+    res.status(500).json({ error: `Failed to reset state: ${error}` });
   }
 });
 
@@ -1468,145 +1627,6 @@ function setupSocketHandlers(io: Server) {
 
 // Import sendOscMessage from index.ts
 import { sendOscMessage } from './index';
-
-// Add missing API endpoints for state import/export
-apiRouter.post('/api/state', (req, res) => {
-  try {
-    const stateData = req.body;
-
-    if (!stateData || !stateData.dmxChannels) {
-      return res.status(400).json({
-        error: 'Invalid state data - dmxChannels required',
-        success: false
-      });
-    }
-
-    // Import setDmxChannels function
-    const { setDmxChannels } = require('./core');
-
-    if (typeof setDmxChannels === 'function') {
-      setDmxChannels(stateData.dmxChannels);
-
-      // Save the state to last-state.json
-      const statePath = path.join(DATA_DIR, 'last-state.json');
-      const stateToSave = {
-        timestamp: new Date().toISOString(),
-        dmxChannels: stateData.dmxChannels,
-        savedOn: 'imported-state'
-      };
-
-      fs.writeFileSync(statePath, JSON.stringify(stateToSave, null, 2));
-
-      log('State imported and saved successfully', 'SYSTEM', {
-        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
-      });
-
-      // Notify all clients about the imported state
-      const io = global.io;
-      if (io) {
-        io.emit('dmxStateRestored', { dmxChannels: stateData.dmxChannels });
-      }
-
-      res.json({
-        success: true,
-        message: 'State imported successfully',
-        channelsImported: stateData.dmxChannels.filter((val: number) => val > 0).length
-      });
-    } else {
-      res.status(500).json({
-        error: 'setDmxChannels function not available',
-        success: false
-      });
-    }
-  } catch (error) {
-    log('Error importing state', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import state: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
-
-apiRouter.post('/api/scenes', (req, res) => {
-  try {
-    const scenesData = req.body;
-
-    if (!Array.isArray(scenesData)) {
-      return res.status(400).json({
-        error: 'Invalid scenes data - array expected',
-        success: false
-      });
-    }
-
-    // Save scenes to file
-    const scenesPath = path.join(DATA_DIR, 'scenes.json');
-    fs.writeFileSync(scenesPath, JSON.stringify(scenesData, null, 2));
-
-    // Reload scenes in memory
-    const { loadScenes } = require('./core');
-    if (typeof loadScenes === 'function') {
-      loadScenes();
-    }
-
-    log('Scenes imported successfully', 'SYSTEM', {
-      scenesCount: scenesData.length
-    });
-
-    res.json({
-      success: true,
-      message: 'Scenes imported successfully',
-      scenesCount: scenesData.length
-    });
-  } catch (error) {
-    log('Error importing scenes', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import scenes: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
-
-apiRouter.post('/api/config', (req, res) => {
-  try {
-    const configData = req.body;
-
-    if (!configData || typeof configData !== 'object') {
-      return res.status(400).json({
-        error: 'Invalid config data - object expected',
-        success: false
-      });
-    }
-
-    // Save config to file
-    const configPath = path.join(DATA_DIR, 'config.json');
-    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
-
-    // Reload config in memory
-    const { loadConfig } = require('./core');
-    if (typeof loadConfig === 'function') {
-      loadConfig();
-    }
-
-    log('Config imported successfully', 'SYSTEM');
-
-    res.json({
-      success: true,
-      message: 'Config imported successfully'
-    });
-  } catch (error) {
-    log('Error importing config', 'ERROR', {
-      message: error instanceof Error ? error.message : String(error)
-    });
-    res.status(500).json({
-      error: `Failed to import config: ${error instanceof Error ? error.message : String(error)}`,
-      success: false
-    });
-  }
-});
 
 // Face Tracker Configuration endpoints
 const FACE_TRACKER_CONFIG_PATH = path.join(__dirname, '..', 'face-tracker', 'face-tracker-config.json');
