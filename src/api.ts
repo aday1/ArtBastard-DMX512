@@ -1412,39 +1412,40 @@ function setupSocketHandlers(io: Server) {
   } catch (error) {
     log('Error loading fixtures on startup', 'ERROR', { error });
   }
+}
 
-  io.on('connection', (socket) => {
-    // Send initial state including fixtures
-    const fixturesData = loadFixturesData();
-    const config = loadConfig();
-    const scenes = loadScenes();
-    const acts = loadActs();
-    
-    socket.emit('initialState', {
-      fixtures: fixturesData.fixtures,
-      groups: fixturesData.groups,
-      scenes,
-      acts,
-      midiMappings: config.midiMappings || {},
-      artNetConfig: config.artNetConfig,
-      oscConfig: config.oscConfig,
-      dmxChannels: getDmxChannels(),
-      oscAssignments: [], // Will be populated from config if needed
-      channelNames: getChannelNames ? getChannelNames() : [],
-      fixtureTemplates: loadFixtureTemplates()
-    });
-    
-    // Also send fixtures separately for compatibility
-    socket.emit('fixturesLoaded', fixturesData.fixtures);
-    socket.emit('fixturesUpdate', fixturesData.fixtures);
-    socket.emit('fixturesUpdated', fixturesData.fixtures);
-    
-    log('Sent initial state to client', 'INFO', { 
-      socketId: socket.id, 
-      fixtures: fixturesData.fixtures.length,
-      groups: fixturesData.groups.length,
-      scenes: scenes.length
-    });
+function registerApiSocketHandlers(io: Server, socket: any) {
+  // Send initial state including fixtures
+  const fixturesData = loadFixturesData();
+  const config = loadConfig();
+  const scenes = loadScenes();
+  const acts = loadActs();
+  
+  socket.emit('initialState', {
+    fixtures: fixturesData.fixtures,
+    groups: fixturesData.groups,
+    scenes,
+    acts,
+    midiMappings: config.midiMappings || {},
+    artNetConfig: config.artNetConfig,
+    oscConfig: config.oscConfig,
+    dmxChannels: getDmxChannels(),
+    oscAssignments: [], // Will be populated from config if needed
+    channelNames: getChannelNames ? getChannelNames() : [],
+    fixtureTemplates: loadFixtureTemplates()
+  });
+  
+  // Also send fixtures separately for compatibility
+  socket.emit('fixturesLoaded', fixturesData.fixtures);
+  socket.emit('fixturesUpdate', fixturesData.fixtures);
+  socket.emit('fixturesUpdated', fixturesData.fixtures);
+  
+  log('Sent initial state to client', 'INFO', { 
+    socketId: socket.id, 
+    fixtures: fixturesData.fixtures.length,
+    groups: fixturesData.groups.length,
+    scenes: scenes.length
+  });
     // Handle settings export
     socket.on('exportSettings', () => {
       try {
@@ -1622,7 +1623,6 @@ function setupSocketHandlers(io: Server) {
     socket.on('getTouchOscXml', () => {
       socket.emit('touchOscXml', lastTouchOscXml);
     });
-  });
 }
 
 // Import sendOscMessage from index.ts
@@ -1844,4 +1844,4 @@ apiRouter.get('/test-network-interface', async (req, res) => {
   }
 });
 
-export { apiRouter, setupSocketHandlers };
+export { apiRouter, setupSocketHandlers, registerApiSocketHandlers };

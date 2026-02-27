@@ -7,7 +7,7 @@ import cors from 'cors';
 import { json } from 'body-parser';
 import { log } from './logger'; // Import from logger instead of index
 import { startLaserTime, listMidiInterfaces, connectMidiInput, disconnectMidiInput, updateArtNetConfig, pingArtNetDevice } from './core';
-import { apiRouter, setupSocketHandlers } from './api';
+import { apiRouter, setupSocketHandlers, registerApiSocketHandlers } from './api';
 import { clockManager, MasterClockSourceId, ClockState } from './clockManager';
 
 // Declare global io instance for use in API routes
@@ -297,6 +297,8 @@ try {
   // Socket.IO connection handler
   io.on('connection', (socket) => {
     log('A user connected', 'SERVER', { socketId: socket.id, transport: socket.conn.transport.name });
+
+    registerApiSocketHandlers(io, socket);
 
     // Send initial clock state and available sources
     socket.emit('masterClockUpdate', clockManager.getState());
