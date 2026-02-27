@@ -14,6 +14,7 @@ import { DmxFooterInfo } from '../dmx/DmxFooterInfo';
 import { DmxMidiConnections } from '../dmx/DmxMidiConnections';
 import { DmxPinnedChannels } from '../dmx/DmxPinnedChannels';
 import { DmxActiveChannelsSummary } from '../dmx/DmxActiveChannelsSummary';
+import { DmxChannelCard } from '../dmx/DmxChannelCard';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -682,299 +683,54 @@ export const DmxChannelControlPage: React.FC = () => {
               const hasMidiMapping = !!midiMappings[channelIndex];
               const isChannelLearning = isLearning && currentLearningChannel === channelIndex;
               const mapping = midiMappings[channelIndex];
-
-              // Use new store helper functions
               const fixtureInfo = getChannelInfo(channelIndex);
               const hasFixtureAssignment = isChannelAssigned(channelIndex);
               const fixtureColor = fixtureInfo ? getFixtureColor(fixtureInfo.fixtureId) : '#64748b';
-
               const isEditingName = editingChannelName === channelIndex;
-
-              // Check if channel has a custom name (not default)
               const hasCustomName = !!(channelNames[channelIndex] &&
                 channelNames[channelIndex] !== `CH ${channelIndex + 1}` &&
                 channelNames[channelIndex] !== `Channel ${channelIndex + 1}` &&
                 channelNames[channelIndex].trim() !== '');
 
               return (
-                <div
+                <DmxChannelCard
                   key={channelIndex}
-                  id={`dmx-channel-${channelIndex}`}
-                  className={`${styles.dmxChannel} ${isSelected ? styles.selected : ''} ${value > 0 ? styles.active : ''} ${highlightedChannel === channelIndex ? styles.highlighted : ''} ${hasCustomName ? styles.hasName : ''} ${hasFixtureAssignment ? styles.fixtureAssigned : ''} ${channelColors[channelIndex] ? styles.hasColor : ''}`}
-                  style={{
-                    borderColor: hasFixtureAssignment
-                      ? fixtureColor
-                      : (channelColors[channelIndex] || (hasCustomName ? '#10b981' : undefined)),
-                    borderWidth: channelColors[channelIndex] 
-                      ? '4px' 
-                      : (hasFixtureAssignment || hasCustomName ? '2px' : undefined),
-                    borderLeftWidth: hasFixtureAssignment ? '4px' : (channelColors[channelIndex] ? '6px' : undefined),
-                    backgroundColor: channelColors[channelIndex] && !hasFixtureAssignment 
-                      ? `${channelColors[channelIndex]}25` 
-                      : (hasFixtureAssignment && fixtureColor
-                        ? `${fixtureColor}15`
-                        : undefined),
-                    // Add a subtle gradient overlay for better visibility
-                    backgroundImage: channelColors[channelIndex] && !hasFixtureAssignment
-                      ? `linear-gradient(135deg, ${channelColors[channelIndex]}20 0%, ${channelColors[channelIndex]}10 100%)`
-                      : (hasFixtureAssignment && fixtureColor
-                        ? `linear-gradient(135deg, ${fixtureColor}12 0%, ${fixtureColor}08 100%)`
-                        : undefined),
-                  }}
-                >
-                  <div className={styles.channelHeader}>
-                    <div className={styles.channelInfo}>
-                      <span className={styles.channelNumber}>{channelIndex + 1}</span>
-                      {hasFixtureAssignment && fixtureInfo && (
-                        <div className={styles.fixtureLabel} style={{ color: fixtureColor }}>
-                          <LucideIcon name="LampDesk" size={12} />
-                          <span>{fixtureInfo.fixtureName}</span>
-                          {fixtureInfo.channelName && (
-                            <span className={styles.fixtureChannelFunction}> • {fixtureInfo.channelName}</span>
-                          )}
-                        </div>
-                      )}
-                      {isEditingName ? (
-                        <div className={styles.channelNameEdit}>
-                          <input
-                            type="text"
-                            value={editingChannelNameValue}
-                            onChange={(e) => setEditingChannelNameValue(e.target.value)}
-                            onBlur={() => handleSaveChannelName(channelIndex)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleSaveChannelName(channelIndex);
-                              } else if (e.key === 'Escape') {
-                                handleCancelEditName();
-                              }
-                            }}
-                            autoFocus
-                            className={styles.channelNameInput}
-                          />
-                        </div>
-                      ) : (
-                        <div className={styles.channelNameWrapper}>
-                          <span
-                            className={styles.channelName}
-                            onDoubleClick={(e) => handleStartEditName(channelIndex, e)}
-                            title={hasFixtureAssignment
-                              ? `Fixture: ${fixtureInfo?.fixtureName} | Channel: ${fixtureInfo?.channelName} | Type: ${fixtureInfo?.channelType}${channelName ? ` | Custom: ${channelName}` : ''} | Double-click to edit`
-                              : 'Double-click to edit name'}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {hasFixtureAssignment
-                              ? fixtureInfo?.channelName
-                              : (channelName || `CH ${channelIndex + 1}`)}
-                            <small>{value > 0 ? 'Active' : '(Idle)'}</small>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className={styles.channelHeaderActions}>
-                      {(() => {
-                        // Find envelope for this channel
-                        const channelEnvelope = envelopeAutomation.envelopes.find(e => e.channel === channelIndex);
-                        const hasEnvelope = !!channelEnvelope;
-                        const envelopeEnabled = channelEnvelope?.enabled ?? false;
-
-                        if (hasEnvelope) {
-                          return (
-                            <button
-                              className={`${styles.envelopeToggleButton} ${envelopeEnabled ? styles.active : ''}`}
-                              onClick={() => channelEnvelope && toggleEnvelope(channelEnvelope.id)}
-                              title={envelopeEnabled ? 'Stop Envelope' : 'Start Envelope'}
-                              disabled={!envelopeAutomation.globalEnabled}
-                            >
-                              <LucideIcon name={envelopeEnabled ? "Square" : "Play"} size={14} />
-                              {envelopeEnabled ? 'Stop' : 'Start'}
-                            </button>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <div className={styles.channelValue}>
-                        <span className={styles.valueDisplay}>{value}</span>
-                        <span className={styles.valuePercent}>{Math.round((value / 255) * 100)}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.channelSlider}>
-                    <input
-                      type="range"
-                      min={getChannelRange(channelIndex).min}
-                      max={getChannelRange(channelIndex).max}
-                      value={value}
-                      onChange={(e) => setDmxChannel(channelIndex, parseInt(e.target.value))}
-                      className={styles.slider}
-                    />
-                  </div>
-
-                  {/* Channel Range Controls */}
-                  <div className={styles.channelRangeControls}>
-                    <div className={styles.rangeInputGroup}>
-                      <label className={styles.rangeLabel}>MIN</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="255"
-                        value={getChannelRange(channelIndex).min}
-                        onChange={(e) => {
-                          const newMin = parseInt(e.target.value);
-                          const currentMax = getChannelRange(channelIndex).max;
-                          setChannelRange(channelIndex, newMin, Math.max(newMin, currentMax));
-                        }}
-                        className={styles.rangeSlider}
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="255"
-                        value={getChannelRange(channelIndex).min}
-                        onChange={(e) => {
-                          const newMin = Math.max(0, Math.min(255, parseInt(e.target.value) || 0));
-                          const currentMax = getChannelRange(channelIndex).max;
-                          setChannelRange(channelIndex, newMin, Math.max(newMin, currentMax));
-                        }}
-                        className={styles.rangeInput}
-                      />
-                    </div>
-                    <div className={styles.rangeInputGroup}>
-                      <label className={styles.rangeLabel}>MAX</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="255"
-                        value={getChannelRange(channelIndex).max}
-                        onChange={(e) => {
-                          const newMax = parseInt(e.target.value);
-                          const currentMin = getChannelRange(channelIndex).min;
-                          setChannelRange(channelIndex, Math.min(currentMin, newMax), newMax);
-                        }}
-                        className={styles.rangeSlider}
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        max="255"
-                        value={getChannelRange(channelIndex).max}
-                        onChange={(e) => {
-                          const newMax = Math.max(0, Math.min(255, parseInt(e.target.value) || 255));
-                          const currentMin = getChannelRange(channelIndex).min;
-                          setChannelRange(channelIndex, Math.min(currentMin, newMax), newMax);
-                        }}
-                        className={styles.rangeInput}
-                      />
-                    </div>
-                  </div>
-
-                  <div 
-                    className={styles.channelActions}
-                    style={channelColors[channelIndex] ? {
-                      backgroundColor: `${channelColors[channelIndex]}08`,
-                      borderColor: `${channelColors[channelIndex]}20`,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderRadius: '8px',
-                      padding: '8px',
-                    } : undefined}
-                  >
-                    <button
-                      className={`${styles.selectButton} ${isSelected ? styles.selected : ''}`}
-                      onClick={() => toggleChannelSelection(channelIndex)}
-                      title="Select/Deselect channel"
-                    >
-                      <LucideIcon name={isSelected ? "CheckSquare" : "Square"} />
-                    </button>
-
-                    <button
-                      className={styles.colorButton}
-                      onClick={() => {
-                        setRandomChannelColor(channelIndex);
-                        addNotification({
-                          type: 'success',
-                          message: `Random color set for channel ${channelIndex + 1}`
-                        });
-                      }}
-                      title="Set random color for this channel (for visual organization)"
-                      style={{
-                        backgroundColor: channelColors[channelIndex] 
-                          ? `${channelColors[channelIndex]}20` 
-                          : undefined,
-                        borderColor: channelColors[channelIndex] || undefined,
-                        borderWidth: channelColors[channelIndex] ? '1px' : undefined,
-                      }}
-                    >
-                      <LucideIcon name="Palette" />
-                    </button>
-
-                    <button
-                      className={`${styles.pinButton} ${pinnedChannels?.includes(channelIndex) ? styles.pinned : ''}`}
-                      onClick={() => togglePinChannel(channelIndex)}
-                      title={pinnedChannels?.includes(channelIndex) ? "Unpin channel" : "Pin channel to left sidebar"}
-                    >
-                      <LucideIcon name={pinnedChannels?.includes(channelIndex) ? "Pin" : "PinOff"} />
-                    </button>
-
-                    {showMidiControls && (
-                      <div className={styles.midiControls}>
-                        <button
-                          className={`${styles.midiLearnButton} ${isChannelLearning ? styles.learning : ''} ${hasMidiMapping ? styles.mapped : ''}`}
-                          onClick={() => handleMidiLearn(channelIndex)}
-                          title={isChannelLearning ? 'Cancel MIDI Learn' : hasMidiMapping ? 'Remap MIDI' : 'Learn MIDI'}
-                        >
-                          <LucideIcon name={isChannelLearning ? "Radio" : hasMidiMapping ? "Unlink" : "Link"} />
-                          {isChannelLearning ? 'Learning...' : hasMidiMapping ? 'Mapped' : 'Learn'}
-                        </button>
-
-                        {hasMidiMapping && !isChannelLearning && (
-                          <button
-                            className={styles.midiForgetButton}
-                            onClick={() => handleMidiForget(channelIndex)}
-                            title="Remove MIDI mapping"
-                          >
-                            <LucideIcon name="Trash2" />
-                            Forget
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {showOscControls && (
-                      <div className={styles.oscControls}>
-                        <button
-                          className={styles.oscAddressButton}
-                          onClick={() => handleSetOscAddress(channelIndex)}
-                          title="Set OSC address for this channel"
-                        >
-                          <LucideIcon name="Globe" />
-                          OSC
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* MIDI Mapping Display */}
-                  {showMidiControls && hasMidiMapping && mapping && (
-                    <div className={styles.midiMappingDisplay}>
-                      <span className={styles.midiMappingText}>
-                        {mapping.controller !== undefined
-                          ? `CC ${mapping.controller} (Ch ${mapping.channel + 1})`
-                          : `Note ${mapping.note} (Ch ${mapping.channel + 1})`
-                        }
-                      </span>
-                    </div>
-                  )}
-
-                  {/* OSC Address Display */}
-                  {showOscControls && oscAssignments[channelIndex] && (
-                    <div className={styles.oscAddressDisplay}>
-                      <span className={styles.oscAddressText}>
-                        OSC: {oscAssignments[channelIndex]}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                  channelIndex={channelIndex}
+                  value={value}
+                  channelName={channelName}
+                  isSelected={isSelected}
+                  highlighted={highlightedChannel === channelIndex}
+                  hasMidiMapping={hasMidiMapping}
+                  isChannelLearning={isChannelLearning}
+                  mapping={mapping}
+                  fixtureInfo={fixtureInfo}
+                  hasFixtureAssignment={hasFixtureAssignment}
+                  fixtureColor={fixtureColor}
+                  isEditingName={isEditingName}
+                  hasCustomName={hasCustomName}
+                  channelColor={channelColors[channelIndex]}
+                  envelopeAutomation={envelopeAutomation}
+                  showMidiControls={showMidiControls}
+                  showOscControls={showOscControls}
+                  editingChannelNameValue={editingChannelNameValue}
+                  setEditingChannelNameValue={setEditingChannelNameValue}
+                  getChannelRange={getChannelRange}
+                  setChannelRange={setChannelRange}
+                  setDmxChannel={setDmxChannel}
+                  toggleEnvelope={toggleEnvelope}
+                  handleSaveChannelName={handleSaveChannelName}
+                  handleCancelEditName={handleCancelEditName}
+                  handleStartEditName={handleStartEditName}
+                  toggleChannelSelection={toggleChannelSelection}
+                  setRandomChannelColor={setRandomChannelColor}
+                  addNotification={(payload) => addNotification({ ...payload, priority: 'normal' })}
+                  isPinned={!!pinnedChannels?.includes(channelIndex)}
+                  togglePinChannel={togglePinChannel}
+                  handleMidiLearn={handleMidiLearn}
+                  handleMidiForget={handleMidiForget}
+                  handleSetOscAddress={handleSetOscAddress}
+                  oscAddress={oscAssignments[channelIndex]}
+                />
               );
             })}
           </div>
