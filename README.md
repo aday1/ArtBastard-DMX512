@@ -34,6 +34,12 @@ Ordered walkthrough labels:
 Release page:
 https://github.com/aday1/ArtBastard-DMX512/releases/tag/v5.12.0
 
+Current branch media assets (2026-02-27):
+
+- DOCS/media/2026-02-27/videos/feature-tour-desktop.mp4
+- DOCS/media/2026-02-27/videos/feature-tour-mobile.mp4
+- DOCS/media/2026-02-27/ASSETS.txt
+
 ## Quick start
 
 Requirements:

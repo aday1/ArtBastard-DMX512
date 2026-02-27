@@ -1,0 +1,19 @@
+ArtBastard DMX512 Feature Media Assets
+Generated on: 2026-02-27
+
+Screenshot files
+- screenshots/dmx-control.png
+- screenshots/fixture-page.png
+- screenshots/scenes-acts-page.png
+- screenshots/experimental-page.png
+- screenshots/touchosc-page.png
+- screenshots/external-console.png
+- screenshots/mobile.png
+
+Video files
+- videos/feature-tour-desktop.mp4
+- videos/feature-tour-mobile.mp4
+
+Notes
+- Desktop video is a slideshow walkthrough of primary UI pages.
+- Mobile video is a slideshow preview of the mobile control surface.
