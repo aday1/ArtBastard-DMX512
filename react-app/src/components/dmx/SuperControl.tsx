@@ -287,10 +287,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Get all affected fixtures based on selection mode
   const getAffectedFixtures = () => {
     let targetFixtures: string[] = [];
-    console.log(`getAffectedFixtures called - selectionMode: ${selectionMode}`);
-    console.log(`Selected channels: ${selectedChannels.length}`, selectedChannels);
-    console.log(`Selected fixtures: ${selectedFixtures.length}`, selectedFixtures);
-    console.log(`Selected groups: ${selectedGroups.length}`, selectedGroups);
 
     switch (selectionMode) {
       case 'channels':
@@ -390,7 +386,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
     const affectedFixtures = getAffectedFixtures();
-    console.log(`applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
+    
 
     affectedFixtures.forEach(({ channels }, index) => {
       let targetChannel: number | undefined;
@@ -429,16 +425,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           targetChannel = channels['reset'] || channels['reset_control'] || channels['function'];
           break;
       }      if (targetChannel !== undefined) {
-        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
         setDmxChannelValue(targetChannel, value);
-
-        // Additional verification - check if the value was actually set
-        setTimeout(() => {
-          const actualValue = getDmxChannelValue(targetChannel);
-          console.log(`[DMX] Verification: Channel ${targetChannel} is now ${actualValue} (expected ${value})`);
-        }, 100);
-      } else {
-        console.log(`[DMX] ERROR: No target channel found for ${controlType} in fixture ${index}`, channels);
       }
     });
   };
@@ -464,7 +451,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
     // If Pan/Tilt autopilot is active, temporarily disable it when user manually controls
     if (panTiltAutopilot.enabled) {
-      console.log('Manual Pan/Tilt control detected - disabling autopilot');
+      
       togglePanTiltAutopilot();
     }
 
@@ -487,7 +474,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const resetPanTiltToCenter = () => {
     // If Pan/Tilt autopilot is active, disable it when user manually resets
     if (panTiltAutopilot.enabled) {
-      console.log('Manual Pan/Tilt reset detected - disabling autopilot');
+      
       togglePanTiltAutopilot();
     }
 
@@ -573,7 +560,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Enhanced MIDI Learn with range support
   const startMidiLearn = (controlType: string, minValue: number = 0, maxValue: number = 255) => {
     setMidiLearnTarget(controlType);
-    console.log(`Starting MIDI learn for ${controlType} (range: ${minValue}-${maxValue})`);
+    
 
     // Listen for MIDI input
     const handleMidiMessage = (event: any) => {
@@ -595,7 +582,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
       }));
 
       setMidiLearnTarget(null);
-      console.log(`MIDI learned for ${controlType}:`, mapping);
     };
 
     // Add MIDI listener
@@ -650,11 +636,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
             mapping.minValue + (midiValue / 127) * (mapping.maxValue - mapping.minValue)
           );
 
-          console.log(`MIDI triggered for ${action}: value=${midiValue}, scaled=${scaledValue}`);
-
-          // Check affected fixtures before applying control
           const affectedFixtures = getAffectedFixtures();
-          console.log(`Affected fixtures for ${action}:`, affectedFixtures.length, affectedFixtures);
 
           // Apply the action based on the control type
           switch (action) {
@@ -1313,7 +1295,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           if (config.sceneOscAddresses) setSceneOscAddresses(config.sceneOscAddresses);
           // Scenes are managed globally, not loaded here
           // Layouts are now auto-managed, no need to load
-          console.log('Default configuration loaded successfully');
+          
         }
       }
     } catch (error) {
@@ -2109,7 +2091,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     onChange={(e) => {
                       // If Pan/Tilt autopilot is active, disable it when user manually controls
                       if (panTiltAutopilot.enabled) {
-                        console.log('Manual Pan slider control detected - disabling autopilot');
+                        
                         togglePanTiltAutopilot();
                       }
 
@@ -2133,7 +2115,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     onChange={(e) => {
                       // If Pan/Tilt autopilot is active, disable it when user manually controls
                       if (panTiltAutopilot.enabled) {
-                        console.log('Manual Tilt slider control detected - disabling autopilot');
+                        
                         togglePanTiltAutopilot();
                       }
 
@@ -2528,7 +2510,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
                   // If enabling autopilot, start animation and apply initial position
                   if (newState) {
-                    console.log('🤖 Autopilot enabled - starting animation and applying initial position');
+                    
                     // Start the animation loop
                     startAutopilotTrackAnimation();
                     // Apply initial position immediately
@@ -2536,7 +2518,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       updatePanTiltFromTrack();
                     }, 100);
                   } else {
-                    console.log('🛑 Autopilot disabled - stopping animation');
+                    
                     // Stop the animation loop
                     stopAutopilotTrackAnimation();
                   }
@@ -2787,7 +2769,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               onClick={() => {
                 if (autopilotTrackEnabled) {
                   updatePanTiltFromTrack();
-                  console.log('🎯 Manual position update triggered');
+                  
                 } else {
                   alert('Enable autopilot first!');
                 }
@@ -2959,7 +2941,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 fontSize: '11px',
                 color: '#10b981'
               }}>
-                ✨ Color Autopilot Active! RGB fixtures will cycle through {colorSliderAutopilot.type} pattern.
+                Color Autopilot Active! RGB fixtures will cycle through {colorSliderAutopilot.type} pattern.
                 {colorSliderAutopilot.syncToBPM && ` Synced to ${bpm} BPM.`}
               </div>
             ) : (
