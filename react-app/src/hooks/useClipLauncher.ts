@@ -2,30 +2,30 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { useClipLauncherStore } from '../store/clipLauncherStore';
 
+export const findNextClipInRow = (rowClips: any[], currentColumn: number) => {
+  if (rowClips.length === 0) return null;
+  for (let offset = 1; offset <= rowClips.length; offset++) {
+    const nextColumn = (currentColumn + offset) % rowClips.length;
+    const candidate = rowClips[nextColumn];
+    if (candidate?.scene) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+export const findRandomClipInRow = (rowClips: any[], currentClipId: string) => {
+  const candidates = rowClips.filter((clip) => clip?.scene && clip.id !== currentClipId);
+  if (candidates.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * candidates.length);
+  return candidates[randomIndex];
+};
+
 export function useClipLauncher() {
   const { loadScene } = useStore();
   const { playingClips, clips } = useClipLauncherStore();
   const loopRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const followRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
-
-  const findNextClipInRow = (rowClips: any[], currentColumn: number) => {
-    if (rowClips.length === 0) return null;
-    for (let offset = 1; offset <= rowClips.length; offset++) {
-      const nextColumn = (currentColumn + offset) % rowClips.length;
-      const candidate = rowClips[nextColumn];
-      if (candidate?.scene) {
-        return candidate;
-      }
-    }
-    return null;
-  };
-
-  const findRandomClipInRow = (rowClips: any[], currentClipId: string) => {
-    const candidates = rowClips.filter((clip) => clip?.scene && clip.id !== currentClipId);
-    if (candidates.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * candidates.length);
-    return candidates[randomIndex];
-  };
 
   // Handle clip playback
   useEffect(() => {
