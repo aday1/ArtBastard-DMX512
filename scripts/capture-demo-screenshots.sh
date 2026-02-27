@@ -47,29 +47,39 @@ capture_page() {
   local screenshot="${OUT_DIR}/${name}.png"
   local log_file="${OUT_DIR}/${name}.log"
 
-  rm -rf "$marker"
+  local attempt=1
+  local exit_code=1
 
-  set +e
-  timeout 45s /usr/local/bin/google-chrome \
-    --headless \
-    --disable-gpu \
-    --no-sandbox \
-    --virtual-time-budget=12000 \
-    --user-data-dir="$marker" \
-    --screenshot="$screenshot" \
-    --window-size="$size" \
-    "$url" > "$log_file" 2>&1
-  local exit_code=$?
-  set -e
+  while [[ "$attempt" -le 2 ]]; do
+    rm -rf "$marker"
+    rm -f "$screenshot"
 
-  cleanup_chrome_marker_processes "$marker"
+    set +e
+    timeout 90s /usr/local/bin/google-chrome \
+      --headless \
+      --disable-gpu \
+      --no-sandbox \
+      --virtual-time-budget=20000 \
+      --user-data-dir="$marker" \
+      --screenshot="$screenshot" \
+      --window-size="$size" \
+      "$url" > "$log_file" 2>&1
+    exit_code=$?
+    set -e
 
-  if [[ ! -s "$screenshot" ]]; then
-    echo "capture_failed:${name}:exit:${exit_code}"
-    return 1
-  fi
+    cleanup_chrome_marker_processes "$marker"
 
-  echo "${name}|exit:${exit_code}|path:${screenshot}" >> "${OUT_DIR}/capture-results.txt"
+    if [[ -s "$screenshot" ]]; then
+      echo "${name}|attempt:${attempt}|exit:${exit_code}|path:${screenshot}" >> "${OUT_DIR}/capture-results.txt"
+      return 0
+    fi
+
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+
+  echo "capture_failed:${name}:exit:${exit_code}" | tee -a "${OUT_DIR}/capture-results.txt"
+  return 1
 }
 
 ensure_server
