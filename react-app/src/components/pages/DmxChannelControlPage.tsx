@@ -4,7 +4,6 @@ import { useMidiLearn } from '../../hooks/useMidiLearn';
 import { useGlobalBrowserMidi } from '../../hooks/useGlobalBrowserMidi';
 import { useTheme } from '../../context/ThemeContext';
 import { useMobile } from '../../hooks/useMobile';
-import { LucideIcon } from '../ui/LucideIcon';
 import { EnvelopeAutomation } from '../automation/EnvelopeAutomation';
 import { GlobalChannelNames } from '../channels/GlobalChannelNames';
 import { DmxControlsPanel } from '../dmx/DmxControlsPanel';
@@ -15,6 +14,7 @@ import { DmxMidiConnections } from '../dmx/DmxMidiConnections';
 import { DmxPinnedChannels } from '../dmx/DmxPinnedChannels';
 import { DmxActiveChannelsSummary } from '../dmx/DmxActiveChannelsSummary';
 import { DmxChannelsViewport } from '../dmx/DmxChannelsViewport';
+import { DmxPageHeader } from '../dmx/DmxPageHeader';
 import { filterDmxChannels, filterFixtures, isFixtureActive } from '../dmx/dmxFiltering';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
@@ -337,60 +337,39 @@ export const DmxChannelControlPage: React.FC = () => {
 
       <div className={pageStyles.pageContent}>
         <div className={styles.dmxChannelControlPage}>
-          {/* Header */}
-          <div className={styles.header}>
-            <div className={styles.titleSection}>
-              <h1 className={styles.title}>
-                <LucideIcon name="Sliders" />
-                DMX Channel Control
-              </h1>
-              <div className={styles.stats}>
-                <span className={styles.stat}>
-                  <LucideIcon name="Zap" />
-                  {Object.values(dmxChannels).filter(v => v > 0).length} Active
-                </span>
-                <span className={styles.stat}>
-                  <LucideIcon name="CheckSquare" />
-                  {selectedFixtures.length > 0 
-                    ? `${selectedFixtures.length} Fixture${selectedFixtures.length !== 1 ? 's' : ''} Selected`
-                    : `${selectedChannels.length} Channel${selectedChannels.length !== 1 ? 's' : ''} Selected`}
-                </span>
-                <span className={styles.stat}>
-                  <LucideIcon name="Music" />
-                  {Object.keys(midiMappings).length} MIDI Mapped
-                </span>
-                {isLearning && (
-                  <span className={`${styles.stat} ${styles.learningStat}`}>
-                    <LucideIcon name="Radio" />
-                    Learning CH {currentLearningChannel !== null ? currentLearningChannel + 1 : '?'}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <DmxFixtureSelector
-              fixtures={fixtures}
-              groups={groups}
-              selectedFixtures={selectedFixtures}
-              setSelectedFixtures={setSelectedFixtures}
-              toggleFixtureSelection={toggleFixtureSelection}
-              showFixtureSelector={showFixtureSelector}
-              setShowFixtureSelector={setShowFixtureSelector}
-              fixtureSelectorRef={fixtureSelectorRef}
-              fixtureSearchTerm={fixtureSearchTerm}
-              setFixtureSearchTerm={setFixtureSearchTerm}
-              fixtureFilter={fixtureFilter}
-              setFixtureFilter={setFixtureFilter}
-              fixtureTypeFilter={fixtureTypeFilter}
-              setFixtureTypeFilter={setFixtureTypeFilter}
-              fixtureAddressRange={fixtureAddressRange}
-              setFixtureAddressRange={setFixtureAddressRange}
-              fixtureTypes={fixtureTypes}
-              filteredFixtures={filteredFixtures}
-              isFixtureActive={(fixture) => isFixtureActive(fixture, dmxChannels)}
-              getFixtureColor={getFixtureColor}
-            />
-          </div>
+          <DmxPageHeader
+            theme={theme}
+            activeChannelCount={Object.values(dmxChannels).filter((v) => v > 0).length}
+            selectedFixturesCount={selectedFixtures.length}
+            selectedChannelsCount={selectedChannels.length}
+            midiMappingsCount={Object.keys(midiMappings).length}
+            isLearning={isLearning}
+            currentLearningChannel={currentLearningChannel}
+            fixtureSelector={(
+              <DmxFixtureSelector
+                fixtures={fixtures}
+                groups={groups}
+                selectedFixtures={selectedFixtures}
+                setSelectedFixtures={setSelectedFixtures}
+                toggleFixtureSelection={toggleFixtureSelection}
+                showFixtureSelector={showFixtureSelector}
+                setShowFixtureSelector={setShowFixtureSelector}
+                fixtureSelectorRef={fixtureSelectorRef}
+                fixtureSearchTerm={fixtureSearchTerm}
+                setFixtureSearchTerm={setFixtureSearchTerm}
+                fixtureFilter={fixtureFilter}
+                setFixtureFilter={setFixtureFilter}
+                fixtureTypeFilter={fixtureTypeFilter}
+                setFixtureTypeFilter={setFixtureTypeFilter}
+                fixtureAddressRange={fixtureAddressRange}
+                setFixtureAddressRange={setFixtureAddressRange}
+                fixtureTypes={fixtureTypes}
+                filteredFixtures={filteredFixtures}
+                isFixtureActive={(fixture) => isFixtureActive(fixture, dmxChannels)}
+                getFixtureColor={getFixtureColor}
+              />
+            )}
+          />
 
           <DmxControlsPanel
             viewMode={viewMode}
