@@ -2,7 +2,15 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
 export interface TouchOscExportOptions {
-  resolution: 'phone_portrait' | 'tablet_portrait' | 'phone_landscape' | 'tablet_landscape';
+  resolution:
+    | 'phone_portrait'
+    | 'tablet_portrait'
+    | 'phone_landscape'
+    | 'tablet_landscape'
+    | 'android_phone_portrait'
+    | 'android_phone_landscape'
+    | 'android_tablet_portrait'
+    | 'android_tablet_landscape';
   includeMasterSliders: boolean;
   includePinnedChannels: boolean;
   includeScenes: boolean;

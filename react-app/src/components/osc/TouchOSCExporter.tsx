@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
-import { generateToscLayout } from '../../utils/touchoscExporter';
+import { generateToscLayout, type TouchOscExportOptions } from '../../utils/touchoscExporter';
 import { 
   generate512ChannelXml, 
   generateFixturesXml, 
@@ -15,9 +15,7 @@ export const TouchOSCExporter: React.FC = () => {
   const { masterSliders, pinnedChannels, scenes, fixtures, getChannelInfo, addNotification, oscAssignments } = useStore();
   const { socket } = useSocket();
   
-  // ⚠️ WARNING: TouchOSC Export is currently BROKEN
-  // This feature is non-functional and may cause errors
-  const [resolution, setResolution] = useState<any>('phone_portrait');
+  const [resolution, setResolution] = useState<TouchOscExportOptions['resolution']>('phone_portrait');
   const [includeMasters, setIncludeMasters] = useState(true);
   const [includePinned, setIncludePinned] = useState(true);
   const [includeScenes, setIncludeScenes] = useState(true);
@@ -34,11 +32,14 @@ export const TouchOSCExporter: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<{
+    type: 'info' | 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   React.useEffect(() => {
     if (socket) {
-      socket.emit('getNetworkInfo');
-      socket.on('networkInfo', (info: any) => {
+      const handleNetworkInfo = (info: any) => {
         if (info && info.primaryHost) {
           setServerIp(info.primaryHost);
           // If targetIp isn't set yet or is default, set it to the base of serverIp
@@ -52,16 +53,34 @@ export const TouchOSCExporter: React.FC = () => {
             setServerIp(externalIps[0].address);
           }
         }
-      });
+      };
+      const handleUploadStatus = (status: { success: boolean; message: string }) => {
+        setIsUploading(false);
+        const nextFeedback = {
+          type: status.success ? 'success' as const : 'error' as const,
+          message: status.message
+        };
+        setUploadFeedback(nextFeedback);
+        addNotification({
+          message: status.message,
+          type: status.success ? 'success' : 'error'
+        });
+      };
+
+      socket.emit('getNetworkInfo');
+      socket.on('networkInfo', handleNetworkInfo);
+      socket.on('uploadStatus', handleUploadStatus);
       return () => {
-        socket.off('networkInfo');
+        socket.off('networkInfo', handleNetworkInfo);
+        socket.off('uploadStatus', handleUploadStatus);
       };
     }
-  }, [socket, targetIp]);
+  }, [socket, targetIp, addNotification]);
 
   const handleExport = async (autoUpload = false) => {
     if (autoUpload) setIsUploading(true);
     else setIsExporting(true);
+    setUploadFeedback(null);
 
     try {
       const result = await generateToscLayout({
@@ -91,6 +110,19 @@ export const TouchOSCExporter: React.FC = () => {
           message: `Attempting to push layout to ${targetIp}:${pushPort}...`,
           type: 'info',
         });
+        setUploadFeedback({
+          type: 'info',
+          message: `Uploading layout to ${targetIp}:${pushPort}...`
+        });
+      } else if (autoUpload && !socket) {
+        setUploadFeedback({
+          type: 'error',
+          message: 'Socket connection not available for auto-upload.'
+        });
+        addNotification({
+          message: 'Socket connection not available for auto-upload.',
+          type: 'error',
+        });
       } else {
         addNotification({
           message: 'TouchOSC layout exported successfully',
@@ -105,7 +137,9 @@ export const TouchOSCExporter: React.FC = () => {
       });
     } finally {
       setIsExporting(false);
-      setIsUploading(false);
+      if (!autoUpload || !socket) {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -129,22 +163,46 @@ export const TouchOSCExporter: React.FC = () => {
       </div>
 
       <div className={styles.warningBox} style={{ 
-        border: '2px solid #ff4444', 
-        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+        border: '2px solid rgba(59, 130, 246, 0.6)', 
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         padding: '1rem',
         borderRadius: '8px',
         marginBottom: '1rem'
       }}>
-        <LucideIcon name="AlertTriangle" size={24} style={{ color: '#ff4444' }} />
+        <LucideIcon name="Info" size={24} style={{ color: '#60a5fa' }} />
         <div>
-          <strong style={{ color: '#ff4444', fontSize: '1.1rem' }}>⚠️ TOUCHOSC SECTION IS COMPLETELY BROKEN ⚠️</strong>
+          <strong style={{ color: '#93c5fd', fontSize: '1.1rem' }}>TouchOSC Export Workflow</strong>
           <p style={{ marginTop: '0.5rem' }}>
-            TouchOSC export functionality is non-functional and may cause errors. 
-            Generated .tosc files may crash TouchOSC. This feature is disabled until further notice.
-            Use manual XML generation below at your own risk.
+            Generate a .tosc layout file and optionally push it directly to TouchOSC Editor.
+            Use the status feedback below to confirm upload results.
           </p>
         </div>
       </div>
+
+      {uploadFeedback && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: `1px solid ${
+              uploadFeedback.type === 'success'
+                ? 'rgba(34, 197, 94, 0.6)'
+                : uploadFeedback.type === 'error'
+                  ? 'rgba(239, 68, 68, 0.6)'
+                  : 'rgba(59, 130, 246, 0.6)'
+            }`,
+            backgroundColor:
+              uploadFeedback.type === 'success'
+                ? 'rgba(34, 197, 94, 0.1)'
+                : uploadFeedback.type === 'error'
+                  ? 'rgba(239, 68, 68, 0.1)'
+                  : 'rgba(59, 130, 246, 0.1)'
+          }}
+        >
+          {uploadFeedback.message}
+        </div>
+      )}
 
       <p className={styles.description}>
         Generate a professional <code>.tosc</code> layout with auto-populated fixtures, XY pads, and scene launchers.
@@ -157,7 +215,7 @@ export const TouchOSCExporter: React.FC = () => {
           <label>Target Resolution</label>
           <select
             value={resolution}
-            onChange={(e) => setResolution(e.target.value as any)}
+            onChange={(e) => setResolution(e.target.value as TouchOscExportOptions['resolution'])}
             className={styles.select}
           >
             <option value="phone_portrait">iPhone Portrait</option>

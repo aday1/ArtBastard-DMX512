@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { OpenCVVisageTrackerExperimental } from '../components/face-tracker/FaceTrackerDebug';
 import { OscPlaceholder } from '../components/osc/OscPlaceholder';
+import { TouchOSCExporter } from '../components/osc/TouchOSCExporter';
 import { useTheme } from '../context/ThemeContext';
 import { LucideIcon } from '../components/ui/LucideIcon';
 import styles from './ExperimentalPage.module.scss';
 
 const ExperimentalPage: React.FC = () => {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'opencv' | 'osc'>('opencv');
+  const [activeTab, setActiveTab] = useState<'opencv' | 'osc' | 'touchosc'>('opencv');
 
   return (
     <div className={styles.experimentalPage}>
@@ -36,34 +37,33 @@ const ExperimentalPage: React.FC = () => {
       <div style={{
         margin: '2rem',
         padding: '1.5rem',
-        background: 'linear-gradient(135deg, rgba(255, 68, 68, 0.2), rgba(255, 68, 68, 0.1))',
-        border: '3px solid #ff4444',
+        background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))',
+        border: '2px solid rgba(251, 191, 36, 0.8)',
         borderRadius: '12px',
         textAlign: 'center'
       }}>
         <h2 style={{ 
-          color: '#ff4444', 
+          color: '#fde68a', 
           fontSize: '1.5rem', 
           marginBottom: '1rem',
           fontWeight: 'bold'
         }}>
-          ⚠️ HIGHLY EXPERIMENTAL - NOT READY FOR USE ⚠️
+          Experimental Zone
         </h2>
         <p style={{ 
-          color: '#ffaaaa', 
+          color: '#fef3c7', 
           fontSize: '1.1rem',
           lineHeight: '1.6',
           marginBottom: '0.5rem'
         }}>
-          <strong>These features are buggy and incomplete.</strong>
+          <strong>Use these tools for testing and iteration before production shows.</strong>
         </p>
         <p style={{ 
-          color: '#ffaaaa', 
+          color: '#fef3c7', 
           fontSize: '0.95rem',
           lineHeight: '1.6'
         }}>
-          Do not rely on these features for production use. 
-          Development is ongoing but these should be considered experimental and unstable.
+          OpenCV tracking and legacy OSC panels are still evolving. TouchOSC layout generation is now available here.
         </p>
       </div>
 
@@ -83,6 +83,13 @@ const ExperimentalPage: React.FC = () => {
           <LucideIcon name="Globe" />
           <span>OSC Placeholder</span>
         </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'touchosc' ? styles.active : ''}`}
+          onClick={() => setActiveTab('touchosc')}
+        >
+          <LucideIcon name="SmartphoneNfc" />
+          <span>TouchOSC Layouts</span>
+        </button>
       </div>
 
       {/* Main Content */}
@@ -98,6 +105,12 @@ const ExperimentalPage: React.FC = () => {
         {activeTab === 'osc' && (
           <div className={styles.oscSection}>
             <OscPlaceholder />
+          </div>
+        )}
+
+        {activeTab === 'touchosc' && (
+          <div className={styles.oscSection}>
+            <TouchOSCExporter />
           </div>
         )}
       </div>
