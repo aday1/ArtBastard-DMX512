@@ -14,7 +14,7 @@ import { DmxFooterInfo } from '../dmx/DmxFooterInfo';
 import { DmxMidiConnections } from '../dmx/DmxMidiConnections';
 import { DmxPinnedChannels } from '../dmx/DmxPinnedChannels';
 import { DmxActiveChannelsSummary } from '../dmx/DmxActiveChannelsSummary';
-import { DmxChannelCard } from '../dmx/DmxChannelCard';
+import { DmxChannelsViewport } from '../dmx/DmxChannelsViewport';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -675,65 +675,43 @@ export const DmxChannelControlPage: React.FC = () => {
           />
 
           {/* DMX Channels Display */}
-          <div className={`${styles.dmxChannelsContainer} ${styles[viewMode]}`}>
-            {displayedChannels.map(channelIndex => {
-              const value = dmxChannels[channelIndex] || 0;
-              const channelName = channelNames[channelIndex] || `Channel ${channelIndex + 1}`;
-              const isSelected = selectedChannels.includes(channelIndex);
-              const hasMidiMapping = !!midiMappings[channelIndex];
-              const isChannelLearning = isLearning && currentLearningChannel === channelIndex;
-              const mapping = midiMappings[channelIndex];
-              const fixtureInfo = getChannelInfo(channelIndex);
-              const hasFixtureAssignment = isChannelAssigned(channelIndex);
-              const fixtureColor = fixtureInfo ? getFixtureColor(fixtureInfo.fixtureId) : '#64748b';
-              const isEditingName = editingChannelName === channelIndex;
-              const hasCustomName = !!(channelNames[channelIndex] &&
-                channelNames[channelIndex] !== `CH ${channelIndex + 1}` &&
-                channelNames[channelIndex] !== `Channel ${channelIndex + 1}` &&
-                channelNames[channelIndex].trim() !== '');
-
-              return (
-                <DmxChannelCard
-                  key={channelIndex}
-                  channelIndex={channelIndex}
-                  value={value}
-                  channelName={channelName}
-                  isSelected={isSelected}
-                  highlighted={highlightedChannel === channelIndex}
-                  hasMidiMapping={hasMidiMapping}
-                  isChannelLearning={isChannelLearning}
-                  mapping={mapping}
-                  fixtureInfo={fixtureInfo}
-                  hasFixtureAssignment={hasFixtureAssignment}
-                  fixtureColor={fixtureColor}
-                  isEditingName={isEditingName}
-                  hasCustomName={hasCustomName}
-                  channelColor={channelColors[channelIndex]}
-                  envelopeAutomation={envelopeAutomation}
-                  showMidiControls={showMidiControls}
-                  showOscControls={showOscControls}
-                  editingChannelNameValue={editingChannelNameValue}
-                  setEditingChannelNameValue={setEditingChannelNameValue}
-                  getChannelRange={getChannelRange}
-                  setChannelRange={setChannelRange}
-                  setDmxChannel={setDmxChannel}
-                  toggleEnvelope={toggleEnvelope}
-                  handleSaveChannelName={handleSaveChannelName}
-                  handleCancelEditName={handleCancelEditName}
-                  handleStartEditName={handleStartEditName}
-                  toggleChannelSelection={toggleChannelSelection}
-                  setRandomChannelColor={setRandomChannelColor}
-                  addNotification={(payload) => addNotification({ ...payload, priority: 'normal' })}
-                  isPinned={!!pinnedChannels?.includes(channelIndex)}
-                  togglePinChannel={togglePinChannel}
-                  handleMidiLearn={handleMidiLearn}
-                  handleMidiForget={handleMidiForget}
-                  handleSetOscAddress={handleSetOscAddress}
-                  oscAddress={oscAssignments[channelIndex]}
-                />
-              );
-            })}
-          </div>
+          <DmxChannelsViewport
+            viewMode={viewMode}
+            displayedChannels={displayedChannels}
+            dmxChannels={dmxChannels}
+            channelNames={channelNames}
+            selectedChannels={selectedChannels}
+            highlightedChannel={highlightedChannel}
+            channelColors={channelColors}
+            pinnedChannels={pinnedChannels || []}
+            midiMappings={midiMappings}
+            oscAssignments={oscAssignments}
+            isLearning={isLearning}
+            currentLearningChannel={currentLearningChannel}
+            envelopeAutomation={envelopeAutomation}
+            showMidiControls={showMidiControls}
+            showOscControls={showOscControls}
+            editingChannelName={editingChannelName}
+            editingChannelNameValue={editingChannelNameValue}
+            setEditingChannelNameValue={setEditingChannelNameValue}
+            getChannelRange={getChannelRange}
+            setChannelRange={setChannelRange}
+            setDmxChannel={setDmxChannel}
+            toggleEnvelope={toggleEnvelope}
+            handleSaveChannelName={handleSaveChannelName}
+            handleCancelEditName={handleCancelEditName}
+            handleStartEditName={handleStartEditName}
+            toggleChannelSelection={toggleChannelSelection}
+            setRandomChannelColor={setRandomChannelColor}
+            addNotification={(payload) => addNotification({ ...payload, priority: 'normal' })}
+            togglePinChannel={togglePinChannel}
+            handleMidiLearn={handleMidiLearn}
+            handleMidiForget={handleMidiForget}
+            handleSetOscAddress={handleSetOscAddress}
+            getChannelInfo={getChannelInfo}
+            isChannelAssigned={isChannelAssigned}
+            getFixtureColor={getFixtureColor}
+          />
 
           {/* Footer Info */}
           <DmxFooterInfo
