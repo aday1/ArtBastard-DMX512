@@ -1,0 +1,51 @@
+ArtBastard DMX512 Demo Recording Guide
+======================================
+
+How to capture demo videos for GitHub release/promotion
+
+1. Prerequisites
+----------------
+- Start the app: npm run dev (or start.ps1 on Windows)
+- Server runs at http://localhost:3030 (or configured port)
+- For screenshot capture: bash scripts/capture-demo-screenshots.sh [output_dir] [base_url]
+- For video: use screen capture tool (OBS, ffmpeg, QuickTime, etc.)
+
+2. Key Features to Demo
+-----------------------
+- SuperControl (Fixture page > Advanced Fixture Control tab):
+  - Select fixtures with Select All / Deselect All
+  - Empty state when no fixtures - directs to Setup tab
+  - Quick tip text when nothing selected
+  - Dimmer, RGB, Pan/Tilt, Gobo controls
+  - MIDI Learn for external controller mapping
+  - OSC addresses for TouchOSC
+
+- DMX Channel Control: Grid/list view, channel faders, MIDI Learn
+- Fixture Setup: Add fixtures, define channels, create groups
+- Scenes & Acts: Save/load scenes, timeline
+- TouchOSC Export: Generate .tosc layout for mobile control
+- External Console: Dedicated operator view
+- Mobile view: Touch-optimized at #/mobile
+
+3. Screenshot Capture (Automated)
+---------------------------------
+Run: npm run demo:capture-screenshots
+
+Captures: dmx-control, fixture-page, scenes-acts-page, experimental-page,
+touchosc-page, external-console, mobile
+
+Output: /tmp/artbastard-demo-screenshots-YYYYMMDD-HHMMSS/ (or specified dir)
+
+4. Video Recording Tips
+----------------------
+- Show SuperControl: Fixtures tab > Control > Select All > adjust dimmer/RGB
+- Show empty state: Fresh install, Fixtures > Control shows "Add fixtures in Fixture Setup"
+- Resolution: 1600x1200 for desktop, 430x932 for mobile
+- Keep videos under 2 min per feature for release notes
+
+5. Publishing to GitHub
+-----------------------
+- Create release: github.com/aday1/ArtBastard-DMX512/releases/new
+- Attach screenshots from capture-demo-screenshots output
+- Add video links (YouTube, etc.) to release notes
+- Tag version (e.g. v5.12.0)

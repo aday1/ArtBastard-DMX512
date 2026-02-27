@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Clear,
     [switch]$Reset,
     [switch]$Help,
@@ -609,6 +609,10 @@ if ($Clear) {
     Push-Location react-app
     npm run build:vite
     if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ⚠️  Full build failed, trying vite-only build..." -ForegroundColor Yellow
+        ./node_modules/.bin/vite build
+    }
+    if ($LASTEXITCODE -ne 0) {
         Write-Host "  ❌ Frontend build failed!" -ForegroundColor Red
         Pop-Location
         exit 1
@@ -784,6 +788,10 @@ if (-not $Clear) {
             Write-Host "  🏗️  Building frontend..." -ForegroundColor Cyan
             Push-Location react-app
             npm run build:vite
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  ⚠️  Full build failed, trying vite-only build..." -ForegroundColor Yellow
+                ./node_modules/.bin/vite build
+            }
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "  ❌ Frontend build failed!" -ForegroundColor Red
                 Pop-Location
@@ -1226,6 +1234,10 @@ try {
     Push-Location react-app
     Write-Host "  Employing sophisticated frontend build architecture..." -ForegroundColor Yellow
     npm run build:vite
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ⚠️  Full build failed, trying vite-only build..." -ForegroundColor Yellow
+        ./node_modules/.bin/vite build
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Frontend architectural construction encountered complications with exit code $LASTEXITCODE"
     }
