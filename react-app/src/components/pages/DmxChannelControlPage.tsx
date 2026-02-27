@@ -10,6 +10,7 @@ import { GlobalChannelNames } from '../channels/GlobalChannelNames';
 import { DmxControlsPanel } from '../dmx/DmxControlsPanel';
 import { DmxFixtureSelector } from '../dmx/DmxFixtureSelector';
 import { DmxSceneControls } from '../dmx/DmxSceneControls';
+import { DmxFooterInfo } from '../dmx/DmxFooterInfo';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -1281,15 +1282,13 @@ export const DmxChannelControlPage: React.FC = () => {
           </div>
 
           {/* Footer Info */}
-          <div className={styles.footer}>
-            <div className={styles.footerInfo}>
-              <span>Showing {displayedChannels.length} of {filteredChannels.length} channels</span>
-              <span>•</span>
-              <span>Page {currentPage + 1} of {totalPages}</span>
-              <span>•</span>
-              <span>{Object.keys(midiMappings).length} MIDI mappings</span>
-            </div>
-          </div>
+          <DmxFooterInfo
+            displayedCount={displayedChannels.length}
+            filteredCount={filteredChannels.length}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            midiMappingCount={Object.keys(midiMappings).length}
+          />
         </div>
       </div>
     </div>
