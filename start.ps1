@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Clear,
     [switch]$Reset,
     [switch]$Help,
@@ -633,7 +633,7 @@ if ($Clear) {
     Write-Host ""
     try {
         $env:PORT = $Port
-        npm start
+        node dist/server.js
     } catch {
         Write-Host "❌ Server deployment encountered complications!" -ForegroundColor Red
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -878,7 +878,7 @@ if (-not $Clear) {
     # Deploy the server with sophistication
     try {
         $env:PORT = $Port
-        npm start
+        node dist/server.js
     } catch {
         Write-Host "❌ Server deployment encountered complications!" -ForegroundColor Red
         Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -1341,7 +1341,7 @@ Update-ETAMetrics $totalTime
 try {
     Write-Host "Initiating ArtBastard DMX512 server deployment on port $Port..." -ForegroundColor Green
     $env:PORT = $Port
-    npm start
+    node dist/server.js
 } catch {
     Write-Host "Server deployment encountered architectural complications!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow

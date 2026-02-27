@@ -403,7 +403,7 @@ if [ "$CLEAR" = true ]; then
     echo "🎭  Starting ArtBastard DMX512 Server on port $PORT..."
     echo "🎭 ════════════════════════════════════════════════════════════════ 🎭"
     echo ""
-    PORT=$PORT npm start
+    PORT=$PORT node dist/server.js
     
     # Cleanup browser job
     kill $BROWSER_PID 2>/dev/null || true
@@ -602,7 +602,7 @@ echo "🌐 Browser will launch automatically when server is ready..."
 BROWSER_PID=$(start_browser_when_ready)
 
 # Deploy the server
-PORT=$PORT npm start
+PORT=$PORT node dist/server.js
 
 # Cleanup browser job
 kill $BROWSER_PID 2>/dev/null || true
