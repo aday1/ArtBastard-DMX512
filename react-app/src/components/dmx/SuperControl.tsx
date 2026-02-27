@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../../store';
 import { LucideIcon } from '../ui/LucideIcon';
 import CustomPathEditor from '../automation/CustomPathEditor';
 import { useSuperControlMidiLearn } from '../../hooks/useSuperControlMidiLearn';
 import { useMobile } from '../../hooks/useMobile';
-import { TouchChannelMatrix } from './TouchChannelMatrix';
 import { captureChannelValues } from '../../utils/sceneCapture';
 import styles from './SuperControl.module.scss';
 // Removed react-grid-layout - using CSS auto-layout instead
@@ -19,6 +18,11 @@ interface FixtureCapability {
   type: string;
   fixtures: string[];
 }
+
+type AffectedFixture = {
+  fixture: any;
+  channels: { [key: string]: number };
+};
 
 const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const { isMobile, isTablet, isTouch } = useMobile();
@@ -91,6 +95,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('channels');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
+  const [selectionFilter, setSelectionFilter] = useState('');
   // Control values state
   const [dimmer, setDimmer] = useState(255);
   const [panValue, setPanValue] = useState(127);
@@ -263,47 +268,61 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sceneOscAddresses, setSceneOscAddresses] = useState<Record<string, string>>({});
 
-  // Get fixture capabilities (fixtures grouped by shared channel types)
-  const getFixtureCapabilities = (): FixtureCapability[] => {
+  const fixtureCapabilities = useMemo<FixtureCapability[]>(() => {
     const capabilities: Record<string, string[]> = {};
 
-    fixtures.forEach(fixture => {
-      fixture.channels.forEach(channel => {
+    for (const fixture of fixtures) {
+      for (const channel of fixture.channels) {
         const type = channel.type.toLowerCase();
-        if (!capabilities[type]) {
-          capabilities[type] = [];
-        }
-        if (!capabilities[type].includes(fixture.id)) {
-          capabilities[type].push(fixture.id);
-        }
-      });
-    });
+        const list = (capabilities[type] ||= []);
+        if (!list.includes(fixture.id)) list.push(fixture.id);
+      }
+    }
 
-    return Object.entries(capabilities).map(([type, fixtureIds]) => ({
-      type,
-      fixtures: fixtureIds
-    })).filter(cap => cap.fixtures.length > 1); // Only show capabilities shared by multiple fixtures
-  };
-  // Get all affected fixtures based on selection mode
-  const getAffectedFixtures = () => {
+    return Object.entries(capabilities)
+      .map(([type, fixtureIds]) => ({ type, fixtures: fixtureIds }))
+      .filter(cap => cap.fixtures.length > 1);
+  }, [fixtures]);
+
+  const normalizedSelectionFilter = selectionFilter.trim().toLowerCase();
+
+  const filteredFixtures = useMemo(() => {
+    if (!normalizedSelectionFilter) return fixtures;
+    return fixtures.filter(fixture => {
+      const range = `${fixture.startAddress}-${fixture.startAddress + fixture.channels.length - 1}`;
+      return (
+        fixture.name.toLowerCase().includes(normalizedSelectionFilter) ||
+        range.includes(normalizedSelectionFilter)
+      );
+    });
+  }, [fixtures, normalizedSelectionFilter]);
+
+  const filteredGroups = useMemo(() => {
+    if (!normalizedSelectionFilter) return groups;
+    return groups.filter(group => group.name.toLowerCase().includes(normalizedSelectionFilter));
+  }, [groups, normalizedSelectionFilter]);
+
+  const filteredCapabilities = useMemo(() => {
+    if (!normalizedSelectionFilter) return fixtureCapabilities;
+    return fixtureCapabilities.filter(cap =>
+      cap.type.toLowerCase().includes(normalizedSelectionFilter)
+    );
+  }, [fixtureCapabilities, normalizedSelectionFilter]);
+
+  const affectedFixtures = useMemo<AffectedFixture[]>(() => {
     let targetFixtures: string[] = [];
-    console.log(`getAffectedFixtures called - selectionMode: ${selectionMode}`);
-    console.log(`Selected channels: ${selectedChannels.length}`, selectedChannels);
-    console.log(`Selected fixtures: ${selectedFixtures.length}`, selectedFixtures);
-    console.log(`Selected groups: ${selectedGroups.length}`, selectedGroups);
 
     switch (selectionMode) {
-      case 'channels':
+      case 'channels': {
         if (selectedChannels.length === 0) return [];
 
-        const affectedFixtures: Array<{
-          fixture: any;
-          channels: { [key: string]: number };
-        }> = [];
+        const affected: AffectedFixture[] = [];
 
-        fixtures.forEach(fixture => {
+        for (const fixture of fixtures) {
           const fixtureChannels: { [key: string]: number } = {};
-          let hasSelectedChannel = false; fixture.channels.forEach((channel, index) => {
+          let hasSelectedChannel = false;
+
+          fixture.channels.forEach((channel, index) => {
             const dmxAddress = fixture.startAddress + index - 1;
             if (selectedChannels.includes(dmxAddress)) {
               hasSelectedChannel = true;
@@ -312,14 +331,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           });
 
           if (hasSelectedChannel) {
-            affectedFixtures.push({
-              fixture,
-              channels: fixtureChannels
-            });
+            affected.push({ fixture, channels: fixtureChannels });
           }
-        });
+        }
 
-        return affectedFixtures;
+        return affected;
+      }
 
       case 'fixtures':
         targetFixtures = selectedFixtures;
@@ -333,9 +350,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         break;
 
       case 'capabilities':
-        const capabilities = getFixtureCapabilities();
         targetFixtures = selectedCapabilities.flatMap(capType => {
-          const capability = capabilities.find(c => c.type === capType);
+          const capability = fixtureCapabilities.find(c => c.type === capType);
           return capability ? capability.fixtures : [];
         });
         break;
@@ -345,23 +361,29 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
       .map(fixtureId => {
         const fixture = fixtures.find(f => f.id === fixtureId);
         if (!fixture) return null;
+
         const fixtureChannels: { [key: string]: number } = {};
         fixture.channels.forEach((channel, index) => {
           const dmxAddress = fixture.startAddress + index - 1;
           fixtureChannels[channel.type.toLowerCase()] = dmxAddress;
         });
 
-        return {
-          fixture,
-          channels: fixtureChannels
-        };
+        return { fixture, channels: fixtureChannels };
       })
-      .filter((item): item is { fixture: any; channels: { [key: string]: number } } => item !== null);
-  };
+      .filter((item): item is AffectedFixture => item !== null);
+  }, [
+    selectionMode,
+    selectedChannels,
+    selectedFixtures,
+    selectedGroups,
+    selectedCapabilities,
+    fixtures,
+    groups,
+    fixtureCapabilities
+  ]);
 
   // Helper function to check if selected fixtures have a specific control type
   const hasControlType = (controlType: string): boolean => {
-    const affectedFixtures = getAffectedFixtures();
     if (affectedFixtures.length === 0) return false;
 
     // Map control types to possible channel type variations
@@ -389,10 +411,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
-    const affectedFixtures = getAffectedFixtures();
-    console.log(`applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
-
-    affectedFixtures.forEach(({ channels }, index) => {
+    affectedFixtures.forEach(({ channels }) => {
       let targetChannel: number | undefined;
 
       switch (controlType) {
@@ -419,7 +438,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           break;
         case 'shutter':
           targetChannel = channels['shutter'];
-          break; case 'strobe':
+          break;
+        case 'strobe':
           targetChannel = channels['strobe'];
           break;
         case 'lamp':
@@ -428,17 +448,10 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
         case 'reset':
           targetChannel = channels['reset'] || channels['reset_control'] || channels['function'];
           break;
-      }      if (targetChannel !== undefined) {
-        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
-        setDmxChannelValue(targetChannel, value);
+      }
 
-        // Additional verification - check if the value was actually set
-        setTimeout(() => {
-          const actualValue = getDmxChannelValue(targetChannel);
-          console.log(`[DMX] Verification: Channel ${targetChannel} is now ${actualValue} (expected ${value})`);
-        }, 100);
-      } else {
-        console.log(`[DMX] ERROR: No target channel found for ${controlType} in fixture ${index}`, channels);
+      if (targetChannel !== undefined) {
+        setDmxChannelValue(targetChannel, value);
       }
     });
   };
@@ -464,7 +477,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
     // If Pan/Tilt autopilot is active, temporarily disable it when user manually controls
     if (panTiltAutopilot.enabled) {
-      console.log('Manual Pan/Tilt control detected - disabling autopilot');
       togglePanTiltAutopilot();
     }
 
@@ -487,7 +499,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const resetPanTiltToCenter = () => {
     // If Pan/Tilt autopilot is active, disable it when user manually resets
     if (panTiltAutopilot.enabled) {
-      console.log('Manual Pan/Tilt reset detected - disabling autopilot');
       togglePanTiltAutopilot();
     }
 
@@ -573,7 +584,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Enhanced MIDI Learn with range support
   const startMidiLearn = (controlType: string, minValue: number = 0, maxValue: number = 255) => {
     setMidiLearnTarget(controlType);
-    console.log(`Starting MIDI learn for ${controlType} (range: ${minValue}-${maxValue})`);
 
     // Listen for MIDI input
     const handleMidiMessage = (event: any) => {
@@ -595,7 +605,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
       }));
 
       setMidiLearnTarget(null);
-      console.log(`MIDI learned for ${controlType}:`, mapping);
     };
 
     // Add MIDI listener
@@ -649,12 +658,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           const scaledValue = Math.round(
             mapping.minValue + (midiValue / 127) * (mapping.maxValue - mapping.minValue)
           );
-
-          console.log(`MIDI triggered for ${action}: value=${midiValue}, scaled=${scaledValue}`);
-
-          // Check affected fixtures before applying control
-          const affectedFixtures = getAffectedFixtures();
-          console.log(`Affected fixtures for ${action}:`, affectedFixtures.length, affectedFixtures);
+          if (affectedFixtures.length === 0) return;
 
           // Apply the action based on the control type
           switch (action) {
@@ -669,7 +673,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               break;
             case 'tilt':
               setTiltValue(scaledValue);
-              setPanTiltXY(prev => ({ ...prev, y: (scaledValue / 255) * 100 }));
+              setPanTiltXY(prev => ({ ...prev, y: ((255 - scaledValue) / 255) * 100 }));
               applyControl('tilt', scaledValue);
               break;
             case 'red':
@@ -1313,7 +1317,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           if (config.sceneOscAddresses) setSceneOscAddresses(config.sceneOscAddresses);
           // Scenes are managed globally, not loaded here
           // Layouts are now auto-managed, no need to load
-          console.log('Default configuration loaded successfully');
         }
       }
     } catch (error) {
@@ -1339,7 +1342,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
   // Get selection info
   const getSelectionInfo = () => {
-    const affected = getAffectedFixtures();
+    const affected = affectedFixtures;
 
     switch (selectionMode) {
       case 'channels':
@@ -1361,8 +1364,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     }
   };
 
-  const hasSelection = getAffectedFixtures().length > 0;
-  const capabilities = getFixtureCapabilities();
+  const hasSelection = affectedFixtures.length > 0;
 
   // Global mouse event handlers for drag operations
   useEffect(() => {
@@ -1402,7 +1404,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     if (!panTiltAutopilot.enabled) return;
 
     // Find fixtures with pan/tilt channels to get their current values
-    const affectedFixtures = getAffectedFixtures();
     const panTiltFixtures = affectedFixtures.filter(({ channels }) =>
       channels.pan !== undefined && channels.tilt !== undefined
     );
@@ -1442,7 +1443,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [panTiltAutopilot.enabled, panValue, tiltValue, getDmxChannelValue]);
+  }, [panTiltAutopilot.enabled, panValue, tiltValue, getDmxChannelValue, affectedFixtures]);
 
   return (
     <div className={styles.superControl}>
@@ -1497,9 +1498,114 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </button>
               </div>
 
+              {(selectionMode === 'fixtures' || selectionMode === 'groups' || selectionMode === 'capabilities') && (
+                <div className={styles.selectionToolbar}>
+                  <input
+                    className={styles.selectionSearch}
+                    type="search"
+                    value={selectionFilter}
+                    onChange={(e) => setSelectionFilter(e.target.value)}
+                    placeholder={
+                      selectionMode === 'fixtures'
+                        ? 'Filter fixtures by name or address range'
+                        : selectionMode === 'groups'
+                          ? 'Filter groups by name'
+                          : 'Filter capabilities by type'
+                    }
+                    aria-label="Filter selection list"
+                  />
+
+                  <div className={styles.selectionActions}>
+                    {selectionMode === 'fixtures' && (
+                      <>
+                        <button
+                          onClick={() => setSelectedFixtures(filteredFixtures.map(f => f.id))}
+                          disabled={filteredFixtures.length === 0}
+                        >
+                          All
+                        </button>
+                        <button onClick={() => setSelectedFixtures([])} disabled={selectedFixtures.length === 0}>
+                          None
+                        </button>
+                        <button
+                          onClick={() => {
+                            const visibleIds = filteredFixtures.map(f => f.id);
+                            const visibleSet = new Set(visibleIds);
+                            const next = selectedFixtures.filter(id => !visibleSet.has(id));
+                            for (const id of visibleIds) {
+                              if (!selectedFixtures.includes(id)) next.push(id);
+                            }
+                            setSelectedFixtures(next);
+                          }}
+                          disabled={filteredFixtures.length === 0}
+                        >
+                          Invert
+                        </button>
+                      </>
+                    )}
+
+                    {selectionMode === 'groups' && (
+                      <>
+                        <button
+                          onClick={() => setSelectedGroups(filteredGroups.map(g => g.id))}
+                          disabled={filteredGroups.length === 0}
+                        >
+                          All
+                        </button>
+                        <button onClick={() => setSelectedGroups([])} disabled={selectedGroups.length === 0}>
+                          None
+                        </button>
+                        <button
+                          onClick={() => {
+                            const visibleIds = filteredGroups.map(g => g.id);
+                            const visibleSet = new Set(visibleIds);
+                            const next = selectedGroups.filter(id => !visibleSet.has(id));
+                            for (const id of visibleIds) {
+                              if (!selectedGroups.includes(id)) next.push(id);
+                            }
+                            setSelectedGroups(next);
+                          }}
+                          disabled={filteredGroups.length === 0}
+                        >
+                          Invert
+                        </button>
+                      </>
+                    )}
+
+                    {selectionMode === 'capabilities' && (
+                      <>
+                        <button
+                          onClick={() => setSelectedCapabilities(filteredCapabilities.map(c => c.type))}
+                          disabled={filteredCapabilities.length === 0}
+                        >
+                          All
+                        </button>
+                        <button onClick={() => setSelectedCapabilities([])} disabled={selectedCapabilities.length === 0}>
+                          None
+                        </button>
+                        <button
+                          onClick={() => {
+                            const visibleTypes = filteredCapabilities.map(c => c.type);
+                            const visibleSet = new Set(visibleTypes);
+                            const next = selectedCapabilities.filter(t => !visibleSet.has(t));
+                            for (const t of visibleTypes) {
+                              if (!selectedCapabilities.includes(t)) next.push(t);
+                            }
+                            setSelectedCapabilities(next);
+                          }}
+                          disabled={filteredCapabilities.length === 0}
+                        >
+                          Invert
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {selectionMode === 'fixtures' && (
                 <div className={styles.fixtureList}>
-                  {fixtures.map(fixture => (
+                  {filteredFixtures.map(fixture => (
                     <div
                       key={fixture.id}
                       className={`${styles.fixtureItem} ${selectedFixtures.includes(fixture.id) ? styles.selected : ''}`}
@@ -1516,12 +1622,15 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       </span>
                     </div>
                   ))}
+                  {filteredFixtures.length === 0 && (
+                    <div className={styles.emptySelection}>No fixtures match your filter.</div>
+                  )}
                 </div>
               )}
 
               {selectionMode === 'groups' && (
                 <div className={styles.fixtureList}>
-                  {groups.map(group => (
+                  {filteredGroups.map(group => (
                     <div
                       key={group.id}
                       className={`${styles.fixtureItem} ${selectedGroups.includes(group.id) ? styles.selected : ''}`}
@@ -1539,28 +1648,35 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       </span>
                     </div>
                   ))}
+                  {filteredGroups.length === 0 && (
+                    <div className={styles.emptySelection}>No groups match your filter.</div>
+                  )}
                 </div>
               )}
 
               {selectionMode === 'capabilities' && (
-                <div className={styles.fixtureList}>            {capabilities.map(capability => (
-                  <div
-                    key={capability.type}
-                    className={`${styles.fixtureItem} ${selectedCapabilities.includes(capability.type) ? styles.selected : ''}`}
-                    onClick={() => {
-                      setSelectedCapabilities(prev =>
-                        prev.includes(capability.type)
-                          ? prev.filter(type => type !== capability.type)
-                          : [...prev, capability.type]
-                      );
-                    }}
-                  >
-                    <span className={styles.fixtureName}>{capability.type.toUpperCase()}</span>
-                    <span className={styles.fixtureChannels}>
-                      {capability.fixtures.length} fixtures
-                    </span>
-                  </div>
-                ))}
+                <div className={styles.fixtureList}>
+                  {filteredCapabilities.map(capability => (
+                    <div
+                      key={capability.type}
+                      className={`${styles.fixtureItem} ${selectedCapabilities.includes(capability.type) ? styles.selected : ''}`}
+                      onClick={() => {
+                        setSelectedCapabilities(prev =>
+                          prev.includes(capability.type)
+                            ? prev.filter(type => type !== capability.type)
+                            : [...prev, capability.type]
+                        );
+                      }}
+                    >
+                      <span className={styles.fixtureName}>{capability.type.toUpperCase()}</span>
+                      <span className={styles.fixtureChannels}>
+                        {capability.fixtures.length} fixtures
+                      </span>
+                    </div>
+                  ))}
+                  {filteredCapabilities.length === 0 && (
+                    <div className={styles.emptySelection}>No capabilities match your filter.</div>
+                  )}
                 </div>
               )}
             </div>
@@ -1581,12 +1697,12 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     Active Channels & Values
                   </h4>
                   <span className={styles.totalFixtures}>
-                    {getAffectedFixtures().length} fixture(s) selected
+                    {affectedFixtures.length} fixture(s) selected
                   </span>
                 </div>
 
                 <div className={styles.channelMonitor}>
-                  {getAffectedFixtures().map(({ fixture, channels }, index) => (
+                  {affectedFixtures.map(({ fixture, channels }, index) => (
                     <div key={`${fixture.id}-${index}`} className={styles.fixtureMonitor}>
                       <div className={styles.fixtureHeader}>
                         <LucideIcon name="Lightbulb" />
@@ -2109,7 +2225,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     onChange={(e) => {
                       // If Pan/Tilt autopilot is active, disable it when user manually controls
                       if (panTiltAutopilot.enabled) {
-                        console.log('Manual Pan slider control detected - disabling autopilot');
                         togglePanTiltAutopilot();
                       }
 
@@ -2133,14 +2248,13 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                     onChange={(e) => {
                       // If Pan/Tilt autopilot is active, disable it when user manually controls
                       if (panTiltAutopilot.enabled) {
-                        console.log('Manual Tilt slider control detected - disabling autopilot');
                         togglePanTiltAutopilot();
                       }
 
                       const val = parseInt(e.target.value);
                       setTiltValue(val);
                       applyControl('tilt', val);
-                      setPanTiltXY(prev => ({ ...prev, y: (val / 255) * 100 }));
+                      setPanTiltXY(prev => ({ ...prev, y: ((255 - val) / 255) * 100 }));
                     }}
                     disabled={!hasSelection}
                   />
@@ -2528,7 +2642,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
 
                   // If enabling autopilot, start animation and apply initial position
                   if (newState) {
-                    console.log('🤖 Autopilot enabled - starting animation and applying initial position');
                     // Start the animation loop
                     startAutopilotTrackAnimation();
                     // Apply initial position immediately
@@ -2536,7 +2649,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                       updatePanTiltFromTrack();
                     }, 100);
                   } else {
-                    console.log('🛑 Autopilot disabled - stopping animation');
                     // Stop the animation loop
                     stopAutopilotTrackAnimation();
                   }
@@ -2787,7 +2899,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
               onClick={() => {
                 if (autopilotTrackEnabled) {
                   updatePanTiltFromTrack();
-                  console.log('🎯 Manual position update triggered');
                 } else {
                   alert('Enable autopilot first!');
                 }
