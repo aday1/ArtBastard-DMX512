@@ -48,6 +48,7 @@
     "build-backend": "node build-backend.js",
     "build-backend-fast": "node build-backend-fast.js",
     "build-frontend": "cd react-app && npm run build",
+    "build-frontend:skip-ts": "cd react-app && ./node_modules/.bin/vite build",
     "build-fast": "npm run build-backend-fast",
     "start": "npm run build-backend && node dist/server.js",
     "dev": "powershell -ExecutionPolicy Bypass -File start.ps1",

@@ -1,6 +1,12 @@
 ArtBastard UI/UX Tour
 Date: 2026-02-27
 
+SuperControl (Fixture page > Advanced Fixture Control)
+  - Select All / Deselect All quick actions
+  - Empty states: no fixtures, no groups, no capabilities
+  - Quick tip text guides first-time users
+  - Fixtures, Groups, Channels, Capabilities selection modes
+
 Screen 01: DMX Control Home
   Focus: Channel workflows, filtering, and live control state.
 

@@ -28,6 +28,8 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     selectedChannels,
     selectedFixtures,
     setSelectedFixtures,
+    selectAllFixtures,
+    deselectAllFixtures,
     getDmxChannelValue,
     setDmxChannelValue,
     getChannelInfo,
@@ -287,10 +289,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Get all affected fixtures based on selection mode
   const getAffectedFixtures = () => {
     let targetFixtures: string[] = [];
-    console.log(`getAffectedFixtures called - selectionMode: ${selectionMode}`);
-    console.log(`Selected channels: ${selectedChannels.length}`, selectedChannels);
-    console.log(`Selected fixtures: ${selectedFixtures.length}`, selectedFixtures);
-    console.log(`Selected groups: ${selectedGroups.length}`, selectedGroups);
 
     switch (selectionMode) {
       case 'channels':
@@ -390,7 +388,6 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   // Apply control value to DMX channels
   const applyControl = (controlType: string, value: number) => {
     const affectedFixtures = getAffectedFixtures();
-    console.log(`applyControl called: type=${controlType}, value=${value}, fixtures=${affectedFixtures.length}`);
 
     affectedFixtures.forEach(({ channels }, index) => {
       let targetChannel: number | undefined;
@@ -429,16 +426,7 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
           targetChannel = channels['reset'] || channels['reset_control'] || channels['function'];
           break;
       }      if (targetChannel !== undefined) {
-        console.log(`[DMX] Setting channel ${targetChannel} to ${value} for ${controlType}`);
         setDmxChannelValue(targetChannel, value);
-
-        // Additional verification - check if the value was actually set
-        setTimeout(() => {
-          const actualValue = getDmxChannelValue(targetChannel);
-          console.log(`[DMX] Verification: Channel ${targetChannel} is now ${actualValue} (expected ${value})`);
-        }, 100);
-      } else {
-        console.log(`[DMX] ERROR: No target channel found for ${controlType} in fixture ${index}`, channels);
       }
     });
   };
@@ -1364,6 +1352,19 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
   const hasSelection = getAffectedFixtures().length > 0;
   const capabilities = getFixtureCapabilities();
 
+  const handleSelectAllFixtures = () => {
+    selectAllFixtures();
+    setSelectionMode('fixtures');
+    setSelectedGroups([]);
+    setSelectedCapabilities([]);
+  };
+
+  const handleDeselectAllFixtures = () => {
+    deselectAllFixtures();
+    setSelectedGroups([]);
+    setSelectedCapabilities([]);
+  };
+
   // Global mouse event handlers for drag operations
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
@@ -1444,16 +1445,34 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
     return () => clearInterval(interval);
   }, [panTiltAutopilot.enabled, panValue, tiltValue, getDmxChannelValue]);
 
+  const getQuickTip = () => {
+    if (fixtures.length === 0) {
+      return 'Add fixtures in Fixture Setup tab to get started';
+    }
+    if (!hasSelection) {
+      if (selectionMode === 'fixtures') return 'Click fixtures below or use Select All';
+      if (selectionMode === 'groups' && groups.length > 0) return 'Click a group to select it';
+      if (selectionMode === 'channels') return 'Select DMX channels from the DMX Control page';
+      return 'Select fixtures, groups, or channels to control';
+    }
+    return null;
+  };
+
   return (
     <div className={styles.superControl}>
       <div className={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <LucideIcon name="Settings" />
               Super Control
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#ccc' }}>{getSelectionInfo()}</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--color-text-secondary)' }}>{getSelectionInfo()}</p>
+            {getQuickTip() && (
+              <p style={{ margin: '6px 0 0 0', fontSize: '12px', opacity: 0.85, color: 'var(--color-interactive)' }}>
+                {getQuickTip()}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1497,7 +1516,34 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </button>
               </div>
 
-              {selectionMode === 'fixtures' && (
+              {selectionMode === 'fixtures' && fixtures.length > 0 && (
+                <div className={styles.quickActions}>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllFixtures}
+                    title="Select all fixtures"
+                  >
+                    <LucideIcon name="CheckSquare" size={14} />
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAllFixtures}
+                    title="Deselect all fixtures"
+                  >
+                    <LucideIcon name="Square" size={14} />
+                    Deselect All
+                  </button>
+                </div>
+              )}
+              {selectionMode === 'fixtures' && fixtures.length === 0 && (
+                <div className={styles.emptyState}>
+                  <LucideIcon name="Lightbulb" size={32} style={{ opacity: 0.5 }} />
+                  <p>No fixtures defined yet.</p>
+                  <p style={{ fontSize: '12px', marginTop: '4px' }}>Go to the Fixture Setup tab to add fixtures.</p>
+                </div>
+              )}
+              {selectionMode === 'fixtures' && fixtures.length > 0 && (
                 <div className={styles.fixtureList}>
                   {fixtures.map(fixture => (
                     <div
@@ -1519,7 +1565,14 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </div>
               )}
 
-              {selectionMode === 'groups' && (
+              {selectionMode === 'groups' && groups.length === 0 && (
+                <div className={styles.emptyState}>
+                  <LucideIcon name="Users" size={32} style={{ opacity: 0.5 }} />
+                  <p>No groups defined.</p>
+                  <p style={{ fontSize: '12px', marginTop: '4px' }}>Create groups in Fixture Setup.</p>
+                </div>
+              )}
+              {selectionMode === 'groups' && groups.length > 0 && (
                 <div className={styles.fixtureList}>
                   {groups.map(group => (
                     <div
@@ -1542,8 +1595,16 @@ const SuperControl: React.FC<SuperControlProps> = ({ isDockable = false }) => {
                 </div>
               )}
 
-              {selectionMode === 'capabilities' && (
-                <div className={styles.fixtureList}>            {capabilities.map(capability => (
+              {selectionMode === 'capabilities' && capabilities.length === 0 && (
+                <div className={styles.emptyState}>
+                  <LucideIcon name="Zap" size={32} style={{ opacity: 0.5 }} />
+                  <p>No shared capabilities.</p>
+                  <p style={{ fontSize: '12px', marginTop: '4px' }}>Add fixtures with matching channel types.</p>
+                </div>
+              )}
+              {selectionMode === 'capabilities' && capabilities.length > 0 && (
+                <div className={styles.fixtureList}>
+                  {capabilities.map(capability => (
                   <div
                     key={capability.type}
                     className={`${styles.fixtureItem} ${selectedCapabilities.includes(capability.type) ? styles.selected : ''}`}
