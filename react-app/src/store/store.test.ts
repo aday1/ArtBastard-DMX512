@@ -23,16 +23,16 @@ describe('Store', () => {
     })
 
     it('should set a DMX channel value', () => {
-      useStore.getState().setDmxChannel(1, 255)
+      useStore.getState().setDmxChannel(0, 255)
       const state = useStore.getState()
       expect(state.dmxChannels[0]).toBe(255)
     })
 
     it('should clamp DMX values to 0-255', () => {
-      useStore.getState().setDmxChannel(1, 300)
+      useStore.getState().setDmxChannel(0, 300)
       expect(useStore.getState().dmxChannels[0]).toBe(255)
       
-      useStore.getState().setDmxChannel(1, -10)
+      useStore.getState().setDmxChannel(0, -10)
       expect(useStore.getState().dmxChannels[0]).toBe(0)
     })
   })

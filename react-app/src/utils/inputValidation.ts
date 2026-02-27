@@ -12,10 +12,10 @@ export interface ValidationResult {
  * Validate DMX channel value (0-255)
  */
 export function validateDmxValue(value: any): ValidationResult {
-  const num = Number(value);
-  if (isNaN(num)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     return { valid: false, error: 'Value must be a number' };
   }
+  const num = value;
   if (num < 0 || num > 255) {
     return { valid: false, error: 'DMX value must be between 0 and 255' };
   }
