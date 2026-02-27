@@ -10,7 +10,7 @@ interface ScenePlaybackState {
 }
 
 export const useSceneTimelinePlayback = () => {
-  const { scenes, setDmxChannel } = useStore();
+  const { scenes, setMultipleDmxChannels } = useStore();
   const playbackStateRef = useRef<ScenePlaybackState>({
     sceneName: null,
     isPlaying: false,
@@ -113,6 +113,8 @@ export const useSceneTimelinePlayback = () => {
       ...Object.keys(next.channelValues).map(Number)
     ]);
 
+    const updates: Record<number, number> = {};
+
     // Interpolate values for each channel
     allChannels.forEach(channelIndex => {
       const laneState = timeline.channelLanes?.[channelIndex];
@@ -133,8 +135,12 @@ export const useSceneTimelinePlayback = () => {
         prev.easing || 'linear'
       );
 
-      setDmxChannel(channelIndex, interpolatedValue);
+      updates[channelIndex] = interpolatedValue;
     });
+
+    if (Object.keys(updates).length > 0) {
+      setMultipleDmxChannels(updates, true);
+    }
   };
 
   // Stop timeline playback
@@ -159,11 +165,15 @@ export const useSceneTimelinePlayback = () => {
     // Apply initial keyframe
     const firstKeyframe = scene.timeline.keyframes[0];
     if (firstKeyframe) {
+      const updates: Record<number, number> = {};
       Object.entries(firstKeyframe.channelValues).forEach(([channelIndex, value]) => {
-        setDmxChannel(Number(channelIndex), value);
+        updates[Number(channelIndex)] = value;
       });
+      if (Object.keys(updates).length > 0) {
+        setMultipleDmxChannels(updates, true);
+      }
     }
-  }, [scenes, setDmxChannel]);
+  }, [scenes, setMultipleDmxChannels]);
 
   // Listen for scene timeline start/stop events
   useEffect(() => {
@@ -176,11 +186,18 @@ export const useSceneTimelinePlayback = () => {
       stopTimeline();
     };
 
+    const handleRestartTimeline = (event: CustomEvent) => {
+      const { sceneName } = event.detail;
+      startTimeline(sceneName);
+    };
+
     window.addEventListener('startSceneTimeline', handleStartTimeline as EventListener);
     window.addEventListener('stopSceneTimeline', handleStopTimeline);
+    window.addEventListener('restartSceneTimeline', handleRestartTimeline as EventListener);
     return () => {
       window.removeEventListener('startSceneTimeline', handleStartTimeline as EventListener);
       window.removeEventListener('stopSceneTimeline', handleStopTimeline);
+      window.removeEventListener('restartSceneTimeline', handleRestartTimeline as EventListener);
     };
   }, [startTimeline, stopTimeline]);
 
@@ -209,9 +226,13 @@ export const useSceneTimelinePlayback = () => {
         // Apply final keyframe values
         const lastKeyframe = scene.timeline.keyframes[scene.timeline.keyframes.length - 1];
         if (lastKeyframe) {
+          const updates: Record<number, number> = {};
           Object.entries(lastKeyframe.channelValues).forEach(([channelIndex, value]) => {
-            setDmxChannel(Number(channelIndex), value);
+            updates[Number(channelIndex)] = value;
           });
+          if (Object.keys(updates).length > 0) {
+            setMultipleDmxChannels(updates, true);
+          }
         }
       } else if (scene.timeline.loop && elapsed >= scene.timeline.duration) {
         // Reset for loop
@@ -222,7 +243,7 @@ export const useSceneTimelinePlayback = () => {
     }, 50); // Update every 50ms for smooth animation
 
     return () => clearInterval(interval);
-  }, [scenes, setDmxChannel, applyTimelineAtTime]);
+  }, [scenes, setMultipleDmxChannels, applyTimelineAtTime]);
 
   return {
     startTimeline,

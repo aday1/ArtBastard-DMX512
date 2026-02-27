@@ -174,12 +174,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
             break;
           case 'next':
-            // TODO: Implement next step functionality
-            console.log('[SocketContext] Next step not yet implemented');
+            if (store.actPlaybackState.currentActId !== actId) {
+              store.playAct(actId);
+            }
+            store.nextActStep();
             break;
           case 'previous':
-            // TODO: Implement previous step functionality
-            console.log('[SocketContext] Previous step not yet implemented');
+            if (store.actPlaybackState.currentActId !== actId) {
+              store.playAct(actId);
+            }
+            store.previousActStep();
             break;
           default:
             console.warn('[SocketContext] Unknown ACT trigger action:', action);
