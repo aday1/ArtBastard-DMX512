@@ -4,6 +4,8 @@ set -euo pipefail
 BASE_URL="${2:-http://127.0.0.1:3030}"
 OUT_DIR="${1:-/tmp/artbastard-demo-screenshots-$(date +%Y%m%d-%H%M%S)}"
 SERVER_LOG="/tmp/artbastard-demo-capture-server.log"
+CAPTURE_TIMEOUT_SEC="${CAPTURE_TIMEOUT_SEC:-70}"
+CAPTURE_ATTEMPTS="${CAPTURE_ATTEMPTS:-1}"
 
 mkdir -p "$OUT_DIR"
 
@@ -50,12 +52,12 @@ capture_page() {
   local attempt=1
   local exit_code=1
 
-  while [[ "$attempt" -le 2 ]]; do
+  while [[ "$attempt" -le "$CAPTURE_ATTEMPTS" ]]; do
     rm -rf "$marker"
     rm -f "$screenshot"
 
     set +e
-    timeout 90s /usr/local/bin/google-chrome \
+    timeout "${CAPTURE_TIMEOUT_SEC}s" /usr/local/bin/google-chrome \
       --headless \
       --disable-gpu \
       --no-sandbox \
@@ -88,6 +90,7 @@ capture_page "dmx-control" "${BASE_URL}/" "1600,1200"
 capture_page "fixture-page" "${BASE_URL}/#/fixture" "1600,1200"
 capture_page "scenes-acts-page" "${BASE_URL}/#/scenes-acts" "1600,1200"
 capture_page "experimental-page" "${BASE_URL}/#/experimental" "1600,1200"
+capture_page "touchosc-page" "${BASE_URL}/#/experimental?tab=touchosc" "1600,1200"
 capture_page "external-console" "${BASE_URL}/#/external-console" "1600,1200"
 capture_page "mobile" "${BASE_URL}/#/mobile" "430,932"
 
@@ -96,6 +99,7 @@ file \
   "${OUT_DIR}/fixture-page.png" \
   "${OUT_DIR}/scenes-acts-page.png" \
   "${OUT_DIR}/experimental-page.png" \
+  "${OUT_DIR}/touchosc-page.png" \
   "${OUT_DIR}/external-console.png" \
   "${OUT_DIR}/mobile.png" > "${OUT_DIR}/file-types.txt"
 

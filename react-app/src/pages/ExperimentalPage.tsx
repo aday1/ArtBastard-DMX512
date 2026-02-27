@@ -6,9 +6,41 @@ import { useTheme } from '../context/ThemeContext';
 import { LucideIcon } from '../components/ui/LucideIcon';
 import styles from './ExperimentalPage.module.scss';
 
+type ExperimentalTab = 'opencv' | 'osc' | 'touchosc';
+
+const getTabFromHash = (): ExperimentalTab => {
+  const hash = window.location.hash || '';
+  const query = hash.includes('?') ? hash.split('?')[1] : '';
+  const params = new URLSearchParams(query);
+  const tab = params.get('tab');
+
+  if (tab === 'touchosc') return 'touchosc';
+  if (tab === 'osc') return 'osc';
+  return 'opencv';
+};
+
 const ExperimentalPage: React.FC = () => {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'opencv' | 'osc' | 'touchosc'>('opencv');
+  const [activeTab, setActiveTab] = useState<ExperimentalTab>(getTabFromHash());
+
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      setActiveTab(getTabFromHash());
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
+  const setTabWithHash = (nextTab: ExperimentalTab) => {
+    setActiveTab(nextTab);
+    const nextHash = `#/experimental?tab=${nextTab}`;
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, '', nextHash);
+    }
+  };
 
   return (
     <div className={styles.experimentalPage}>
@@ -71,21 +103,21 @@ const ExperimentalPage: React.FC = () => {
       <div className={styles.tabNavigation}>
         <button
           className={`${styles.tabButton} ${activeTab === 'opencv' ? styles.active : ''}`}
-          onClick={() => setActiveTab('opencv')}
+          onClick={() => setTabWithHash('opencv')}
         >
           <LucideIcon name="Camera" />
           <span>OpenCV Visage Tracker</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'osc' ? styles.active : ''}`}
-          onClick={() => setActiveTab('osc')}
+          onClick={() => setTabWithHash('osc')}
         >
           <LucideIcon name="Globe" />
           <span>OSC Placeholder</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'touchosc' ? styles.active : ''}`}
-          onClick={() => setActiveTab('touchosc')}
+          onClick={() => setTabWithHash('touchosc')}
         >
           <LucideIcon name="SmartphoneNfc" />
           <span>TouchOSC Layouts</span>

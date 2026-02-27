@@ -30,10 +30,11 @@ const viewToHash: Record<ViewType, string> = {
 
 const hashToView = (hashValue: string): ViewType | null => {
   const normalized = hashValue.replace(/^#/, '').replace(/^\//, '').toLowerCase()
+  const pathOnly = normalized.split('?')[0]
 
-  if (!normalized) return null
+  if (!pathOnly) return null
 
-  switch (normalized) {
+  switch (pathOnly) {
     case 'main':
       return 'main'
     case 'fixture':
