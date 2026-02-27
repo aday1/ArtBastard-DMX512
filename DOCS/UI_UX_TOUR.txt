@@ -1,0 +1,26 @@
+ArtBastard UI/UX Tour
+Date: 2026-02-27
+
+Screen 01: DMX Control Home
+  Focus: Channel workflows, filtering, and live control state.
+
+Screen 02: Fixture Setup
+  Focus: Fixture definitions, addressing, and grouping.
+
+Screen 03: Scenes and Acts
+  Focus: Scene libraries, act progression, and timeline launch points.
+
+Screen 04: Experimental Overview
+  Focus: Experimental tools and tab routing entry.
+
+Screen 05: TouchOSC Workflow
+  Focus: TouchOSC export and upload status path.
+
+Screen 06: External Console
+  Focus: Operator console route for dedicated desk-style control.
+
+Screen 07: Mobile Control Surface
+  Focus: Touch-first route optimized for small screens.
+
+Release page:
+https://github.com/aday1/ArtBastard-DMX512/releases/tag/v5.12.0

@@ -1,61 +1,40 @@
-# 🔧 **Installation Guide** - ArtBastard V5.12
+# ArtBastard Installation
 
-> *"Installation, mes amis, should be as smooth as a perfectly focused spotlight."*
+## Requirements
 
-## 📋 **System Requirements**
-- **Node.js** 18+ (the foundation of excellence)
-- **Modern Browser** (Chrome/Firefox/Safari/Edge)
-- **DMX Interface** (USB DMX or Art-Net device)
-- **2GB RAM minimum** (4GB recommended for large shows)
+- Linux/macOS/Windows
+- Node.js 20+
+- npm 10+
 
-## ⚡ **Quick Install**
+## Install
 
-### 1. **Clone & Launch**
-```bash
-git clone https://github.com/aday1/ArtBastard-DMX512.git
-cd ArtBastard-DMX512
-.\start.ps1
-```
-Navigate to: `http://localhost:3030`
+From repository root:
 
-### 2. **DMX Hardware Setup**
-- **USB DMX**: Connect interface, install drivers if needed
-- **Art-Net**: Configure network settings (usually auto-detects)
-- **Verify**: Check status bar for connection indicator
+- npm ci
+- npm --prefix react-app ci
 
-## 🚨 **Troubleshooting**
+## Run
 
-### Build Issues
-```bash
-# Clean rebuild
-.\start.ps1 -Clear
+Linux/macOS:
 
-# Factory fresh start (clears all saved state)
-.\start.ps1 -Reset
-# or
-.\start.sh --reset
-```
+- ./start.sh
 
-### Factory Reset
-If you need to completely reset the application to factory defaults:
-- **UI Reset**: Use Configuration Sanctuary → Factory Reset button (clears all UI state, fixtures, channel names, etc.)
-- **Server Reset**: Use `.\start.ps1 -Reset` or `.\start.sh --reset` to clear all server-side saved state (scenes, config, acts, fixtures, groups, last-state.json)
+Windows:
 
-### DMX Connection Problems
-- Check USB cable/drivers
-- Verify Art-Net network settings
-- Restart application after hardware changes
+- .\start.ps1
 
-### Performance Optimization
-- Close unused browser tabs
-- Disable browser extensions during performance
-- Use Chrome for best WebGL support
+App URL:
 
-## 📱 **Touch Screen Setup**
-For professional touch consoles:
-1. Set display scaling to 100%
-2. Calibrate touch sensitivity
-3. Enable fullscreen mode (F11)
+- http://localhost:3030
 
----
-**Next:** [Fixture Setup](./FIXTURES.md) | [Usage Guide](./USAGE.md)
+## Optional reset flags
+
+- ./start.sh --reset
+- .\start.ps1 -Reset
+
+## Verify build and runtime
+
+- npm run build
+- npm run test:api-contract
+- npm run test:touchosc-workflow
+
