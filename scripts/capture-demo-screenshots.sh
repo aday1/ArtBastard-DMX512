@@ -85,9 +85,18 @@ capture_page() {
 ensure_server
 
 capture_page "dmx-control" "${BASE_URL}/" "1600,1200"
+capture_page "fixture-page" "${BASE_URL}/#/fixture" "1600,1200"
+capture_page "scenes-acts-page" "${BASE_URL}/#/scenes-acts" "1600,1200"
+capture_page "experimental-page" "${BASE_URL}/#/experimental" "1600,1200"
 capture_page "external-console" "${BASE_URL}/#/external-console" "1600,1200"
 capture_page "mobile" "${BASE_URL}/#/mobile" "430,932"
 
-file "${OUT_DIR}/dmx-control.png" "${OUT_DIR}/external-console.png" "${OUT_DIR}/mobile.png" > "${OUT_DIR}/file-types.txt"
+file \
+  "${OUT_DIR}/dmx-control.png" \
+  "${OUT_DIR}/fixture-page.png" \
+  "${OUT_DIR}/scenes-acts-page.png" \
+  "${OUT_DIR}/experimental-page.png" \
+  "${OUT_DIR}/external-console.png" \
+  "${OUT_DIR}/mobile.png" > "${OUT_DIR}/file-types.txt"
 
 echo "capture_output_dir:${OUT_DIR}"
