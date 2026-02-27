@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LucideIcon } from '../ui/LucideIcon';
 import styles from './FactoryResetBanner.module.scss';
 
 export const FactoryResetBanner: React.FC = () => {
@@ -69,7 +70,7 @@ export const FactoryResetBanner: React.FC = () => {
   return (
     <div className={styles.banner}>
       <div className={styles.content}>
-        <span className={styles.icon}>🔄</span>
+        <span className={styles.icon}><LucideIcon name="RotateCcw" size={16} /></span>
         <span className={styles.message}>
           Factory Reset Complete! All settings have been restored to defaults.
         </span>

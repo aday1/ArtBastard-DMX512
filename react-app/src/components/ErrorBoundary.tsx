@@ -47,7 +47,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           overflow: 'auto'
         }}>
           <h2 style={{ color: '#cc0000', marginTop: 0 }}>
-            🚨 React Application Error
+            React Application Error
           </h2>
           
           <div style={{ marginBottom: '15px' }}>
@@ -113,7 +113,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 marginRight: '10px'
               }}
             >
-              🔄 Reload Page
+              Reload Page
             </button>
             
             <button
@@ -127,7 +127,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 cursor: 'pointer'
               }}
             >
-              🔧 Try Again
+              Try Again
             </button>
           </div>
 
@@ -139,7 +139,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             borderRadius: '4px',
             fontSize: '14px'
           }}>
-            <strong>💡 Debug Tips:</strong>
+            <strong>Debug Tips:</strong>
             <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
               <li>Check the browser's Developer Console (F12) for additional errors</li>
               <li>Look for network errors in the Network tab</li>

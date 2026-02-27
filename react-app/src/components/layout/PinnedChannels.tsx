@@ -669,7 +669,7 @@ export const PinnedChannels: React.FC = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      ✓
+                      <LucideIcon name="Check" size={11} />
                     </button>
                   </div>
                 ) : (

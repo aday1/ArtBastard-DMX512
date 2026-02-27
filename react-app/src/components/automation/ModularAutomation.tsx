@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../../store/store';
+import { LucideIcon } from '../ui/LucideIcon';
 import styles from './ModularAutomation.module.scss';
 
 const ModularAutomation: React.FC = () => {
@@ -454,7 +455,7 @@ const ModularAutomation: React.FC = () => {
       <div className={styles.header}>
         <h3>Modular Automation</h3>
         <div className={styles.subtitle}>
-          Control different aspects independently • BPM: {midiClockBpm} • Playing: {midiClockIsPlaying ? '▶️' : '⏸️'}
+          Control different aspects independently - BPM: {midiClockBpm} - Playing: {midiClockIsPlaying ? 'Yes' : 'No'}
         </div>
       </div>
 
@@ -469,7 +470,7 @@ const ModularAutomation: React.FC = () => {
         <div className={`${styles.automationModule} ${modularAutomation.color.enabled ? styles.active : ''}`}>
           <div className={styles.moduleHeader}>
             <div className={styles.moduleTitle}>
-              <span className={styles.colorIcon}>🎨</span>
+              <span className={styles.colorIcon}><LucideIcon name="Palette" size={16} /></span>
               Color Automation
             </div>
             <button
@@ -543,7 +544,7 @@ const ModularAutomation: React.FC = () => {
         <div className={`${styles.automationModule} ${modularAutomation.dimmer.enabled ? styles.active : ''}`}>
           <div className={styles.moduleHeader}>
             <div className={styles.moduleTitle}>
-              <span className={styles.dimmerIcon}>💡</span>
+              <span className={styles.dimmerIcon}><LucideIcon name="Sun" size={16} /></span>
               Dimmer Automation
             </div>
             <button
@@ -632,7 +633,7 @@ const ModularAutomation: React.FC = () => {
         <div className={`${styles.automationModule} ${modularAutomation.panTilt.enabled ? styles.active : ''}`}>
           <div className={styles.moduleHeader}>
             <div className={styles.moduleTitle}>
-              <span className={styles.panTiltIcon}>🔄</span>
+              <span className={styles.panTiltIcon}><LucideIcon name="Move" size={16} /></span>
               Pan/Tilt Automation
             </div>
             <button
@@ -705,7 +706,7 @@ const ModularAutomation: React.FC = () => {
         <div className={`${styles.automationModule} ${modularAutomation.effects.enabled ? styles.active : ''}`}>
           <div className={styles.moduleHeader}>
             <div className={styles.moduleTitle}>
-              <span className={styles.effectsIcon}>✨</span>
+              <span className={styles.effectsIcon}><LucideIcon name="Sparkles" size={16} /></span>
               Effects Automation
             </div>
             <button
@@ -781,7 +782,7 @@ const ModularAutomation: React.FC = () => {
             <span className={styles.bpmValue}>{midiClockBpm}</span>
             <span className={styles.bpmLabel}>BPM</span>
             <span className={styles.playStatus}>
-              {midiClockIsPlaying ? '▶️' : '⏸️'}
+              <LucideIcon name={midiClockIsPlaying ? "Play" : "Pause"} size={14} />
             </span>
           </div>
           
@@ -801,7 +802,7 @@ const ModularAutomation: React.FC = () => {
         </div>
         
         <div className={styles.sceneInfo}>
-          <span className={styles.sceneIcon}>💾</span>
+          <span className={styles.sceneIcon}><LucideIcon name="Save" size={16} /></span>
           <span className={styles.sceneText}>
             Automation states are saved with scenes
           </span>
