@@ -24,6 +24,7 @@ import {
   loadActs,
   saveActs,
   pingArtNetDevice,
+  applyMidiControllerTemplate,
   updateArtNetConfig,
   updateOscAssignment,
   updateOscConfig, // Added import
@@ -559,6 +560,27 @@ apiRouter.delete('/midi/mappings', (req, res) => {
   } catch (error) {
     log('Error clearing all MIDI mappings', 'ERROR', { error });
     res.status(500).json({ error: `Failed to clear all MIDI mappings: ${error}` });
+  }
+});
+
+apiRouter.post('/midi/controller-template', (req, res) => {
+  try {
+    const { templateId, deviceName } = req.body || {};
+    if (templateId !== 'x_touch_mackie' && templateId !== 'apc40_mk1') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid templateId. Expected x_touch_mackie or apc40_mk1'
+      });
+    }
+
+    const result = applyMidiControllerTemplate(global.io, templateId, typeof deviceName === 'string' ? deviceName : undefined);
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    log('Error applying MIDI controller template', 'ERROR', { error, body: req.body });
+    res.status(500).json({ success: false, error: `Failed to apply MIDI controller template: ${error}` });
   }
 });
 

@@ -334,9 +334,11 @@ export const DmxChannelCard: React.FC<DmxChannelCardProps> = ({
       {showMidiControls && hasMidiMapping && mapping && (
         <div className={styles.midiMappingDisplay}>
           <span className={styles.midiMappingText}>
-            {mapping.controller !== undefined
-              ? `CC ${mapping.controller} (Ch ${mapping.channel + 1})`
-              : `Note ${mapping.note} (Ch ${mapping.channel + 1})`
+            {mapping.pitch
+              ? `Pitch Bend (Ch ${mapping.channel + 1})`
+              : mapping.controller !== undefined
+                ? `CC ${mapping.controller} (Ch ${mapping.channel + 1})`
+                : `Note ${mapping.note} (Ch ${mapping.channel + 1})`
             }
           </span>
         </div>

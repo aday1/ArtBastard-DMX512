@@ -69,7 +69,9 @@ export const MidiLearnButton: React.FC<MidiLearnButtonProps> = ({ channelIndex, 
     }
     
     if (hasMapping) {
-      if (mapping?.controller !== undefined) {
+      if (mapping?.pitch) {
+        return `Pitch ${mapping.channel}`
+      } else if (mapping?.controller !== undefined) {
         return `CC ${mapping.channel}:${mapping.controller}`
       } else if (mapping?.note !== undefined) {
         return `Note ${mapping.channel}:${mapping.note}`

@@ -47,6 +47,7 @@ export interface MidiMapping {
   channel: number
   note?: number
   controller?: number
+  pitch?: boolean
 }
 
 export interface Fixture {
@@ -867,6 +868,7 @@ interface State extends AutomationState {
     channel: number;
     note?: number;
     controller?: number;
+    pitch?: number;
     velocity?: number;
     value?: number;
     type?: string;
@@ -877,6 +879,7 @@ interface State extends AutomationState {
   addMidiMapping: (dmxChannel: number, mapping: MidiMapping) => void
   removeMidiMapping: (dmxChannel: number) => void
   clearAllMidiMappings: () => void
+  applyMidiControllerTemplate: (templateId: 'x_touch_mackie' | 'apc40_mk1', deviceName?: string) => Promise<boolean>
   setEnvelopeSpeedMidiMapping: (mapping: MidiMapping | null) => void
   removeEnvelopeSpeedMidiMapping: () => void
   setMidiInterfaces: (interfaces: string[]) => void
@@ -3732,8 +3735,16 @@ export const useStore = create<State>()(
         midiMappings[dmxChannel] = mapping
         set({ midiMappings, midiLearnTarget: null })
         
-        const mappingType = mapping.controller !== undefined ? 'CC' : 'Note';
-        const mappingValue = mapping.controller !== undefined ? mapping.controller : mapping.note;
+        const mappingType = mapping.pitch
+          ? 'Pitch'
+          : mapping.controller !== undefined
+            ? 'CC'
+            : 'Note';
+        const mappingValue = mapping.pitch
+          ? 'Pitch Bend'
+          : mapping.controller !== undefined
+            ? mapping.controller
+            : mapping.note;
         console.log('[Store] MIDI mapping added:', {
           dmxChannel: dmxChannel + 1,
           type: mappingType,
@@ -3777,6 +3788,37 @@ export const useStore = create<State>()(
             console.error('Failed to clear all MIDI mappings:', error)
             get().addNotification({ message: 'Failed to clear all MIDI mappings', type: 'error' })
           })
+      },
+
+      applyMidiControllerTemplate: async (templateId, deviceName) => {
+        try {
+          const response = await axios.post('/api/midi/controller-template', {
+            templateId,
+            deviceName
+          });
+          const mappingsFromServer = response.data?.midiMappings;
+          if (mappingsFromServer && typeof mappingsFromServer === 'object') {
+            set({ midiMappings: mappingsFromServer });
+          }
+
+          const templateLabel = templateId === 'x_touch_mackie'
+            ? 'X-Touch Mackie template'
+            : 'APC40 MK1 template';
+          get().addNotification({
+            message: `${templateLabel} applied`,
+            type: 'success',
+            priority: 'normal'
+          });
+          return true;
+        } catch (error) {
+          console.error('Failed to apply MIDI controller template:', error);
+          get().addNotification({
+            message: 'Failed to apply MIDI controller template',
+            type: 'error',
+            priority: 'high'
+          });
+          return false;
+        }
       },
 
       setEnvelopeSpeedMidiMapping: (mapping) => {

@@ -188,8 +188,43 @@ export const useSuperControlMidiLearn = () => {
         window.clearTimeout(timeoutId)
         setTimeoutId(null)
       }
+    } else if (messageType === 'pitch' && latestMessage.value !== undefined) {
+      const mapping: SuperControlMidiMapping = {
+        controlName,
+        channel: latestMessage.channel,
+        pitch: true,
+        minValue: 0,
+        maxValue: 255
+      }
+      console.log(`[SuperControlMidiLearn] Creating Pitch mapping for control ${controlName}:`, mapping);
+
+      setSuperControlMappings(prev => ({
+        ...prev,
+        [controlName]: mapping
+      }))
+
+      if (controlName === 'quickSceneLoad') {
+        const { setQuickSceneMidiMapping } = useStore.getState();
+        setQuickSceneMidiMapping(mapping);
+      }
+
+      const event = new CustomEvent('superControlMidiMappingCreated', { detail: { controlName, mapping } })
+      window.dispatchEvent(event)
+
+      setLearnStatus('success')
+      addNotification({
+        message: `${controlName} mapped to MIDI Pitch on CH ${mapping.channel}.`,
+        type: 'success',
+        priority: 'normal'
+      });
+      console.log(`[SuperControlMidiLearn] Success for control ${controlName}. Status: success.`);
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+        setTimeoutId(null)
+      }
     } else {
-      console.log('[SuperControlMidiLearn] Ignoring non-CC/Note message or message without controller/note:', messageType);
+      console.log('[SuperControlMidiLearn] Ignoring non-CC/Note/Pitch message or message without mapping data:', messageType);
     }
   }, [midiMessages, midiLearnTarget, learnStatus, timeoutId, addNotification, cancelMidiLearnAction]);
 
@@ -242,6 +277,13 @@ export const useSuperControlMidiLearn = () => {
                  midiMessage.channel === mapping.channel && midiMessage.note === mapping.note) {
         matched = true;
         midiValue = midiMessage.velocity || 0;
+      } else if (messageType === 'pitch' && mapping.pitch &&
+                 midiMessage.channel === mapping.channel) {
+        matched = true;
+        const rawPitch = midiMessage.value || 0;
+        midiValue = rawPitch > 127
+          ? Math.round(Math.max(0, Math.min(1, rawPitch / 16383)) * 127)
+          : rawPitch;
       }
 
       if (matched && controlHandlers[controlName]) {

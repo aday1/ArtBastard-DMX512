@@ -73,6 +73,8 @@ export const MidiMonitor: React.FC = () => {
         matches = mapping.channel === msg.channel && mapping.controller === msg.controller;
       } else if (msgType === 'noteon' && mapping.note !== undefined) {
         matches = mapping.channel === msg.channel && mapping.note === msg.note;
+      } else if (msgType === 'pitch' && mapping.pitch) {
+        matches = mapping.channel === msg.channel;
       }
       
       if (matches) {
@@ -407,7 +409,15 @@ export const MidiMonitor: React.FC = () => {
                     <span className={styles.source}>{msg.source}</span>
                   </>
                 )}
-                {(msg.type || msg._type) !== 'cc' && (msg.type || msg._type) !== 'noteon' && (
+                {(msg.type || msg._type) === 'pitch' && (
+                  <>
+                    <span className={styles.type}>Pitch</span>
+                    <span className={styles.channel}>Ch {msg.channel + 1}</span>
+                    <span className={styles.value}>Value {msg.value}</span>
+                    <span className={styles.source}>{msg.source}</span>
+                  </>
+                )}
+                {(msg.type || msg._type) !== 'cc' && (msg.type || msg._type) !== 'noteon' && (msg.type || msg._type) !== 'pitch' && (
                   <span>Other: {JSON.stringify(msg)}</span>
                 )}
               </div>
@@ -510,6 +520,12 @@ export const MidiMonitor: React.FC = () => {
               <>
                 <div><strong>Note:</strong> {hoveredMessage.note} ({typeof hoveredMessage.note === 'number' ? getNoteName(hoveredMessage.note) : 'N/A'})</div>
                 <div><strong>Velocity:</strong> {hoveredMessage.velocity} ({(hoveredMessage.velocity / 127 * 100).toFixed(1)}%)</div>
+              </>
+            )}
+            {(hoveredMessage.type || hoveredMessage._type) === 'pitch' && (
+              <>
+                <div><strong>Pitch:</strong> {hoveredMessage.value}</div>
+                <div><strong>Normalized:</strong> {(((hoveredMessage.value || 0) > 127 ? (hoveredMessage.value || 0) / 16383 : (hoveredMessage.value || 0) / 127) * 100).toFixed(1)}%</div>
               </>
             )}
             {hoveredMessage.source && (
