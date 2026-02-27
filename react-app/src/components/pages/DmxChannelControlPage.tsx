@@ -12,6 +12,7 @@ import { DmxFixtureSelector } from '../dmx/DmxFixtureSelector';
 import { DmxSceneControls } from '../dmx/DmxSceneControls';
 import { DmxFooterInfo } from '../dmx/DmxFooterInfo';
 import { DmxMidiConnections } from '../dmx/DmxMidiConnections';
+import { DmxPinnedChannels } from '../dmx/DmxPinnedChannels';
 import styles from './DmxChannelControlPage.module.scss';
 import pageStyles from '../../pages/Pages.module.scss';
 
@@ -641,163 +642,26 @@ export const DmxChannelControlPage: React.FC = () => {
           {/* Embedded MIDI Monitor section removed */}
 
           {/* Pinned Channels Section */}
-          {pinnedChannels && pinnedChannels.length > 0 && (
-            <div className={styles.sceneSection}>
-              <h3 className={styles.sectionTitle}>
-                <LucideIcon name="Pin" />
-                Pinned Channels
-                <span className={styles.activeCount}>({pinnedChannels.length})</span>
-              </h3>
-              <div className={styles.pinnedChannelsContainer}>
-                {pinnedChannels.map(channelIndex => {
-                  const value = dmxChannels[channelIndex] || 0;
-                  const fixtureInfo = getChannelInfo(channelIndex);
-                  const hasFixtureAssignment = isChannelAssigned(channelIndex);
-                  const fixtureColor = fixtureInfo ? getFixtureColor(fixtureInfo.fixtureId) : '#64748b';
-                  const channelName = channelNames[channelIndex] || `CH ${channelIndex + 1}`;
-                  const hasMidiMapping = !!midiMappings[channelIndex];
-                  const mapping = midiMappings[channelIndex];
-                  const oscAddress = oscAssignments[channelIndex];
-                  const channelRange = getChannelRange(channelIndex);
-
-                  return (
-                    <div
-                      key={channelIndex}
-                      className={styles.pinnedChannel}
-                      style={{
-                        borderLeftColor: hasFixtureAssignment ? fixtureColor : '#10b981',
-                        borderLeftWidth: '4px',
-                      }}
-                    >
-                      <div className={styles.pinnedChannelHeader}>
-                        <span className={styles.channelNumber}>CH {channelIndex + 1}</span>
-                        {hasFixtureAssignment && (
-                          <span className={styles.fixtureBadge} style={{ backgroundColor: fixtureColor }}>
-                            {fixtureInfo?.fixtureName}
-                          </span>
-                        )}
-                        <div className={styles.pinnedChannelActions}>
-                          <button
-                            className={styles.jumpToChannelButton}
-                            onClick={() => scrollToChannel(channelIndex)}
-                            title="Jump to this channel in the main list"
-                          >
-                            <LucideIcon name="ArrowRight" size={14} />
-                          </button>
-                          <button
-                            className={styles.unpinButton}
-                            onClick={() => togglePinChannel(channelIndex)}
-                            title="Unpin channel"
-                          >
-                            <LucideIcon name="X" size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className={styles.pinnedChannelInfo}>
-                        {hasFixtureAssignment ? (
-                          <>
-                            <span className={styles.channelFunction}>{fixtureInfo?.channelName}</span>
-                            <span className={styles.channelTypeSmall}>{fixtureInfo?.channelType}</span>
-                          </>
-                        ) : (
-                          <span className={styles.channelFunction}>{channelName}</span>
-                        )}
-                      </div>
-
-                      {/* Main Slider */}
-                      <div className={styles.pinnedSliderContainer}>
-                        <input
-                          type="range"
-                          min={channelRange.min}
-                          max={channelRange.max}
-                          value={value}
-                          onChange={(e) => setDmxChannel(channelIndex, parseInt(e.target.value))}
-                          className={styles.pinnedSlider}
-                        />
-                        <span className={styles.pinnedValue}>{value}</span>
-                      </div>
-
-                      {/* Range Controls */}
-                      <div className={styles.pinnedRangeControls}>
-                        <div className={styles.pinnedRangeGroup}>
-                          <label>MIN</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="255"
-                            value={channelRange.min}
-                            onChange={(e) => {
-                              const newMin = Math.max(0, Math.min(255, parseInt(e.target.value) || 0));
-                              setChannelRange(channelIndex, newMin, Math.max(newMin, channelRange.max));
-                            }}
-                            className={styles.pinnedRangeInput}
-                          />
-                        </div>
-                        <div className={styles.pinnedRangeGroup}>
-                          <label>MAX</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="255"
-                            value={channelRange.max}
-                            onChange={(e) => {
-                              const newMax = Math.max(0, Math.min(255, parseInt(e.target.value) || 255));
-                              setChannelRange(channelIndex, Math.min(channelRange.min, newMax), newMax);
-                            }}
-                            className={styles.pinnedRangeInput}
-                          />
-                        </div>
-                      </div>
-
-                      {/* OSC Address */}
-                      {showOscControls && (
-                        <div className={styles.pinnedOscControl}>
-                          <label>OSC</label>
-                          <input
-                            type="text"
-                            value={oscAddress}
-                            onChange={(e) => setOscAssignment(channelIndex, e.target.value)}
-                            className={styles.pinnedOscInput}
-                            placeholder="/osc/address"
-                          />
-                        </div>
-                      )}
-
-                      {/* MIDI Learn/Forget */}
-                      {showMidiControls && (
-                        <div className={styles.pinnedMidiControls}>
-                          {hasMidiMapping ? (
-                            <>
-                              <div className={styles.pinnedMidiInfo}>
-                                <span>MIDI: Ch{mapping.channel + 1} CC{mapping.controller}</span>
-                              </div>
-                              <button
-                                className={styles.pinnedMidiForget}
-                                onClick={() => removeMidiMapping(channelIndex)}
-                                title="Forget MIDI mapping"
-                              >
-                                <LucideIcon name="Trash2" size={12} />
-                                Forget
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              className={styles.pinnedMidiLearn}
-                              onClick={() => startLearn(channelIndex)}
-                              title="Learn MIDI mapping"
-                            >
-                              <LucideIcon name="Radio" size={12} />
-                              Learn
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <DmxPinnedChannels
+            pinnedChannels={pinnedChannels || []}
+            dmxChannels={dmxChannels}
+            channelNames={channelNames}
+            midiMappings={midiMappings}
+            oscAssignments={oscAssignments}
+            showOscControls={showOscControls}
+            showMidiControls={showMidiControls}
+            getChannelInfo={getChannelInfo}
+            isChannelAssigned={isChannelAssigned}
+            getFixtureColor={getFixtureColor}
+            getChannelRange={getChannelRange}
+            setDmxChannel={setDmxChannel}
+            setChannelRange={setChannelRange}
+            setOscAssignment={setOscAssignment}
+            removeMidiMapping={removeMidiMapping}
+            startLearn={startLearn}
+            scrollToChannel={scrollToChannel}
+            togglePinChannel={togglePinChannel}
+          />
 
           {/* Active DMX Channels Summary - Always Visible */}
           {(() => {
