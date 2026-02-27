@@ -7,8 +7,7 @@ import { ColorPickerPanel } from './ColorPickerPanel'; // Added ColorPickerPanel
 import { LucideIcon } from '../ui/LucideIcon'; // Added for icons
 import { NodeBasedFixtureEditor } from './NodeBasedFixtureEditor'; // Import Node Editor
 import { FixtureTemplateManager } from './FixtureTemplateManager'; // Import Template Manager
-import SuperControlTidy from './SuperControlTidyClean'; // Import SuperControl for preview
-import SuperControlEnhanced from './SuperControlEnhanced'; // Import Enhanced SuperControl for detailed view
+import SuperControl from '../dmx/SuperControl';
 import styles from './FixtureSetup.module.scss'
 
 // PlacedFixtureOnSetup type is no longer needed here, will use PlacedFixture from store
@@ -2461,7 +2460,7 @@ export const FixtureSetup: React.FC = () => {
             <p>Real-time control preview for selected fixtures</p>
           </div>
           <div className={styles.previewContent}>
-            <SuperControlEnhanced />
+            <SuperControl isDockable={false} />
           </div>
         </div>
       )}
